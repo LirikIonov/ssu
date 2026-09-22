@@ -3,7 +3,7 @@
 docs_dir: data
 site_dir: site
 site_name: Go
-site_url: https://lirikonov.github.io/SSU-University/
+site_url: https://lirikonov.github.io/ssu/
 
 markdown_extensions:
   - tables
