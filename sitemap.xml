@@ -5,23 +5,11 @@
          <lastmod>2026-09-22</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/go/lectures/1.%20Prod/Production%20backend/</loc>
+         <loc>https://lirikonov.github.io/ssu/contents/</loc>
          <lastmod>2026-09-22</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/go/lectures/2.%20Runtime/Go%20runtime/</loc>
-         <lastmod>2026-09-22</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/go/lectures/3.%20Memory/Memory/</loc>
-         <lastmod>2026-09-22</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/go/lectures/Additional/1%20-%20Go%20Runtime%20deep/</loc>
-         <lastmod>2026-09-22</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/go/lectures/Additional/2%20-%20GC%20deep/</loc>
+         <loc>https://lirikonov.github.io/ssu/program/</loc>
          <lastmod>2026-09-22</lastmod>
     </url>
     <url>
@@ -29,7 +17,75 @@
          <lastmod>2026-09-22</lastmod>
     </url>
     <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/1%20-%20Intro%20%2B%20production/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/2%20-%20Runtime/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/3%20-%20Memory/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/1%20-%20CPU%20architecture/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/2%20-%20Go%20Runtime%20deep/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3%20-%20GC%20deep/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/practice/1%20-%20task/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/practice/projects/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
          <loc>https://lirikonov.github.io/ssu/slides/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/1.0%20Production_backend_Go/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/1.1%20History_of_Go/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/2.0%20Go%20Runtime%20Internal/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/2.1%20Scheduler%20Internal/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/2.2%20Sync%20Internal/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/2.3%20Mutex%20Internal/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/X%20-%20CPU%20Architecture/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/XX%20-%20CAS%20Cache%20Coherence/</loc>
+         <lastmod>2026-09-22</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/XXX%20-%20GC%20%2B%20memory%20internals/</loc>
          <lastmod>2026-09-22</lastmod>
     </url>
 </urlset>

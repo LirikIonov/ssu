@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="https://lirikonov.github.io/ssu/slides/" rel="canonical"/>
+<link href="https://lirikonov.github.io/ssu/program/" rel="canonical"/>
+<link href="../contents/" rel="prev"/>
+<link href="../lectures/1%20-%20Intro%20%2B%20production/" rel="next"/>
 <link href="../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>Презентации - Go</title>
+<title>Программа курса - Go</title>
 <link href="../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -43,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Презентации
+              Программа курса
             
           </span>
 </div>
@@ -119,8 +121,20 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../program/">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
     
   
@@ -130,6 +144,95 @@
     
   </span>
 </a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-production-backend-go">
+<span class="md-ellipsis">
+      
+        1. Production backend и эволюция Go
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-go-runtime-internals">
+<span class="md-ellipsis">
+      
+        2. Go runtime internals
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-go-memory-gc-pprof">
+<span class="md-ellipsis">
+      
+        3. Go memory, GC, pprof
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-go">
+<span class="md-ellipsis">
+      
+        4. Под капотом Go
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-postgresql-explain">
+<span class="md-ellipsis">
+      
+        5. PostgreSQL EXPLAIN глубоко
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-postgresql-join-algorithms">
+<span class="md-ellipsis">
+      
+        6. PostgreSQL JOIN algorithms
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-postgresql-wal-durability">
+<span class="md-ellipsis">
+      
+        7. PostgreSQL WAL и durability
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-postgresql-diagnostics-locks">
+<span class="md-ellipsis">
+      
+        8. PostgreSQL diagnostics + locks
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-postgresql-migrations-backup-pooling">
+<span class="md-ellipsis">
+      
+        9. PostgreSQL migrations, backup, pooling
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
 </li>
 <li class="md-nav__item md-nav__item--nested">
 <input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
@@ -329,7 +432,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="1.0%20Production_backend_Go/">
+<a class="md-nav__link" href="../slides/1.0%20Production_backend_Go/">
 <span class="md-ellipsis">
     
   
@@ -341,7 +444,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="1.1%20History_of_Go/">
+<a class="md-nav__link" href="../slides/1.1%20History_of_Go/">
 <span class="md-ellipsis">
     
   
@@ -353,7 +456,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="2.0%20Go%20Runtime%20Internal/">
+<a class="md-nav__link" href="../slides/2.0%20Go%20Runtime%20Internal/">
 <span class="md-ellipsis">
     
   
@@ -365,7 +468,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="2.1%20Scheduler%20Internal/">
+<a class="md-nav__link" href="../slides/2.1%20Scheduler%20Internal/">
 <span class="md-ellipsis">
     
   
@@ -377,7 +480,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="2.2%20Sync%20Internal/">
+<a class="md-nav__link" href="../slides/2.2%20Sync%20Internal/">
 <span class="md-ellipsis">
     
   
@@ -389,7 +492,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="2.3%20Mutex%20Internal/">
+<a class="md-nav__link" href="../slides/2.3%20Mutex%20Internal/">
 <span class="md-ellipsis">
     
   
@@ -401,7 +504,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="X%20-%20CPU%20Architecture/">
+<a class="md-nav__link" href="../slides/X%20-%20CPU%20Architecture/">
 <span class="md-ellipsis">
     
   
@@ -413,7 +516,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="XX%20-%20CAS%20Cache%20Coherence/">
+<a class="md-nav__link" href="../slides/XX%20-%20CAS%20Cache%20Coherence/">
 <span class="md-ellipsis">
     
   
@@ -425,7 +528,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="XXX%20-%20GC%20%2B%20memory%20internals/">
+<a class="md-nav__link" href="../slides/XXX%20-%20GC%20%2B%20memory%20internals/">
 <span class="md-ellipsis">
     
   
@@ -448,24 +551,283 @@
 <div class="md-sidebar__scrollwrap">
 <div class="md-sidebar__inner">
 <nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-production-backend-go">
+<span class="md-ellipsis">
+      
+        1. Production backend и эволюция Go
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-go-runtime-internals">
+<span class="md-ellipsis">
+      
+        2. Go runtime internals
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-go-memory-gc-pprof">
+<span class="md-ellipsis">
+      
+        3. Go memory, GC, pprof
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-go">
+<span class="md-ellipsis">
+      
+        4. Под капотом Go
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-postgresql-explain">
+<span class="md-ellipsis">
+      
+        5. PostgreSQL EXPLAIN глубоко
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-postgresql-join-algorithms">
+<span class="md-ellipsis">
+      
+        6. PostgreSQL JOIN algorithms
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-postgresql-wal-durability">
+<span class="md-ellipsis">
+      
+        7. PostgreSQL WAL и durability
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-postgresql-diagnostics-locks">
+<span class="md-ellipsis">
+      
+        8. PostgreSQL diagnostics + locks
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-postgresql-migrations-backup-pooling">
+<span class="md-ellipsis">
+      
+        9. PostgreSQL migrations, backup, pooling
+      
+    </span>
+</a>
+</li>
+</ul>
 </nav>
 </div>
 </div>
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="_1">Презентации<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h1 id="_1">Программа курса<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h2 id="1-production-backend-go">1. Production backend и эволюция Go<a class="headerlink" href="#1-production-backend-go" title="Permanent link">¶</a></h2>
 <ul>
-<li><a href="1.0%20Production_backend_Go/">1.0 Production_backend_Go</a></li>
-<li><a href="1.1%20History_of_Go/">1.1 History_of_Go</a></li>
-<li><a href="2.0%20Go%20Runtime%20Internal/">2.0 Go Runtime Internal</a></li>
-<li><a href="2.1%20Scheduler%20Internal/">2.1 Scheduler Internal</a></li>
-<li><a href="2.2%20Sync%20Internal/">2.2 Sync Internal</a></li>
-<li><a href="2.3%20Mutex%20Internal/">2.3 Mutex Internal</a></li>
-<li><a href="X%20-%20CPU%20Architecture/">X - CPU Architecture</a></li>
-<li><a href="XX%20-%20CAS%20Cache%20Coherence/">XX - CAS Cache Coherence</a></li>
-<li><a href="XXX%20-%20GC%20%2B%20memory%20internals/">XXX - GC + memory internals</a></li>
+<li>production-среда</li>
+<li>dev / test / stage / prod</li>
+<li>артефакт приложения</li>
+<li>конфигурация</li>
+<li>внешние зависимости</li>
+<li>история Go (подробно)</li>
+<li>Go 1 compatibility promise</li>
+<li>Go modules</li>
+<li>generics</li>
+<li>Go toolchain</li>
 </ul>
+<h2 id="2-go-runtime-internals">2. Go runtime internals<a class="headerlink" href="#2-go-runtime-internals" title="Permanent link">¶</a></h2>
+<ul>
+<li>Go runtime и goroutines</li>
+<li>G / M / P и GOMAXPROCS</li>
+<li>Scheduler, run queues и work stealing</li>
+<li>Netpoller, syscalls и preemption</li>
+<li>Stack growth и стоимость goroutine</li>
+<li>Parking и wakeup goroutines</li>
+<li>Channels, sudog и wait queues</li>
+<li>sync.Mutex: fast path, slow path, spinning и parking</li>
+<li>Runtime semaphore и contention</li>
+<li>Atomics, CAS и Go Memory Model</li>
+</ul>
+<h2 id="3-go-memory-gc-pprof">3. Go memory, GC, pprof<a class="headerlink" href="#3-go-memory-gc-pprof" title="Permanent link">¶</a></h2>
+<ul>
+<li>stack / heap</li>
+<li>escape analysis</li>
+<li>allocations</li>
+<li>pointers</li>
+<li>garbage collector</li>
+<li>concurrent GC</li>
+<li>GOGC</li>
+<li>GC pauses</li>
+<li>memory pressure</li>
+<li>pprof CPU</li>
+<li>pprof heap</li>
+<li>pprof goroutines</li>
+</ul>
+<h2 id="4-go">4. Под капотом Go<a class="headerlink" href="#4-go" title="Permanent link">¶</a></h2>
+<ul>
+<li>arrays</li>
+<li>slices</li>
+<li>len / cap</li>
+<li>append</li>
+<li>underlying array</li>
+<li>maps</li>
+<li>hash table (старая версия, swiss tables, Sync.Map как устроены под капотом)</li>
+<li>interfaces</li>
+<li>nil interface</li>
+<li>type assertion</li>
+<li>channels</li>
+<li>select</li>
+<li>context</li>
+<li>cancellation tree</li>
+</ul>
+<h2 id="5-postgresql-explain">5. PostgreSQL EXPLAIN глубоко<a class="headerlink" href="#5-postgresql-explain" title="Permanent link">¶</a></h2>
+<ul>
+<li>EXPLAIN</li>
+<li>EXPLAIN ANALYZE</li>
+<li>cost</li>
+<li>rows</li>
+<li>width</li>
+<li>actual time</li>
+<li>loops</li>
+<li>BUFFERS</li>
+<li>Seq Scan</li>
+<li>Index Scan</li>
+<li>Bitmap Scan</li>
+<li>Filter</li>
+<li>Index Cond</li>
+<li>Sort</li>
+<li>planner estimates</li>
+</ul>
+<h2 id="6-postgresql-join-algorithms">6. PostgreSQL JOIN algorithms<a class="headerlink" href="#6-postgresql-join-algorithms" title="Permanent link">¶</a></h2>
+<ul>
+<li>logical JOIN</li>
+<li>physical JOIN</li>
+<li>INNER / LEFT / SEMI / ANTI JOIN</li>
+<li>Nested Loop</li>
+<li>Hash Join</li>
+<li>Merge Join</li>
+<li>Hash Cond</li>
+<li>Merge Cond</li>
+<li>Join Filter</li>
+<li>build side</li>
+<li>probe side</li>
+<li>work_mem</li>
+<li>hash batches</li>
+<li>join order</li>
+</ul>
+<h2 id="7-postgresql-wal-durability">7. PostgreSQL WAL и durability<a class="headerlink" href="#7-postgresql-wal-durability" title="Permanent link">¶</a></h2>
+<ul>
+<li>WAL</li>
+<li>shared buffers</li>
+<li>dirty pages</li>
+<li>COMMIT</li>
+<li>WAL record</li>
+<li>LSN</li>
+<li>fsync</li>
+<li>synchronous_commit</li>
+<li>checkpoint</li>
+<li>crash recovery</li>
+<li>full_page_writes</li>
+<li>batch commits</li>
+<li>transaction latency</li>
+</ul>
+<h2 id="8-postgresql-diagnostics-locks">8. PostgreSQL diagnostics + locks<a class="headerlink" href="#8-postgresql-diagnostics-locks" title="Permanent link">¶</a></h2>
+<ul>
+<li>pg_stat_activity</li>
+<li>pg_stat_statements</li>
+<li>active / idle / idle in transaction</li>
+<li>wait_event</li>
+<li>long transactions</li>
+<li>row locks</li>
+<li>table locks</li>
+<li>SELECT FOR UPDATE</li>
+<li>NOWAIT</li>
+<li>SKIP LOCKED</li>
+<li>deadlocks</li>
+<li>advisory locks</li>
+<li>pg_locks</li>
+<li>lock_timeout</li>
+</ul>
+<h2 id="9-postgresql-migrations-backup-pooling">9. PostgreSQL migrations, backup, pooling<a class="headerlink" href="#9-postgresql-migrations-backup-pooling" title="Permanent link">¶</a></h2>
+<ul>
+<li>database migrations</li>
+<li>schema as contract</li>
+<li>backward-compatible migrations</li>
+<li>expand / migrate / contract</li>
+<li>dangerous ALTER TABLE</li>
+<li>CREATE INDEX CONCURRENTLY</li>
+<li>pg_dump</li>
+<li>pg_restore</li>
+<li>RPO / RTO</li>
+<li>database/sql pool</li>
+<li>max_connections</li>
+<li>PgBouncer</li>
+<li>session pooling</li>
+<li>transaction pooling</li>
+</ul>
+<p>...</p>
+<h1 id="_2">Дополнительные вопросы<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<h2 id="1">1. Архитектура процессора и память<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<ul>
+<li>Регистры процессора и execution units</li>
+<li>Иерархия памяти: L1 / L2 / L3 / DRAM</li>
+<li>Cache line, cache hit / miss и locality</li>
+<li>SRAM, DRAM, SSD, HDD и сеть: устройство и порядок задержек</li>
+<li>ISA и microarchitecture</li>
+<li>CISC, RISC и основные архитектуры: x86-64, ARM64, MIPS, PowerPC, RISC-V</li>
+<li>Chiplet-архитектура и interconnect современных CPU</li>
+<li>UMA, NUMA, local / remote memory</li>
+</ul>
+<h2 id="2-internals-go-runtime-synchronization-cpu">2. Глубокие internals Go runtime, synchronization и CPU<a class="headerlink" href="#2-internals-go-runtime-synchronization-cpu" title="Permanent link">¶</a></h2>
+<ul>
+<li>Детальный lifecycle scheduler и внутренние функции runtime</li>
+<li>runnext, spinning M и детали fairness scheduler</li>
+<li>Внутреннее устройство sudog и semaphore table / semaRoot</li>
+<li>Побитовое устройство sync.Mutex.state</li>
+<li>Детальный алгоритм lockSlow()</li>
+<li>mutexWoken, barging и starvation handoff</li>
+<li>CPU cache hierarchy и cache lines</li>
+<li>Cache coherence и MESI</li>
+<li>CAS на x86 / ARM и memory barriers на уровне CPU</li>
+<li>Cache-line ping-pong, false sharing и NUMA</li>
+</ul>
+<h2 id="3-gc-internals-memory-allocator">3. GC internals и memory allocator<a class="headerlink" href="#3-gc-internals-memory-allocator" title="Permanent link">¶</a></h2>
+<ul>
+<li>mcache → mcentral → mheap</li>
+<li>mspan, runtime pages и object slots</li>
+<li>Size classes, scan / noscan и fragmentation</li>
+<li>Tiny allocator и large allocations</li>
+<li>Fast / slow allocation paths и mallocgc</li>
+<li>Green Tea GC и locality marking</li>
+<li>Write barrier и concurrent marking</li>
+<li>GC pacer, workers и mutator assists</li>
+<li>Sweep, scavenger и возврат памяти ОС</li>
+<li>GOGC, GOMEMLIMIT, RSS и memory pressure</li>
+</ul>
+<p>...</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -476,6 +838,34 @@
 </button>
 </main>
 <footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: Оглавление" class="md-footer__link md-footer__link--prev" href="../contents/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                Оглавление
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 1. Production backend и эволюция Go" class="md-footer__link md-footer__link--next" href="../lectures/1%20-%20Intro%20%2B%20production/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                1. Production backend и эволюция Go
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
 <div class="md-footer-meta md-typeset">
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">

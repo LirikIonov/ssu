@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/1%20-%20CPU%20architecture/" rel="canonical"/>
+<link href="../../3%20-%20Memory/" rel="prev"/>
+<link href="../2%20-%20Go%20Runtime%20deep/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>1. Архитектура процессора, память и NUMA - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#1-numa">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              1. Архитектура процессора, память и NUMA
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../contents/">
+<span class="md-ellipsis">
+    
+  
+    Оглавление
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Production backend и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Go runtime internals — расширенная версия
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Go memory, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Глубокие internals Go runtime, synchronization и CPU
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Go GC internals и memory allocator
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.0%20Production_backend_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.0 Production_backend_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20History_of_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.1 History_of_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.0%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.0 Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20Scheduler%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.1 Scheduler Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.2%20Sync%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.2 Sync Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.3%20Mutex%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.3 Mutex Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/X%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    X - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/XX%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    XX - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/XXX%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    XXX - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="1-numa">1. Архитектура процессора, память и NUMA<a class="headerlink" href="#1-numa" title="Permanent link">¶</a></h1>
+<p>Эта лекция нужна как фундамент перед темами:</p>
+<ul>
+<li>atomic operations;</li>
+<li>CAS;</li>
+<li>memory ordering;</li>
+<li>cache coherence;</li>
+<li>MESI;</li>
+<li>false sharing;</li>
+<li><code>sync.Mutex</code>;</li>
+<li>contention;</li>
+<li>поведение backend под нагрузкой.</li>
+</ul>
+<p>Пока мы пишем обычный прикладной код, процессор можно воспринимать как абстрактную машину:</p>
+<div class="highlight"><pre><span></span><code>программа
+↓
+CPU
+↓
+результат
+</code></pre></div>
+<p>Но эта модель начинает ломаться, когда появляются вопросы:</p>
+<ul>
+<li>почему один CAS дешевый, а множество CAS по одной переменной плохо масштабируются;</li>
+<li>почему атомарная операция вообще имеет цену;</li>
+<li>почему <code>sync.Mutex</code> не сводится к бесконечному CAS;</li>
+<li>что такое cache miss;</li>
+<li>почему два независимых поля могут мешать друг другу;</li>
+<li>почему один и тот же Go-код работает на x86-64 и ARM64, хотя машинные инструкции разные.</li>
+</ul>
+<p>Чтобы это понимать, нужно сначала разобрать несколько уровней ниже языка.</p>
+<hr/>
+<h1 id="1-cpu-dram">1. CPU не работает с DRAM на каждой инструкции<a class="headerlink" href="#1-cpu-dram" title="Permanent link">¶</a></h1>
+<p>Возьмем простую операцию:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">c</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+</code></pre></div>
+<p>Наивная модель:</p>
+<div class="highlight"><pre><span></span><code>CPU читает a из RAM
+CPU читает b из RAM
+CPU складывает
+CPU записывает c в RAM
+</code></pre></div>
+<p>Если бы современный процессор работал так постоянно, он большую часть времени ждал бы память.</p>
+<p>Причина проста: CPU и DRAM живут в разных временных масштабах.</p>
+<p>Процессор с частотой около 4 GHz имеет период одного такта:</p>
+<div class="highlight"><pre><span></span><code>1 / 4 000 000 000
+≈ 0.25 ns
+</code></pre></div>
+<p>Доступ к DRAM может занимать десятки наносекунд, условно:</p>
+<div class="highlight"><pre><span></span><code>~60–120 ns
+</code></pre></div>
+<p>Если взять 100 ns:</p>
+<div class="highlight"><pre><span></span><code>100 ns / 0.25 ns
+≈ 400 тактов CPU
+</code></pre></div>
+<p>Для процессора это огромная задержка.</p>
+<p>Поэтому между вычислительными блоками CPU и основной памятью существует иерархия:</p>
+<div class="highlight"><pre><span></span><code>Execution Units
+      ↓
+Registers
+      ↓
+L1 Cache
+      ↓
+L2 Cache
+      ↓
+L3 / LLC
+      ↓
+DRAM
+</code></pre></div>
+<p>Дальше уже идут устройства хранения:</p>
+<div class="highlight"><pre><span></span><code>SSD
+HDD
+</code></pre></div>
+<p>И еще дальше могут находиться данные по сети.</p>
+<p>Главная идея:</p>
+<blockquote>
+<p>чем ближе данные к вычислительным блокам CPU, тем быстрее к ним доступ, но тем меньше таких данных можно хранить.</p>
+</blockquote>
+<hr/>
+<h1 id="2">2. Регистры<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
+<p>Самое близкое к вычислительным блокам CPU хранилище — регистры.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>Registers
+   ↓
+Execution Units
+   ├── ALU
+   ├── FPU
+   ├── SIMD units
+   └── Load/Store units
+</code></pre></div>
+<p>ALU — Arithmetic Logic Unit.</p>
+<p>Она выполняет базовые целочисленные операции:</p>
+<div class="highlight"><pre><span></span><code>ADD
+SUB
+AND
+OR
+XOR
+SHIFT
+COMPARE
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">mov</span><span class="w"> </span><span class="no">rax</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span>
+<span class="nf">mov</span><span class="w"> </span><span class="no">rbx</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span>
+<span class="nf">add</span><span class="w"> </span><span class="no">rax</span><span class="p">,</span><span class="w"> </span><span class="no">rbx</span>
+</code></pre></div>
+<p>После выполнения:</p>
+<div class="highlight"><pre><span></span><code>RAX = 30
+</code></pre></div>
+<p><code>RAX</code> и <code>RBX</code> — архитектурные регистры x86-64.</p>
+<h2 id="_1">Что такое регистр<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Регистр — очень маленькое и очень быстрое хранилище непосредственно внутри CPU core.</p>
+<p>Это не RAM.</p>
+<p>Это не cache.</p>
+<p>Данные уже находятся рядом с execution units, поэтому операции над ними очень быстрые.</p>
+<p>Цена этого свойства — количество.</p>
+<p>Регистров мало.</p>
+<p>В них невозможно разместить:</p>
+<div class="highlight"><pre><span></span><code>гигабайты heap
+миллионы объектов
+огромные массивы
+</code></pre></div>
+<p>Поэтому регистры находятся на вершине пирамиды:</p>
+<div class="highlight"><pre><span></span><code>максимально быстро
+минимальный объем
+</code></pre></div>
+<hr/>
+<h1 id="3">3. Архитектурные и физические регистры<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
+<p>ISA показывает программе фиксированный набор регистров.</p>
+<p>Например x86-64:</p>
+<div class="highlight"><pre><span></span><code>RAX
+RBX
+RCX
+RDX
+RSI
+RDI
+RSP
+RBP
+R8–R15
+</code></pre></div>
+<p>Это архитектурные регистры.</p>
+<p>Но современный процессор обычно содержит больше внутренних физических регистров.</p>
+<p>Причина — <code>register renaming</code>.</p>
+<p>Допустим программа несколько раз изменяет <code>RAX</code>.</p>
+<p>На уровне ISA это один и тот же регистр:</p>
+<div class="highlight"><pre><span></span><code>RAX
+</code></pre></div>
+<p>Но процессор может хранить разные версии значения в разных физических регистрах:</p>
+<div class="highlight"><pre><span></span><code>архитектурный RAX
+        ↓
+physical register 41
+
+следующая версия RAX
+        ↓
+physical register 73
+</code></pre></div>
+<p>Это помогает убрать ложные зависимости между инструкциями и выполнять больше операций параллельно.</p>
+<p>Уже здесь появляется важное разделение:</p>
+<div class="highlight"><pre><span></span><code>ISA
+↓
+что процессор показывает программе
+
+microarchitecture
+↓
+как конкретный CPU реализует это внутри
+</code></pre></div>
+<hr/>
+<h1 id="4-stack-heap-l1l2l3">4. Stack и heap не являются уровнями рядом с L1/L2/L3<a class="headerlink" href="#4-stack-heap-l1l2l3" title="Permanent link">¶</a></h1>
+<p>Это важно не смешивать.</p>
+<p>Когда мы говорим:</p>
+<div class="highlight"><pre><span></span><code>stack
+heap
+</code></pre></div>
+<p>мы обсуждаем организацию памяти программы и runtime.</p>
+<p>Когда говорим:</p>
+<div class="highlight"><pre><span></span><code>registers
+L1
+L2
+L3
+DRAM
+</code></pre></div>
+<p>мы обсуждаем аппаратную иерархию хранения данных.</p>
+<p>Объект из heap прямо сейчас может находиться в L1 cache.</p>
+<p>Значение из stack frame компилятор вообще может оставить только в регистре.</p>
+<p>Поэтому такая схема неправильна:</p>
+<div class="highlight"><pre><span></span><code>register
+→ cache
+→ stack
+→ heap
+→ RAM
+</code></pre></div>
+<p>Правильнее:</p>
+<div class="highlight"><pre><span></span><code>логическая организация программы:
+stack / heap / globals
+        ↓
+виртуальные адреса памяти
+        ↓
+аппаратная иерархия:
+registers / caches / DRAM
+</code></pre></div>
+<p>Это две разные модели одной системы.</p>
+<hr/>
+<h1 id="5-cpu-cache">5. Зачем нужен CPU cache<a class="headerlink" href="#5-cpu-cache" title="Permanent link">¶</a></h1>
+<p>Проблема уже видна:</p>
+<div class="highlight"><pre><span></span><code>CPU быстрый
+DRAM медленная
+</code></pre></div>
+<p>Если каждое чтение данных требует обращения к DRAM, процессор будет простаивать сотни тактов.</p>
+<p>Идея cache:</p>
+<blockquote>
+<p>хранить часто используемые данные максимально близко к CPU.</p>
+</blockquote>
+<p>Cache — небольшая быстрая память, в которой процессор держит копии участков основной памяти.</p>
+<p>Допустим в DRAM есть:</p>
+<div class="highlight"><pre><span></span><code>address 0x1000
+value = 42
+</code></pre></div>
+<p>После чтения копия может оказаться в L1:</p>
+<div class="highlight"><pre><span></span><code>DRAM:
+0x1000 → 42
+
+L1:
+0x1000 → 42
+</code></pre></div>
+<p>При следующем обращении процессору не обязательно снова идти в DRAM.</p>
+<p>Если нужные данные уже находятся в cache:</p>
+<div class="highlight"><pre><span></span><code>cache hit
+</code></pre></div>
+<p>Если их там нет:</p>
+<div class="highlight"><pre><span></span><code>cache miss
+</code></pre></div>
+<hr/>
+<h1 id="6-cache">6. Cache прозрачен для обычной программы<a class="headerlink" href="#6-cache" title="Permanent link">¶</a></h1>
+<p>Обычная программа не пишет:</p>
+<div class="highlight"><pre><span></span><code>прочитать x из L1
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>положить y в L2
+</code></pre></div>
+<p>Программа работает с адресами памяти:</p>
+<div class="highlight"><pre><span></span><code>0x12345678
+</code></pre></div>
+<p>А CPU hardware сама решает:</p>
+<ul>
+<li>есть ли нужные данные в cache;</li>
+<li>на каком уровне они находятся;</li>
+<li>что загрузить;</li>
+<li>что вытеснить;</li>
+<li>когда записать изменения дальше.</li>
+</ul>
+<p>Для программы существует память.</p>
+<p>Под ней работает автоматическая cache hierarchy.</p>
+<hr/>
+<h1 id="7-cache-dram">7. Почему cache быстрее DRAM<a class="headerlink" href="#7-cache-dram" title="Permanent link">¶</a></h1>
+<p>CPU cache обычно строится на SRAM.</p>
+<p>Оперативная память компьютера — в основном DRAM.</p>
+<p>Очень грубо:</p>
+<div class="highlight"><pre><span></span><code>SRAM
+→ быстрее
+→ дороже
+→ занимает больше площади
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>DRAM
+→ медленнее
+→ плотнее
+→ дешевле
+</code></pre></div>
+<p>Поэтому разумно сделать:</p>
+<div class="highlight"><pre><span></span><code>десятки KB L1
+сотни KB или MB L2
+десятки MB L3
+</code></pre></div>
+<p>Но сделать десятки гигабайт памяти со скоростью L1 практически невозможно по площади, цене, энергопотреблению и latency.</p>
+<p>Отсюда несколько уровней cache.</p>
+<hr/>
+<h1 id="8-l1-cache">8. L1 cache<a class="headerlink" href="#8-l1-cache" title="Permanent link">¶</a></h1>
+<p>L1 — ближайший к core cache.</p>
+<p>Обычно он разделен на:</p>
+<div class="highlight"><pre><span></span><code>L1I — Instruction Cache
+L1D — Data Cache
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>Core
+├── L1I
+├── L1D
+└── Execution Units
+</code></pre></div>
+<p><code>L1I</code> хранит машинные инструкции.</p>
+<p><code>L1D</code> хранит данные.</p>
+<p>L1 очень маленький — обычно десятки KiB.</p>
+<p>Но главное свойство L1:</p>
+<blockquote>
+<p>минимальная latency.</p>
+</blockquote>
+<p>CPU хочет получать данные оттуда буквально за несколько тактов.</p>
+<hr/>
+<h1 id="9-l2-cache">9. L2 cache<a class="headerlink" href="#9-l2-cache" title="Permanent link">¶</a></h1>
+<p>Если данных нет в L1:</p>
+<div class="highlight"><pre><span></span><code>L1 miss
+</code></pre></div>
+<p>CPU ищет их дальше.</p>
+<p>Следующий уровень:</p>
+<div class="highlight"><pre><span></span><code>L2
+</code></pre></div>
+<p>L2 больше L1, но медленнее.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>Core
+├── L1
+└── L2
+</code></pre></div>
+<p>Размер уже может измеряться сотнями KiB или несколькими MiB.</p>
+<p>Если нужные данные найдены:</p>
+<div class="highlight"><pre><span></span><code>L2 hit
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>L2 miss
+→ искать дальше
+</code></pre></div>
+<hr/>
+<h1 id="10-l3-llc">10. L3 / LLC<a class="headerlink" href="#10-l3-llc" title="Permanent link">¶</a></h1>
+<p>Следующий уровень часто называют:</p>
+<div class="highlight"><pre><span></span><code>L3
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>LLC — Last Level Cache
+</code></pre></div>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>Core 0       Core 1       Core 2       Core 3
+ L1           L1           L1           L1
+ ↓            ↓            ↓            ↓
+ L2           L2           L2           L2
+   \           \           /           /
+            L3 / LLC
+                ↓
+               DRAM
+</code></pre></div>
+<p>L3:</p>
+<ul>
+<li>намного больше L1/L2;</li>
+<li>медленнее;</li>
+<li>часто используется несколькими ядрами.</li>
+</ul>
+<p>Но фраза:</p>
+<blockquote>
+<p>L3 — один общий кусок памяти для всех cores</p>
+</blockquote>
+<p>является учебным упрощением.</p>
+<p>Реальные CPU могут иметь:</p>
+<ul>
+<li>несколько L3 slices;</li>
+<li>clusters;</li>
+<li>chiplets;</li>
+<li>внутренний ring;</li>
+<li>mesh interconnect;</li>
+<li>отдельные coherence domains.</li>
+</ul>
+<p>Для первой модели достаточно:</p>
+<div class="highlight"><pre><span></span><code>L1 — маленький и очень быстрый
+L2 — больше и медленнее
+L3 — еще больше и еще медленнее
+DRAM — намного больше и намного медленнее
+</code></pre></div>
+<hr/>
+<h1 id="11-3d-cache">11. 3D Cache<a class="headerlink" href="#11-3d-cache" title="Permanent link">¶</a></h1>
+<p>Современный LLC необязательно целиком размещен в одной плоскости compute die.</p>
+<p>Например AMD использует 3D V-Cache.</p>
+<p>Дополнительный SRAM die размещается вертикально относительно вычислительного кристалла:</p>
+<div class="highlight"><pre><span></span><code>┌─────────────────────┐
+│ дополнительный SRAM │
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐
+│ cores + base cache  │
+└─────────────────────┘
+</code></pre></div>
+<p>Для программы базовая модель не меняется.</p>
+<p>Это по-прежнему L3/LLC.</p>
+<p>Преимущество:</p>
+<div class="highlight"><pre><span></span><code>больше working set помещается в LLC
+→ меньше LLC misses
+→ меньше обращений к DRAM
+</code></pre></div>
+<p>Для нашей дальнейшей темы MESI принципиально ничего не меняется.</p>
+<hr/>
+<h1 id="12-cache-line">12. Cache line<a class="headerlink" href="#12-cache-line" title="Permanent link">¶</a></h1>
+<p>Теперь самая важная деталь перед cache coherence.</p>
+<p>Cache обычно работает не с отдельными переменными, а блоками памяти.</p>
+<p>Такой блок называется:</p>
+<div class="highlight"><pre><span></span><code>cache line
+</code></pre></div>
+<p>Типичный размер на современных x86-64 и многих ARM-системах:</p>
+<div class="highlight"><pre><span></span><code>64 bytes
+</code></pre></div>
+<p>Допустим:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">int64</span>
+</code></pre></div>
+<p>Размер <code>x</code>:</p>
+<div class="highlight"><pre><span></span><code>8 bytes
+</code></pre></div>
+<p>Но CPU обычно загружает не только эти восемь байт.</p>
+<p>Он загружает всю cache line:</p>
+<div class="highlight"><pre><span></span><code>0x1000                              0x103F
+│                                      │
+▼                                      ▼
+┌──────────────────────────────────────┐
+│ x │ y │ z │       другие данные     │
+└──────────────────────────────────────┘
+                64 B
+</code></pre></div>
+<p>Мы попросили <code>x</code>.</p>
+<p>В cache приехали и соседние данные.</p>
+<hr/>
+<h1 id="13">13. Почему память кешируется блоками<a class="headerlink" href="#13" title="Permanent link">¶</a></h1>
+<p>Программы обычно обладают locality.</p>
+<h2 id="temporal-locality">Temporal locality<a class="headerlink" href="#temporal-locality" title="Permanent link">¶</a></h2>
+<p>Если данные понадобились сейчас, есть шанс, что они понадобятся снова.</p>
+<h2 id="spatial-locality">Spatial locality<a class="headerlink" href="#spatial-locality" title="Permanent link">¶</a></h2>
+<p>Если понадобился адрес <code>X</code>, часто скоро потребуются данные рядом с ним.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">values</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">values</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Элементы slice лежат последовательно.</p>
+<p>Когда CPU загружает одну cache line, в нее попадает сразу несколько элементов.</p>
+<p>Следующие итерации часто уже получают данные из cache.</p>
+<hr/>
+<h1 id="14-cache-hit-cache-miss">14. Cache hit и cache miss<a class="headerlink" href="#14-cache-hit-cache-miss" title="Permanent link">¶</a></h1>
+<p>CPU хочет прочитать данные.</p>
+<p>Сначала проверяется ближайший cache:</p>
+<div class="highlight"><pre><span></span><code>L1
+</code></pre></div>
+<p>Нашлись:</p>
+<div class="highlight"><pre><span></span><code>L1 hit
+</code></pre></div>
+<p>Не нашлись:</p>
+<div class="highlight"><pre><span></span><code>L1 miss
+</code></pre></div>
+<p>Идем в L2:</p>
+<div class="highlight"><pre><span></span><code>L2 hit
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>L2 miss
+</code></pre></div>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>L3 / LLC
+</code></pre></div>
+<p>Если и там нет:</p>
+<div class="highlight"><pre><span></span><code>LLC miss
+→ DRAM
+</code></pre></div>
+<p>Одна и та же memory load может стоить несколько тактов или несколько сотен тактов в зависимости от того, где находятся данные.</p>
+<hr/>
+<h1 id="15-cache-line">15. Что еще хранится рядом с cache line<a class="headerlink" href="#15-cache-line" title="Permanent link">¶</a></h1>
+<p>Cache должен знать не только сами данные.</p>
+<p>Ему нужно понимать:</p>
+<blockquote>
+<p>какому участку памяти соответствует эта line?</p>
+</blockquote>
+<p>Поэтому концептуально cache entry содержит:</p>
+<div class="highlight"><pre><span></span><code>tag
++
+data
++
+metadata
+</code></pre></div>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>┌─────────────────────────────────┐
+│ TAG │ STATE │    64 B DATA      │
+└─────────────────────────────────┘
+</code></pre></div>
+<p><code>tag</code> помогает определить адрес.</p>
+<p><code>state</code> будет нужен для cache coherence.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Modified
+Exclusive
+Shared
+Invalid
+</code></pre></div>
+<p>То есть состояния MESI появляются не из воздуха: hardware и так должна хранить metadata о cache lines.</p>
+<hr/>
+<h1 id="16-cache-lines">16. Вытеснение cache lines<a class="headerlink" href="#16-cache-lines" title="Permanent link">¶</a></h1>
+<p>Cache конечен.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>L1 = десятки KiB
+</code></pre></div>
+<p>а программа работает с сотнями MiB данных.</p>
+<p>Все одновременно не поместится.</p>
+<p>Поэтому старые cache lines приходится вытеснять:</p>
+<div class="highlight"><pre><span></span><code>старые данные
+↓
+eviction
+↓
+освобождение места
+↓
+новая cache line
+</code></pre></div>
+<p>CPU использует replacement policies, пытаясь оставить данные, которые с большей вероятностью понадобятся снова.</p>
+<hr/>
+<h1 id="17">17. Что происходит при записи<a class="headerlink" href="#17" title="Permanent link">¶</a></h1>
+<p>При чтении модель простая:</p>
+<div class="highlight"><pre><span></span><code>memory
+→ cache
+→ core
+</code></pre></div>
+<p>При записи возникает вопрос:</p>
+<blockquote>
+<p>если CPU изменил копию в cache, когда обновится DRAM?</p>
+</blockquote>
+<p>Один распространенный подход:</p>
+<div class="highlight"><pre><span></span><code>write-back cache
+</code></pre></div>
+<p>CPU изменяет cache line локально.</p>
+<p>Line становится modified/dirty.</p>
+<p>Запись дальше может произойти позже.</p>
+<p>Поэтому временно возможно:</p>
+<div class="highlight"><pre><span></span><code>cache = новое значение
+DRAM  = старое значение
+</code></pre></div>
+<p>Это нормальная ситуация.</p>
+<p>И отсюда дальше естественно появляется состояние MESI:</p>
+<div class="highlight"><pre><span></span><code>M — Modified
+</code></pre></div>
+<hr/>
+<h1 id="18-dram">18. DRAM<a class="headerlink" href="#18-dram" title="Permanent link">¶</a></h1>
+<p>DRAM:</p>
+<div class="highlight"><pre><span></span><code>Dynamic Random Access Memory
+</code></pre></div>
+<p>Это то, что обычно называют оперативной памятью:</p>
+<div class="highlight"><pre><span></span><code>RAM
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>16 GB DDR5
+32 GB DDR5
+128 GB DDR5
+</code></pre></div>
+<p>DRAM используется как основная рабочая память процессов.</p>
+<hr/>
+<h1 id="19-dram-dynamic">19. Почему DRAM называется Dynamic<a class="headerlink" href="#19-dram-dynamic" title="Permanent link">¶</a></h1>
+<p>Очень грубо один бит DRAM хранится через:</p>
+<div class="highlight"><pre><span></span><code>capacitor
++
+transistor
+</code></pre></div>
+<p>Электрический заряд постепенно утекает.</p>
+<p>Поэтому содержимое приходится регулярно обновлять:</p>
+<div class="highlight"><pre><span></span><code>refresh
+</code></pre></div>
+<p>Отсюда:</p>
+<div class="highlight"><pre><span></span><code>Dynamic
+</code></pre></div>
+<p>DRAM существенно плотнее SRAM.</p>
+<p>Поэтому можно относительно дешево получить десятки и сотни гигабайт памяти.</p>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>DRAM намного медленнее CPU cache
+</code></pre></div>
+<hr/>
+<h1 id="20-memory-controller">20. Memory Controller<a class="headerlink" href="#20-memory-controller" title="Permanent link">¶</a></h1>
+<p>CPU не взаимодействует с DRAM как с магическим плоским массивом.</p>
+<p>Между ядрами и памятью находится memory controller.</p>
+<p>В современных системах он обычно интегрирован в CPU package.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>CPU cores
+   ↓
+cache hierarchy
+   ↓
+interconnect
+   ↓
+Memory Controller
+   ↓
+DDR channels
+   ↓
+DIMMs
+</code></pre></div>
+<p>Memory controller преобразует запросы процессора в операции DRAM.</p>
+<hr/>
+<h1 id="21-dram">21. DRAM внутри тоже не плоская<a class="headerlink" href="#21-dram" title="Permanent link">¶</a></h1>
+<p>Для программы RAM выглядит примерно:</p>
+<div class="highlight"><pre><span></span><code>address → value
+</code></pre></div>
+<p>Физически организация сложнее:</p>
+<div class="highlight"><pre><span></span><code>channel
+↓
+DIMM
+↓
+rank
+↓
+bank
+↓
+row
+↓
+column
+</code></pre></div>
+<p>Поэтому разные обращения могут иметь разную стоимость.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>row hit
+</code></pre></div>
+<p>означает, что нужная row уже открыта.</p>
+<p>Это дешевле.</p>
+<p>Если нужно переключить row:</p>
+<div class="highlight"><pre><span></span><code>row miss
+</code></pre></div>
+<p>операция дороже.</p>
+<p>Для этой лекции глубже идти не нужно.</p>
+<p>Главный вывод:</p>
+<blockquote>
+<p>DRAM сама имеет topology и внутренние задержки, но для CPU она все равно заметно медленнее cache.</p>
+</blockquote>
+<hr/>
+<h1 id="22-ssd">22. SSD<a class="headerlink" href="#22-ssd" title="Permanent link">¶</a></h1>
+<p>SSD:</p>
+<div class="highlight"><pre><span></span><code>Solid State Drive
+</code></pre></div>
+<p>Это уже не оперативная память, а persistent storage.</p>
+<p>После отключения питания данные сохраняются.</p>
+<p>Современные SSD обычно используют NAND flash.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>CPU
+↓
+RAM
+↓
+PCIe / SATA
+↓
+SSD Controller
+↓
+NAND Flash
+</code></pre></div>
+<p>SSD-контроллер сам выполняет много работы:</p>
+<div class="highlight"><pre><span></span><code>logical → physical mapping
+wear leveling
+garbage collection
+error correction
+flash management
+</code></pre></div>
+<p>Современный SSD — фактически отдельная маленькая вычислительная система.</p>
+<hr/>
+<h1 id="23-nvme-sata-ssd">23. NVMe и SATA SSD<a class="headerlink" href="#23-nvme-sata-ssd" title="Permanent link">¶</a></h1>
+<p>SATA создавался в эпоху традиционных накопителей.</p>
+<p>NVMe проектировался уже для быстрых flash-накопителей и работает поверх PCIe.</p>
+<p>Поэтому NVMe обычно дает:</p>
+<ul>
+<li>меньшую latency;</li>
+<li>большую пропускную способность;</li>
+<li>больше parallelism.</li>
+</ul>
+<p>Но относительно CPU cache даже быстрый NVMe очень медленный.</p>
+<p>Условно:</p>
+<div class="highlight"><pre><span></span><code>L1
+~1 ns
+
+NVMe random read
+~десятки–сотни μs
+</code></pre></div>
+<p>Разница — много порядков.</p>
+<hr/>
+<h1 id="24-hdd">24. HDD<a class="headerlink" href="#24-hdd" title="Permanent link">¶</a></h1>
+<p>HDD:</p>
+<div class="highlight"><pre><span></span><code>Hard Disk Drive
+</code></pre></div>
+<p>Здесь данные хранятся магнитно на вращающихся пластинах.</p>
+<p>Внутри есть механика:</p>
+<div class="highlight"><pre><span></span><code>вращающийся диск
++
+движущаяся головка
+</code></pre></div>
+<p>Для случайного чтения нужно:</p>
+<ol>
+<li>переместить головку на нужную дорожку;</li>
+<li>дождаться нужного сектора;</li>
+<li>прочитать данные.</li>
+</ol>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>seek time
++
+rotational latency
+</code></pre></div>
+<p>Поэтому random access измеряется миллисекундами.</p>
+<p>Для CPU миллисекунда — гигантский промежуток времени.</p>
+<hr/>
+<h1 id="25-ssd-hdd-cpu-cache-hierarchy">25. SSD и HDD не являются продолжением CPU cache hierarchy<a class="headerlink" href="#25-ssd-hdd-cpu-cache-hierarchy" title="Permanent link">¶</a></h1>
+<p>Нельзя строго рисовать:</p>
+<div class="highlight"><pre><span></span><code>register
+→ L1
+→ L2
+→ L3
+→ DRAM
+→ SSD
+→ HDD
+</code></pre></div>
+<p>как одну аппаратную cache hierarchy.</p>
+<p>Строго:</p>
+<div class="highlight"><pre><span></span><code>registers
+L1
+L2
+L3
+DRAM
+</code></pre></div>
+<p>относятся к memory subsystem CPU.</p>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>SSD
+HDD
+</code></pre></div>
+<p>— storage.</p>
+<p>Чтобы CPU начал работать с данными с SSD, они обычно должны попасть в DRAM:</p>
+<div class="highlight"><pre><span></span><code>SSD
+↓
+I/O
+↓
+kernel
+↓
+DRAM / page cache
+↓
+CPU caches
+↓
+registers
+</code></pre></div>
+<hr/>
+<h1 id="26">26. Сеть находится еще дальше<a class="headerlink" href="#26" title="Permanent link">¶</a></h1>
+<p>Теперь представим:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">resp</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">Get</span><span class="p">(...)</span>
+</code></pre></div>
+<p>Данные находятся уже не на локальном storage.</p>
+<p>Путь может выглядеть так:</p>
+<div class="highlight"><pre><span></span><code>process
+↓
+kernel
+↓
+socket
+↓
+NIC
+↓
+network
+↓
+switches / routers
+↓
+другая машина
+↓
+ее kernel
+↓
+ее application
+</code></pre></div>
+<p>Потом ответ идет обратно.</p>
+<p>Это задержки совсем другого класса.</p>
+<hr/>
+<h1 id="27-latency-bandwidth">27. Latency и bandwidth — разные вещи<a class="headerlink" href="#27-latency-bandwidth" title="Permanent link">¶</a></h1>
+<p>Очень частая ошибка — смешивать задержку и пропускную способность.</p>
+<p><code>bandwidth</code> отвечает:</p>
+<blockquote>
+<p>сколько данных можно передать за единицу времени?</p>
+</blockquote>
+<p><code>latency</code> отвечает:</p>
+<blockquote>
+<p>сколько ждать конкретную операцию?</p>
+</blockquote>
+<p>Например NVMe SSD может давать несколько GB/s sequential throughput.</p>
+<p>Но одно случайное чтение все равно может занимать десятки микросекунд.</p>
+<p>Сеть может быть 100 Gbit/s, но RTT между машинами от этого не становится нулевым.</p>
+<p>Для cache, atomics и synchronization особенно важна именно latency.</p>
+<hr/>
+<h1 id="28">28. Сравнение задержек<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
+<p>Возьмем CPU около 4 GHz.</p>
+<p>Один cycle:</p>
+<div class="highlight"><pre><span></span><code>~0.25 ns
+</code></pre></div>
+<p>Очень грубый порядок величин:</p>
+<table>
+<thead>
+<tr>
+<th>Операция</th>
+<th style="text-align: right;">Примерная latency</th>
+<th style="text-align: right;">Эквивалент при 4 GHz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>простая операция над регистрами</td>
+<td style="text-align: right;">~0.25–1 ns</td>
+<td style="text-align: right;">~1–4 cycles</td>
+</tr>
+<tr>
+<td>L1 hit</td>
+<td style="text-align: right;">~1 ns</td>
+<td style="text-align: right;">~4 cycles</td>
+</tr>
+<tr>
+<td>L2 hit</td>
+<td style="text-align: right;">~3–5 ns</td>
+<td style="text-align: right;">~12–20 cycles</td>
+</tr>
+<tr>
+<td>L3 / LLC hit</td>
+<td style="text-align: right;">~10–30 ns</td>
+<td style="text-align: right;">~40–120 cycles</td>
+</tr>
+<tr>
+<td>DRAM</td>
+<td style="text-align: right;">~60–120 ns</td>
+<td style="text-align: right;">~240–480 cycles</td>
+</tr>
+<tr>
+<td>remote NUMA DRAM</td>
+<td style="text-align: right;">~100–300+ ns</td>
+<td style="text-align: right;">сотни–1000+ cycles</td>
+</tr>
+<tr>
+<td>NVMe SSD random read</td>
+<td style="text-align: right;">~50–200 μs</td>
+<td style="text-align: right;">сотни тысяч cycles</td>
+</tr>
+<tr>
+<td>SATA SSD</td>
+<td style="text-align: right;">~100–500 μs</td>
+<td style="text-align: right;">сотни тысяч–миллионы cycles</td>
+</tr>
+<tr>
+<td>HDD random access</td>
+<td style="text-align: right;">~5–15 ms</td>
+<td style="text-align: right;">десятки миллионов cycles</td>
+</tr>
+<tr>
+<td>быстрый LAN / datacenter RTT</td>
+<td style="text-align: right;">~0.1–1 ms</td>
+<td style="text-align: right;">сотни тысяч–миллионы cycles</td>
+</tr>
+<tr>
+<td>Internet RTT</td>
+<td style="text-align: right;">~5–200+ ms</td>
+<td style="text-align: right;">десятки–сотни миллионов cycles</td>
+</tr>
+</tbody>
+</table>
+<p>Это не нормативные числа.</p>
+<p>Конкретные значения зависят от:</p>
+<ul>
+<li>CPU;</li>
+<li>cache topology;</li>
+<li>DRAM;</li>
+<li>NUMA;</li>
+<li>storage;</li>
+<li>нагрузки;</li>
+<li>сети.</li>
+</ul>
+<p>Нас интересуют порядки величин.</p>
+<hr/>
+<h1 id="29">29. Перевод задержек в человеческий масштаб<a class="headerlink" href="#29" title="Permanent link">¶</a></h1>
+<p>Теперь сделаем искусственную, но наглядную аналогию.</p>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>L1 access = 1 секунда
+</code></pre></div>
+<p>Тогда примерно:</p>
+<div class="highlight"><pre><span></span><code>L1
+1 секунда
+
+L2
+несколько секунд
+
+L3
+десятки секунд
+
+DRAM
+1–2 минуты
+
+NVMe SSD
+около суток
+
+HDD
+несколько месяцев
+
+10 ms network RTT
+несколько месяцев
+
+100 ms network RTT
+несколько лет
+</code></pre></div>
+<p>Это не измерительная таблица, а масштабная модель.</p>
+<p>Она показывает главное:</p>
+<blockquote>
+<p>для CPU даже DRAM уже медленная. SSD, HDD и сеть находятся практически в другой временной вселенной.</p>
+</blockquote>
+<hr/>
+<h1 id="30-cpu">30. Почему современный CPU настолько сложный<a class="headerlink" href="#30-cpu" title="Permanent link">¶</a></h1>
+<p>Теперь становятся понятнее:</p>
+<div class="highlight"><pre><span></span><code>cache
+prefetching
+branch prediction
+out-of-order execution
+speculative execution
+multiple execution units
+</code></pre></div>
+<p>Одна из центральных задач CPU:</p>
+<blockquote>
+<p>не простаивать в ожидании данных.</p>
+</blockquote>
+<p>Если одна инструкция ждет память:</p>
+<div class="highlight"><pre><span></span><code>load A
+</code></pre></div>
+<p>процессор пытается найти другие независимые операции:</p>
+<div class="highlight"><pre><span></span><code>B = x + y
+C = q * r
+</code></pre></div>
+<p>и выполнять их, пока <code>A</code> еще не готов.</p>
+<p>Иначе один cache miss мог бы останавливать значительную часть процессора на сотни cycles.</p>
+<hr/>
+<h1 id="31-isa-microarchitecture">31. ISA и microarchitecture<a class="headerlink" href="#31-isa-microarchitecture" title="Permanent link">¶</a></h1>
+<p>Теперь переходим к архитектурам процессоров.</p>
+<p>Когда говорят:</p>
+<div class="highlight"><pre><span></span><code>x86-64
+ARM64
+MIPS
+PowerPC
+RISC-V
+</code></pre></div>
+<p>речь прежде всего идет об ISA:</p>
+<div class="highlight"><pre><span></span><code>Instruction Set Architecture
+</code></pre></div>
+<p>ISA — программно видимый интерфейс процессора.</p>
+<p>Она определяет:</p>
+<ul>
+<li>набор инструкций;</li>
+<li>архитектурные регистры;</li>
+<li>способы адресации;</li>
+<li>поведение инструкций;</li>
+<li>memory ordering;</li>
+<li>атомарные primitives.</li>
+</ul>
+<p>Но ISA не описывает полностью внутреннее устройство CPU.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Intel Core
+AMD Zen
+</code></pre></div>
+<p>выполняют одну и ту же ISA:</p>
+<div class="highlight"><pre><span></span><code>x86-64
+</code></pre></div>
+<p>но имеют разную microarchitecture.</p>
+<p>Итого:</p>
+<div class="highlight"><pre><span></span><code>ISA
+= что CPU обещает software
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>microarchitecture
+= как конкретный процессор реализует эти обещания
+</code></pre></div>
+<hr/>
+<h1 id="32-cisc">32. CISC<a class="headerlink" href="#32-cisc" title="Permanent link">¶</a></h1>
+<p>CISC:</p>
+<div class="highlight"><pre><span></span><code>Complex Instruction Set Computer
+</code></pre></div>
+<p>Историческая идея:</p>
+<blockquote>
+<p>ISA предоставляет богатый набор сравнительно сложных инструкций.</p>
+</blockquote>
+<p>Главный современный пример:</p>
+<div class="highlight"><pre><span></span><code>x86
+</code></pre></div>
+<p>Инструкция может непосредственно работать с памятью.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">add</span><span class="w"> </span><span class="no">qword</span><span class="w"> </span><span class="no">ptr</span><span class="w"> </span><span class="p">[</span><span class="no">rax</span><span class="p">],</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>На уровне ISA это одна инструкция.</p>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>прочитать память
+→ прибавить
+→ записать
+</code></pre></div>
+<hr/>
+<h1 id="33-risc">33. RISC<a class="headerlink" href="#33-risc" title="Permanent link">¶</a></h1>
+<p>RISC:</p>
+<div class="highlight"><pre><span></span><code>Reduced Instruction Set Computer
+</code></pre></div>
+<p>Историческая идея:</p>
+<ul>
+<li>более простые инструкции;</li>
+<li>более регулярное кодирование;</li>
+<li>load/store architecture;</li>
+<li>арифметика преимущественно работает с регистрами.</li>
+</ul>
+<p>Типовая модель:</p>
+<div class="highlight"><pre><span></span><code>LOAD
+↓
+ADD
+↓
+STORE
+</code></pre></div>
+<p>Например условно:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">load</span><span class="w">  </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">address</span><span class="p">]</span>
+<span class="nf">add</span><span class="w">   </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
+<span class="nf">store</span><span class="w"> </span><span class="p">[</span><span class="no">address</span><span class="p">],</span><span class="w"> </span><span class="no">r1</span>
+</code></pre></div>
+<hr/>
+<h1 id="34-risc-cpu">34. RISC не означает простой CPU<a class="headerlink" href="#34-risc-cpu" title="Permanent link">¶</a></h1>
+<p>Это важное разрушение упрощения.</p>
+<p>Современный ARM core может содержать:</p>
+<ul>
+<li>сложный branch predictor;</li>
+<li>out-of-order execution;</li>
+<li>speculative execution;</li>
+<li>множество физических регистров;</li>
+<li>несколько execution pipelines;</li>
+<li>сложную cache hierarchy;</li>
+<li>hardware prefetchers.</li>
+</ul>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>RISC ISA
+</code></pre></div>
+<p>не означает:</p>
+<div class="highlight"><pre><span></span><code>простой физический процессор
+</code></pre></div>
+<hr/>
+<h1 id="35-x86">35. Современный x86 тоже не исполняет все как монолитные сложные инструкции<a class="headerlink" href="#35-x86" title="Permanent link">¶</a></h1>
+<p>Современный x86 CPU получает:</p>
+<div class="highlight"><pre><span></span><code>x86 instruction
+</code></pre></div>
+<p>и часто разбивает ее на внутренние операции:</p>
+<div class="highlight"><pre><span></span><code>micro-ops
+</code></pre></div>
+<p>Условно:</p>
+<div class="highlight"><pre><span></span><code>x86 instruction
+      ↓
+decoder
+      ↓
+micro-ops
+      ↓
+scheduler
+      ↓
+execution units
+</code></pre></div>
+<p>Поэтому старое противопоставление:</p>
+<div class="highlight"><pre><span></span><code>CISC = сложный
+RISC = простой
+</code></pre></div>
+<p>слишком грубое.</p>
+<p>Сегодня важнее отдельно понимать ISA и microarchitecture.</p>
+<hr/>
+<h1 id="36-x86-x86-64">36. x86 / x86-64<a class="headerlink" href="#36-x86-x86-64" title="Permanent link">¶</a></h1>
+<p>Историческая линия:</p>
+<div class="highlight"><pre><span></span><code>8086
+→ 80286
+→ 80386
+→ 80486
+→ Pentium
+→ x86-64
+</code></pre></div>
+<p>Одна из главных особенностей x86 — огромная обратная совместимость.</p>
+<p>Архитектура десятилетиями расширялась:</p>
+<ul>
+<li>новые режимы;</li>
+<li>новые инструкции;</li>
+<li>SIMD;</li>
+<li>новые регистры;</li>
+<li>64-битный режим.</li>
+</ul>
+<p>64-битное расширение x86 первоначально разработала AMD.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>AMD64
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>x86-64
+</code></pre></div>
+<p>относятся к одной современной ISA-линии.</p>
+<p>В Go:</p>
+<div class="highlight"><pre><span></span><code>GOARCH=amd64
+</code></pre></div>
+<hr/>
+<h1 id="37-arm-aarch64">37. ARM / AArch64<a class="headerlink" href="#37-arm-aarch64" title="Permanent link">¶</a></h1>
+<p>ARM исторически относится к RISC-семейству.</p>
+<p>Современная 64-битная архитектура:</p>
+<div class="highlight"><pre><span></span><code>AArch64
+</code></pre></div>
+<p>В повседневной речи обычно:</p>
+<div class="highlight"><pre><span></span><code>ARM64
+</code></pre></div>
+<p>В Go:</p>
+<div class="highlight"><pre><span></span><code>GOARCH=arm64
+</code></pre></div>
+<p>Сегодня ARM используется:</p>
+<ul>
+<li>в смартфонах;</li>
+<li>Apple Silicon;</li>
+<li>AWS Graviton;</li>
+<li>Ampere;</li>
+<li>embedded;</li>
+<li>SBC;</li>
+<li>серверных системах.</li>
+</ul>
+<p>Классическая идея:</p>
+<div class="highlight"><pre><span></span><code>load
+→ compute
+→ store
+</code></pre></div>
+<p>Но современные высокопроизводительные ARM cores внутри — сложные superscalar out-of-order процессоры.</p>
+<hr/>
+<h1 id="38-mips">38. MIPS<a class="headerlink" href="#38-mips" title="Permanent link">¶</a></h1>
+<p>MIPS — классическая RISC-архитектура.</p>
+<p>Она удобна для обучения, потому что хорошо показывает:</p>
+<div class="highlight"><pre><span></span><code>load
+compute
+store
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">lw</span><span class="w">   </span><span class="no">$t0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">(</span><span class="no">$t1</span><span class="p">)</span>
+<span class="nf">add</span><span class="w">  </span><span class="no">$t0</span><span class="p">,</span><span class="w"> </span><span class="no">$t0</span><span class="p">,</span><span class="w"> </span><span class="no">$t2</span>
+<span class="nf">sw</span><span class="w">   </span><span class="no">$t0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">(</span><span class="no">$t1</span><span class="p">)</span>
+</code></pre></div>
+<p>Исторически MIPS использовался:</p>
+<ul>
+<li>SGI;</li>
+<li>networking equipment;</li>
+<li>embedded;</li>
+<li>PlayStation;</li>
+<li>Nintendo 64.</li>
+</ul>
+<p>Сегодня его значение сильно снизилось, но как учебный пример RISC он полезен.</p>
+<hr/>
+<h1 id="39-powerpc-power">39. PowerPC / POWER<a class="headerlink" href="#39-powerpc-power" title="Permanent link">¶</a></h1>
+<p>PowerPC — еще одна важная RISC-линия.</p>
+<p>Использовался:</p>
+<ul>
+<li>Apple до перехода на Intel;</li>
+<li>GameCube;</li>
+<li>Wii;</li>
+<li>Xbox 360;</li>
+<li>PlayStation 3.</li>
+</ul>
+<p>Родственная серверная линия IBM:</p>
+<div class="highlight"><pre><span></span><code>POWER
+</code></pre></div>
+<p>до сих пор используется.</p>
+<p>PowerPC и POWER исторически связаны, но это не просто два названия одного и того же современного продукта.</p>
+<hr/>
+<h1 id="40-sparc">40. SPARC<a class="headerlink" href="#40-sparc" title="Permanent link">¶</a></h1>
+<p>SPARC — RISC-архитектура Sun Microsystems.</p>
+<p>Исторически:</p>
+<div class="highlight"><pre><span></span><code>Sun
+Solaris
+SPARC
+</code></pre></div>
+<p>Интересная особенность:</p>
+<div class="highlight"><pre><span></span><code>register windows
+</code></pre></div>
+<p>При вызовах функций процессор использовал перекрывающиеся окна регистров.</p>
+<p>Идея — уменьшить стоимость function calls.</p>
+<p>Сегодня SPARC почти исчез из mainstream, но исторически архитектура важна.</p>
+<hr/>
+<h1 id="41-risc-v">41. RISC-V<a class="headerlink" href="#41-risc-v" title="Permanent link">¶</a></h1>
+<p>RISC-V — современная открытая ISA.</p>
+<p>Ключевая идея:</p>
+<div class="highlight"><pre><span></span><code>base ISA
++
+extensions
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>RV64I
+</code></pre></div>
+<p>и расширения:</p>
+<div class="highlight"><pre><span></span><code>M — multiply/divide
+A — atomics
+F — floating point
+D — double precision
+V — vectors
+</code></pre></div>
+<p>Для нас особенно важно:</p>
+<div class="highlight"><pre><span></span><code>A — Atomics
+</code></pre></div>
+<p>Потому что позже можно сравнить:</p>
+<div class="highlight"><pre><span></span><code>Go atomic
+↓
+x86 atomic instructions
+ARM atomics
+RISC-V atomics
+</code></pre></div>
+<hr/>
+<h1 id="42-itanium-ia-64">42. Itanium / IA-64<a class="headerlink" href="#42-itanium-ia-64" title="Permanent link">¶</a></h1>
+<p>Короткий, но полезный исторический эксперимент.</p>
+<p>Intel и HP разработали:</p>
+<div class="highlight"><pre><span></span><code>IA-64
+</code></pre></div>
+<p>Процессоры назывались:</p>
+<div class="highlight"><pre><span></span><code>Itanium
+</code></pre></div>
+<p>Важно:</p>
+<div class="highlight"><pre><span></span><code>IA-64 != x86-64
+</code></pre></div>
+<p>Это совершенно другая архитектура.</p>
+<p>Itanium использовал подход:</p>
+<div class="highlight"><pre><span></span><code>EPIC
+Explicitly Parallel Instruction Computing
+</code></pre></div>
+<p>Идея:</p>
+<blockquote>
+<p>значительную часть поиска instruction-level parallelism выполнить заранее в compiler.</p>
+</blockquote>
+<p>Современный out-of-order CPU сам во время исполнения пытается определить:</p>
+<ul>
+<li>какие инструкции независимы;</li>
+<li>что можно выполнять параллельно;</li>
+<li>что ждет память.</li>
+</ul>
+<p>Itanium хотел перенести больше этой работы на compiler.</p>
+<p>Проблема в том, что compiler заранее не знает:</p>
+<div class="highlight"><pre><span></span><code>cache miss
+branch misprediction
+memory latency
+runtime data
+</code></pre></div>
+<p>В итоге Itanium не заменил x86.</p>
+<p>x86-64 оказался гораздо успешнее.</p>
+<hr/>
+<h1 id="43">43. Другие архитектуры, которые полезно знать по названию<a class="headerlink" href="#43" title="Permanent link">¶</a></h1>
+<h2 id="motorola-68000">Motorola 68000<a class="headerlink" href="#motorola-68000" title="Permanent link">¶</a></h2>
+<p>CISC-семейство.</p>
+<p>Использовалось:</p>
+<div class="highlight"><pre><span></span><code>Macintosh
+Amiga
+Atari ST
+Sega Mega Drive
+</code></pre></div>
+<p>Хорошее напоминание, что x86 была не единственной CISC-архитектурой.</p>
+<h2 id="dec-alpha">DEC Alpha<a class="headerlink" href="#dec-alpha" title="Permanent link">¶</a></h2>
+<p>64-битная RISC-архитектура DEC.</p>
+<p>Известна в том числе слабой memory model.</p>
+<p>Полезна как исторический пример при обсуждении memory ordering.</p>
+<h2 id="ibm-zarchitecture">IBM z/Architecture<a class="headerlink" href="#ibm-zarchitecture" title="Permanent link">¶</a></h2>
+<p>Линия:</p>
+<div class="highlight"><pre><span></span><code>System/360
+→ System/370
+→ ...
+→ z/Architecture
+</code></pre></div>
+<p>До сих пор используется в mainframe.</p>
+<p>Go поддерживает:</p>
+<div class="highlight"><pre><span></span><code>GOARCH=s390x
+</code></pre></div>
+<p>Это хороший пример того, насколько долго может жить архитектурная линия.</p>
+<hr/>
+<h1 id="44-isa">44. Общая карта ISA<a class="headerlink" href="#44-isa" title="Permanent link">¶</a></h1>
+<p>Очень грубо:</p>
+<div class="highlight"><pre><span></span><code>CISC
+├── x86 / x86-64
+└── Motorola 68k
+
+RISC
+├── ARM
+├── MIPS
+├── PowerPC / POWER
+├── SPARC
+├── RISC-V
+└── DEC Alpha
+
+EPIC
+└── Itanium / IA-64
+</code></pre></div>
+<p>Важно:</p>
+<blockquote>
+<p>это классификация ISA и исторических архитектурных идей, а не мера сложности современного CPU.</p>
+</blockquote>
+<hr/>
+<h1 id="45-cpu">45. Современный CPU может состоять из нескольких кристаллов<a class="headerlink" href="#45-cpu" title="Permanent link">¶</a></h1>
+<p>Классическая учебная картинка CPU:</p>
+<div class="highlight"><pre><span></span><code>┌─────────────────────┐
+│ cores               │
+│ caches              │
+│ memory controller   │
+│ I/O                 │
+└─────────────────────┘
+</code></pre></div>
+<p>Один монолитный silicon die.</p>
+<p>Но современные процессоры могут собираться из нескольких кристаллов:</p>
+<div class="highlight"><pre><span></span><code>chiplets
+</code></pre></div>
+<p>Например условно:</p>
+<div class="highlight"><pre><span></span><code>┌───────────┐        ┌───────────┐
+│   CCD 0   │        │   CCD 1   │
+│ cores     │        │ cores     │
+│ cache     │        │ cache     │
+└─────┬─────┘        └─────┬─────┘
+      │                    │
+      └────────┬───────────┘
+               │
+          interconnect
+               │
+          ┌────▼────┐
+          │ I/O Die │
+          │ IMC     │
+          │ PCIe    │
+          └────┬────┘
+               │
+              RAM
+</code></pre></div>
+<p>Почему это делают:</p>
+<ul>
+<li>маленькие dies проще производить;</li>
+<li>выше yield;</li>
+<li>можно смешивать разные техпроцессы;</li>
+<li>проще масштабировать количество cores;</li>
+<li>дешевле строить линейку процессоров.</li>
+</ul>
+<p>Цена:</p>
+<blockquote>
+<p>разные части CPU теперь физически находятся на разном расстоянии друг от друга.</p>
+</blockquote>
+<hr/>
+<h1 id="46-infinity-fabric">46. Infinity Fabric<a class="headerlink" href="#46-infinity-fabric" title="Permanent link">¶</a></h1>
+<p>У AMD различные компоненты CPU связываются через семейство interconnect:</p>
+<div class="highlight"><pre><span></span><code>Infinity Fabric
+</code></pre></div>
+<p>Через него может идти:</p>
+<ul>
+<li>inter-chiplet traffic;</li>
+<li>memory traffic;</li>
+<li>coherence traffic;</li>
+<li>I/O traffic.</li>
+</ul>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>Core A
+→ данные в своем CCD
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>Core A
+→ данные, связанные с другим CCD
+</code></pre></div>
+<p>могут иметь разную стоимость.</p>
+<p>Даже фраза:</p>
+<div class="highlight"><pre><span></span><code>внутри одного CPU
+</code></pre></div>
+<p>больше не означает:</p>
+<div class="highlight"><pre><span></span><code>все одинаково близко
+</code></pre></div>
+<hr/>
+<h1 id="47-numa">47. NUMA<a class="headerlink" href="#47-numa" title="Permanent link">¶</a></h1>
+<p>Теперь естественно появляется NUMA.</p>
+<p>NUMA:</p>
+<div class="highlight"><pre><span></span><code>Non-Uniform Memory Access
+</code></pre></div>
+<p>Неравномерный доступ к памяти.</p>
+<p>Главная идея:</p>
+<blockquote>
+<p>стоимость обращения к RAM зависит от того, какой CPU/core выполняет код и где физически находится нужная память.</p>
+</blockquote>
+<hr/>
+<h1 id="48-uma">48. UMA<a class="headerlink" href="#48-uma" title="Permanent link">¶</a></h1>
+<p>Сначала простая модель:</p>
+<div class="highlight"><pre><span></span><code>Core 0 ─┐
+Core 1 ─┼── Memory Controller ── RAM
+Core 2 ─┤
+Core 3 ─┘
+</code></pre></div>
+<p>Все cores обращаются к одной системе памяти примерно одинаковым путем.</p>
+<p>Это:</p>
+<div class="highlight"><pre><span></span><code>Uniform Memory Access
+</code></pre></div>
+<hr/>
+<h1 id="49-numa">49. Классический NUMA<a class="headerlink" href="#49-numa" title="Permanent link">¶</a></h1>
+<p>Теперь двухсокетный сервер:</p>
+<div class="highlight"><pre><span></span><code>NUMA node 0                     NUMA node 1
+
+┌───────────────┐               ┌───────────────┐
+│ CPU cores     │               │ CPU cores     │
+│               │               │               │
+│ Memory Ctrl   │               │ Memory Ctrl   │
+└───────┬───────┘               └───────┬───────┘
+        │                               │
+      DRAM 0                          DRAM 1
+        │                               │
+        └──────── interconnect ─────────┘
+</code></pre></div>
+<p>Для CPU 0:</p>
+<div class="highlight"><pre><span></span><code>DRAM 0
+</code></pre></div>
+<p>— local memory.</p>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>DRAM 1
+</code></pre></div>
+<p>— remote memory.</p>
+<hr/>
+<h1 id="50-remote-memory-access">50. Что происходит при remote memory access<a class="headerlink" href="#50-remote-memory-access" title="Permanent link">¶</a></h1>
+<p>Core из node 0 хочет данные, физически подключенные к node 1.</p>
+<p>Запрос идет:</p>
+<div class="highlight"><pre><span></span><code>Core
+↓
+local interconnect
+↓
+socket-to-socket interconnect
+↓
+remote socket
+↓
+remote memory controller
+↓
+remote DRAM
+</code></pre></div>
+<p>Ответ идет обратно.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>remote memory latency
+&gt;
+local memory latency
+</code></pre></div>
+<p>Дополнительно расходуется bandwidth межпроцессорного interconnect.</p>
+<p>Отсюда слово:</p>
+<div class="highlight"><pre><span></span><code>Non-Uniform
+</code></pre></div>
+<hr/>
+<h1 id="51-memory-controller">51. Причем здесь Memory Controller<a class="headerlink" href="#51-memory-controller" title="Permanent link">¶</a></h1>
+<p>Связь прямая.</p>
+<p>Современные серверные CPU имеют собственные integrated memory controllers.</p>
+<p>Условно:</p>
+<div class="highlight"><pre><span></span><code>Socket 0
+↓
+IMC 0
+↓
+RAM 0
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>Socket 1
+↓
+IMC 1
+↓
+RAM 1
+</code></pre></div>
+<p>Память физически подключена к конкретному memory controller.</p>
+<p>Поэтому один процессор получает ее локально, другой — через interconnect.</p>
+<hr/>
+<h1 id="52-amd-numa">52. AMD и NUMA<a class="headerlink" href="#52-amd-numa" title="Permanent link">¶</a></h1>
+<p>У AMD инфраструктурой связи компонентов служит Infinity Fabric.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>CCD
+CCD
+CCD
+ ↓
+Infinity Fabric
+ ↓
+IOD / Memory Controllers
+ ↓
+DRAM
+</code></pre></div>
+<p>В многосокетных системах через межсоединения проходит и remote memory traffic.</p>
+<p>Важно:</p>
+<div class="highlight"><pre><span></span><code>Infinity Fabric != NUMA
+</code></pre></div>
+<p>Infinity Fabric — interconnect.</p>
+<p>NUMA — свойство всей memory topology.</p>
+<p>Но interconnect является одним из механизмов, через которые реализуется remote NUMA access.</p>
+<hr/>
+<h1 id="53-intel-numa">53. Intel и NUMA<a class="headerlink" href="#53-intel-numa" title="Permanent link">¶</a></h1>
+<p>У Intel фундаментальная проблема та же.</p>
+<p>В многосокетных Xeon:</p>
+<div class="highlight"><pre><span></span><code>Socket 0                      Socket 1
+   │                             │
+  IMC                           IMC
+   │                             │
+ RAM 0                         RAM 1
+   │                             │
+   └────────── UPI ──────────────┘
+</code></pre></div>
+<p>UPI:</p>
+<div class="highlight"><pre><span></span><code>Ultra Path Interconnect
+</code></pre></div>
+<p>Раньше использовался QPI:</p>
+<div class="highlight"><pre><span></span><code>QuickPath Interconnect
+</code></pre></div>
+<p>Внутри самого CPU Intel также использует собственные interconnect, например mesh в части серверных поколений.</p>
+<p>То есть современный CPU уже сам по себе напоминает небольшую распределенную систему.</p>
+<hr/>
+<h1 id="54-chiplets-numa">54. Chiplets и NUMA — не одно и то же<a class="headerlink" href="#54-chiplets-numa" title="Permanent link">¶</a></h1>
+<p>Это важно.</p>
+<p>Chiplet topology означает:</p>
+<div class="highlight"><pre><span></span><code>части CPU физически размещены на нескольких dies
+</code></pre></div>
+<p>NUMA означает:</p>
+<div class="highlight"><pre><span></span><code>операционная система видит области памяти с разной стоимостью доступа
+</code></pre></div>
+<p>Они связаны, но:</p>
+<div class="highlight"><pre><span></span><code>chiplet != NUMA node
+</code></pre></div>
+<p>Не каждый chiplet отображается ОС как отдельный NUMA node.</p>
+<p>Физическая topology может быть сложнее topology, которую видит операционная система.</p>
+<hr/>
+<h1 id="55-numa">55. Зачем ОС знать о NUMA<a class="headerlink" href="#55-numa" title="Permanent link">¶</a></h1>
+<p>Если ОС знает topology, она может пытаться размещать computation и memory ближе друг к другу.</p>
+<p>Идеальный случай:</p>
+<div class="highlight"><pre><span></span><code>CPU node 0
+↓
+thread
+↓
+memory allocated on node 0
+</code></pre></div>
+<p>Получаем local access.</p>
+<p>Хуже:</p>
+<div class="highlight"><pre><span></span><code>CPU node 0
+↓
+thread
+↓
+memory on node 1
+</code></pre></div>
+<p>Тогда постоянно возникает remote traffic.</p>
+<p>На больших машинах это может влиять на:</p>
+<ul>
+<li>throughput;</li>
+<li>tail latency;</li>
+<li>memory bandwidth;</li>
+<li>масштабирование parallel workload.</li>
+</ul>
+<hr/>
+<h1 id="56-numa-go">56. Что NUMA означает для Go<a class="headerlink" href="#56-numa-go" title="Permanent link">¶</a></h1>
+<p>Go предоставляет высокоуровневую модель:</p>
+<div class="highlight"><pre><span></span><code>goroutines
+scheduler
+heap
+GC
+</code></pre></div>
+<p>Но под ней находится реальное железо.</p>
+<p>Goroutine может выполняться на разных OS threads и cores.</p>
+<p>Heap приложения может занимать физические страницы на разных NUMA nodes.</p>
+<p>На обычном backend-сервисе это часто не проблема.</p>
+<p>Но если появляются:</p>
+<ul>
+<li>десятки или сотни cores;</li>
+<li>огромный heap;</li>
+<li>memory-intensive workload;</li>
+<li>очень высокий throughput;</li>
+<li>жесткие требования к tail latency;</li>
+</ul>
+<p>то hardware topology начинает проявляться.</p>
+<p>Важно не делать неправильный вывод:</p>
+<blockquote>
+<p>каждая миграция goroutine автоматически означает remote NUMA access.</p>
+</blockquote>
+<p>Так говорить нельзя.</p>
+<p>Но физическая locality действительно может начать влиять на производительность больших систем.</p>
+<hr/>
+<h1 id="57-cache-coherence">57. Где здесь cache coherence<a class="headerlink" href="#57-cache-coherence" title="Permanent link">¶</a></h1>
+<p>Теперь у каждого core может быть собственный L1.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Core 0 L1             Core 1 L1
+
+counter = 100         counter = 100
+</code></pre></div>
+<p>Оба прочитали одну cache line.</p>
+<p>Пока оба только читают — проблемы нет.</p>
+<p>Теперь Core 0 хочет:</p>
+<div class="highlight"><pre><span></span><code>counter = 101
+</code></pre></div>
+<p>Получаем потенциально:</p>
+<div class="highlight"><pre><span></span><code>Core 0 L1
+counter = 101
+
+Core 1 L1
+counter = 100
+</code></pre></div>
+<p>Какая копия актуальная?</p>
+<p>Эту проблему решает:</p>
+<div class="highlight"><pre><span></span><code>cache coherence
+</code></pre></div>
+<hr/>
+<h1 id="58-mesi-cache">58. MESI и уровни cache<a class="headerlink" href="#58-mesi-cache" title="Permanent link">¶</a></h1>
+<p>MESI — классическая учебная модель cache coherence.</p>
+<p>Состояния:</p>
+<div class="highlight"><pre><span></span><code>M — Modified
+E — Exclusive
+S — Shared
+I — Invalid
+</code></pre></div>
+<p>Важно не сформировать неправильную картину.</p>
+<p>Не нужно представлять:</p>
+<div class="highlight"><pre><span></span><code>отдельный MESI для L1
++
+отдельный MESI для L2
++
+отдельный MESI для L3
+</code></pre></div>
+<p>Правильнее:</p>
+<blockquote>
+<p>coherence охватывает систему caching agents и cache hierarchy в целом.</p>
+</blockquote>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>Core 0                  Core 1
+ L1                      L1
+ ↓                       ↓
+ L2                      L2
+   \                     /
+        L3 / LLC
+            ↓
+           DRAM
+</code></pre></div>
+<p>Реальный CPU может использовать:</p>
+<div class="highlight"><pre><span></span><code>MESI
+MESIF
+MOESI
+directory-based coherence
+vendor-specific protocols
+</code></pre></div>
+<p>Metadata о владельцах и sharers может быть распределена по разным уровням системы.</p>
+<p>Для нашей лекции MESI нужна как ментальная модель:</p>
+<div class="highlight"><pre><span></span><code>кто может читать line?
+кто может писать?
+кто владеет актуальной копией?
+какие копии надо инвалидировать?
+</code></pre></div>
+<hr/>
+<h1 id="59-cas">59. Почему все это нужно перед CAS<a class="headerlink" href="#59-cas" title="Permanent link">¶</a></h1>
+<p>Теперь посмотрим на:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">atomic</span><span class="p">.</span><span class="nx">CompareAndSwapInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+<p>На уровне Go это одна операция.</p>
+<p>Под ней может находиться цепочка:</p>
+<div class="highlight"><pre><span></span><code>Go atomic
+↓
+machine atomic instruction
+↓
+cache line
+↓
+получение права на запись
+↓
+cache coherence
+↓
+invalidation других copies
+↓
+atomic read-modify-write
+</code></pre></div>
+<p>Если один core работает с line, которая уже находится локально, все относительно дешево.</p>
+<p>Если 32 cores одновременно работают с одной line:</p>
+<div class="highlight"><pre><span></span><code>Core 0
+Core 1
+Core 2
+...
+Core 31
+   ↓
+одна cache line
+</code></pre></div>
+<p>начинается борьба за ownership.</p>
+<p>Отсюда потом появляются:</p>
+<div class="highlight"><pre><span></span><code>cache-line ping-pong
+false sharing
+atomic contention
+</code></pre></div>
+<p>И становится понятно, почему <code>sync.Mutex</code> не может быть просто:</p>
+<div class="highlight"><pre><span></span><code>while CAS fails {
+    retry
+}
+</code></pre></div>
+<hr/>
+<h1 id="60">60. Итоговая карта<a class="headerlink" href="#60" title="Permanent link">¶</a></h1>
+<p>Соберем весь путь:</p>
+<div class="highlight"><pre><span></span><code>Go code
+↓
+compiler
+↓
+ISA
+↓
+machine instructions
+↓
+CPU microarchitecture
+↓
+registers
+↓
+L1 / L2 / L3
+↓
+memory controller
+↓
+DRAM
+</code></pre></div>
+<p>На современных системах добавляются:</p>
+<div class="highlight"><pre><span></span><code>chiplets
+interconnect
+NUMA
+</code></pre></div>
+<p>Если несколько cores работают с одной памятью:</p>
+<div class="highlight"><pre><span></span><code>cache coherence
+</code></pre></div>
+<p>Если они конкурируют за одну cache line:</p>
+<div class="highlight"><pre><span></span><code>ownership
+invalidation
+MESI
+CAS
+contention
+</code></pre></div>
+<p>А уже поверх этого:</p>
+<div class="highlight"><pre><span></span><code>sync.Mutex
+spinning
+runtime semaphore
+scheduler
+goroutine parking
+</code></pre></div>
+<hr/>
+<h1 id="_2">Что важно запомнить<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<ol>
+<li>
+<p>Регистры — самое близкое к execution units и самое быстрое хранилище, но их очень мало.</p>
+</li>
+<li>
+<p>Архитектурные регистры ISA и физические регистры внутри современного OoO CPU — разные уровни модели.</p>
+</li>
+<li>
+<p>Stack и heap описывают организацию памяти программы. Registers/cache/DRAM описывают аппаратную memory hierarchy.</p>
+</li>
+<li>
+<p>CPU cache хранит копии памяти рядом с ядрами, чтобы процессор как можно реже ждал DRAM.</p>
+</li>
+<li>
+<p>L1, L2 и L3 существуют потому, что невозможно получить память одновременно огромную, дешевую и такую же быструю, как L1.</p>
+</li>
+<li>
+<p>Cache работает cache lines, а не отдельными Go-переменными. Типичный размер line — 64 bytes.</p>
+</li>
+<li>
+<p>Cache hit и cache miss радикально отличаются по стоимости.</p>
+</li>
+<li>
+<p>DRAM — основная рабочая память машины: большая и сравнительно дешевая, но существенно медленнее cache.</p>
+</li>
+<li>
+<p>SSD и HDD — persistent storage. CPU не работает с ними обычными load/store: данные сначала должны попасть в DRAM.</p>
+</li>
+<li>
+<p>Latency различается на порядки:</p>
+</li>
+</ol>
+<div class="highlight"><pre><span></span><code>register / L1 → ns
+DRAM          → десятки–сотни ns
+SSD           → десятки–сотни μs
+HDD           → ms
+network       → μs–сотни ms
+</code></pre></div>
+<ol>
+<li>
+<p><code>x86-64</code>, <code>ARM64</code>, <code>MIPS</code>, <code>PowerPC</code>, <code>RISC-V</code> — ISA.</p>
+</li>
+<li>
+<p><code>CISC</code>, <code>RISC</code>, <code>EPIC</code> — архитектурные подходы и исторические семейства идей, а не мера сложности современного CPU.</p>
+</li>
+<li>
+<p>Современные x86 и ARM cores внутри оба являются сложными superscalar out-of-order машинами.</p>
+</li>
+<li>
+<p>Современный CPU может состоять из нескольких chiplets, поэтому hardware topology уже не обязана быть плоской.</p>
+</li>
+<li>
+<p>NUMA означает, что не вся RAM одинаково близка ко всем CPU cores.</p>
+</li>
+<li>
+<p>Infinity Fabric у AMD и UPI у Intel — interconnect. Они связаны с NUMA topology, но сами по себе не являются NUMA.</p>
+</li>
+<li>
+<p>MESI — учебная модель cache coherence всей системы кешей, а не отдельный независимый механизм для L1, L2 и L3.</p>
+</li>
+<li>
+<p>После этой модели можно нормально разбирать:</p>
+</li>
+</ol>
+<div class="highlight"><pre><span></span><code>CAS
+→ atomic instructions
+→ memory ordering
+→ MESI
+→ false sharing
+→ cache-line ping-pong
+→ sync.Mutex
+</code></pre></div>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3. Go memory, GC и pprof" class="md-footer__link md-footer__link--prev" href="../../3%20-%20Memory/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3. Go memory, GC и pprof
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 2. Глубокие internals Go runtime, synchronization и CPU" class="md-footer__link md-footer__link--next" href="../2%20-%20Go%20Runtime%20deep/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                2. Глубокие internals Go runtime, synchronization и CPU
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

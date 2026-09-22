@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/practice/1%20-%20task/" rel="canonical"/>
+<link href="../../lectures/Additional/3%20-%20GC%20deep/" rel="prev"/>
+<link href="../projects/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>Задание на допуск - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#_1">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Задание на допуск
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../contents/">
+<span class="md-ellipsis">
+    
+  
+    Оглавление
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Production backend и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Go runtime internals — расширенная версия
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Go memory, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Глубокие internals Go runtime, synchronization и CPU
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Go GC internals и memory allocator
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Что нужно сделать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Вход и отчет
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-api">
+<span class="md-ellipsis">
+      
+        2. API и фоновые задания
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. Память и ошибки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-postgresql">
+<span class="md-ellipsis">
+      
+        4. PostgreSQL, миграции и перезапуск
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-docker-nginx">
+<span class="md-ellipsis">
+      
+        5. Docker, Nginx и пулы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-dev-test-stage-prod">
+<span class="md-ellipsis">
+      
+        6. dev / test / stage / prod
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. Проверки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-github">
+<span class="md-ellipsis">
+      
+        8. GitHub и защита
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1.0%20Production_backend_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.0 Production_backend_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1.1%20History_of_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.1 History_of_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.0%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.0 Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.1%20Scheduler%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.1 Scheduler Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.2%20Sync%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.2 Sync Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.3%20Mutex%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.3 Mutex Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/X%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    X - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/XX%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    XX - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/XXX%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    XXX - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Что нужно сделать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Вход и отчет
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-api">
+<span class="md-ellipsis">
+      
+        2. API и фоновые задания
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. Память и ошибки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-postgresql">
+<span class="md-ellipsis">
+      
+        4. PostgreSQL, миграции и перезапуск
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-docker-nginx">
+<span class="md-ellipsis">
+      
+        5. Docker, Nginx и пулы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-dev-test-stage-prod">
+<span class="md-ellipsis">
+      
+        6. dev / test / stage / prod
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. Проверки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-github">
+<span class="md-ellipsis">
+      
+        8. GitHub и защита
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="_1">Задание на допуск<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h2 id="_2">Что нужно сделать<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Разработайте на Go сервис фонового анализа access-логов Nginx.</p>
+<p>Пользователь загружает файл, получает номер задания, проверяет статус и забирает JSON-отчет.</p>
+<p>Фронтенд не требуется. Проект выполняется в течение семестра и демонстрируется на ноутбуке студента.</p>
+<p>В комплекте даны только минимальный Go-каркас, генератор логов и контрольные файлы с ожидаемым отчетом. Анализатор, работу с БД и инфраструктуру реализует студент. Go-приложение в комплекте — только проверка запуска <code>/health</code>, не готовый анализатор.</p>
+<p><a href="../log-inspector-starter.zip">Скачать каркас приложения</a></p>
+<h2 id="1">1. Вход и отчет<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<p>Вход — JSON Lines: одна запись запроса на строку.</p>
+<p>Обязательные поля:</p>
+<ul>
+<li><code>time</code> — RFC 3339;</li>
+<li><code>ip</code> — IP-адрес;</li>
+<li><code>method</code> — непустая строка;</li>
+<li><code>path</code> — путь без query-параметров;</li>
+<li><code>status</code> — 100–599;</li>
+<li><code>request_time</code> — неотрицательное конечное число секунд.</li>
+</ul>
+<p>Пустую строку можно пропускать. Некорректная запись завершает анализ ошибкой с номером строки.</p>
+<p>Отчет содержит:</p>
+<ul>
+<li>общее количество запросов;</li>
+<li>число ответов 500–599 и их долю в процентах;</li>
+<li>топ-10 маршрутов по числу запросов;</li>
+<li>топ-10 маршрутов по средней длительности;</li>
+<li>топ-10 IP по числу запросов;</li>
+<li>число запросов и ответов 5xx по минутам UTC.</li>
+</ul>
+<p>Маршрут — пара «метод + точный путь». Шаблоны адресов восстанавливать не нужно.</p>
+<p>Время округляется вниз до начала минуты. Порядок записей во входе произвольный.</p>
+<p>Показывайте только минуты, присутствующие во входе, по возрастанию.</p>
+<p>Топы сортируются по убыванию показателя, при равенстве — по методу и пути или IP лексикографически.</p>
+<p>Для пустого файла: нулевые счетчики и пустые списки.</p>
+<p>Формат ответа показан в <code>fixtures/expected.json</code>.</p>
+<p>Допустимая погрешность дробных чисел — <code>0.000001</code>.</p>
+<h2 id="2-api">2. API и фоновые задания<a class="headerlink" href="#2-api" title="Permanent link">¶</a></h2>
+<ul>
+<li><code>POST /jobs</code> — файл в теле запроса (<code>application/x-ndjson</code>), ответ <code>202</code> с <code>id</code>;</li>
+<li><code>GET /jobs/{id}</code> — состояние и текст ошибки, если она возникла;</li>
+<li><code>GET /jobs/{id}/report</code> — готовый отчет; до готовности — <code>409</code>;</li>
+<li><code>GET /health</code> — проверка, что HTTP-приложение работает.</li>
+</ul>
+<p>Неизвестный идентификатор — <code>404</code>.</p>
+<p>Ограничение размера загрузки — <code>413</code>.</p>
+<p>Формат остальных ошибок выбирается самостоятельно и описывается в README.</p>
+<p>Состояния:</p>
+<ul>
+<li><code>queued</code>;</li>
+<li><code>running</code>;</li>
+<li><code>done</code>;</li>
+<li><code>failed</code>.</li>
+</ul>
+<p>После загрузки и регистрации файла HTTP-запрос заканчивается: анализ выполняется в фоне.</p>
+<p>Задания выполняет фиксированное число worker, задаваемое настройкой.</p>
+<p>Для основной версии можно периодически читать ожидающие задания из БД: не нужно создавать отдельный брокер, распределенную очередь или собственный фреймворк.</p>
+<p>Каждое задание внутри одного процесса должно выполняться одним worker.</p>
+<h2 id="3">3. Память и ошибки<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<p>Читайте файл последовательно. Нельзя хранить в памяти все исходные записи.</p>
+<p>Агрегаты по маршрутам, IP и минутам можно хранить в map.</p>
+<p>Предусмотрите настраиваемый предел размера файла и длины строки.</p>
+<p>При ошибке не публикуйте частичный отчет как успешный.</p>
+<p>Закрывайте файлы, результаты SQL-запросов и транзакции.</p>
+<h2 id="4-postgresql">4. PostgreSQL, миграции и перезапуск<a class="headerlink" href="#4-postgresql" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL сохраняются задания, состояния, пути к файлам и готовые отчеты.</p>
+<p>Файлы хранятся в Docker volume.</p>
+<p>Разрешено сохранять весь итоговый отчет в JSONB.</p>
+<p>Самостоятельно спроектируйте таблицы и подготовьте миграции: начальную схему и одно содержательное изменение, используемое приложением, например добавление исходного имени файла.</p>
+<p>Покажите создание БД с нуля и обновление с сохранением данных.</p>
+<p>Миграции выполняются отдельным шагом до запуска приложения; ошибка миграции должна останавливать запуск.</p>
+<p>После перезапуска готовые отчеты остаются доступны.</p>
+<p>При запуске единственной реплики разрешается переводить оставшиеся <code>queued</code> и <code>running</code> в <code>failed</code> с объяснением «обработка прервана перезапуском».</p>
+<p>Пользователь загружает файл повторно.</p>
+<p>Продолжение старого задания и автоматический повтор не требуются.</p>
+<p>Данные сохраняются при обычном <code>down</code>/<code>up</code>; удаление volumes означает намеренный сброс.</p>
+<h2 id="5-docker-nginx">5. Docker, Nginx и пулы<a class="headerlink" href="#5-docker-nginx" title="Permanent link">¶</a></h2>
+<p>Основной запуск:</p>
+<div class="highlight"><pre><span></span><code>Nginx → одна реплика Go → PgBouncer → PostgreSQL
+</code></pre></div>
+<p>Самостоятельно напишите Dockerfile и Docker Compose для приложения, Nginx, PgBouncer и PostgreSQL.</p>
+<p>Предусмотрите отдельный шаг миграций, сеть и постоянные тома.</p>
+<p>Самостоятельно настройте Nginx:</p>
+<ul>
+<li>проксирование в Go;</li>
+<li>ограничение размера загрузки;</li>
+<li>запись JSON access-логов в формате задания.</li>
+</ul>
+<p>Покажите реальный лог после HTTP-запроса.</p>
+<p>Запросы к приложению проходят через Nginx.</p>
+<p>Самостоятельно настройте PgBouncer:</p>
+<ul>
+<li>подключение и аутентификацию к PostgreSQL;</li>
+<li>режим <code>transaction</code>;</li>
+<li>предел клиентских соединений;</li>
+<li>размер серверного пула.</li>
+</ul>
+<p>Покажите подключение приложения через PgBouncer и состояние пула через <code>SHOW POOLS</code>.</p>
+<p>Миграции подключаются напрямую к PostgreSQL.</p>
+<p>Готовые образы Nginx, PostgreSQL и PgBouncer использовать разрешено; самостоятельно собирать эти программы из исходников не требуется.</p>
+<p>В приложении один общий <code>sql.DB</code>.</p>
+<p>Настройте максимальное число открытых и свободных соединений, используйте таймауты операций с БД через context.</p>
+<p>Уметь объяснить разницу между пулом Go и PgBouncer.</p>
+<p>Собственный пул писать не нужно.</p>
+<p>Для подключения подойдет драйвер PostgreSQL, совместимый с <code>database/sql</code>.</p>
+<p>При выборе <code>pgx/stdlib</code> проверьте настройки statement cache с transaction pooling; проще начать с драйвера <code>github.com/lib/pq</code> или отключенного кеширования именованных statements.</p>
+<h2 id="6-dev-test-stage-prod">6. dev / test / stage / prod<a class="headerlink" href="#6-dev-test-stage-prod" title="Permanent link">¶</a></h2>
+<p>Самостоятельно подготовьте общий Compose и отдельные настройки окружений.</p>
+<p>Достаточно различий в:</p>
+<ul>
+<li>порте;</li>
+<li>числе worker;</li>
+<li>размере пула;</li>
+<li>уровне логирования.</li>
+</ul>
+<p>Данные окружений изолированы через разные имена Compose-проектов.</p>
+<p><code>prod</code> — локальная демонстрационная конфигурация, а не настоящий публичный сервер.</p>
+<p>На stage и prod запускается один собранный образ.</p>
+<p>Одновременно запускать все окружения не нужно.</p>
+<h2 id="7">7. Проверки<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<p>Обязательно:</p>
+<ol>
+<li>Автоматический тест анализатора на контрольном файле и проверка ошибки на испорченной строке.</li>
+<li>Проверка конкурентного Go-кода с <code>go test -race ./...</code>.</li>
+<li>Демонстрация нескольких заданий при одном и двух worker. Для наглядности разрешена отключаемая задержка.</li>
+<li>Сохранность готового отчета после перезапуска.</li>
+<li>Один эксперимент с <code>pprof</code>: получить профиль памяти на большом файле и объяснить, какие данные занимают память. Размер файла подбирается под ноутбук.</li>
+<li>Настроить маленький пул Go, показать его статистику (<code>DB.Stats</code>) и объяснить возможное ожидание соединения. Отдельный нагрузочный стенд и гарантированное ускорение не требуются.</li>
+</ol>
+<p>Диагностику можно включать отдельным локальным портом.</p>
+<p>Нужны обычные логи с ID задания, но Prometheus, Grafana и трассировка не требуются.</p>
+<p>Дополнительно можно проанализировать завершенную копию access-логов собственного Nginx.</p>
+<h2 id="8-github">8. GitHub и защита<a class="headerlink" href="#8-github" title="Permanent link">¶</a></h2>
+<p>Исходный код обязательно доступен преподавателю на GitHub: публично или через доступ к приватному репозиторию.</p>
+<p>Репозиторий содержит:</p>
+<ul>
+<li>код Go;</li>
+<li><code>go.mod</code> / <code>go.sum</code> при внешних зависимостях;</li>
+<li>тесты;</li>
+<li>миграции;</li>
+<li>Docker-конфигурации;</li>
+<li>README с командами запуска и демонстрации.</li>
+</ul>
+<p>Не коммитьте действующие пароли, реальные пользовательские логи и большие сгенерированные файлы.</p>
+<p>Укажите коммит сдаваемой версии и покажите ее на ноутбуке.</p>
+<p>На защите:</p>
+<ul>
+<li>запустить проект;</li>
+<li>загрузить контрольный и ошибочный файлы;</li>
+<li>показать статусы;</li>
+<li>показать отчет;</li>
+<li>показать фоновую обработку;</li>
+<li>показать перезапуск;</li>
+<li>показать изоляцию test/dev;</li>
+<li>объяснить worker, map, синхронизацию, <code>sql.DB</code> и конфигурацию.</li>
+</ul>
+<p>Зависимости и образы подготовить заранее.</p>
+<p>Не обязательны:</p>
+<ul>
+<li>несколько реплик;</li>
+<li>отмена и удаление заданий;</li>
+<li>авторизация;</li>
+<li>идемпотентность загрузки;</li>
+<li>автоматическое восстановление;</li>
+<li>строгий предел общей очереди;</li>
+<li>аварийный сборщик файлов;</li>
+<li>Kubernetes;</li>
+<li>CI/CD;</li>
+<li>фронтенд.</li>
+</ul>
+<p>Реплики — добровольное расширение; запуск второй копии потребует изменить получение заданий и логику старта.</p>
+<p>Основной проект обещает корректность только с одной репликой.</p>
+<p>Допуск определяется работоспособностью перечисленных сценариев и пониманием своего кода, а не скоростью ноутбука и количеством дополнительных технологий.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3. Go GC internals и memory allocator" class="md-footer__link md-footer__link--prev" href="../../lectures/Additional/3%20-%20GC%20deep/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3. Go GC internals и memory allocator
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: Задания на автоматы" class="md-footer__link md-footer__link--next" href="../projects/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                Задания на автоматы
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

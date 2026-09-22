@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/practice/projects/" rel="canonical"/>
+<link href="../1%20-%20task/" rel="prev"/>
+<link href="../../slides/1.0%20Production_backend_Go/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>Задания на автоматы - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#_1">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Задания на автоматы
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../contents/">
+<span class="md-ellipsis">
+    
+  
+    Оглавление
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Production backend и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Go runtime internals — расширенная версия
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Go memory, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_3_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Глубокие internals Go runtime, synchronization и CPU
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../lectures/Additional/3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Go GC internals и memory allocator
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        Уровень 1. Базовые прикладные проекты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2_1">
+<span class="md-ellipsis">
+      
+        Уровень 2. Прикладные проекты с несколькими взаимодействующими механизмами
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-backend-">
+<span class="md-ellipsis">
+      
+        Уровень 3. Backend-проекты с диагностикой и конкурентным доступом
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4_1">
+<span class="md-ellipsis">
+      
+        Уровень 4. Системы, требующие устойчивой работы нескольких компонентов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5_1">
+<span class="md-ellipsis">
+      
+        Уровень 5. Собственные инструменты и алгоритмы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6_1">
+<span class="md-ellipsis">
+      
+        Уровень 6. Продвинутые реализации с проверяемыми гарантиями
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7_1">
+<span class="md-ellipsis">
+      
+        Уровень 7. Исследовательские проекты с ограниченной моделью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8_1">
+<span class="md-ellipsis">
+      
+        Уровень 8. Сложные модели распределенного поведения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9_1">
+<span class="md-ellipsis">
+      
+        Уровень 9. Амбициозные исследовательские проекты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10_1">
+<span class="md-ellipsis">
+      
+        Уровень 10. Экспериментальные темы максимальной сложности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1.0%20Production_backend_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.0 Production_backend_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1.1%20History_of_Go/">
+<span class="md-ellipsis">
+    
+  
+    1.1 History_of_Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.0%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.0 Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.1%20Scheduler%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.1 Scheduler Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.2%20Sync%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.2 Sync Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.3%20Mutex%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2.3 Mutex Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/X%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    X - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/XX%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    XX - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/XXX%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    XXX - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        Уровень 1. Базовые прикладные проекты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2_1">
+<span class="md-ellipsis">
+      
+        Уровень 2. Прикладные проекты с несколькими взаимодействующими механизмами
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-backend-">
+<span class="md-ellipsis">
+      
+        Уровень 3. Backend-проекты с диагностикой и конкурентным доступом
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4_1">
+<span class="md-ellipsis">
+      
+        Уровень 4. Системы, требующие устойчивой работы нескольких компонентов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5_1">
+<span class="md-ellipsis">
+      
+        Уровень 5. Собственные инструменты и алгоритмы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6_1">
+<span class="md-ellipsis">
+      
+        Уровень 6. Продвинутые реализации с проверяемыми гарантиями
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7_1">
+<span class="md-ellipsis">
+      
+        Уровень 7. Исследовательские проекты с ограниченной моделью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8_1">
+<span class="md-ellipsis">
+      
+        Уровень 8. Сложные модели распределенного поведения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9_1">
+<span class="md-ellipsis">
+      
+        Уровень 9. Амбициозные исследовательские проекты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10_1">
+<span class="md-ellipsis">
+      
+        Уровень 10. Экспериментальные темы максимальной сложности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="_1">Задания на автоматы<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>Темы расположены от простых к сложным. Для каждого проекта необходимо представить исходный код на GitHub, инструкцию локального запуска, проверки основных сценариев и демонстрацию результата.</p>
+<p>Основная реализация выполняется на Go; готовые библиотеки, базы данных и модели допускаются, если их использование не заменяет основной предмет разработки.</p>
+<p>Для исследовательских тем оцениваются постановка эксперимента, воспроизводимость и объяснение результатов. Отрицательный результат допустим: например, обучаемая стратегия может проиграть обычному алгоритму.</p>
+<h2 id="1">Уровень 1. Базовые прикладные проекты<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="1_1">1. «Кто съел мой диск?»<a class="headerlink" href="#1_1" title="Permanent link">¶</a></h3>
+<p>Разработайте анализатор файловой системы, который показывает размеры каталогов, крупнейшие файлы и группы одинаковых файлов. Предусмотрите обработку ошибок доступа и сравнение результатов двух сканирований.</p>
+<h3 id="2">2. «Ссылки, которые еще живы»<a class="headerlink" href="#2" title="Permanent link">¶</a></h3>
+<p>Создайте сервис проверки списка закладок. Он должен определять доступность страниц, обрабатывать перенаправления, находить повторяющиеся ссылки и сохранять историю проверок. Ограничьте число одновременных запросов.</p>
+<h3 id="3">3. «Что изменилось на странице?»<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
+<p>Разработайте сервис периодического наблюдения за веб-страницами. Сохраняйте версии содержимого и показывайте изменения. Предусмотрите исключение выбранных элементов страницы, чтобы динамические счетчики и даты не создавали лишние уведомления.</p>
+<h3 id="4">4. «Командный таймер»<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<p>Создайте сервер совместных рабочих сессий с запуском, остановкой и завершением таймеров. Несколько клиентов должны видеть согласованное состояние, в том числе после переподключения. Сохраняйте историю завершенных сессий.</p>
+<h3 id="5">5. «Куда ведет эта ссылка?»<a class="headerlink" href="#5" title="Permanent link">¶</a></h3>
+<p>Разработайте инструмент проверки ссылок на сайте. Он должен обходить страницы в пределах заданного домена, находить неработающие ссылки и цепочки перенаправлений, показывать страницы, на которых они обнаружены. Ограничьте глубину обхода, число страниц и параллельных запросов. Продемонстрируйте проверку на локальном сайте с подготовленными ошибками.</p>
+<h3 id="6">6. «Фотолаборатория»<a class="headerlink" href="#6" title="Permanent link">¶</a></h3>
+<p>Создайте сервис пакетной обработки изображений: изменение размера, преобразование поддерживаемых форматов и добавление водяного знака. Реализуйте очередь заданий, ограниченное число обработчиков и получение результатов вместе с отчетом об ошибках.</p>
+<h3 id="7">7. «Совместный плейлист»<a class="headerlink" href="#7" title="Permanent link">¶</a></h3>
+<p>Разработайте сервер общей очереди воспроизведения. Пользователи могут добавлять элементы, голосовать за них и получать текущее состояние. Определите правила изменения порядка и корректно обработайте одновременные действия нескольких клиентов.</p>
+<h3 id="8">8. «Буфер обмена с памятью»<a class="headerlink" href="#8" title="Permanent link">¶</a></h3>
+<p>Создайте локальное приложение для хранения и поиска истории текстовых фрагментов. Предусмотрите ограничение размера истории, удаление записей и исключение выбранных типов содержимого. Достаточно поддержки одной операционной системы.</p>
+<h3 id="9">9. «Скриншоты обрели порядок»<a class="headerlink" href="#9" title="Permanent link">¶</a></h3>
+<p>Разработайте сервис индексации изображений с извлечением текста через готовый OCR-инструмент. Реализуйте поиск, повторную индексацию измененных файлов и обработку ошибок распознавания. Оцените качество поиска на подготовленном наборе изображений.</p>
+<h3 id="10">10. «Электронная очередь без драки»<a class="headerlink" href="#10" title="Permanent link">¶</a></h3>
+<p>Создайте сервис выдачи талонов и обслуживания посетителей несколькими операторами. Поддержите вызов следующего посетителя, завершение обслуживания и пропуск талона. Один талон не должен одновременно обслуживаться двумя операторами.</p>
+<h2 id="2_1">Уровень 2. Прикладные проекты с несколькими взаимодействующими механизмами<a class="headerlink" href="#2_1" title="Permanent link">¶</a></h2>
+<h3 id="11">11. «Расписание без накладок»<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Разработайте сервис бронирования помещений или оборудования на временные интервалы. Реализуйте создание и отмену брони, поиск свободного времени и защиту от пересекающихся бронирований при одновременных запросах.</p>
+<h3 id="12">12. «Личный поисковик по учебному хаосу»<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>Создайте локальный поисковик по текстовым документам и исходному коду. Поддержите индексирование, поиск по содержимому и обновление индекса при изменении файлов. Ограничьте список поддерживаемых форматов и опишите правила поиска.</p>
+<h3 id="13">13. «Видео слишком большое»<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Разработайте Go-сервис, управляющий преобразованием видео через FFmpeg. Реализуйте очередь, ограничение числа процессов, получение состояния и отмену обработки. Корректно обрабатывайте ошибки запуска, превышение времени и завершение дочерних процессов.</p>
+<h3 id="14">14. «Голосовые, которые можно читать»<a class="headerlink" href="#14" title="Permanent link">¶</a></h3>
+<p>Создайте сервис фонового преобразования аудио в текст с помощью готовой локальной модели. Поддержите загрузку файлов, состояния заданий, хранение результатов и поиск по расшифровкам. Исследуйте влияние параллельной обработки на время выполнения и память.</p>
+<h3 id="15">15. «Скачать все, но аккуратно»<a class="headerlink" href="#15" title="Permanent link">¶</a></h3>
+<p>Разработайте менеджер HTTP-загрузок с очередью, ограничением параллелизма и скорости. Поддержите продолжение загрузки, если сервер предоставляет такую возможность. Проверяйте поведение при обрывах и изменении удаленного файла.</p>
+<h3 id="16">16. «Посылка между ноутбуками»<a class="headerlink" href="#16" title="Permanent link">¶</a></h3>
+<p>Создайте приложение передачи файлов по локальной сети. Реализуйте передачу частями, проверку целостности и продолжение после разрыва соединения. Продемонстрируйте восстановление передачи без повторной отправки уже подтвержденных частей.</p>
+<h3 id="17">17. «Умный импорт прайса»<a class="headerlink" href="#17" title="Permanent link">¶</a></h3>
+<p>Разработайте сервис импорта каталога из CSV. Перед применением изменений формируйте отчет о новых, измененных и некорректных записях. Применение подтвержденного импорта должно сохранять согласованность данных и историю операции.</p>
+<h3 id="18">18. «Дежурный по процессам»<a class="headerlink" href="#18" title="Permanent link">¶</a></h3>
+<p>Создайте супервизор локальных процессов. Поддержите запуск, остановку, сбор вывода и автоматический перезапуск по заданной политике. Предусмотрите ограничение частоты перезапусков для программ, которые постоянно завершаются с ошибкой.</p>
+<h3 id="19-cron">19. «Собственный cron с историей»<a class="headerlink" href="#19-cron" title="Permanent link">¶</a></h3>
+<p>Разработайте планировщик периодических заданий с хранением результатов запусков. Определите поведение при пересечении выполнений, пропущенном времени запуска и перезапуске планировщика. Подготовьте проверки этих сценариев.</p>
+<h3 id="20">20. «Нагрузчик с человеческими привычками»<a class="headerlink" href="#20" title="Permanent link">¶</a></h3>
+<p>Создайте генератор HTTP-нагрузки, выполняющий последовательности действий с паузами и зависимостями между запросами. Поддержите несколько сценариев пользователей и сбор статистики. Объясните, как ограничения самого генератора влияют на измерения.</p>
+<h2 id="3-backend-">Уровень 3. Backend-проекты с диагностикой и конкурентным доступом<a class="headerlink" href="#3-backend-" title="Permanent link">¶</a></h2>
+<h3 id="21">21. «Два пула, три места ожидания»<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Подготовьте лабораторный стенд Go → PgBouncer → PostgreSQL. Реализуйте управляемую нагрузку и сбор статистики соединений. Продемонстрируйте ожидание в пуле Go, ожидание в PgBouncer и задержку внутри PostgreSQL.</p>
+<h3 id="22">22. «Сервис потерял память»<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p>Подготовьте несколько Go-программ с различными причинами роста памяти и проведите их диагностику. Используйте профили и измерения для различения временных выделений и удержания объектов. Для каждого случая предложите исправление и повторите измерения.</p>
+<h3 id="23">23. «ИИ написал — предъявите дефекты»<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p>Исследуйте сгенерированный Go-сервис и найдите содержательные ошибки корректности, конкурентности или управления ресурсами. Для каждого дефекта представьте воспроизводимый сценарий, объяснение причины, исправление и проверку. Замечания только по оформлению кода не учитываются.</p>
+<h3 id="24">24. «Документация под присягой»<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<p>Выберите небольшой Go-проект и проверьте несколько заявленных свойств: например, потокобезопасность, отменяемость или ограничение памяти. Подготовьте эксперименты и сформулируйте выводы с указанием условий, в которых свойства проверялись.</p>
+<h3 id="25-sql">25. «SQL стал медленным»<a class="headerlink" href="#25-sql" title="Permanent link">¶</a></h3>
+<p>Создайте стенд для сравнения запросов PostgreSQL на подготовленных данных. Исследуйте влияние индексов, объема данных и распределения значений. Сопоставьте планы выполнения с измерениями и объясните обнаруженные изменения.</p>
+<h3 id="26">26. «Контракт сломан на полуслове»<a class="headerlink" href="#26" title="Permanent link">¶</a></h3>
+<p>Разработайте тестовый HTTP-сервер, возвращающий задержанные, оборванные и некорректные ответы. Реализуйте клиент и проверьте его таймауты, обработку ошибок и освобождение ресурсов. Все нарушения должны воспроизводиться выбранным сценарием.</p>
+<h3 id="27">27. «Интернет сегодня не в настроении»<a class="headerlink" href="#27" title="Permanent link">¶</a></h3>
+<p>Создайте прокси для управляемого внесения сетевых неисправностей: задержек, ограничения скорости и разрывов соединений. Подготовьте сценарии проверки HTTP-приложения через этот прокси и объясните наблюдаемое поведение.</p>
+<h3 id="28">28. «Сервис умеет сказать “хватит”»<a class="headerlink" href="#28" title="Permanent link">¶</a></h3>
+<p>Разработайте API-шлюз с ограничением частоты запросов, параллелизма и времени ожидания. Исследуйте поведение при перегрузке. Покажите, как выбранные ограничения влияют на полезную пропускную способность и задержки.</p>
+<h3 id="29">29. «Последний билет»<a class="headerlink" href="#29" title="Permanent link">¶</a></h3>
+<p>Создайте сервис бронирования и покупки мест с ограниченным временем действия брони. Проверьте одновременные попытки приобрести одно место, отмену и задержанное подтверждение. Определите допустимые переходы состояний покупки.</p>
+<h3 id="30">30. «Чат, который помнит»<a class="headerlink" href="#30" title="Permanent link">¶</a></h3>
+<p>Разработайте чат с комнатами, сохранением истории и получением пропущенных сообщений после переподключения. Предусмотрите медленных клиентов и разрывы связи. Опишите правила порядка сообщений и обработки повторной отправки.</p>
+<h2 id="4_1">Уровень 4. Системы, требующие устойчивой работы нескольких компонентов<a class="headerlink" href="#4_1" title="Permanent link">¶</a></h2>
+<h3 id="31">31. «Куда делся запрос?»<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<p>Создайте несколько взаимодействующих Go-сервисов и механизм сбора событий прохождения запроса. По идентификатору запроса показывайте последовательность операций и их длительность. Продемонстрируйте ожидание очереди, медленную БД и задержку внешнего вызова.</p>
+<h3 id="32">32. «Арена генераторов кода»<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p>Разработайте стенд сравнения моделей или стратегий генерации кода на одинаковых задачах. Решения проверяются независимыми тестами. Сохраняйте условия запусков, результаты, число попыток и ограничения эксперимента.</p>
+<h3 id="33">33. «Сломать и повторить»<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<p>Создайте стенд запуска сценариев отказа для учебного сервиса. Поддержите остановку процесса, задержку зависимости и разрыв соединения. Сохраняйте параметры сценария и проверяйте заранее определенные свойства системы.</p>
+<h3 id="34-webhook">34. «Доставка webhook без обещаний магии»<a class="headerlink" href="#34-webhook" title="Permanent link">¶</a></h3>
+<p>Разработайте сервис доставки событий подписчикам с повторными попытками и историей. Проверьте недоступного получателя и потерю ответа после успешного приема. Определите гарантии доставки и правила обработки повторов.</p>
+<h3 id="35-api">35. «Проверяющий API»<a class="headerlink" href="#35-api" title="Permanent link">¶</a></h3>
+<p>Создайте инструмент проверки сервиса по ограниченному подмножеству OpenAPI. Проверяйте коды ответов, обязательные поля и типы данных. Подготовьте версии API с намеренными нарушениями и покажите результаты обнаружения.</p>
+<h3 id="36">36. «Регрессия скорости найдена»<a class="headerlink" href="#36" title="Permanent link">¶</a></h3>
+<p>Разработайте инструмент сравнения benchmark двух версий Go-проекта. Выполняйте повторные измерения, учитывайте разброс и формируйте отчет об изменениях. Проверьте инструмент на реальной регрессии и на запусках без изменения кода.</p>
+<h3 id="37">37. «Сборщик приложений»<a class="headerlink" href="#37" title="Permanent link">¶</a></h3>
+<p>Создайте локальный сервис сборки подготовленных Go-проектов. Поддержите очередь, выполнение тестов, сохранение артефактов и ограничение времени и вывода. Запускайте сборки в изолированном окружении.</p>
+<h3 id="38">38. «Приложение по кнопке»<a class="headerlink" href="#38" title="Permanent link">¶</a></h3>
+<p>Разработайте платформу запуска подготовленных приложений в локальных контейнерах. Реализуйте создание экземпляра, просмотр состояния и логов, остановку и повторный запуск. Сохраняйте описание развернутых приложений.</p>
+<h3 id="39">39. «Система логов всех сервисов»<a class="headerlink" href="#39" title="Permanent link">¶</a></h3>
+<p>Создайте сервис приема и поиска логов от нескольких источников. Поддержите фильтрацию и потоковый просмотр. Предусмотрите ограничение буферов и определите поведение при поступлении данных быстрее, чем система успевает их сохранять.</p>
+<h3 id="40">40. «Переезд без потери данных»<a class="headerlink" href="#40" title="Permanent link">¶</a></h3>
+<p>Разработайте инструмент переноса данных между двумя версиями учебного сервиса. Поддержите продолжение после остановки, повторный запуск и проверку результата. Формируйте отчет о пропущенных, измененных и некорректных записях.</p>
+<h2 id="5_1">Уровень 5. Собственные инструменты и алгоритмы<a class="headerlink" href="#5_1" title="Permanent link">¶</a></h2>
+<h3 id="41">41. «Файлы переживут диплом»<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>Создайте систему версионного резервного копирования с проверкой целостности. Поддержите инкрементальное сохранение и восстановление выбранной версии. Проверьте восстановление после удаления исходных файлов и прерывания создания копии.</p>
+<h3 id="42">42. «Планировщик против несправедливости»<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<p>Реализуйте несколько стратегий выполнения коротких, длинных и приоритетных заданий. Сравните время ожидания и завершения. Подготовьте нагрузку, вызывающую голодание, и исследуйте способ его предотвращения.</p>
+<h3 id="43">43. «Кэш, который знает цену промаха»<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<p>Создайте стенд сравнения политик кэширования с учетом размера объектов и стоимости их получения. Измеряйте попадания, память и суммарную стоимость обработки. Проверьте изменение популярности объектов во время работы.</p>
+<h3 id="44">44. «Маршрутизатор запросов с памятью»<a class="headerlink" href="#44" title="Permanent link">¶</a></h3>
+<p>Разработайте балансировщик, учитывающий занятость, ошибки или задержки backend. Сравните его с простым распределением запросов. Подготовьте сценарии медленного экземпляра и изменения доступной мощности.</p>
+<h3 id="45">45. «Язык обработки событий»<a class="headerlink" href="#45" title="Permanent link">¶</a></h3>
+<p>Спроектируйте небольшой язык фильтрации и преобразования событий. Реализуйте парсер, проверку корректности и исполнитель. Предусмотрите понятные сообщения об ошибках и тесты семантики языка.</p>
+<h3 id="46">46. «Тесты не заметили»<a class="headerlink" href="#46" title="Permanent link">¶</a></h3>
+<p>Создайте инструмент мутационного тестирования ограниченного набора конструкций Go. Он должен изменять код, запускать тесты и показывать незамеченные мутации. Продемонстрируйте улучшение тестов по результатам анализа.</p>
+<h3 id="47">47. «Диспетчер локальных моделей»<a class="headerlink" href="#47" title="Permanent link">¶</a></h3>
+<p>Разработайте Go-сервис управления запросами к готовой локальной модели. Поддержите очередь, streaming, отмену и ограничение параллелизма. Исследуйте влияние длинных запросов и отключившихся клиентов.</p>
+<h3 id="48">48. «Поиск по коду по смыслу»<a class="headerlink" href="#48" title="Permanent link">¶</a></h3>
+<p>Создайте локальный поисковик по репозиторию с использованием embeddings. Подготовьте набор вопросов и ожидаемых участков кода. Сравните качество и стоимость поиска с обычным текстовым поиском.</p>
+<h3 id="49">49. «Модель отвечает за источники»<a class="headerlink" href="#49" title="Permanent link">¶</a></h3>
+<p>Разработайте систему ответов по локальным документам с указанием подтверждающих фрагментов. Проверьте удаление, обновление и противоречие документов. Оцените корректность ссылок и поведение при отсутствии ответа в источниках.</p>
+<h3 id="50">50. «Агенту выдали инструменты, а не власть»<a class="headerlink" href="#50" title="Permanent link">¶</a></h3>
+<p>Создайте Go-исполнитель действий модели с проверкой аргументов, прав и допустимых переходов состояния. Проверьте повторные, некорректные и недопустимые вызовы. Решение о разрешении действия должно приниматься программно.</p>
+<h2 id="6_1">Уровень 6. Продвинутые реализации с проверяемыми гарантиями<a class="headerlink" href="#6_1" title="Permanent link">¶</a></h2>
+<h3 id="51-redis">51. «Маленький Redis»<a class="headerlink" href="#51-redis" title="Permanent link">¶</a></h3>
+<p>Разработайте сетевое key-value-хранилище с TTL, ограничением памяти и сохранением состояния. Определите поддерживаемые команды и гарантии. Исследуйте горячие ключи, большие значения и массовое истечение TTL.</p>
+<h3 id="52">52. «Поисковый движок»<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p>Создайте собственный индекс текстовых документов с ранжированием результатов. Поддержите добавление, изменение и удаление документов. Исследуйте влияние частоты слов и размера коллекции на время поиска.</p>
+<h3 id="53-git">53. «Git для любых файлов»<a class="headerlink" href="#53-git" title="Permanent link">¶</a></h3>
+<p>Разработайте хранилище версий каталогов с дедупликацией содержимого. Поддержите сравнение снимков и восстановление. Проверьте побайтовое совпадение восстановленных файлов и обработку прерванного сохранения.</p>
+<h3 id="54">54. «Сжатый архив с выборочным доступом»<a class="headerlink" href="#54" title="Permanent link">¶</a></h3>
+<p>Спроектируйте формат архива, позволяющий извлекать отдельные файлы без чтения всего содержимого. Реализуйте индекс и проверку целостности блоков. Продемонстрируйте поведение при повреждении части архива.</p>
+<h3 id="55">55. «База данных из файлов»<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p>Создайте key-value-хранилище с журналом операций, индексом и восстановлением. Подготовьте остановки в разных точках записи. Опишите, какие подтвержденные операции система обязуется сохранять.</p>
+<h3 id="56">56. «Свой брокер сообщений»<a class="headerlink" href="#56" title="Permanent link">¶</a></h3>
+<p>Разработайте брокер с публикацией, подпиской, подтверждением и повторной доставкой. Поддержите сохранение сообщений. Проверьте медленного подписчика и перезапуск, явно определив порядок и допустимость повторов.</p>
+<h3 id="57">57. «Нейросеть с нуля»<a class="headerlink" href="#57" title="Permanent link">¶</a></h3>
+<p>Реализуйте небольшой движок автоматического дифференцирования и обучите нейронную сеть на ограниченной задаче. Проверьте градиенты численно. Покажите изменение ошибки обучения и исследуйте расход памяти.</p>
+<h3 id="58">58. «Большая модель учит маленькую»<a class="headerlink" href="#58" title="Permanent link">¶</a></h3>
+<p>Используйте готовую модель для разметки ограниченного набора данных, затем обучите локальный классификатор. Разработайте Go-сервис его применения. Оцените результат на независимых примерах и исследуйте влияние ошибок разметки.</p>
+<h3 id="59-api">59. «Искусственные пользователи настоящего API»<a class="headerlink" href="#59-api" title="Permanent link">¶</a></h3>
+<p>Создайте систему, в которой агенты выбирают действия в учебном приложении, а Go исполняет и журналирует запросы. Сравните несколько моделей поведения. Проверяйте корректность состояния приложения независимо от ответов агентов.</p>
+<h3 id="60-">60. «ИИ-заказчик опять передумал»<a class="headerlink" href="#60-" title="Permanent link">¶</a></h3>
+<p>Разработайте систему ведения версий требований к небольшому сервису. Агент предлагает изменения, а система сохраняет их связь с проверками поведения. Продемонстрируйте обнаружение противоречивых требований и несовместимых изменений.</p>
+<h2 id="7_1">Уровень 7. Исследовательские проекты с ограниченной моделью<a class="headerlink" href="#7_1" title="Permanent link">¶</a></h2>
+<h3 id="61">61. «Эпидемия повторных запросов»<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p>Создайте симулятор каскадной перегрузки взаимодействующих сервисов. Исследуйте влияние таймаутов, повторов и ограничений очередей. Найдите условия, при которых повторы усиливают отказ, и сравните способы предотвращения.</p>
+<h3 id="62">62. «Распродажа глазами тысячи покупателей»<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p>Разработайте симулятор поведения покупателей, включая паузы, повторы и незавершенные действия. Используйте его для нагрузки учебного API. Исследуйте влияние разных клиентских стратегий на сервер.</p>
+<h3 id="63">63. «Цифровой город переживает час пик»<a class="headerlink" href="#63" title="Permanent link">¶</a></h3>
+<p>Создайте дискретно-событийную модель транспорта, остановок и пассажиров. Поддержите изменение расписания и вместимости. Сравните варианты организации движения по времени ожидания и числу обслуженных пассажиров.</p>
+<h3 id="64">64. «Фабрика с неисправным станком»<a class="headerlink" href="#64" title="Permanent link">¶</a></h3>
+<p>Разработайте симулятор производственного процесса с несколькими этапами и отказами оборудования. Сравните стратегии очередей и назначения задач. Исследуйте влияние узких мест на завершение заказов.</p>
+<h3 id="65">65. «Отель без свободных номеров»<a class="headerlink" href="#65" title="Permanent link">¶</a></h3>
+<p>Создайте модель нескольких каналов бронирования с задержками обмена. Реализуйте выбранные правила резервирования и подтверждения. Найдите сценарии двойного бронирования и исследуйте способы их предотвращения.</p>
+<h3 id="66">66. «Аэропорт потерял центральное табло»<a class="headerlink" href="#66" title="Permanent link">¶</a></h3>
+<p>Разработайте симулятор назначения выходов и времени посадки при задержанном обмене данными. Обнаруживайте конфликтующие назначения и поддержите их разрешение. Оцените последствия выбранной политики согласования.</p>
+<h3 id="67">67. «Сервису запрещено знать текущее время»<a class="headerlink" href="#67" title="Permanent link">¶</a></h3>
+<p>Создайте среду с управляемыми часами для проверки TTL, расписаний и таймаутов. Продемонстрируйте ускорение времени и изменение показаний календарных часов. Разделите поведение календарного времени и измерения длительности.</p>
+<h3 id="68-lru">68. «Нейросеть против LRU»<a class="headerlink" href="#68-lru" title="Permanent link">¶</a></h3>
+<p>Разработайте обучаемую политику кэширования и сравните ее с LRU и простой частотной стратегией. Проверяйте на новых последовательностях запросов и при смене популярности ключей. Учитывайте стоимость предсказаний.</p>
+<h3 id="69-worker">69. «Нейросеть выбирает worker»<a class="headerlink" href="#69-worker" title="Permanent link">¶</a></h3>
+<p>Создайте систему регулирования числа обработчиков на основе наблюдаемой нагрузки. Сравните обучаемый подход с фиксированными настройками и эвристикой. Исследуйте устойчивость управления при резких изменениях нагрузки.</p>
+<h3 id="70">70. «Карманный языковой генератор»<a class="headerlink" href="#70" title="Permanent link">¶</a></h3>
+<p>Обучите небольшую языковую модель на подготовленном корпусе или синтетическом языке. Реализуйте генерацию и ее обслуживание на Go. Исследуйте влияние размера контекста и параметров генерации на качество и ресурсы.</p>
+<h2 id="8_1">Уровень 8. Сложные модели распределенного поведения<a class="headerlink" href="#8_1" title="Permanent link">¶</a></h2>
+<h3 id="71">71. «Машина времени»<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<p>Разработайте детерминированный симулятор нескольких узлов с управляемым временем и доставкой сообщений. Сохраняйте параметры и воспроизводите историю. Покажите, как изменение одного события влияет на результат.</p>
+<h3 id="72">72. «Интернет в коробке»<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<p>Создайте модель клиентов, серверов и сети с ограниченной пропускной способностью и отказами связей. Реализуйте один прикладной протокол поверх нее. Исследуйте его поведение при разделении и восстановлении сети.</p>
+<h3 id="73">73. «Сервис клонируется под нагрузкой»<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<p>Разработайте контроллер числа локальных экземпляров приложения. Учитывайте наблюдаемую нагрузку и время запуска. Исследуйте колебания масштабирования и сравните несколько политик управления.</p>
+<h3 id="74">74. «Распределенный чат без центрального сервера»<a class="headerlink" href="#74" title="Permanent link">¶</a></h3>
+<p>Создайте несколько узлов, обменивающихся сообщениями и синхронизирующих историю после разрывов. Определите правила идентификации, устранения дублей и порядка сообщений. Подготовьте проверки переставленной доставки.</p>
+<h3 id="75">75. «Склад после разделения сети»<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<p>Разработайте модель двух филиалов, выполняющих операции при временной потере связи. Определите правила резервирования и последующего согласования. Проверьте сохранение выбранных ограничений на остатки.</p>
+<h3 id="76">76. «Межпланетный банк»<a class="headerlink" href="#76" title="Permanent link">¶</a></h3>
+<p>Создайте модель переводов между узлами с большой задержкой и периодической недоступностью связи. Определите состояния перевода и доступные пользователю гарантии. Проверьте повторы, задержанные подтверждения и восстановление обмена.</p>
+<h3 id="77">77. «Бюрократия как распределенная система»<a class="headerlink" href="#77" title="Permanent link">¶</a></h3>
+<p>Разработайте модель прохождения заявления через несколько независимых участников. Поддержите потерю ответов, повторную отправку и возврат на исправление. Исследуйте условия завершения процесса и предотвращения бесконечных циклов.</p>
+<h3 id="78">78. «Инопланетный сервер»<a class="headerlink" href="#78" title="Permanent link">¶</a></h3>
+<p>Исследуйте предоставленный сервер с неизвестным, но ограниченным протоколом. По результатам экспериментов восстановите правила обмена и реализуйте совместимый клиент. Проверка проводится на сценариях, не использованных при исследовании.</p>
+<h3 id="79">79. «Вселенная пытается сломать счетчик»<a class="headerlink" href="#79" title="Permanent link">¶</a></h3>
+<p>Реализуйте распределенный счетчик и симулятор задержек, повторов и остановок узлов. Автоматически ищите истории, нарушающие заявленные свойства. Сохраняйте и сокращайте найденные контрпримеры.</p>
+<h3 id="80">80. «Биржа вычислений»<a class="headerlink" href="#80" title="Permanent link">¶</a></h3>
+<p>Создайте симулятор заказчиков и исполнителей вычислительных задач с ограниченными ресурсами и бюджетами. Реализуйте назначение работы и проверку результата. Сравните стратегии по стоимости, срокам и доле завершенных задач.</p>
+<h2 id="9_1">Уровень 9. Амбициозные исследовательские проекты<a class="headerlink" href="#9_1" title="Permanent link">¶</a></h2>
+<h3 id="81">81. «Агент исправляет программу»<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>Разработайте систему изменения Go-кода агентом с последующей сборкой и независимыми тестами. Ограничьте число попыток и область изменений. Исследуйте успешные исправления, регрессии и причины неудач.</p>
+<h3 id="82-readme">82. «README превращается в проверки»<a class="headerlink" href="#82-readme" title="Permanent link">¶</a></h3>
+<p>Создайте инструмент преобразования ограниченного класса текстовых требований в исполняемые тесты. Сравните полученные проверки с независимо подготовленными. Исследуйте неоднозначные требования и ложные подтверждения корректности.</p>
+<h3 id="83">83. «Фабрика синтетических инцидентов»<a class="headerlink" href="#83" title="Permanent link">¶</a></h3>
+<p>Разработайте генератор взаимосвязанных логов и метрик с известными сценариями неисправностей. Проверяйте внутреннюю согласованность данных. Оцените, позволяют ли они различать заданные причины деградации.</p>
+<h3 id="84-backend">84. «Самоописывающийся backend»<a class="headerlink" href="#84-backend" title="Permanent link">¶</a></h3>
+<p>Создайте систему построения описания API, зависимостей и настроек приложения по коду и наблюдениям. Каждое существенное утверждение должно иметь источник. Проверьте обнаружение расхождений после изменений приложения.</p>
+<h3 id="85">85. «Сервис по спецификации»<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p>Разработайте генератор Go-сервисов из ограниченного формального описания. Автоматизируйте сборку и проверку API. Поддержите одно изменение спецификации, требующее обновления существующей схемы и сохранения данных.</p>
+<h3 id="86-">86. «ИИ-дежурный инженер»<a class="headerlink" href="#86-" title="Permanent link">¶</a></h3>
+<p>Создайте диагностического агента с доступом к ограниченному набору логов, метрик и команд. Проверяйте его на подготовленных неисправностях. Диагноз должен сопровождаться подтверждающим экспериментом.</p>
+<h3 id="87">87. «Архитектуры проходят естественный отбор»<a class="headerlink" href="#87" title="Permanent link">¶</a></h3>
+<p>Разработайте систему поиска конфигураций одного backend по результатам измерений. Разделите нагрузку для подбора и итоговой проверки. Исследуйте, сохраняется ли преимущество выбранной конфигурации при изменении условий.</p>
+<h3 id="88">88. «Мультивселенная одной аварии»<a class="headerlink" href="#88" title="Permanent link">¶</a></h3>
+<p>Создайте симулятор, запускающий разные вмешательства из общего состояния перед отказом. Сравните изменения таймаутов, повторов, очередей или ресурсов. Объясните, какие вмешательства изменили исход и почему.</p>
+<h3 id="89">89. «Изобрести язык и пережить вторую реализацию»<a class="headerlink" href="#89" title="Permanent link">¶</a></h3>
+<p>Спроектируйте небольшой язык описания процессов и реализуйте два исполнителя с разным внутренним устройством. Создайте общий набор проверок соответствия спецификации. Исследуйте обнаруженные неоднозначности и расхождения.</p>
+<h3 id="90">90. «Система ищет невозможное требование»<a class="headerlink" href="#90" title="Permanent link">¶</a></h3>
+<p>Создайте ограниченный формальный язык требований и инструмент поиска противоречащих им историй выполнения. Используйте перебор ограниченного пространства состояний или другой явно описанный метод. Результат должен содержать проверяемый контрпример.</p>
+<h2 id="10_1">Уровень 10. Экспериментальные темы максимальной сложности<a class="headerlink" href="#10_1" title="Permanent link">¶</a></h2>
+<p>Для этих тем необходимо заранее ограничить модель, набор сценариев и критерии оценки. Не требуется создавать универсальную автономную систему; требуется исследовать конкретную гипотезу на работающем прототипе.</p>
+<h3 id="91">91. «Микросервисы живут на зарплату»<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Разработайте модель сервисов, принимающих решения в условиях собственных бюджетов ресурсов. Исследуйте, позволяют ли локальные стратегии сохранять полезность всей системы. Сравните их с централизованным распределением ресурсов.</p>
+<h3 id="92-backend">92. «Backend учится проигрывать достойно»<a class="headerlink" href="#92-backend" title="Permanent link">¶</a></h3>
+<p>Создайте систему выбора ограниченного режима работы при дефиците ресурсов. Определите важность функций и допустимые нарушения качества. Исследуйте, какие политики сохраняют больше полезной работы при разных отказах.</p>
+<h3 id="93">93. «Суд над архитектурой»<a class="headerlink" href="#93" title="Permanent link">¶</a></h3>
+<p>Разработайте систему, в которой агенты предлагают технические решения и способы их проверки. Go-стенд выполняет эксперименты и сохраняет результаты. Оцените корректность аргументов и соответствие выводов измерениям.</p>
+<h3 id="94">94. «Рабочая программа, которой все мешают»<a class="headerlink" href="#94" title="Permanent link">¶</a></h3>
+<p>Создайте эксперимент, где один агент предлагает изменения программы, а другие формируют сложные входы и варианты нагрузки. Независимые проверки определяют корректность. Исследуйте, приводит ли такой процесс к устойчивому улучшению.</p>
+<h3 id="95">95. «Протокол родился в споре»<a class="headerlink" href="#95" title="Permanent link">¶</a></h3>
+<p>Разработайте среду, в которой агенты предлагают протокол доставки сообщений в ограниченном формате. Симулятор проверяет его при потерях, повторах и задержках. Исследуйте влияние обратной связи с контрпримерами на последующие предложения.</p>
+<h3 id="96">96. «Государство микросервисов принимает конституцию»<a class="headerlink" href="#96" title="Permanent link">¶</a></h3>
+<p>Создайте модель изменения правил взаимодействия сервисов при сохранении заданных глобальных инвариантов. Реализуйте проверку предложенных изменений и демонстрацию конфликтов. Ограничьте правила формальным языком, допускающим автоматическую проверку.</p>
+<h3 id="97-">97. «Дата-центр — экосистема»<a class="headerlink" href="#97-" title="Permanent link">¶</a></h3>
+<p>Разработайте симулятор конкуренции конфигураций сервисов за ресурсы. Реализуйте механизм отбора и изменения конфигураций. Исследуйте устойчивость полученных решений при сокращении ресурсов и смене нагрузки.</p>
+<h3 id="98">98. «Автономная программная фабрика»<a class="headerlink" href="#98" title="Permanent link">¶</a></h3>
+<p>Создайте систему выполнения ограниченного класса задач разработки: постановка, изменение кода, сборка, проверка и принятие результата. Используйте независимые критерии приемки. Исследуйте надежность на новых задачах и стоимость неудачных попыток.</p>
+<h3 id="99">99. «Последний инженер на Земле»<a class="headerlink" href="#99" title="Permanent link">¶</a></h3>
+<p>Разработайте систему диагностики и восстановления небольшого локального набора сервисов. Доступные действия и виды отказов должны быть определены заранее. Проверьте сохранение выбранных функций при последовательности неисправностей без вмешательства пользователя.</p>
+<h3 id="100-backend">100. «Цивилизация изобретает backend»<a class="headerlink" href="#100-backend" title="Permanent link">¶</a></h3>
+<p>Создайте среду, предоставляющую агентам сообщения, локальную память и ограниченные ресурсы. Поставьте одну задачу совместного хранения данных и разрешите предлагать протокол в проверяемом формате. Исследуйте, удается ли получить решение, удовлетворяющее заданным свойствам при отказах.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: Задание на допуск" class="md-footer__link md-footer__link--prev" href="../1%20-%20task/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                Задание на допуск
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 1.0 Production_backend_Go" class="md-footer__link md-footer__link--next" href="../../slides/1.0%20Production_backend_Go/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                1.0 Production_backend_Go
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
