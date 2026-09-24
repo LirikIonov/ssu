@@ -1,0 +1,3153 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/4%20-%20Go%20under%20the%20hood/" rel="canonical"/>
+<link href="../3%20-%20Memory/" rel="prev"/>
+<link href="../Additional/1%20-%20CPU%20architecture/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4. Go under the hood - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#4-go-under-the-hood">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4. Go under the hood
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Production backend и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Go runtime internals — расширенная версия
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Go memory, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4. Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Глубокие internals Go runtime, synchronization и CPU
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Go GC internals и memory allocator
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/I%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    I - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/II%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    II - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/III%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    III - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="4-go-under-the-hood">4. Go under the hood<a class="headerlink" href="#4-go-under-the-hood" title="Permanent link">¶</a></h1>
+<p>В этой лекции мы разберём структуры, которыми Go-разработчик пользуется постоянно:</p>
+<ul>
+<li>arrays;</li>
+<li>slices;</li>
+<li><code>len</code> / <code>cap</code>;</li>
+<li><code>append</code>;</li>
+<li>underlying array;</li>
+<li>maps;</li>
+<li>старая реализация hash table;</li>
+<li>Swiss Tables;</li>
+<li><code>sync.Map</code>;</li>
+<li>interfaces;</li>
+<li>nil interface;</li>
+<li>type assertion;</li>
+<li>channels;</li>
+<li><code>select</code>;</li>
+<li><code>context</code>;</li>
+<li>cancellation tree.</li>
+</ul>
+<p>Главная идея лекции простая:</p>
+<p><strong>синтаксис Go часто скрывает значительно более сложную структуру данных.</strong></p>
+<p>Мы пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>и видим одну строку.</p>
+<p>Runtime может:</p>
+<ol>
+<li>проверить capacity;</li>
+<li>вычислить новый capacity;</li>
+<li>выделить новый объект;</li>
+<li>скопировать старые элементы;</li>
+<li>обновить slice descriptor;</li>
+<li>оставить старый backing array жить, если на него ещё кто-то ссылается.</li>
+</ol>
+<p>Мы пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>и видим индексирование.</p>
+<p>Под ним находятся:</p>
+<div class="highlight"><pre><span></span><code>hash
+  ↓
+directory
+  ↓
+table
+  ↓
+group
+  ↓
+control word
+  ↓
+candidate slots
+  ↓
+key equality
+</code></pre></div>
+<p>Мы пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+</code></pre></div>
+<p>и кажется, что <code>context</code> — какой-то специальный механизм runtime.</p>
+<p>На самом деле там дерево объектов, обычные channels, mutex, atomic operations, timers и распространение отмены от родителя к потомкам.</p>
+<p>Поэтому задача этой лекции — перестать воспринимать эти конструкции как магию языка.</p>
+<hr/>
+<h1 id="1">1. Сначала разделим типы по модели хранения<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<p>У нас есть:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">array</span>
+<span class="nx">slice</span>
+<span class="kt">map</span>
+<span class="kd">interface</span>
+<span class="nx">channel</span>
+<span class="nx">context</span>
+</code></pre></div>
+<p>Но копируются они совершенно по-разному.</p>
+<p>Упрощённая модель:</p>
+<table>
+<thead>
+<tr>
+<th>Тип</th>
+<th>Что находится в переменной</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[N]T</code></td>
+<td>сами элементы</td>
+</tr>
+<tr>
+<td><code>[]T</code></td>
+<td>descriptor массива</td>
+</tr>
+<tr>
+<td><code>map[K]V</code></td>
+<td>ссылка на runtime-структуру</td>
+</tr>
+<tr>
+<td><code>interface</code></td>
+<td>информация о типе + данные</td>
+</tr>
+<tr>
+<td><code>chan T</code></td>
+<td>ссылка на runtime channel</td>
+</tr>
+<tr>
+<td><code>context.Context</code></td>
+<td>interface на один из объектов цепочки context</td>
+</tr>
+</tbody>
+</table>
+<p>Именно отсюда растёт значительная часть странного поведения.</p>
+<hr/>
+<h1 id="2-arrays">2. Arrays<a class="headerlink" href="#2-arrays" title="Permanent link">¶</a></h1>
+<p>Начнём с самой простой структуры.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">}</span>
+</code></pre></div>
+<p>Ментальная модель:</p>
+<div class="highlight"><pre><span></span><code>a
+┌────┬────┬────┬────┐
+│ 10 │ 20 │ 30 │ 40 │
+└────┴────┴────┴────┘
+</code></pre></div>
+<p>Array является непосредственно последовательностью элементов.</p>
+<p>Спецификация Go определяет массив как последовательность фиксированного количества элементов одного типа. Причём длина входит в тип массива. Поэтому <code>[4]int</code> и <code>[5]int</code> — разные типы.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">int</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="kt">int</span>
+</code></pre></div>
+<p>Типы:</p>
+<div class="highlight"><pre><span></span><code>[4]int
+[5]int
+</code></pre></div>
+<p>разные.</p>
+<h2 id="21">2.1 Копирование массива<a class="headerlink" href="#21" title="Permanent link">¶</a></h2>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">}</span>
+<span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span>
+
+<span class="nx">b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
+
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">b</span><span class="p">)</span>
+</code></pre></div>
+<p>Получим:</p>
+<div class="highlight"><pre><span></span><code>[1 2 3]
+[100 2 3]
+</code></pre></div>
+<p>Почему?</p>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span>
+</code></pre></div>
+<p>копирует <strong>весь array value</strong>.</p>
+<p>Схематично:</p>
+<div class="highlight"><pre><span></span><code>a
+┌───┬───┬───┐
+│ 1 │ 2 │ 3 │
+└───┴───┴───┘
+
+b
+┌───┬───┬───┐
+│ 1 │ 2 │ 3 │
+└───┴───┴───┘
+</code></pre></div>
+<p>Это две независимые области данных.</p>
+<p>Спецификация прямо относит arrays к self-contained values: значение массива содержит полную копию своих данных.</p>
+<p>Отсюда ещё одно следствие.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">process</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">1_000_000</span><span class="p">]</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Семантически параметр передаётся по значению.</p>
+<p>Это не значит, что каждый конкретный машинный вызов обязательно будет реализован тупым миллионным копированием — компилятор имеет право оптимизировать код.</p>
+<p>Но семантика языка остаётся:</p>
+<div class="highlight"><pre><span></span><code>process получает собственное значение [1_000_000]int
+</code></pre></div>
+<p>Именно поэтому большие массивы редко передают таким образом.</p>
+<hr/>
+<h1 id="3-slice">3. Slice<a class="headerlink" href="#3-slice" title="Permanent link">¶</a></h1>
+<p>И здесь начинается самое интересное.</p>
+<p>Очень распространённое упрощение:</p>
+<blockquote>
+<p>slice — динамический массив.</p>
+</blockquote>
+<p>Для первых десяти минут изучения языка оно терпимо.</p>
+<p>После этого начинает мешать.</p>
+<p>Более точная модель:</p>
+<blockquote>
+<p><strong>slice — маленький descriptor, который описывает участок другого массива.</strong></p>
+</blockquote>
+<p>Спецификация говорит практически именно это: slice описывает contiguous segment некоторого underlying array.</p>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">slice</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ptr</span><span class="w"> </span><span class="o">*</span><span class="nx">T</span>
+<span class="w">    </span><span class="nx">len</span><span class="w"> </span><span class="kt">int</span>
+<span class="w">    </span><span class="nx">cap</span><span class="w"> </span><span class="kt">int</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Это учебная модель. Текущий internal ABI действительно представляет slice как pointer + len + cap.</p>
+<p>На 64-битной архитектуре это обычно три машинных слова:</p>
+<div class="highlight"><pre><span></span><code>┌──────────────┐
+│ data pointer │ 8 bytes
+├──────────────┤
+│ len          │ 8 bytes
+├──────────────┤
+│ cap          │ 8 bytes
+└──────────────┘
+</code></pre></div>
+<p>То есть примерно 24 байта самого descriptor.</p>
+<p>Элементов внутри этих 24 байт нет.</p>
+<hr/>
+<h1 id="4-underlying-array">4. Underlying array<a class="headerlink" href="#4-underlying-array" title="Permanent link">¶</a></h1>
+<p>Создадим:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">}</span>
+</code></pre></div>
+<p>Ментально нужно видеть две сущности.</p>
+<h3 id="slice-descriptor">Slice descriptor<a class="headerlink" href="#slice-descriptor" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>s
+┌──────────┐
+│ ptr ───────────────┐
+│ len = 4  │         │
+│ cap = 4  │         │
+└──────────┘         │
+                     ↓
+</code></pre></div>
+<h3 id="underlying-array">Underlying array<a class="headerlink" href="#underlying-array" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>┌────┬────┬────┬────┐
+│ 10 │ 20 │ 30 │ 40 │
+└────┴────┴────┴────┘
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">s</span>
+</code></pre></div>
+<p>Что копируется?</p>
+<p>Только descriptor:</p>
+<div class="highlight"><pre><span></span><code>s                              a
+┌──────────┐                  ┌──────────┐
+│ ptr ─────┼──────┐           │ ptr ─────┼──────┐
+│ len = 4  │      │           │ len = 4  │      │
+│ cap = 4  │      │           │ cap = 4  │      │
+└──────────┘      │           └──────────┘      │
+                  │                              │
+                  └───────────┬──────────────────┘
+                              ↓
+                  ┌────┬────┬────┬────┐
+                  │ 10 │ 20 │ 30 │ 40 │
+                  └────┴────┴────┴────┘
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">999</span>
+</code></pre></div>
+<p>изменит данные, которые видит <code>s</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="c1">// [999 20 30 40]</span>
+</code></pre></div>
+<p>И вот здесь становится понятно, почему фраза:</p>
+<blockquote>
+<p>slice передаётся по значению</p>
+</blockquote>
+<p>технически абсолютно верная и практически часто неправильно понимаемая.</p>
+<p>Передаётся по значению <strong>slice descriptor</strong>.</p>
+<p>Underlying array остаётся общим.</p>
+<hr/>
+<h1 id="5-len-cap">5. len и cap<a class="headerlink" href="#5-len-cap" title="Permanent link">¶</a></h1>
+<p>Для slice:</p>
+<div class="highlight"><pre><span></span><code>len = сколько элементов сейчас входит в логический slice
+cap = сколько элементов доступно от ptr до конца доступной части underlying array
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">}</span>
+
+<span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>a:
+
+index      0    1    2    3    4    5
+         ┌────┬────┬────┬────┬────┬────┐
+         │ 10 │ 20 │ 30 │ 40 │ 50 │ 60 │
+         └────┴────┴────┴────┴────┴────┘
+                ↑
+                ptr
+
+s = [20 30 40]
+
+len = 3
+cap = 5
+</code></pre></div>
+<p>Почему <code>cap = 5</code>?</p>
+<p>Потому что от <code>20</code> до конца underlying array:</p>
+<div class="highlight"><pre><span></span><code>20 30 40 50 60
+</code></pre></div>
+<p>пять элементов.</p>
+<p>Спецификация определяет capacity именно через доступную часть underlying array.</p>
+<hr/>
+<h1 id="6-reslicing">6. Reslicing<a class="headerlink" href="#6-reslicing" title="Permanent link">¶</a></h1>
+<p>Вот почему работает:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+
+<span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">s</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span>
+</code></pre></div>
+<p>И получится:</p>
+<div class="highlight"><pre><span></span><code>[20 30 40 50 60]
+</code></pre></div>
+<p>Первоначальный <code>len</code> был 3.</p>
+<p>Но <code>cap</code> был 5.</p>
+<p>Следовательно:</p>
+<div class="highlight"><pre><span></span><code>s[:5]
+</code></pre></div>
+<p>не требует новой памяти.</p>
+<p>Мы просто меняем descriptor:</p>
+<div class="highlight"><pre><span></span><code>len: 3 → 5
+</code></pre></div>
+<p>Underlying array остаётся тем же.</p>
+<hr/>
+<h1 id="7-append">7. append<a class="headerlink" href="#7-append" title="Permanent link">¶</a></h1>
+<p>Теперь возьмём главный источник сюрпризов.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">)</span>
+</code></pre></div>
+<p>У <code>append</code> есть принципиально два сценария.</p>
+<h2 id="71-capacity">7.1 Capacity хватает<a class="headerlink" href="#71-capacity" title="Permanent link">¶</a></h2>
+<p>Допустим:</p>
+<div class="highlight"><pre><span></span><code>len = 3
+cap = 8
+</code></pre></div>
+<p>Есть свободное место:</p>
+<div class="highlight"><pre><span></span><code>┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ 10 │ 20 │ 30 │    │    │    │    │    │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+                ↑
+             append
+</code></pre></div>
+<p>Runtime может записать значение прямо туда.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>ptr = тот же
+len = 4
+cap = 8
+</code></pre></div>
+<p>Нового массива нет.</p>
+<hr/>
+<h1 id="8-capacity">8. Когда capacity закончилась<a class="headerlink" href="#8-capacity" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>len = 4
+cap = 4
+</code></pre></div>
+<p>и выполняется:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">)</span>
+</code></pre></div>
+<p>В существующем массиве места больше нет.</p>
+<p>Runtime должен получить новый backing store.</p>
+<p>Текущий <code>runtime.growslice</code>:</p>
+<ol>
+<li>вычисляет новую capacity;</li>
+<li>выделяет новый backing array;</li>
+<li>копирует старые элементы;</li>
+<li>возвращает новый slice descriptor.</li>
+</ol>
+<p>Схема:</p>
+<div class="highlight"><pre><span></span><code>старый array
+
+┌────┬────┬────┬────┐
+│ 10 │ 20 │ 30 │ 40 │
+└────┴────┴────┴────┘
+
+            │
+            │ copy
+            ↓
+
+новый array
+
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ 10 │ 20 │ 30 │ 40 │ 50 │    │    │    │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+</code></pre></div>
+<p>После этого:</p>
+<div class="highlight"><pre><span></span><code>s.ptr
+</code></pre></div>
+<p>указывает уже на новый массив.</p>
+<hr/>
+<h1 id="9-append">9. Почему результат append нужно присваивать<a class="headerlink" href="#9-append" title="Permanent link">¶</a></h1>
+<p>Вот теперь становится понятно требование:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>а не:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p><code>append</code> может вернуть descriptor с другим pointer.</p>
+<p>Старый descriptor ничего об этом не знает.</p>
+<hr/>
+<h1 id="10-capacity">10. Как растёт capacity<a class="headerlink" href="#10-capacity" title="Permanent link">¶</a></h1>
+<p>Иногда можно встретить правило:</p>
+<blockquote>
+<p>slice всегда растёт в два раза.</p>
+</blockquote>
+<p>Устаревшее и слишком грубое упрощение.</p>
+<p>В текущем Go 1.27 <code>nextslicecap</code> использует примерно такую стратегию:</p>
+<ul>
+<li>для небольших capacity используется удвоение;</li>
+<li>после порога <code>256</code> начинается плавный переход к росту примерно в <code>1.25x</code>;</li>
+<li>если сразу нужно намного больше места, capacity может быть установлена непосредственно под необходимый размер;</li>
+<li>фактическая capacity дополнительно зависит от округления размера allocator'ом.</li>
+</ul>
+<p>То есть код:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">oldCap</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">cap</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span>
+<span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+<span class="nx">newCap</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">cap</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span>
+</code></pre></div>
+<p>не должен строить бизнес-логику на предположении:</p>
+<div class="highlight"><pre><span></span><code>newCap == oldCap * 2
+</code></pre></div>
+<p>Это implementation detail.</p>
+<p>Go гарантирует семантику <code>append</code>.</p>
+<p>Конкретная стратегия роста — решение runtime.</p>
+<hr/>
+<h1 id="11-append-aliasing">11. Самая неприятная особенность append: aliasing<a class="headerlink" href="#11-append-aliasing" title="Permanent link">¶</a></h1>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span>
+<span class="nx">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="nx">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+<span class="nx">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span>
+
+<span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+
+<span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+<p>Что станет с <code>a</code>?</p>
+<p>Разбираем.</p>
+<p>Изначально:</p>
+<div class="highlight"><pre><span></span><code>underlying array
+
+┌───┬───┬───┬───┬───┐
+│ 1 │ 2 │ 3 │ 0 │ 0 │
+└───┴───┴───┴───┴───┘
+
+a: len=3 cap=5
+b: len=2 cap=5
+</code></pre></div>
+<p>У <code>b</code> capacity хватает.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">append</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+<p>пишет в третий элемент того же массива:</p>
+<div class="highlight"><pre><span></span><code>┌───┬───┬─────┬───┬───┐
+│ 1 │ 2 │ 100 │ 0 │ 0 │
+└───┴───┴─────┴───┴───┘
+</code></pre></div>
+<p>Следовательно:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
+</code></pre></div>
+<p>даст:</p>
+<div class="highlight"><pre><span></span><code>[1 2 100]
+</code></pre></div>
+<p>Вот здесь абстракция slice начинает протекать.</p>
+<hr/>
+<h1 id="12-capacity-slice">12. Как ограничить capacity дочернего slice<a class="headerlink" href="#12-capacity-slice" title="Permanent link">¶</a></h1>
+<p>Есть full slice expression:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[:</span><span class="mi">2</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>len(b) = 2
+cap(b) = 2
+</code></pre></div>
+<p>Следующий:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+</code></pre></div>
+<p>вынужден получить другой underlying array.</p>
+<p>Это полезно, когда функция получает часть массива и не должна случайно модифицировать данные за пределами логического диапазона.</p>
+<hr/>
+<h1 id="13-slice">13. Slice и удержание памяти<a class="headerlink" href="#13-slice" title="Permanent link">¶</a></h1>
+<p>Теперь production-проблема.</p>
+<p>Допустим, мы получили огромный буфер:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">data</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="o">&lt;&lt;</span><span class="mi">20</span><span class="p">)</span>
+</code></pre></div>
+<p>100 MB.</p>
+<p>Нам нужны первые десять байт:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">header</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">data</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span>
+<span class="k">return</span><span class="w"> </span><span class="nx">header</span>
+</code></pre></div>
+<p>На уровне бизнес-кода кажется:</p>
+<div class="highlight"><pre><span></span><code>мы возвращаем 10 bytes
+</code></pre></div>
+<p>На уровне GC ситуация может выглядеть так:</p>
+<div class="highlight"><pre><span></span><code>header.ptr
+    │
+    ↓
+100 MB backing array
+</code></pre></div>
+<p>Пока жив slice, GC видит ссылку на underlying allocation.</p>
+<p>И вся большая allocation может оставаться reachable.</p>
+<p>Если это повторяется для множества запросов:</p>
+<div class="highlight"><pre><span></span><code>маленькие slices
+      ↓
+удерживают
+      ↓
+огромные backing arrays
+      ↓
+heap растёт
+      ↓
+GC сканирует больше памяти
+      ↓
+memory pressure
+</code></pre></div>
+<p>Если нужна независимая маленькая копия:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">append</span><span class="p">([]</span><span class="kt">byte</span><span class="p">(</span><span class="kc">nil</span><span class="p">),</span><span class="w"> </span><span class="nx">data</span><span class="p">[:</span><span class="mi">10</span><span class="p">]...)</span>
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">slices</span><span class="p">.</span><span class="nx">Clone</span><span class="p">(</span><span class="nx">data</span><span class="p">[:</span><span class="mi">10</span><span class="p">])</span>
+</code></pre></div>
+<p>Цена — копирование.</p>
+<p>Инженерный компромисс:</p>
+<div class="highlight"><pre><span></span><code>zero-copy
+    ↕
+retained memory
+    ↕
+explicit copy
+</code></pre></div>
+<hr/>
+<h2 id="slice">Что важно запомнить про slice<a class="headerlink" href="#slice" title="Permanent link">¶</a></h2>
+<ol>
+<li>Slice не содержит сами элементы.</li>
+<li>Slice descriptor содержит pointer, <code>len</code> и <code>cap</code>.</li>
+<li>Копирование slice копирует descriptor.</li>
+<li>Разные slices могут разделять один underlying array.</li>
+<li><code>append</code> иногда пишет в тот же array, иногда создаёт новый.</li>
+<li>После realloc старые slices продолжают ссылаться на старый array.</li>
+<li>Маленький subslice способен удерживать большой allocation.</li>
+<li>Точный алгоритм роста capacity не является гарантией языка.</li>
+</ol>
+<hr/>
+<h1 id="14-maps">14. Maps<a class="headerlink" href="#14-maps" title="Permanent link">¶</a></h1>
+<p>Теперь структура, которая исторически дала особенно много неправильных учебных моделей.</p>
+<p>На уровне языка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span>
+<span class="w">    </span><span class="s">"alice"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
+<span class="w">    </span><span class="s">"bob"</span><span class="p">:</span><span class="w">   </span><span class="mi">20</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Map позволяет найти value по key.</p>
+<p>Но возникает вопрос:</p>
+<div class="highlight"><pre><span></span><code>если элементов миллион,
+почему runtime не перебирает миллион keys?
+</code></pre></div>
+<p>Потому что ключ сначала превращается в hash.</p>
+<p>Абстрактная модель:</p>
+<div class="highlight"><pre><span></span><code>key
+ ↓
+hash(key)
+ ↓
+некоторое место в hash table
+ ↓
+поиск кандидатов
+ ↓
+key equality
+ ↓
+value
+</code></pre></div>
+<p>Среднее время lookup при нормальной работе hash table близко к O(1).</p>
+<p>Но это средняя алгоритмическая оценка.</p>
+<p>Фактическая стоимость включает:</p>
+<div class="highlight"><pre><span></span><code>hash computation
++
+memory accesses
++
+cache misses
++
+collision handling
++
+key comparison
+</code></pre></div>
+<hr/>
+<h1 id="15-map-reference-like-value">15. Map — reference-like value<a class="headerlink" href="#15-map-reference-like-value" title="Permanent link">¶</a></h1>
+<p>Спецификация определяет map value как ссылку на implementation-specific структуру данных.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span>
+<span class="w">    </span><span class="s">"x"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span>
+
+<span class="nx">b</span><span class="p">[</span><span class="s">"x"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
+</code></pre></div>
+<p>После этого:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">a</span><span class="p">[</span><span class="s">"x"</span><span class="p">])</span>
+</code></pre></div>
+<p>получим:</p>
+<div class="highlight"><pre><span></span><code>100
+</code></pre></div>
+<p><code>a</code> и <code>b</code> работают с одной map.</p>
+<hr/>
+<h1 id="16-nil-map">16. nil map<a class="headerlink" href="#16-nil-map" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">m</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span>
+</code></pre></div>
+<p>Здесь:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span>
+</code></pre></div>
+<p>Читать можно:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">m</span><span class="p">[</span><span class="s">"x"</span><span class="p">])</span><span class="w"> </span><span class="c1">// 0</span>
+</code></pre></div>
+<p><code>len</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">len</span><span class="p">(</span><span class="nx">m</span><span class="p">)</span><span class="w"> </span><span class="c1">// 0</span>
+</code></pre></div>
+<p><code>delete</code> допустим.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="p">[</span><span class="s">"x"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>даст panic:</p>
+<div class="highlight"><pre><span></span><code>assignment to entry in nil map
+</code></pre></div>
+<p>Спецификация определяет <code>nil map</code> как пустую для чтения, но добавлять в неё элементы нельзя.</p>
+<hr/>
+<h1 id="17-go-map">17. Историческая реализация Go map<a class="headerlink" href="#17-go-map" title="Permanent link">¶</a></h1>
+<p>Здесь важно поставить временную границу.</p>
+<p>До Go 1.24 builtin map использовал другую hash-table implementation.</p>
+<p>Go 1.24 переключил builtin <code>map</code> на новую реализацию на основе Swiss Tables.</p>
+<p>Поэтому старые статьи с:</p>
+<div class="highlight"><pre><span></span><code>hmap
+bmap
+B
+tophash
+overflow bucket
+oldbuckets
+nevacuate
+</code></pre></div>
+<p>описывают историческую реализацию.</p>
+<p>Они полезны для понимания эволюции, но больше не являются описанием текущего builtin map.</p>
+<hr/>
+<h1 id="18-buckets">18. Старая модель: buckets<a class="headerlink" href="#18-buckets" title="Permanent link">¶</a></h1>
+<p>Упрощённо старый map выглядел так:</p>
+<div class="highlight"><pre><span></span><code>hmap
+ │
+ ├── bucket 0
+ ├── bucket 1
+ ├── bucket 2
+ ├── bucket 3
+ ...
+</code></pre></div>
+<p>Количество основных buckets было связано с:</p>
+<div class="highlight"><pre><span></span><code>2^B
+</code></pre></div>
+<p>Каждый <code>bmap</code> содержал восемь slots.</p>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>bucket
+
+tophash:
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ h0 │ h1 │ h2 │ h3 │ h4 │ h5 │ h6 │ h7 │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+
+keys:
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ k0 │ k1 │ k2 │ k3 │ k4 │ k5 │ k6 │ k7 │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+
+values:
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ v0 │ v1 │ v2 │ v3 │ v4 │ v5 │ v6 │ v7 │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+</code></pre></div>
+<p>Hash использовался примерно следующим образом:</p>
+<div class="highlight"><pre><span></span><code>hash
+ ├── часть → выбор bucket
+ └── часть → быстрый fingerprint/tophash
+</code></pre></div>
+<p>Runtime сначала проверял маленький <code>tophash</code>.</p>
+<p>Полное сравнение ключа делалось только для подходящих кандидатов.</p>
+<hr/>
+<h1 id="19-collision">19. Что происходило при collision<a class="headerlink" href="#19-collision" title="Permanent link">¶</a></h1>
+<p>Если несколько keys попадали в один bucket:</p>
+<div class="highlight"><pre><span></span><code>bucket
+┌───────────┐
+│ 8 slots   │
+└─────┬─────┘
+      │ overflow
+      ↓
+┌───────────┐
+│ 8 slots   │
+└─────┬─────┘
+      │ overflow
+      ↓
+┌───────────┐
+│ ...       │
+└───────────┘
+</code></pre></div>
+<p>Получалась linked structure из overflow buckets.</p>
+<p>И здесь появляется проблема для CPU.</p>
+<p>Lookup превращается в:</p>
+<div class="highlight"><pre><span></span><code>прочитать bucket
+↓
+проверить metadata
+↓
+нет?
+↓
+перейти по pointer
+↓
+прочитать следующий bucket
+</code></pre></div>
+<p>Каждый pointer chase потенциально означает cache miss.</p>
+<hr/>
+<h1 id="20-grow-map">20. Grow старого map<a class="headerlink" href="#20-grow-map" title="Permanent link">¶</a></h1>
+<p>Если map становился слишком плотным, создавался новый массив buckets.</p>
+<p>Но переносить огромную map за одну операцию было бы неприятно:</p>
+<div class="highlight"><pre><span></span><code>один Store()
+↓
+копирование миллиона элементов
+↓
+latency spike
+</code></pre></div>
+<p>Поэтому старая реализация использовала incremental evacuation.</p>
+<p>Хранились одновременно:</p>
+<div class="highlight"><pre><span></span><code>buckets
+oldbuckets
+nevacuate
+</code></pre></div>
+<p>Часть операций постепенно переносила старые buckets в новую таблицу.</p>
+<p>Получалась амортизация работы:</p>
+<div class="highlight"><pre><span></span><code>большая миграция
+</code></pre></div>
+<p>размазывалась по множеству последующих операций.</p>
+<p>Это очень важный инженерный паттерн:</p>
+<blockquote>
+<p>большие O(N) работы в runtime часто стараются разбивать, чтобы уменьшить worst-case latency отдельной пользовательской операции.</p>
+</blockquote>
+<hr/>
+<h1 id="21-map">21. Почему map переделали<a class="headerlink" href="#21-map" title="Permanent link">¶</a></h1>
+<p>Старый дизайн работал много лет.</p>
+<p>Проблема заключалась преимущественно в locality.</p>
+<p>Современный CPU очень чувствителен к тому, какие данные находятся рядом в памяти.</p>
+<p>Pointer chasing:</p>
+<div class="highlight"><pre><span></span><code>bucket
+  ↓
+overflow
+  ↓
+overflow
+</code></pre></div>
+<p>плохо дружит с caches.</p>
+<p>Поэтому появилась другая модель.</p>
+<hr/>
+<h1 id="22-swiss-tables">22. Swiss Tables<a class="headerlink" href="#22-swiss-tables" title="Permanent link">¶</a></h1>
+<p>Начиная с Go 1.24 builtin map построен на дизайне Swiss Table.</p>
+<p>Главная смена модели:</p>
+<div class="highlight"><pre><span></span><code>старый map:
+bucket + overflow chains
+
+Swiss:
+groups + open addressing + compact metadata
+</code></pre></div>
+<hr/>
+<h1 id="23-group">23. Group<a class="headerlink" href="#23-group" title="Permanent link">¶</a></h1>
+<p>В текущей реализации одна group содержит 8 slots.</p>
+<p>Рядом располагается 8-byte control word.</p>
+<div class="highlight"><pre><span></span><code>control bytes
+
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ c0 │ c1 │ c2 │ c3 │ c4 │ c5 │ c6 │ c7 │
+└────┴────┴────┴────┴────┴────┴────┴────┘
+
+slots
+
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ k/v│ k/v│ k/v│ k/v│ k/v│ k/v│ k/v│ k/v│
+└────┴────┴────┴────┴────┴────┴────┴────┘
+</code></pre></div>
+<p>Control byte кодирует:</p>
+<div class="highlight"><pre><span></span><code>empty
+deleted
+или
+часть hash
+</code></pre></div>
+<p>Текущая реализация делит hash на:</p>
+<div class="highlight"><pre><span></span><code>H1 = верхние биты
+H2 = нижние 7 бит
+</code></pre></div>
+<p><code>H2</code> хранится в control byte занятого slot.</p>
+<hr/>
+<h1 id="24-h2">24. Зачем H2<a class="headerlink" href="#24-h2" title="Permanent link">¶</a></h1>
+<p>Допустим, ищем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="p">[</span><span class="s">"kirill"</span><span class="p">]</span>
+</code></pre></div>
+<p>Вместо:</p>
+<div class="highlight"><pre><span></span><code>сравнить key0
+сравнить key1
+сравнить key2
+...
+</code></pre></div>
+<p>runtime сначала получает:</p>
+<div class="highlight"><pre><span></span><code>H2(searchKey)
+</code></pre></div>
+<p>и сравнивает его с metadata всей group.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>ищем H2 = 53
+
+control:
+
+12  91  53  38  53  empty  7  deleted
+         ↑       ↑
+</code></pre></div>
+<p>Получаем кандидаты:</p>
+<div class="highlight"><pre><span></span><code>slot 2
+slot 4
+</code></pre></div>
+<p>И только там делаем полноценное сравнение keys.</p>
+<p>Текущий runtime сравнивает metadata всех восьми slots с помощью битовых операций; идея Swiss Table как раз позволяет проверить группу кандидатов значительно плотнее, чем последовательное сравнение каждого ключа.</p>
+<hr/>
+<h1 id="25-false-positive-h2">25. False positive H2<a class="headerlink" href="#25-false-positive-h2" title="Permanent link">¶</a></h1>
+<p>H2 содержит только 7 bits.</p>
+<p>Значит два разных hash вполне могут иметь одинаковый H2.</p>
+<p>Это нормально.</p>
+<p>Swiss Table никогда не считает совпадение H2 доказательством равенства keys.</p>
+<p>Алгоритм:</p>
+<div class="highlight"><pre><span></span><code>H2 совпал?
+    │
+    ├── нет → пропускаем slot
+    │
+    └── да
+         ↓
+       Equal(key)
+         │
+         ├── false → collision
+         └── true → нашли
+</code></pre></div>
+<p>В комментариях runtime вероятность случайного совпадения конкретного 7-bit H2 оценивается примерно как <code>1/128</code>.</p>
+<hr/>
+<h1 id="26-open-addressing">26. Open addressing<a class="headerlink" href="#26-open-addressing" title="Permanent link">¶</a></h1>
+<p>Swiss Table не строит длинную цепочку overflow buckets.</p>
+<p>Если нужная group не содержит ключ, начинается probing.</p>
+<p>Текущая реализация Go использует quadratic probing.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>hash
+ ↓
+initial group
+ ↓
+group A
+ ↓
+group B
+ ↓
+group D
+ ↓
+...
+</code></pre></div>
+<p>Конкретная последовательность определяется probing algorithm.</p>
+<p>Поиск прекращается, когда найден подходящий ключ или достигнута group с empty slot, которая доказывает, что дальше ключа в этой probe sequence быть не должно.</p>
+<hr/>
+<h1 id="27-tombstones">27. Tombstones<a class="headerlink" href="#27-tombstones" title="Permanent link">¶</a></h1>
+<p>Теперь попробуем удалить элемент.</p>
+<p>Наивное решение:</p>
+<div class="highlight"><pre><span></span><code>slot occupied
+↓
+delete
+↓
+slot empty
+</code></pre></div>
+<p>Но это может сломать lookup.</p>
+<p>Предположим:</p>
+<div class="highlight"><pre><span></span><code>A
+↓ collision
+B
+↓ collision
+C
+</code></pre></div>
+<p>Key оказался в <code>C</code>.</p>
+<p>Удаляем элемент из <code>B</code> и делаем его <code>empty</code>.</p>
+<p>Теперь lookup начинает с <code>A</code>.</p>
+<p>Доходит до <code>B</code>.</p>
+<p>Видит:</p>
+<div class="highlight"><pre><span></span><code>empty
+</code></pre></div>
+<p>и решает:</p>
+<div class="highlight"><pre><span></span><code>дальше probe sequence искать бессмысленно
+</code></pre></div>
+<p>Хотя ключ лежит в <code>C</code>.</p>
+<p>Поэтому существует состояние:</p>
+<div class="highlight"><pre><span></span><code>deleted
+</code></pre></div>
+<p>или tombstone.</p>
+<p>Оно означает:</p>
+<div class="highlight"><pre><span></span><code>элемента здесь больше нет,
+но lookup не должен здесь останавливаться
+</code></pre></div>
+<p>Текущая Swiss implementation Go использует именно такую схему.</p>
+<hr/>
+<h1 id="28-load-factor">28. Load factor<a class="headerlink" href="#28-load-factor" title="Permanent link">¶</a></h1>
+<p>Swiss Table нельзя забивать до 100%.</p>
+<p>Нужные empty slots обеспечивают завершение probing.</p>
+<p>В текущей реализации используется максимальная средняя загрузка около:</p>
+<div class="highlight"><pre><span></span><code>7 / 8
+</code></pre></div>
+<p>slots.</p>
+<p>Это implementation detail.</p>
+<p>Студенту полезнее понимать причинность:</p>
+<div class="highlight"><pre><span></span><code>слишком высокая заполненность
+↓
+длиннее probe sequences
+↓
+больше memory accesses
+↓
+lookup деградирует
+</code></pre></div>
+<p>Поэтому hash table намеренно оставляет свободное пространство.</p>
+<hr/>
+<h1 id="29-grow-swiss-map">29. Grow Swiss map<a class="headerlink" href="#29-grow-swiss-map" title="Permanent link">¶</a></h1>
+<p>Тут Go усложняет классический Swiss Table.</p>
+<p>Если сделать одну огромную Swiss table и при grow полностью переразложить её, получим latency spike.</p>
+<p>Поэтому Go использует несколько tables и directory.</p>
+<p>Текущая архитектура:</p>
+<div class="highlight"><pre><span></span><code>Map
+ │
+ ↓
+Directory
+ │
+ ├── Table A
+ ├── Table B
+ ├── Table C
+ └── ...
+</code></pre></div>
+<p>Верхние bits hash определяют table.</p>
+<p>Внутри table работает Swiss probing.</p>
+<p>Go использует вариант extendible hashing: отдельная table может grow независимо. До текущего implementation limit table может удваиваться, после чего split'ится на две tables; текущий <code>maxTableCapacity</code> равен 1024 slots. Это внутренняя деталь Go 1.27, а не контракт языка.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>hash
+ │
+ ├── high bits → directory/table
+ │
+ └── остальные bits → probing внутри table
+</code></pre></div>
+<p>Так большая map разбивается на несколько независимо растущих областей.</p>
+<hr/>
+<h1 id="30-swiss-table">30. Почему Swiss Table быстрее<a class="headerlink" href="#30-swiss-table" title="Permanent link">¶</a></h1>
+<p>Слово «Swiss» само по себе ничего не объясняет.</p>
+<p>Причинная цепочка:</p>
+<div class="highlight"><pre><span></span><code>compact metadata
+↓
+несколько fingerprints читаются вместе
+↓
+меньше полных key comparisons
+↓
+данные располагаются плотнее
+↓
+меньше pointer chasing
+↓
+лучше cache locality
+↓
+меньше memory stalls
+</code></pre></div>
+<p>То есть выигрыш происходит не потому, что придумали другой математический Big O.</p>
+<p>И старая, и новая hash table имеют примерно O(1) lookup в среднем.</p>
+<p>Разница возникает в константах:</p>
+<div class="highlight"><pre><span></span><code>cache lines
+branches
+pointer chasing
+key comparisons
+memory bandwidth
+</code></pre></div>
+<p>Вот здесь теория алгоритмов встречается с реальным CPU.</p>
+<hr/>
+<h1 id="31-makemap-hint">31. make(map, hint)<a class="headerlink" href="#31-makemap-hint" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">100_000</span><span class="p">)</span>
+</code></pre></div>
+<p><code>100_000</code> — capacity hint.</p>
+<p>Это не означает:</p>
+<div class="highlight"><pre><span></span><code>map максимум на 100000 элементов
+</code></pre></div>
+<p>и не означает:</p>
+<div class="highlight"><pre><span></span><code>runtime выделит ровно 100000 slots
+</code></pre></div>
+<p>Спецификация говорит, что это initial space approximately для указанного количества элементов; map при необходимости продолжает расти.</p>
+<p>Но хороший hint уменьшает количество промежуточных grows и allocations.</p>
+<p>Для backend это особенно заметно при:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">rows</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="kt">map</span>
+<span class="nx">JSON</span><span class="w"> </span><span class="nx">aggregation</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="kt">map</span>
+<span class="nx">batch</span><span class="w"> </span><span class="nx">processing</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="kt">map</span>
+<span class="nx">cache</span><span class="w"> </span><span class="nx">warmup</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="kt">map</span>
+</code></pre></div>
+<p>если размер приблизительно известен заранее.</p>
+<hr/>
+<h1 id="32-map-concurrency">32. Map и concurrency<a class="headerlink" href="#32-map-concurrency" title="Permanent link">¶</a></h1>
+<p>Очень опасное заблуждение:</p>
+<blockquote>
+<p>раз map внутри runtime настолько сложная, наверное runtime сам синхронизирует доступ.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Обычная map не предназначена для произвольного concurrent read/write.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">m</span><span class="p">[</span><span class="s">"x"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">}()</span>
+
+<span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">m</span><span class="p">[</span><span class="s">"x"</span><span class="p">])</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>Это data race.</p>
+<p>Runtime содержит проверки некоторых concurrent map operations и может завершить программу ошибкой вроде:</p>
+<div class="highlight"><pre><span></span><code>concurrent map read and map write
+</code></pre></div>
+<p>Но этот механизм не является synchronization primitive.</p>
+<p>Правильная модель:</p>
+<div class="highlight"><pre><span></span><code>map
++
+Mutex/RWMutex
+</code></pre></div>
+<p>или архитектура, где map принадлежит одной goroutine.</p>
+<p>Либо специализированный <code>sync.Map</code>.</p>
+<hr/>
+<h1 id="33-syncmap">33. sync.Map<a class="headerlink" href="#33-syncmap" title="Permanent link">¶</a></h1>
+<p>Теперь особенно важный version trap.</p>
+<p>Огромное количество материалов в интернете объясняет <code>sync.Map</code> через:</p>
+<div class="highlight"><pre><span></span><code>read
+dirty
+misses
+</code></pre></div>
+<p>Это действительно была реализация стандартной библиотеки.</p>
+<p>Например, исходники Go 1.24 и Go 1.25 содержали:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">mu</span>
+<span class="nx">read</span>
+<span class="nx">dirty</span>
+<span class="nx">misses</span>
+</code></pre></div>
+<p>и <code>readOnly</code> map.</p>
+<p>Но в текущих Go 1.26/1.27 <code>sync.Map</code> уже использует:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">internal</span><span class="o">/</span><span class="nx">sync</span><span class="p">.</span><span class="nx">HashTrieMap</span><span class="p">[</span><span class="kt">any</span><span class="p">,</span><span class="w"> </span><span class="kt">any</span><span class="p">]</span>
+</code></pre></div>
+<p>Поэтому разберём обе модели.</p>
+<hr/>
+<h1 id="34-syncmap-read-dirty">34. Старый sync.Map: read / dirty<a class="headerlink" href="#34-syncmap-read-dirty" title="Permanent link">¶</a></h1>
+<p>Исторически структура выглядела концептуально так:</p>
+<div class="highlight"><pre><span></span><code>sync.Map
+ │
+ ├── read   ← быстрый concurrent path
+ │
+ ├── dirty  ← новые/изменяемые entries
+ │
+ ├── misses
+ │
+ └── mutex
+</code></pre></div>
+<p><code>read</code> читался через atomic pointer.</p>
+<p>Популярные keys можно было читать без глобального mutex.</p>
+<p>Если key отсутствовал в <code>read</code>, но <code>read.amended == true</code>, приходилось смотреть в <code>dirty</code> под lock.</p>
+<p>Каждый такой slow-path lookup увеличивал:</p>
+<div class="highlight"><pre><span></span><code>misses
+</code></pre></div>
+<p>Когда количество misses становилось достаточно большим относительно <code>dirty</code>, runtime считал:</p>
+<div class="highlight"><pre><span></span><code>мы слишком часто платим за slow path
+</code></pre></div>
+<p>и продвигал:</p>
+<div class="highlight"><pre><span></span><code>dirty → read
+</code></pre></div>
+<p>Это очень интересная адаптивная идея:</p>
+<div class="highlight"><pre><span></span><code>дорогая перестройка структуры
+</code></pre></div>
+<p>происходит тогда, когда уже накопилось достаточно работы, которая оправдывает эту перестройку.</p>
+<hr/>
+<h1 id="35-entry-syncmap">35. entry старого sync.Map<a class="headerlink" href="#35-entry-syncmap" title="Permanent link">¶</a></h1>
+<p>Entry содержал atomic pointer к interface value.</p>
+<p>Состояния примерно:</p>
+<div class="highlight"><pre><span></span><code>value
+nil
+expunged
+</code></pre></div>
+<p><code>expunged</code> был специальным sentinel для удалённого entry.</p>
+<p>Это позволяло обновлять многие существующие значения атомарно без глобального lock, а structural mutations проводить через <code>dirty</code> под mutex.</p>
+<p>Но теперь это историческая implementation model.</p>
+<hr/>
+<h1 id="36-syncmap-hashtriemap">36. Текущий sync.Map: HashTrieMap<a class="headerlink" href="#36-syncmap-hashtriemap" title="Permanent link">¶</a></h1>
+<p>В текущем Go <code>sync.Map</code> — тонкая обёртка:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Map</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">_</span><span class="w"> </span><span class="nx">noCopy</span>
+<span class="w">    </span><span class="nx">m</span><span class="w"> </span><span class="nx">isync</span><span class="p">.</span><span class="nx">HashTrieMap</span><span class="p">[</span><span class="kt">any</span><span class="p">,</span><span class="w"> </span><span class="kt">any</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Hash trie можно представить как дерево, путь по которому определяется hash ключа.</p>
+<p>В текущей реализации каждый внутренний node имеет 16 children.</p>
+<p>Почему 16?</p>
+<p>Берётся 4 bits hash на каждом уровне:</p>
+<div class="highlight"><pre><span></span><code>4 bits
+↓
+0..15
+</code></pre></div>
+<p>Следующие 4 bits:</p>
+<div class="highlight"><pre><span></span><code>ещё один уровень
+</code></pre></div>
+<p>И так далее.</p>
+<p>Схема:</p>
+<div class="highlight"><pre><span></span><code>hash:
+
+1011 0010 1111 0100 ...
+│    │    │
+│    │    └────────→ следующий уровень
+│    └─────────────→ следующий уровень
+└──────────────────→ root child
+</code></pre></div>
+<hr/>
+<h1 id="37-load-hashtriemap">37. Load в HashTrieMap<a class="headerlink" href="#37-load-hashtriemap" title="Permanent link">¶</a></h1>
+<p>Lookup:</p>
+<div class="highlight"><pre><span></span><code>key
+ ↓
+hash(key)
+ ↓
+root
+ ↓ 4 bits
+child
+ ↓ 4 bits
+child
+ ↓
+...
+ ↓
+entry
+</code></pre></div>
+<p>Переходы выполняются через atomic pointer loads.</p>
+<p>Для read-heavy workload это принципиально важно:</p>
+<div class="highlight"><pre><span></span><code>Load
+</code></pre></div>
+<p>может обходить дерево без общего глобального mutex.</p>
+<hr/>
+<h1 id="38-store-hashtriemap">38. Store в HashTrieMap<a class="headerlink" href="#38-store-hashtriemap" title="Permanent link">¶</a></h1>
+<p>Для изменения структуры всё равно нужна синхронизация.</p>
+<p>Но lock локализован на конкретном internal node.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>найти место вставки
+↓
+lock нужного indirect node
+↓
+повторно проверить состояние
+↓
+insert / expand
+↓
+unlock
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>не один mutex на всю map
+</code></pre></div>
+<p>а более granular synchronization.</p>
+<p>Если два keys изменяют разные части trie, потенциально уменьшается contention.</p>
+<hr/>
+<h1 id="39-hash-collision-hashtriemap">39. Hash collision в HashTrieMap<a class="headerlink" href="#39-hash-collision-hashtriemap" title="Permanent link">¶</a></h1>
+<p>Может случиться:</p>
+<div class="highlight"><pre><span></span><code>hash(key1) == hash(key2)
+</code></pre></div>
+<p>Путь в trie будет полностью одинаковым.</p>
+<p>Тогда бесконечно строить следующие уровни бессмысленно.</p>
+<p>Текущая implementation использует overflow list у leaf entry для настоящих полных hash collisions.</p>
+<p>Это редкий slow path.</p>
+<hr/>
+<h1 id="40-syncmap">40. Когда использовать sync.Map<a class="headerlink" href="#40-syncmap" title="Permanent link">¶</a></h1>
+<p>Документация самой стандартной библиотеки подчёркивает, что <code>sync.Map</code> специализирована, а большинство кода выигрывает от обычной typed map плюс явная синхронизация. Среди целевых сценариев указаны read-mostly/write-once entries и работа разных goroutines преимущественно с различными keys.</p>
+<p>Почему обычная:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="nx">K</span><span class="p">]</span><span class="nx">V</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">RWMutex</span>
+</code></pre></div>
+<p>часто удобнее?</p>
+<p>Потому что можно поддерживать сложный invariant:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
+
+<span class="nx">m1</span><span class="p">[</span><span class="nx">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span>
+<span class="nx">m2</span><span class="p">[</span><span class="nx">id</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span>
+<span class="nx">counter</span><span class="o">++</span>
+
+<span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+</code></pre></div>
+<p><code>sync.Map</code> синхронизирует операции над самой map.</p>
+<p>Она не делает автоматически атомарным ваш бизнес-invariant из пяти операций.</p>
+<hr/>
+<h2 id="map">Что важно запомнить про map<a class="headerlink" href="#map" title="Permanent link">¶</a></h2>
+<ol>
+<li><code>map</code> — hash-based структура.</li>
+<li>Реализация map изменилась в Go 1.24.</li>
+<li>Старые <code>hmap/bmap/overflow</code> относятся к pre-Go-1.24.</li>
+<li>Текущий builtin map использует Swiss Tables.</li>
+<li>Swiss Table делает lookup через compact control metadata и probing.</li>
+<li>Tombstone нужен, чтобы delete не ломал probe chain.</li>
+<li>Реальный выигрыш Swiss Tables связан прежде всего с CPU cache locality и количеством memory accesses.</li>
+<li><code>sync.Map</code> также изменила внутреннюю реализацию.</li>
+<li>Текущий <code>sync.Map</code> использует concurrent hash trie.</li>
+<li>Обычная map не становится thread-safe из-за сложного runtime implementation.</li>
+</ol>
+<hr/>
+<h1 id="41-interfaces">41. Interfaces<a class="headerlink" href="#41-interfaces" title="Permanent link">¶</a></h1>
+<p>Теперь тип, который выглядит совершенно безобидно:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+</code></pre></div>
+<p>Но возникает вопрос:</p>
+<p>Как interface может хранить одновременно:</p>
+<div class="highlight"><pre><span></span><code><span class="mi">42</span>
+<span class="s">"hello"</span>
+<span class="o">*</span><span class="nx">User</span>
+<span class="p">[]</span><span class="kt">byte</span>
+<span class="nx">http</span><span class="p">.</span><span class="nx">Handler</span>
+</code></pre></div>
+<p>Размеры этих объектов совершенно разные.</p>
+<p>Ответ:</p>
+<blockquote>
+<p>interface хранит информацию о динамическом типе и representation значения.</p>
+</blockquote>
+<p>В текущем ABI empty interface (<code>any</code>) концептуально имеет layout:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">EmptyInterface</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Type</span><span class="w"> </span><span class="o">*</span><span class="nx">Type</span>
+<span class="w">    </span><span class="nx">Data</span><span class="w"> </span><span class="nx">unsafe</span><span class="p">.</span><span class="nx">Pointer</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>А interface с methods:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">NonEmptyInterface</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ITab</span><span class="w"> </span><span class="o">*</span><span class="nx">ITab</span>
+<span class="w">    </span><span class="nx">Data</span><span class="w"> </span><span class="nx">unsafe</span><span class="p">.</span><span class="nx">Pointer</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr/>
+<h1 id="42-static-type-dynamic-type">42. Static type и dynamic type<a class="headerlink" href="#42-static-type-dynamic-type" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+</code></pre></div>
+<p>У переменной есть:</p>
+<div class="highlight"><pre><span></span><code>static type = any
+dynamic type = int
+dynamic value = 42
+</code></pre></div>
+<p>Это принципиально разные понятия.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">printValue</span><span class="p">(</span><span class="nx">v</span><span class="w"> </span><span class="kt">any</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Компилятор знает только:</p>
+<div class="highlight"><pre><span></span><code>v : any
+</code></pre></div>
+<p>Но в runtime:</p>
+<div class="highlight"><pre><span></span><code>dynamic type
+</code></pre></div>
+<p>может быть чем угодно.</p>
+<hr/>
+<h1 id="43-empty-interface">43. Empty interface<a class="headerlink" href="#43-empty-interface" title="Permanent link">¶</a></h1>
+<p>Ментально:</p>
+<div class="highlight"><pre><span></span><code>any
+
+┌──────────────┐
+│ type pointer │ ───→ runtime metadata for int
+├──────────────┤
+│ data         │ ───→ representation of 42
+└──────────────┘
+</code></pre></div>
+<p>Уточнение: конкретный способ хранения data зависит от dynamic type. Internal ABI допускает direct interface representation для некоторых односоставных pointer-sized values; в остальных случаях data указывает на значение. Это implementation detail, поэтому учебную модель лучше держать как «type information + data representation».</p>
+<hr/>
+<h1 id="44-non-empty-interface-itab">44. Non-empty interface и itab<a class="headerlink" href="#44-non-empty-interface-itab" title="Permanent link">¶</a></h1>
+<p>Допустим:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Write</span><span class="p">([]</span><span class="kt">byte</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Теперь runtime нужно знать не только concrete type.</p>
+<p>Нужно ещё понимать:</p>
+<div class="highlight"><pre><span></span><code>как concrete type реализует конкретный interface
+</code></pre></div>
+<p>Для этого используется <code>ITab</code>.</p>
+<p>В текущем ABI она содержит:</p>
+<div class="highlight"><pre><span></span><code>interface type
+concrete type
+type hash
+method function pointers
+</code></pre></div>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>interface value
+┌──────────┐
+│ itab ──────────────┐
+├──────────┤         │
+│ data     │         │
+└──────────┘         │
+                     ↓
+             ┌───────────────────┐
+             │ interface type    │
+             │ concrete type     │
+             │ method pointers   │
+             └───────────────────┘
+</code></pre></div>
+<p>При вызове:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+</code></pre></div>
+<p>interface dispatch может использовать найденный method entry.</p>
+<hr/>
+<h1 id="45-interface-conversion-allocation">45. Interface conversion не обязательно означает allocation<a class="headerlink" href="#45-interface-conversion-allocation" title="Permanent link">¶</a></h1>
+<p>Распространённое упрощение:</p>
+<blockquote>
+<p>положили value в interface — получили heap allocation.</p>
+</blockquote>
+<p>Не обязательно.</p>
+<p>Allocation зависит от:</p>
+<ul>
+<li>concrete type;</li>
+<li>representation;</li>
+<li>escape analysis;</li>
+<li>дальнейшего lifetime;</li>
+<li>оптимизаций compiler.</li>
+</ul>
+<p>Правильный способ узнать:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-gcflags<span class="o">=</span><span class="s2">"-m=2"</span>
+</code></pre></div>
+<p>и benchmark:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-bench<span class="o">=</span>.<span class="w"> </span>-benchmem
+</code></pre></div>
+<p>А не угадывать по внешнему виду interface.</p>
+<hr/>
+<h1 id="46-nil-interface">46. nil interface<a class="headerlink" href="#46-nil-interface" title="Permanent link">¶</a></h1>
+<p>Вот один из классических Go traps.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span>
+
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span>
+</code></pre></div>
+<p>Получим:</p>
+<div class="highlight"><pre><span></span><code>true
+</code></pre></div>
+<p>Внутри:</p>
+<div class="highlight"><pre><span></span><code>interface
+
+type = nil
+data = nil
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>(nil, nil)
+</code></pre></div>
+<hr/>
+<h1 id="47-typed-nil-interface">47. Typed nil внутри interface<a class="headerlink" href="#47-typed-nil-interface" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">MyError</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">MyError</span><span class="p">)</span><span class="w"> </span><span class="nx">Error</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s">"error"</span>
+<span class="p">}</span>
+
+<span class="kd">var</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyError</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">e</span>
+</code></pre></div>
+<p>Проверяем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span>
+</code></pre></div>
+<p>Получим:</p>
+<div class="highlight"><pre><span></span><code>false
+</code></pre></div>
+<p>Почему?</p>
+<p>Потому что interface выглядит концептуально так:</p>
+<div class="highlight"><pre><span></span><code>dynamic type = *MyError
+dynamic value = nil
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>(*MyError, nil)
+</code></pre></div>
+<p>Первое поле interface уже не <code>nil</code>.</p>
+<p>А nil interface требует:</p>
+<div class="highlight"><pre><span></span><code>(nil, nil)
+</code></pre></div>
+<hr/>
+<h1 id="48">48. Практический баг<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">findUser</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">*</span><span class="nx">MyError</span>
+
+<span class="w">    </span><span class="c1">// ...</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Кажется:</p>
+<div class="highlight"><pre><span></span><code>err == nil
+</code></pre></div>
+<p>значит функция возвращает <code>nil</code>.</p>
+<p>Но происходит conversion:</p>
+<div class="highlight"><pre><span></span><code>*MyError → error
+</code></pre></div>
+<p>И возвращается:</p>
+<div class="highlight"><pre><span></span><code>(*MyError, nil)
+</code></pre></div>
+<p>Следовательно:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">findUser</span><span class="p">();</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// зайдём сюда</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Поэтому typed nil — не экзотика runtime.</p>
+<p>Это реальный production bug.</p>
+<hr/>
+<h1 id="49-type-assertion">49. Type assertion<a class="headerlink" href="#49-type-assertion" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="kt">string</span><span class="p">)</span>
+</code></pre></div>
+<p>Что мы спрашиваем у runtime?</p>
+<div class="highlight"><pre><span></span><code>имеет ли interface x dynamic type,
+совместимый с string?
+</code></pre></div>
+<p>Для concrete type assertion runtime может проверить type information.</p>
+<p>Для assertion к non-empty interface требуется проверить, реализует ли dynamic concrete type нужный interface; runtime использует и кэширует соответствующую <code>ITab</code>.</p>
+<hr/>
+<h1 id="50-assertion-ok">50. Assertion с ok<a class="headerlink" href="#50-assertion-ok" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">v</span><span class="p">.(</span><span class="kt">string</span><span class="p">)</span>
+</code></pre></div>
+<p>Если тип неправильный:</p>
+<div class="highlight"><pre><span></span><code>s = ""
+ok = false
+</code></pre></div>
+<p>Паники нет.</p>
+<hr/>
+<h1 id="51-assertion-ok">51. Assertion без ok<a class="headerlink" href="#51-assertion-ok" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">v</span><span class="p">.(</span><span class="kt">string</span><span class="p">)</span>
+</code></pre></div>
+<p>Если dynamic type несовместим:</p>
+<div class="highlight"><pre><span></span><code>panic
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>interface conversion: interface {} is int, not string
+</code></pre></div>
+<p>Поэтому в boundary code:</p>
+<div class="highlight"><pre><span></span><code>JSON
+plugin
+generic container
+reflection-like APIs
+</code></pre></div>
+<p>чаще нужен <code>ok</code>.</p>
+<hr/>
+<h2 id="interface">Что важно запомнить про interface<a class="headerlink" href="#interface" title="Permanent link">¶</a></h2>
+<ol>
+<li>Interface value содержит dynamic type information и data.</li>
+<li>Static type переменной и dynamic type значения — разные вещи.</li>
+<li><code>any</code> и interface с methods имеют разные internal representations.</li>
+<li>Для non-empty interface runtime использует <code>ITab</code>.</li>
+<li>Nil interface означает отсутствие и dynamic type, и dynamic value.</li>
+<li>Typed nil внутри interface обычно не равен <code>nil</code>.</li>
+<li>Interface conversion не означает автоматически heap allocation.</li>
+<li>Type assertion работает с runtime type information.</li>
+</ol>
+<hr/>
+<h1 id="52-channels">52. Channels<a class="headerlink" href="#52-channels" title="Permanent link">¶</a></h1>
+<p>Теперь конструкция, которую особенно опасно объяснять фразой:</p>
+<blockquote>
+<p>channel — потокобезопасная очередь.</p>
+</blockquote>
+<p>Почему опасно?</p>
+<p>Потому что unbuffered channel вообще не хранит очередь пользовательских элементов.</p>
+<p>Более точная модель:</p>
+<blockquote>
+<p>channel — runtime synchronization object, который может содержать ring buffer и очереди ожидающих senders/receivers.</p>
+</blockquote>
+<hr/>
+<h1 id="53-chan-value">53. chan value<a class="headerlink" href="#53-chan-value" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span>
+</code></pre></div>
+<p>Переменная <code>ch</code> является reference-like value.</p>
+<p>Она указывает на runtime object <code>hchan</code>.</p>
+<p>В текущем runtime <code>hchan</code> содержит, среди прочего:</p>
+<div class="highlight"><pre><span></span><code>qcount
+dataqsiz
+buf
+elemsize
+closed
+sendx
+recvx
+recvq
+sendq
+lock
+</code></pre></div>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>chan value
+    │
+    ↓
+┌─────────────────────┐
+│ hchan               │
+│                     │
+│ qcount              │
+│ capacity            │
+│ buffer pointer      │
+│ send index          │
+│ receive index       │
+│ send wait queue     │
+│ receive wait queue  │
+│ closed              │
+│ mutex               │
+└─────────────────────┘
+</code></pre></div>
+<hr/>
+<h1 id="54-buffered-channel">54. Buffered channel<a class="headerlink" href="#54-buffered-channel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span>
+</code></pre></div>
+<p>Буфер можно представить как circular queue:</p>
+<div class="highlight"><pre><span></span><code>┌────┬────┬────┐
+│ 10 │ 20 │    │
+└────┴────┴────┘
+ ↑         ↑
+recvx     sendx
+</code></pre></div>
+<p>Runtime хранит:</p>
+<div class="highlight"><pre><span></span><code>qcount = количество элементов
+dataqsiz = capacity
+sendx
+recvx
+</code></pre></div>
+<p>При достижении конца indices закольцовываются.</p>
+<hr/>
+<h1 id="55-send-buffered-channel">55. Send в buffered channel<a class="headerlink" href="#55-send-buffered-channel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Возможны несколько ситуаций.</p>
+<h3 id="receiver">Есть ожидающий receiver<a class="headerlink" href="#receiver" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>sender
+  │
+  └────────→ receiver
+</code></pre></div>
+<p>Значение может быть передано ожидающей goroutine.</p>
+<h3 id="receiver-buffer">Receiver нет, buffer не заполнен<a class="headerlink" href="#receiver-buffer" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>value
+  ↓
+ring buffer
+</code></pre></div>
+<h3 id="buffer-full">Buffer full<a class="headerlink" href="#buffer-full" title="Permanent link">¶</a></h3>
+<p>Sender должен ждать.</p>
+<p>Runtime помещает информацию об ожидающей goroutine в:</p>
+<div class="highlight"><pre><span></span><code>sendq
+</code></pre></div>
+<p>и паркует goroutine.</p>
+<hr/>
+<h1 id="56-receive">56. Receive<a class="headerlink" href="#56-receive" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>Аналогично:</p>
+<h3 id="waiting-sender">Есть waiting sender<a class="headerlink" href="#waiting-sender" title="Permanent link">¶</a></h3>
+<p>Можно согласовать операцию с ним.</p>
+<h3 id="buffer">В buffer есть данные<a class="headerlink" href="#buffer" title="Permanent link">¶</a></h3>
+<p>Берём следующий элемент.</p>
+<h3 id="_1">Данных нет<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Receiver попадает в:</p>
+<div class="highlight"><pre><span></span><code>recvq
+</code></pre></div>
+<p>и goroutine паркуется.</p>
+<hr/>
+<h1 id="57-sudog">57. sudog<a class="headerlink" href="#57-sudog" title="Permanent link">¶</a></h1>
+<p>Как положить goroutine в очередь ожидания channel?</p>
+<p>Runtime использует структуру <code>sudog</code>.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>hchan.recvq
+
+sudog → sudog → sudog
+
+  │       │       │
+  ↓       ↓       ↓
+  G       G       G
+</code></pre></div>
+<p><code>sudog</code> представляет ожидание конкретной goroutine на конкретном synchronization object.</p>
+<p>Когда операция может продолжиться:</p>
+<div class="highlight"><pre><span></span><code>runtime
+↓
+убирает sudog из очереди
+↓
+goready(g)
+↓
+goroutine снова runnable
+</code></pre></div>
+<p>То есть blocking channel operation не означает:</p>
+<div class="highlight"><pre><span></span><code>OS thread должен стоять и ждать
+</code></pre></div>
+<p>Паркуется goroutine.</p>
+<p>Scheduler может использовать thread для другой работы.</p>
+<hr/>
+<h1 id="58-unbuffered-channel">58. Unbuffered channel<a class="headerlink" href="#58-unbuffered-channel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span>
+</code></pre></div>
+<p>Capacity:</p>
+<div class="highlight"><pre><span></span><code>0
+</code></pre></div>
+<p>Никакого пользовательского ring buffer нет.</p>
+<p>Send может завершиться только при наличии receiver.</p>
+<p>Receive — при наличии sender.</p>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>sender G
+   │
+   │ value
+   ↓
+receiver G
+</code></pre></div>
+<p>Это rendezvous.</p>
+<p>Runtime может копировать значение непосредственно между sender и receiver.</p>
+<p>Поэтому:</p>
+<blockquote>
+<p>unbuffered channel = очередь длины ноль</p>
+</blockquote>
+<p>формально иногда помогает.</p>
+<p>Но ментальная модель rendezvous значительно полезнее.</p>
+<hr/>
+<h1 id="59-channel-lock">59. Channel lock<a class="headerlink" href="#59-channel-lock" title="Permanent link">¶</a></h1>
+<p>В <code>hchan</code> существует внутренний lock.</p>
+<p>Он защищает state канала и связанные <code>sudog</code> structures.</p>
+<p>Это значит, что:</p>
+<div class="highlight"><pre><span></span><code>100 goroutines
+↓
+один hot channel
+</code></pre></div>
+<p>могут получить:</p>
+<div class="highlight"><pre><span></span><code>contention
+cache-line bouncing
+goroutine parking/wakeup
+scheduler work
+</code></pre></div>
+<p>Channel thread-safe.</p>
+<p>Это не означает:</p>
+<div class="highlight"><pre><span></span><code>channel бесплатный
+</code></pre></div>
+<hr/>
+<h1 id="60">60. Что происходит под нагрузкой<a class="headerlink" href="#60" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">jobs</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="nx">Job</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+
+<span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">producer</span><span class="p">(</span><span class="nx">jobs</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">worker</span><span class="p">(</span><span class="nx">jobs</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если producers значительно быстрее consumers:</p>
+<div class="highlight"><pre><span></span><code>buffer заполняется
+↓
+producers начинают блокироваться
+↓
+sendq растёт
+↓
+много parked goroutines
+↓
+scheduler постоянно будит следующие
+</code></pre></div>
+<p>С одной стороны, это естественный backpressure.</p>
+<p>С другой:</p>
+<div class="highlight"><pre><span></span><code>один канал
+</code></pre></div>
+<p>может стать synchronization hotspot.</p>
+<p>Поэтому размер channel buffer — часть архитектуры нагрузки, а не декоративное число.</p>
+<hr/>
+<h1 id="61-close">61. close<a class="headerlink" href="#61-close" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nb">close</span><span class="p">(</span><span class="nx">ch</span><span class="p">)</span>
+</code></pre></div>
+<p>Channel переходит в closed state.</p>
+<p>Новые sends запрещены:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span>
+</code></pre></div>
+<p>даст panic.</p>
+<p>Receive продолжает работать.</p>
+<p>Если buffer ещё содержит элементы:</p>
+<div class="highlight"><pre><span></span><code>receive buffered values
+</code></pre></div>
+<p>После опустошения:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>возвращает:</p>
+<div class="highlight"><pre><span></span><code>zero value
+false
+</code></pre></div>
+<p>Close также пробуждает ожидающие goroutines.</p>
+<hr/>
+<h1 id="62-nil-channel">62. nil channel<a class="headerlink" href="#62-nil-channel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
+</code></pre></div>
+<p><code>ch == nil</code>.</p>
+<p>Send:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>будет ждать бесконечно.</p>
+<p>Receive:</p>
+<div class="highlight"><pre><span></span><code><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>тоже будет ждать бесконечно.</p>
+<p>Спецификация прямо определяет nil channel как никогда не готовый к communication.</p>
+<p>Это кажется бесполезным.</p>
+<p>Но через минуту пригодится в <code>select</code>.</p>
+<hr/>
+<h2 id="channels">Что важно запомнить про channels<a class="headerlink" href="#channels" title="Permanent link">¶</a></h2>
+<ol>
+<li>Channel — runtime synchronization structure.</li>
+<li>Buffered channel содержит circular buffer.</li>
+<li>Unbuffered channel работает как rendezvous sender/receiver.</li>
+<li><code>sendq</code> и <code>recvq</code> хранят ожидающие goroutines через <code>sudog</code>.</li>
+<li>Blocked goroutine паркуется через scheduler.</li>
+<li>Внутри channel есть synchronization lock.</li>
+<li>Hot channel способен стать contention point.</li>
+<li>Buffer создаёт ограниченную очередь и механизм backpressure.</li>
+<li>Nil channel никогда не готов.</li>
+</ol>
+<hr/>
+<h1 id="63-select">63. select<a class="headerlink" href="#63-select" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+
+<span class="k">case</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">result</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">sent</span><span class="p">()</span>
+
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">    </span><span class="nx">cancel</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Высокоуровневая модель:</p>
+<blockquote>
+<p>выбрать одну операцию, которая сейчас может выполниться.</p>
+</blockquote>
+<p>Но что делать runtime, если готовы сразу три?</p>
+<p>Спецификация требует выбрать одну из готовых communication operations pseudo-random образом. Поэтому порядок <code>case</code> не задаёт приоритет.</p>
+<hr/>
+<h1 id="64-select">64. Почему select сложно реализовать<a class="headerlink" href="#64-select" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">b</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">c</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">d</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если ничего не готово, goroutine должна ждать одновременно:</p>
+<div class="highlight"><pre><span></span><code>a
+b
+c
+d
+</code></pre></div>
+<p>Но goroutine одна.</p>
+<p>Она не может физически:</p>
+<div class="highlight"><pre><span></span><code>gopark(a)
+gopark(b)
+gopark(c)
+gopark(d)
+</code></pre></div>
+<p>четыре раза.</p>
+<p>Runtime должен зарегистрировать одно ожидание сразу во всех channel queues.</p>
+<hr/>
+<h1 id="65-selectgo">65. Как работает selectgo<a class="headerlink" href="#65-selectgo" title="Permanent link">¶</a></h1>
+<p>Текущий runtime делает примерно следующие фазы.</p>
+<h2 id="1-poll-order">Фаза 1. Формируется случайный poll order<a class="headerlink" href="#1-poll-order" title="Permanent link">¶</a></h2>
+<p>Cases перемешиваются.</p>
+<p>Зачем?</p>
+<p>Если всегда проверять сверху вниз:</p>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">b</span>
+</code></pre></div>
+<p>то <code>a</code> получит систематический приоритет.</p>
+<p>Runtime формирует permuted poll order.</p>
+<hr/>
+<h1 id="66-2-lock-order">66. Фаза 2. Lock order<a class="headerlink" href="#66-2-lock-order" title="Permanent link">¶</a></h1>
+<p>Select работает сразу с несколькими channels.</p>
+<p>Если locks захватывать случайно:</p>
+<div class="highlight"><pre><span></span><code>G1:
+lock A
+lock B
+
+G2:
+lock B
+lock A
+</code></pre></div>
+<p>получаем classic lock-order deadlock.</p>
+<p>Поэтому runtime сортирует channels по адресу и получает единый lock order.</p>
+<p>После этого locks берутся в согласованном порядке.</p>
+<hr/>
+<h1 id="67-3-cases">67. Фаза 3. Проверить готовые cases<a class="headerlink" href="#67-3-cases" title="Permanent link">¶</a></h1>
+<p>Runtime проходит cases в randomized poll order.</p>
+<p>Для receive проверяет:</p>
+<div class="highlight"><pre><span></span><code>есть waiting sender?
+есть buffered value?
+channel closed?
+</code></pre></div>
+<p>Для send:</p>
+<div class="highlight"><pre><span></span><code>есть waiting receiver?
+есть место в buffer?
+channel closed?
+</code></pre></div>
+<p>Если case готов:</p>
+<div class="highlight"><pre><span></span><code>выполняем
+↓
+return
+</code></pre></div>
+<hr/>
+<h1 id="68-4-default">68. Фаза 4. default<a class="headerlink" href="#68-4-default" title="Permanent link">¶</a></h1>
+<p>Если ничего не готово и присутствует:</p>
+<div class="highlight"><pre><span></span><code><span class="k">default</span><span class="p">:</span>
+</code></pre></div>
+<p>runtime разблокирует channels и сразу выполняет <code>default</code>.</p>
+<p>Goroutine не паркуется.</p>
+<hr/>
+<h1 id="69-5-channels">69. Фаза 5. Зарегистрироваться на всех channels<a class="headerlink" href="#69-5-channels" title="Permanent link">¶</a></h1>
+<p>Если <code>default</code> нет:</p>
+<div class="highlight"><pre><span></span><code>ничего не готово
+↓
+нужно уснуть
+</code></pre></div>
+<p>Для каждого case runtime получает <code>sudog</code>.</p>
+<p>Одна goroutine оказывается зарегистрирована:</p>
+<div class="highlight"><pre><span></span><code>channel A recvq ──→ sudog ──┐
+channel B recvq ──→ sudog ──┤
+channel C sendq ──→ sudog ──┤
+                            ↓
+                            G
+</code></pre></div>
+<p>После этого:</p>
+<div class="highlight"><pre><span></span><code>gopark
+</code></pre></div>
+<hr/>
+<h1 id="70-case">70. Один case победил<a class="headerlink" href="#70-case" title="Permanent link">¶</a></h1>
+<p>Допустим, значение пришло в <code>B</code>.</p>
+<p><code>B</code> пробуждает goroutine.</p>
+<p>Но registrations в <code>A</code> и <code>C</code> ещё существуют.</p>
+<p>После wakeup runtime снова блокирует channels и удаляет проигравшие <code>sudog</code> entries.</p>
+<p>В исходниках это буквально разделено на проход:</p>
+<div class="highlight"><pre><span></span><code>pass 1 — найти готовый case
+pass 2 — enqueue на channels
+sleep
+pass 3 — dequeue unsuccessful cases
+</code></pre></div>
+<p>Вот почему <code>select</code> — гораздо более сложная операция, чем обычный <code>if</code>.</p>
+<hr/>
+<h1 id="71-nil-channel-case">71. Nil channel как выключенный case<a class="headerlink" href="#71-nil-channel-case" title="Permanent link">¶</a></h1>
+<p>Теперь nil channel становится полезным.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
+</code></pre></div>
+<p>В select:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span>
+</code></pre></div>
+<p>первый case никогда не готов.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>nil channel
+=
+disabled select case
+</code></pre></div>
+<p>Очень удобный паттерн для state machine.</p>
+<hr/>
+<h1 id="72-select-default-busy-loop">72. select + default и busy loop<a class="headerlink" href="#72-select-default-busy-loop" title="Permanent link">¶</a></h1>
+<p>Плохой код:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="w">        </span><span class="nx">process</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+<span class="w">    </span><span class="k">default</span><span class="p">:</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если <code>ch</code> пуст:</p>
+<div class="highlight"><pre><span></span><code>select
+↓
+default
+↓
+loop
+↓
+select
+↓
+default
+↓
+...
+</code></pre></div>
+<p>Goroutine никогда не паркуется.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>100% CPU
+</code></pre></div>
+<p>и backend может внезапно начать греть ядро, хотя «ничего не делает».</p>
+<p><code>default</code> превращает blocking select в polling.</p>
+<p>Это осознанный архитектурный выбор.</p>
+<hr/>
+<h1 id="73-fairness-select">73. Fairness select<a class="headerlink" href="#73-fairness-select" title="Permanent link">¶</a></h1>
+<p>Нельзя обещать:</p>
+<div class="highlight"><pre><span></span><code>каждый channel будет обслуживаться строго по очереди
+</code></pre></div>
+<p>Выбор среди готовых cases pseudo-random.</p>
+<p>Это уменьшает систематический bias.</p>
+<p>Но strict fairness guarantee здесь нет.</p>
+<p>Если нужен строгий scheduling policy:</p>
+<div class="highlight"><pre><span></span><code>priority queue
+round robin
+weighted scheduler
+</code></pre></div>
+<p>его нужно строить явно.</p>
+<hr/>
+<h1 id="74-channelselect">74. Диагностика channel/select проблем<a class="headerlink" href="#74-channelselect" title="Permanent link">¶</a></h1>
+<p>Если backend подозрительно висит:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>/debug/pprof/goroutine?debug<span class="o">=</span><span class="m">2</span>
+</code></pre></div>
+<p>Можно увидеть тысячи goroutines:</p>
+<div class="highlight"><pre><span></span><code>[chan send]
+[chan receive]
+[select]
+</code></pre></div>
+<p>Это уже архитектурный симптом.</p>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>кто producer?
+кто consumer?
+какая capacity?
+какой throughput?
+кто перестал читать?
+почему cancellation не дошла?
+</code></pre></div>
+<p>Для времени блокировок:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">SetBlockProfileRate</span><span class="p">(...)</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>pprof block
+</code></pre></div>
+<p>Для сложной динамики:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>trace
+</code></pre></div>
+<p>Там уже видно parking/wakeup и scheduler behavior.</p>
+<hr/>
+<h1 id="75-context">75. context<a class="headerlink" href="#75-context" title="Permanent link">¶</a></h1>
+<p>Теперь финальный слой.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span>
+<span class="w">    </span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">(),</span>
+<span class="w">    </span><span class="mi">2</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>Очень легко создать миф:</p>
+<blockquote>
+<p>context — специальная магическая сущность для отмены goroutine.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Во-первых:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Context</span>
+</code></pre></div>
+<p>— обычный interface.</p>
+<p>У него четыре метода:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Deadline</span><span class="p">()</span>
+<span class="nx">Done</span><span class="p">()</span>
+<span class="nx">Err</span><span class="p">()</span>
+<span class="nx">Value</span><span class="p">()</span>
+</code></pre></div>
+<p>Во-вторых, cancellation остаётся cooperative.</p>
+<p>Context не может насильно остановить произвольную goroutine.</p>
+<hr/>
+<h1 id="76-context">76. Context как цепочка объектов<a class="headerlink" href="#76-context" title="Permanent link">¶</a></h1>
+<p>Берём:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">()</span>
+
+<span class="nx">ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithValue</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">requestIDKey</span><span class="p">,</span><span class="w"> </span><span class="nx">requestID</span><span class="p">)</span>
+
+<span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+
+<span class="nx">ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithValue</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">userKey</span><span class="p">,</span><span class="w"> </span><span class="nx">user</span><span class="p">)</span>
+</code></pre></div>
+<p>Получается примерно:</p>
+<div class="highlight"><pre><span></span><code>valueCtx(user)
+      │
+      ↓
+timerCtx
+      │
+      ↓
+valueCtx(requestID)
+      │
+      ↓
+backgroundCtx
+</code></pre></div>
+<p>Каждый новый context обычно оборачивает parent.</p>
+<hr/>
+<h1 id="77-cancellation-tree">77. cancellation tree<a class="headerlink" href="#77-cancellation-tree" title="Permanent link">¶</a></h1>
+<p>Для cancellation структура становится деревом.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">root</span><span class="p">,</span><span class="w"> </span><span class="nx">cancelRoot</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
+
+<span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">root</span><span class="p">)</span>
+<span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">root</span><span class="p">)</span>
+
+<span class="nx">a1</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
+<span class="nx">a2</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
+</code></pre></div>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>             root
+            /    \
+           a      b
+         /   \
+       a1     a2
+</code></pre></div>
+<p>Вызываем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancelRoot</span><span class="p">()</span>
+</code></pre></div>
+<p>Отмена распространяется вниз:</p>
+<div class="highlight"><pre><span></span><code>root
+↓
+a
+↓ ↓
+a1 a2
+
+и
+
+root
+↓
+b
+</code></pre></div>
+<p>Именно поэтому документация говорит, что cancellation parent context отменяет все derived contexts.</p>
+<hr/>
+<h1 id="78-cancelctx">78. cancelCtx<a class="headerlink" href="#78-cancelctx" title="Permanent link">¶</a></h1>
+<p>В текущей реализации ключевой тип концептуально содержит:</p>
+<div class="highlight"><pre><span></span><code>parent Context
+mutex
+done
+children
+err
+cause
+</code></pre></div>
+<p>Исходник:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">cancelCtx</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Context</span>
+
+<span class="w">    </span><span class="nx">mu</span><span class="w">       </span><span class="nx">sync</span><span class="p">.</span><span class="nx">Mutex</span>
+<span class="w">    </span><span class="nx">done</span><span class="w">     </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Value</span>
+<span class="w">    </span><span class="nx">children</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="nx">canceler</span><span class="p">]</span><span class="kd">struct</span><span class="p">{}</span>
+<span class="w">    </span><span class="nx">err</span><span class="w">      </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Value</span>
+<span class="w">    </span><span class="nx">cause</span><span class="w">    </span><span class="kt">error</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Здесь уже видна вся механика.</p>
+<p>Никакой мистики.</p>
+<hr/>
+<h1 id="79-done-channel">79. Done channel создаётся лениво<a class="headerlink" href="#79-done-channel" title="Permanent link">¶</a></h1>
+<p>Интересная оптимизация.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+</code></pre></div>
+<p>должен вернуть channel.</p>
+<p>Но не каждый context когда-либо используется через <code>Done</code>.</p>
+<p>Зачем сразу создавать channel для каждого?</p>
+<p>В текущем <code>cancelCtx</code> он хранится через <code>atomic.Value</code> и создаётся lazy при первом <code>Done()</code>.</p>
+<p>Получается:</p>
+<div class="highlight"><pre><span></span><code>WithCancel
+↓
+cancelCtx создан
+↓
+Done ни разу не вызван
+↓
+channel allocation можно избежать
+</code></pre></div>
+<hr/>
+<h1 id="80-child-parent">80. Как child подключается к parent<a class="headerlink" href="#80-child-parent" title="Permanent link">¶</a></h1>
+<p>При создании:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">child</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+</code></pre></div>
+<p>вызывается логика <code>propagateCancel</code>.</p>
+<p>Если parent является обычным cancelable context стандартной библиотеки, child регистрируется в:</p>
+<div class="highlight"><pre><span></span><code>parent.children
+</code></pre></div>
+<p>под mutex.</p>
+<p>Схема:</p>
+<div class="highlight"><pre><span></span><code>parent.cancelCtx
+│
+├── child1
+├── child2
+└── child3
+</code></pre></div>
+<hr/>
+<h1 id="81-cancel">81. Что делает cancel()<a class="headerlink" href="#81-cancel" title="Permanent link">¶</a></h1>
+<p>При:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>текущий <code>cancelCtx.cancel</code> примерно:</p>
+<ol>
+<li>ставит <code>err</code>;</li>
+<li>записывает <code>cause</code>;</li>
+<li>закрывает <code>done</code>;</li>
+<li>проходит по <code>children</code>;</li>
+<li>вызывает cancellation каждого child;</li>
+<li>очищает children;</li>
+<li>при необходимости удаляет себя из parent.</li>
+</ol>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>cancel(parent)
+↓
+close(parent.Done)
+↓
+cancel(child1)
+↓
+cancel(child2)
+↓
+cancel(child3)
+</code></pre></div>
+<hr/>
+<h1 id="82-closechannel-cancellation">82. Почему close(channel) идеально подходит для cancellation<a class="headerlink" href="#82-closechannel-cancellation" title="Permanent link">¶</a></h1>
+<p>Нужно сообщить:</p>
+<div class="highlight"><pre><span></span><code>событие произошло
+</code></pre></div>
+<p>не одному consumer.</p>
+<p>А всем:</p>
+<div class="highlight"><pre><span></span><code>100 goroutines должны увидеть cancellation
+</code></pre></div>
+<p>Если посылать значения:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">done</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}{}</span>
+</code></pre></div>
+<p>одно значение получит один receiver.</p>
+<p>Закрытие channel:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">close</span><span class="p">(</span><span class="nx">done</span><span class="p">)</span>
+</code></pre></div>
+<p>делает receive готовым для всех текущих и будущих receivers.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+</code></pre></div>
+<p>использует именно broadcast через close.</p>
+<hr/>
+<h1 id="83-cancellation-goroutine">83. Cancellation не убивает goroutine<a class="headerlink" href="#83-cancellation-goroutine" title="Permanent link">¶</a></h1>
+<p>Вот код:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">doCPUWork</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>Внешний:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>ничего с этой goroutine автоматически не сделает.</p>
+<p>Она вообще не смотрит на context.</p>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">            </span><span class="k">return</span>
+<span class="w">        </span><span class="k">default</span><span class="p">:</span>
+<span class="w">            </span><span class="nx">doCPUWork</span><span class="p">()</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>Или underlying blocking API должен принимать context:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">db</span><span class="p">.</span><span class="nx">QueryContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span>
+<span class="nx">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">req</span><span class="p">.</span><span class="nx">WithContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
+</code></pre></div>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>context sends cancellation signal
+↓
+code observes signal
+↓
+code voluntarily terminates operation
+</code></pre></div>
+<hr/>
+<h1 id="84-timerctx">84. timerCtx<a class="headerlink" href="#84-timerctx" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</code></pre></div>
+<p>строится поверх deadline.</p>
+<p>Текущий <code>timerCtx</code> использует runtime timer через <code>time.AfterFunc</code>.</p>
+<p>Когда deadline наступает:</p>
+<div class="highlight"><pre><span></span><code>timer fires
+↓
+cancel(...)
+↓
+Done closes
+↓
+children canceled
+</code></pre></div>
+<hr/>
+<h1 id="85-cancel">85. Зачем обязательно вызывать cancel<a class="headerlink" href="#85-cancel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>Иногда думают:</p>
+<blockquote>
+<p>timeout всё равно через минуту сработает, зачем cancel?</p>
+</blockquote>
+<p>Потому что child связан с parent.</p>
+<p>Документация прямо предупреждает: если не вызвать <code>CancelFunc</code>, parent может продолжать удерживать child и его descendants до отмены parent, а связанный timer также продолжает существовать до своего deadline. <code>go vet</code> проверяет использование CancelFunc по control-flow paths.</p>
+<p>В backend:</p>
+<div class="highlight"><pre><span></span><code>100k requests
+↓
+создали contexts
+↓
+работа завершилась за 20 ms
+↓
+timeout был 30 sec
+↓
+cancel забыли
+↓
+лишние contexts/timers остаются жить
+</code></pre></div>
+<p>Получаем unnecessary memory pressure.</p>
+<hr/>
+<h1 id="86-value">86. Value — это тоже цепочка<a class="headerlink" href="#86-value" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithValue</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">value</span><span class="p">)</span>
+</code></pre></div>
+<p>не превращает context в огромную map.</p>
+<p>Концептуально строится:</p>
+<div class="highlight"><pre><span></span><code>valueCtx(key3)
+    ↓
+valueCtx(key2)
+    ↓
+valueCtx(key1)
+    ↓
+root
+</code></pre></div>
+<p>Поиск:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Value</span><span class="p">(</span><span class="nx">key1</span><span class="p">)</span>
+</code></pre></div>
+<p>идёт по цепочке contexts, пока не найдёт matching key.</p>
+<p>Следствие:</p>
+<blockquote>
+<p><code>Context.Value</code> нельзя воспринимать как бесплатный универсальный dependency container.</p>
+</blockquote>
+<p>Глубокая цепочка увеличивает стоимость lookup.</p>
+<p>Главная проблема обычно даже не performance, а потеря явных dependencies API.</p>
+<p>Context values предназначены прежде всего для request-scoped metadata.</p>
+<hr/>
+<h1 id="87-custom-context">87. Необычный случай: custom Context<a class="headerlink" href="#87-custom-context" title="Permanent link">¶</a></h1>
+<p>Интересный internal detail.</p>
+<p>Что если parent — пользовательская реализация <code>Context</code>, а стандартная библиотека не может получить её <code>cancelCtx</code>?</p>
+<p>Текущий <code>propagateCancel</code> имеет несколько путей.</p>
+<p>Сначала пытается присоединиться непосредственно к parent <code>cancelCtx</code>.</p>
+<p>Если parent предоставляет механизм <code>AfterFunc</code>, используется он.</p>
+<p>В общем fallback-case создаётся отдельная goroutine:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">parent</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">        </span><span class="nx">child</span><span class="p">.</span><span class="nx">cancel</span><span class="p">(...)</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">child</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>То есть custom Context способен сделать обычный:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">customParent</span><span class="p">)</span>
+</code></pre></div>
+<p>дороже, вплоть до дополнительной goroutine.</p>
+<p>Вот пример того, почему знание internals иногда имеет практический смысл.</p>
+<hr/>
+<h1 id="88-cancellation-tree">88. Cancellation tree под нагрузкой<a class="headerlink" href="#88-cancellation-tree" title="Permanent link">¶</a></h1>
+<p>Представим один root:</p>
+<div class="highlight"><pre><span></span><code>                root
+          /      |      \
+       1000    1000    1000
+       tasks    tasks    tasks
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancelRoot</span><span class="p">()</span>
+</code></pre></div>
+<p>Требуется:</p>
+<div class="highlight"><pre><span></span><code>обойти descendants
+↓
+закрыть Done channels
+↓
+разбудить множество goroutines
+↓
+они становятся runnable
+↓
+scheduler должен их обработать
+</code></pre></div>
+<p>Логически cancellation почти мгновенная.</p>
+<p>Физически:</p>
+<div class="highlight"><pre><span></span><code>10 000 blocked goroutines
+</code></pre></div>
+<p>после одного cancel могут создать burst scheduler work.</p>
+<p>Это уже backend behaviour under load.</p>
+<hr/>
+<h1 id="89-http-backend-cancellation-tree">89. HTTP backend и cancellation tree<a class="headerlink" href="#89-http-backend-cancellation-tree" title="Permanent link">¶</a></h1>
+<p>Типичный request:</p>
+<div class="highlight"><pre><span></span><code>HTTP connection
+      │
+      ↓
+request Context
+      │
+      ├── DB query
+      │
+      ├── HTTP request
+      │
+      ├── worker A
+      │
+      └── worker B
+</code></pre></div>
+<p>Клиент оборвал connection:</p>
+<div class="highlight"><pre><span></span><code>request context canceled
+↓
+DB operation получает cancellation
+↓
+outbound HTTP отменяется
+↓
+worker A завершается
+↓
+worker B завершается
+</code></pre></div>
+<p>Именно это делает context архитектурно полезным.</p>
+<p>Он переносит lifetime операции через несколько уровней backend.</p>
+<hr/>
+<h1 id="90-context">90. Как context ломают<a class="headerlink" href="#90-context" title="Permanent link">¶</a></h1>
+<p>Типичная ошибка:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">handler</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">ResponseWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">process</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Request закончился.</p>
+<p>Но новая goroutine получила:</p>
+<div class="highlight"><pre><span></span><code>Background()
+</code></pre></div>
+<p>Связь с lifetime HTTP request уничтожена.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>client disconnected
+↓
+request canceled
+↓
+background process продолжает работать
+</code></pre></div>
+<p>Иногда именно это нужно.</p>
+<p>Но это должно быть осознанное detach operation.</p>
+<hr/>
+<h1 id="91-deadline-propagation">91. Deadline propagation<a class="headerlink" href="#91-deadline-propagation" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>incoming request timeout = 2 s
+</code></pre></div>
+<p>Внутри handler:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">Context</span><span class="p">(),</span><span class="w"> </span><span class="mi">10</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+</code></pre></div>
+<p>Этот child фактически не получит десять секунд, если parent истекает через две.</p>
+<p>Текущий <code>WithDeadline</code> проверяет parent deadline и не пытается расширить уже более ранний deadline.</p>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>parent deadline: 2s
+child asks:      10s
+
+effective lifetime:
+2s
+</code></pre></div>
+<p>Child не может пережить cancellation parent без явного detach.</p>
+<hr/>
+<h1 id="92-context-backpressure">92. Context как механизм backpressure<a class="headerlink" href="#92-context-backpressure" title="Permanent link">¶</a></h1>
+<p>Context сам не ограничивает throughput.</p>
+<p>Но он ограничивает lifetime работы.</p>
+<p>Без cancellation:</p>
+<div class="highlight"><pre><span></span><code>upstream timeout
+↓
+response уже никому не нужен
+↓
+backend продолжает DB query
+↓
+продолжает RPC
+↓
+занимает connection pool
+↓
+занимает CPU
+↓
+результат выбрасывается
+</code></pre></div>
+<p>С propagation:</p>
+<div class="highlight"><pre><span></span><code>upstream timeout
+↓
+cancel
+↓
+downstream work прекращается
+↓
+resources освобождаются раньше
+</code></pre></div>
+<p>При высокой нагрузке это способно разделить:</p>
+<div class="highlight"><pre><span></span><code>система деградировала, но восстановилась
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>система продолжила выполнять уже бесполезную работу и сама себя добила
+</code></pre></div>
+<hr/>
+<h2 id="context">Что важно запомнить про context<a class="headerlink" href="#context" title="Permanent link">¶</a></h2>
+<ol>
+<li><code>Context</code> — interface, не магическая runtime primitive.</li>
+<li>Derived contexts образуют цепочку и cancellation tree.</li>
+<li><code>cancelCtx</code> хранит children.</li>
+<li><code>Done</code> — channel, закрытие которого работает как broadcast.</li>
+<li>Cancellation распространяется от parent к descendants.</li>
+<li>Cancellation cooperative: goroutine должна её наблюдать.</li>
+<li><code>WithTimeout</code> использует timer.</li>
+<li><code>CancelFunc</code> нужно вызывать для своевременного освобождения ресурсов.</li>
+<li><code>WithValue</code> формирует цепочку contexts, а не обычную hash map.</li>
+<li>Массовый cancel способен разбудить огромное число goroutines одновременно.</li>
+</ol>
+<hr/>
+<h1 id="93">93. Собираем всю лекцию в одну картину<a class="headerlink" href="#93" title="Permanent link">¶</a></h1>
+<p>Теперь можно увидеть общий мотив дизайна Go.</p>
+<h2 id="array">Array<a class="headerlink" href="#array" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>[4]int
+</code></pre></div>
+<p>Сами данные:</p>
+<div class="highlight"><pre><span></span><code>┌────┬────┬────┬────┐
+│    │    │    │    │
+└────┴────┴────┴────┘
+</code></pre></div>
+<p>Копирование значения:</p>
+<div class="highlight"><pre><span></span><code>копирование элементов
+</code></pre></div>
+<hr/>
+<h2 id="slice_1">Slice<a class="headerlink" href="#slice_1" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>[]int
+</code></pre></div>
+<p>Descriptor:</p>
+<div class="highlight"><pre><span></span><code>pointer
+len
+cap
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>underlying array
+</code></pre></div>
+<p>Копирование:</p>
+<div class="highlight"><pre><span></span><code>descriptor copied
+array shared
+</code></pre></div>
+<hr/>
+<h2 id="map_1">Map<a class="headerlink" href="#map_1" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>map[K]V
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>runtime Swiss Map
+↓
+directory
+↓
+tables
+↓
+groups
+↓
+control metadata + slots
+</code></pre></div>
+<hr/>
+<h2 id="interface_1">Interface<a class="headerlink" href="#interface_1" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>interface
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>type/itab
++
+data
+</code></pre></div>
+<hr/>
+<h2 id="channel">Channel<a class="headerlink" href="#channel" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>chan T
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>hchan
+├── ring buffer
+├── sendq
+├── recvq
+└── lock
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>scheduler
+</code></pre></div>
+<hr/>
+<h2 id="select">Select<a class="headerlink" href="#select" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>select
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>несколько hchan
+↓
+randomized poll
+↓
+ordered locking
+↓
+несколько sudog registrations
+↓
+gopark
+↓
+wake
+↓
+cleanup losing cases
+</code></pre></div>
+<hr/>
+<h2 id="context_1">Context<a class="headerlink" href="#context_1" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>Context
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>cancelCtx / timerCtx / valueCtx
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>parent-child tree
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>Done channel
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>channel wakeup
+</code></pre></div>
+<p>↓</p>
+<div class="highlight"><pre><span></span><code>scheduler
+</code></pre></div>
+<p>И вот здесь все темы курса начинают соединяться.</p>
+<hr/>
+<h1 id="94-go-under-the-hood">94. Почему эта тема называется Go under the hood<a class="headerlink" href="#94-go-under-the-hood" title="Permanent link">¶</a></h1>
+<p>Потому что теперь простая строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">results</span><span class="p">,</span><span class="w"> </span><span class="nx">item</span><span class="p">)</span>
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>capacity check
+↓
+allocator
+↓
+memory copy
+↓
+новый heap object
+↓
+больше GC pressure
+</code></pre></div>
+<p>Строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">value</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">cache</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>hash
+↓
+directory lookup
+↓
+Swiss group probing
+↓
+metadata comparison
+↓
+key equality
+↓
+cache misses
+</code></pre></div>
+<p>Строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">jobs</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">job</span>
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>channel lock
+↓
+buffer full
+↓
+sudog
+↓
+sendq
+↓
+gopark
+↓
+scheduler
+</code></pre></div>
+<p>Строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>lock cancellation tree
+↓
+close channels
+↓
+recursive cancellation
+↓
+тысячи goroutines становятся runnable
+↓
+scheduler burst
+</code></pre></div>
+<p>И именно на этом уровне начинается понимание поведения backend под нагрузкой.</p>
+<hr/>
+<h1 id="95">95. Диагностика<a class="headerlink" href="#95" title="Permanent link">¶</a></h1>
+<p>Если проблема связана со slices:</p>
+<div class="highlight"><pre><span></span><code>heap неожиданно растёт
+</code></pre></div>
+<p>смотреть:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>pprof<span class="w"> </span>heap.pprof
+</code></pre></div>
+<p>И искать:</p>
+<div class="highlight"><pre><span></span><code>large []byte
+large []T
+retained backing arrays
+append-heavy paths
+</code></pre></div>
+<hr/>
+<p>Если проблема связана с maps:</p>
+<div class="highlight"><pre><span></span><code>CPU вырос
+</code></pre></div>
+<p>проверять:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>pprof<span class="w"> </span>cpu.pprof
+</code></pre></div>
+<p>и смотреть:</p>
+<div class="highlight"><pre><span></span><code>map access
+hashing
+allocation
+GC
+lock contention вокруг map
+</code></pre></div>
+<p>Особенно для сложных keys:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="nx">LargeStruct</span><span class="p">]...</span>
+<span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]...</span>
+</code></pre></div>
+<p>hash computation сам имеет стоимость.</p>
+<hr/>
+<p>Если проблема связана с channels:</p>
+<div class="highlight"><pre><span></span><code>latency выросла
+goroutines растут
+</code></pre></div>
+<p>смотреть:</p>
+<div class="highlight"><pre><span></span><code>goroutine profile
+block profile
+runtime trace
+</code></pre></div>
+<p>И искать:</p>
+<div class="highlight"><pre><span></span><code>chan send
+chan receive
+select
+</code></pre></div>
+<hr/>
+<p>Если проблема связана с context:</p>
+<div class="highlight"><pre><span></span><code>goroutines продолжают жить после request
+</code></pre></div>
+<p>искать:</p>
+<div class="highlight"><pre><span></span><code>потерянную propagation chain
+Background() внутри request path
+операции, которые игнорируют ctx.Done()
+забытые cancel()
+</code></pre></div>
+<hr/>
+<h1 id="96">96. Главный инженерный вывод<a class="headerlink" href="#96" title="Permanent link">¶</a></h1>
+<p>Все рассмотренные abstractions достаточно маленькие и удобные на уровне языка.</p>
+<p>Именно поэтому ими легко злоупотребить.</p>
+<div class="highlight"><pre><span></span><code>slice
+</code></pre></div>
+<p>скрывает ownership памяти.</p>
+<div class="highlight"><pre><span></span><code>map
+</code></pre></div>
+<p>скрывает hash table и memory locality.</p>
+<div class="highlight"><pre><span></span><code>interface
+</code></pre></div>
+<p>скрывает dynamic type representation.</p>
+<div class="highlight"><pre><span></span><code>channel
+</code></pre></div>
+<p>скрывает synchronization, parking и scheduler.</p>
+<div class="highlight"><pre><span></span><code>select
+</code></pre></div>
+<p>скрывает регистрацию ожидания сразу в нескольких synchronization objects.</p>
+<div class="highlight"><pre><span></span><code>context
+</code></pre></div>
+<p>скрывает дерево cancellation и массовое пробуждение goroutines.</p>
+<p>Хорошая ментальная модель поэтому выглядит так:</p>
+<div class="highlight"><pre><span></span><code>syntax
+↓
+descriptor / runtime object
+↓
+memory
+↓
+synchronization
+↓
+scheduler / allocator / GC
+↓
+поведение под нагрузкой
+</code></pre></div>
+<p>Если смотреть на Go только через синтаксис:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">append</span>
+<span class="kt">map</span>
+<span class="kd">interface</span>
+<span class="nx">channel</span>
+<span class="k">select</span>
+<span class="nx">context</span>
+</code></pre></div>
+<p>выглядят почти тривиально.</p>
+<p>Если посмотреть под abstraction boundary, становится видно, где появляются реальные production-проблемы:</p>
+<div class="highlight"><pre><span></span><code>aliasing
+allocations
+memory retention
+hash collisions
+cache misses
+lock contention
+goroutine parking
+wake-up storms
+cancellation leaks
+</code></pre></div>
+<p>Именно поэтому «знать Go» — это в какой-то момент перестать видеть только:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>и начать видеть возможную цепочку:</p>
+<div class="highlight"><pre><span></span><code>append
+→ growslice
+→ allocation
+→ copy
+→ heap
+→ GC
+→ latency
+</code></pre></div>
+<p>То же самое для:</p>
+<div class="highlight"><pre><span></span><code>map
+→ hash
+→ Swiss group
+→ cache lines
+
+channel
+→ hchan
+→ sudog
+→ scheduler
+
+context
+→ cancellation tree
+→ channel close
+→ goroutine wakeup
+→ backend resource release
+</code></pre></div>
+<p>Это и есть уровень, на котором структуры данных Go становятся частью инженерной модели backend, а не набором конструкций языка.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3. Go memory, GC и pprof" class="md-footer__link md-footer__link--prev" href="../3%20-%20Memory/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3. Go memory, GC и pprof
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 1. Архитектура процессора, память и NUMA" class="md-footer__link md-footer__link--next" href="../Additional/1%20-%20CPU%20architecture/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                1. Архитектура процессора, память и NUMA
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
