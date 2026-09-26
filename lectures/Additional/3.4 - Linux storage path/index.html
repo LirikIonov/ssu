@@ -1,0 +1,3941 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/3.4%20-%20Linux%20storage%20path/" rel="canonical"/>
+<link href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/" rel="prev"/>
+<link href="../4%20-%20Go%20under%20the%20hood/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#34-linux-storage-path-page-cache-dirty-pages-writeback-write-fsync-block-layer-nvmessd">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#write">
+<span class="md-ellipsis">
+      
+        Зачем вообще лезть ниже write()
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/I%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    I - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/II%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    II - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/III%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    III - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#write">
+<span class="md-ellipsis">
+      
+        Зачем вообще лезть ниже write()
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="34-linux-storage-path-page-cache-dirty-pages-writeback-write-fsync-block-layer-nvmessd">3.4. Linux storage path глубже: page cache, dirty pages, writeback, <code>write()</code>, <code>fsync()</code>, block layer и NVMe/SSD<a class="headerlink" href="#34-linux-storage-path-page-cache-dirty-pages-writeback-write-fsync-block-layer-nvmessd" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Дополнительная углублённая лекция после блока про виртуальную память и memory reclaim.</p>
+<p>Главная задача — открыть путь:</p>
+<div class="highlight"><pre><span></span><code>application
+↓
+write()
+↓
+page cache
+↓
+dirty pages
+↓
+writeback
+↓
+filesystem
+↓
+block layer
+↓
+NVMe
+↓
+SSD controller
+↓
+NAND
+</code></pre></div>
+<p>И ответить на главный backend-вопрос:</p>
+<blockquote>
+<p>Когда данные действительно считаются сохранёнными?</p>
+</blockquote>
+</blockquote>
+<h2 id="write">Зачем вообще лезть ниже <code>write()</code><a class="headerlink" href="#write" title="Permanent link">¶</a></h2>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">f</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+</code></pre></div>
+<p><code>err == nil</code>.</p>
+<p>Опасное упрощение:</p>
+<blockquote>
+<p><code>write()</code> вернулся без ошибки — данные уже на SSD.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Часто реальная цепочка такая:</p>
+<div class="highlight"><pre><span></span><code>application buffer
+↓
+system call
+↓
+kernel
+↓
+page cache
+↓
+dirty memory
+↓
+write() returns
+</code></pre></div>
+<p>А storage увидит данные позже.</p>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>write() success
+≠
+durability
+</code></pre></div>
+<hr/>
+<h1 id="1">1. Три разных события<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<p>Нужно сразу разделить:</p>
+<h2 id="_1">Данные приняло ядро<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>write() returned
+</code></pre></div>
+<h2 id="storage-path">Данные дошли по storage path<a class="headerlink" href="#storage-path" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>writeback / block I/O completed
+</code></pre></div>
+<h2 id="crashpower-loss">Данные переживут crash/power loss<a class="headerlink" href="#crashpower-loss" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>durability boundary
+</code></pre></div>
+<p>Если смешать эти уровни, невозможно нормально понимать:</p>
+<ul>
+<li>WAL;</li>
+<li>PostgreSQL commit;</li>
+<li><code>fsync</code>;</li>
+<li>journaling;</li>
+<li>SSD cache;</li>
+<li>power-loss protection.</li>
+</ul>
+<hr/>
+<h1 id="2-linux">2. Почему Linux вообще буферизует запись<a class="headerlink" href="#2-linux" title="Permanent link">¶</a></h1>
+<p>Наивный путь:</p>
+<div class="highlight"><pre><span></span><code>write(fd, buf, 4096)
+↓
+device
+↓
+wait
+↓
+return
+</code></pre></div>
+<p>Если каждый мелкий <code>write()</code> ждал реальный storage, latency была бы огромной.</p>
+<p>Поэтому Linux использует:</p>
+<div class="highlight"><pre><span></span><code>page cache
+</code></pre></div>
+<hr/>
+<h1 id="3-page-cache">3. Page cache<a class="headerlink" href="#3-page-cache" title="Permanent link">¶</a></h1>
+<p>Page cache — кеш файловых данных в RAM под управлением ядра.</p>
+<p>Чтение:</p>
+<div class="highlight"><pre><span></span><code>read()
+↓
+page cache
+├── hit → RAM
+└── miss → storage
+</code></pre></div>
+<p>Запись:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+изменить page cache
+↓
+page dirty
+</code></pre></div>
+<p>Физический storage может быть обновлён позже.</p>
+<hr/>
+<h1 id="4-page-cache">4. Почему page cache полезен<a class="headerlink" href="#4-page-cache" title="Permanent link">¶</a></h1>
+<p>Он даёт:</p>
+<ul>
+<li>кеш чтения;</li>
+<li>объединение мелких writes;</li>
+<li>readahead;</li>
+<li>write coalescing;</li>
+<li>асинхронный writeback;</li>
+<li>hiding device latency.</li>
+</ul>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>write() returned
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>data durable
+</code></pre></div>
+<p>разделены во времени.</p>
+<hr/>
+<h1 id="5-buffered-io">5. Buffered I/O<a class="headerlink" href="#5-buffered-io" title="Permanent link">¶</a></h1>
+<p>Обычный файловый write в Linux чаще всего идёт через buffered I/O.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>userspace buffer
+↓
+write()
+↓
+VFS
+↓
+filesystem
+↓
+page cache
+↓
+copy data
+↓
+mark dirty
+↓
+return
+</code></pre></div>
+<p>То есть <code>write()</code> может завершиться до I/O на устройство.</p>
+<hr/>
+<h1 id="6-dirty-page">6. Dirty page<a class="headerlink" href="#6-dirty-page" title="Permanent link">¶</a></h1>
+<p>Page cache содержит более новую версию данных, чем storage.</p>
+<div class="highlight"><pre><span></span><code>SSD:
+A B C D
+
+page cache:
+A B X D
+</code></pre></div>
+<p>Страница:</p>
+<div class="highlight"><pre><span></span><code>dirty = yes
+</code></pre></div>
+<p>Пока writeback не завершён, storage остаётся старым.</p>
+<hr/>
+<h1 id="7-clean-page">7. Clean page<a class="headerlink" href="#7-clean-page" title="Permanent link">¶</a></h1>
+<p>После успешного writeback:</p>
+<div class="highlight"><pre><span></span><code>page cache contents
+=
+storage contents
+</code></pre></div>
+<p>Страница становится clean.</p>
+<p>Теперь при pressure её проще выбросить:</p>
+<div class="highlight"><pre><span></span><code>drop from RAM
+↓
+later read from storage if needed
+</code></pre></div>
+<hr/>
+<h1 id="8-dirty-page-reclaim">8. Почему dirty page нельзя просто reclaim'нуть<a class="headerlink" href="#8-dirty-page-reclaim" title="Permanent link">¶</a></h1>
+<p>Если её выбросить:</p>
+<div class="highlight"><pre><span></span><code>new data lost
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>dirty
+↓
+writeback
+↓
+clean
+↓
+reclaimable
+</code></pre></div>
+<p>Memory pressure связывается со storage I/O.</p>
+<hr/>
+<h1 id="9-buffered-write">9. Копирование при buffered write<a class="headerlink" href="#9-buffered-write" title="Permanent link">¶</a></h1>
+<p>Обычно kernel копирует данные:</p>
+<div class="highlight"><pre><span></span><code>userspace
+↓
+copy_from_user
+↓
+page cache
+</code></pre></div>
+<p>Получаем дополнительный memory traffic.</p>
+<p>Но взамен kernel получает контроль над caching и writeback.</p>
+<hr/>
+<h1 id="10-vfs">10. VFS<a class="headerlink" href="#10-vfs" title="Permanent link">¶</a></h1>
+<p><code>write()</code> не знает, работает файл на ext4, XFS или другом filesystem.</p>
+<p>Есть слой:</p>
+<div class="highlight"><pre><span></span><code>VFS
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>syscall
+↓
+VFS
+↓
+filesystem implementation
+</code></pre></div>
+<p>VFS унифицирует:</p>
+<ul>
+<li>file descriptors;</li>
+<li>inode;</li>
+<li>file operations;</li>
+<li>permissions;</li>
+<li>offsets;</li>
+<li>directory operations.</li>
+</ul>
+<hr/>
+<h1 id="11-file-descriptor">11. File descriptor<a class="headerlink" href="#11-file-descriptor" title="Permanent link">¶</a></h1>
+<p>File descriptor — не файл как байты.</p>
+<p>Это integer handle:</p>
+<div class="highlight"><pre><span></span><code>fd
+↓
+kernel file object
+↓
+inode / filesystem state
+</code></pre></div>
+<p>Через него <code>write()</code> доходит до filesystem.</p>
+<hr/>
+<h1 id="12-dirtying">12. Что происходит после dirtying<a class="headerlink" href="#12-dirtying" title="Permanent link">¶</a></h1>
+<p>Вопрос:</p>
+<blockquote>
+<p>Кто и когда отправляет dirty data вниз?</p>
+</blockquote>
+<p>Появляется:</p>
+<div class="highlight"><pre><span></span><code>writeback
+</code></pre></div>
+<hr/>
+<h1 id="13-writeback">13. Writeback<a class="headerlink" href="#13-writeback" title="Permanent link">¶</a></h1>
+<p>Writeback — перенос dirty page cache на backing storage.</p>
+<div class="highlight"><pre><span></span><code>dirty page
+↓
+filesystem writeback
+↓
+block I/O
+↓
+device
+</code></pre></div>
+<p>Он может запускаться:</p>
+<ul>
+<li>фоново;</li>
+<li>при накоплении dirty memory;</li>
+<li>при memory pressure;</li>
+<li>по <code>fsync</code>;</li>
+<li>при explicit sync;</li>
+<li>при других filesystem events.</li>
+</ul>
+<hr/>
+<h1 id="14-dirty-bytes">14. Dirty bytes как очередь<a class="headerlink" href="#14-dirty-bytes" title="Permanent link">¶</a></h1>
+<p>Очень полезная модель:</p>
+<div class="highlight"><pre><span></span><code>dirty bytes
+=
+storage work backlog
+</code></pre></div>
+<p>Если приложение создаёт dirty data со скоростью:</p>
+<div class="highlight"><pre><span></span><code>λdirty
+</code></pre></div>
+<p>а storage очищает:</p>
+<div class="highlight"><pre><span></span><code>μwriteback
+</code></pre></div>
+<p>то при:</p>
+<div class="highlight"><pre><span></span><code>λdirty &gt; μwriteback
+</code></pre></div>
+<p>backlog растёт.</p>
+<hr/>
+<h1 id="15-backlog">15. Почему backlog нельзя растить бесконечно<a class="headerlink" href="#15-backlog" title="Permanent link">¶</a></h1>
+<p>Dirty pages занимают RAM.</p>
+<p>Если storage отстаёт:</p>
+<div class="highlight"><pre><span></span><code>Dirty ↑
+↓
+RAM increasingly occupied by unflushed data
+</code></pre></div>
+<p>В какой-то момент kernel должен тормозить writers.</p>
+<hr/>
+<h1 id="16-dirty-thresholds">16. Dirty thresholds<a class="headerlink" href="#16-dirty-thresholds" title="Permanent link">¶</a></h1>
+<p>Linux имеет настройки вроде:</p>
+<div class="highlight"><pre><span></span><code>vm.dirty_background_ratio
+vm.dirty_ratio
+</code></pre></div>
+<p>и byte-варианты:</p>
+<div class="highlight"><pre><span></span><code>vm.dirty_background_bytes
+vm.dirty_bytes
+</code></pre></div>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>dirty moderate
+→ background writeback
+
+dirty too high
+→ writer throttling
+</code></pre></div>
+<p>Точные эвристики зависят от версии ядра.</p>
+<hr/>
+<h1 id="17-balance_dirty_pages">17. <code>balance_dirty_pages</code><a class="headerlink" href="#17-balance_dirty_pages" title="Permanent link">¶</a></h1>
+<p>Если task создаёт dirty data слишком быстро:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+dirty accounting
+↓
+too much dirty memory
+↓
+balance_dirty_pages
+↓
+task sleeps / throttles
+</code></pre></div>
+<p>И вот buffered write внезапно начинает чувствовать скорость storage.</p>
+<hr/>
+<h1 id="18-write-latency">18. Почему write latency бывает пилообразной<a class="headerlink" href="#18-write-latency" title="Permanent link">¶</a></h1>
+<p>Пока dirty budget есть:</p>
+<div class="highlight"><pre><span></span><code>write()
+→ RAM
+→ быстро
+</code></pre></div>
+<p>Порог достигнут:</p>
+<div class="highlight"><pre><span></span><code>throttling
+↓
+write latency spikes
+</code></pre></div>
+<p>Writeback догоняет:</p>
+<div class="highlight"><pre><span></span><code>Dirty ↓
+↓
+writes fast again
+</code></pre></div>
+<p>Получаем характерную пилу.</p>
+<hr/>
+<h1 id="19-go-cpu-profile">19. Почему это может не быть видно в Go CPU profile<a class="headerlink" href="#19-go-cpu-profile" title="Permanent link">¶</a></h1>
+<p>Goroutine может ждать внутри syscall/kernel path.</p>
+<div class="highlight"><pre><span></span><code>Go handler
+↓
+write()
+↓
+kernel throttling
+↓
+sleep
+</code></pre></div>
+<p>CPU profile приложения не обязан показывать «горячую функцию».</p>
+<p>Проблема — wall-clock wait.</p>
+<hr/>
+<h1 id="20-writeback-filesystem">20. Writeback связан с filesystem<a class="headerlink" href="#20-writeback-filesystem" title="Permanent link">¶</a></h1>
+<p>Kernel знает:</p>
+<div class="highlight"><pre><span></span><code>какой page cache page относится к какому inode
+</code></pre></div>
+<p>Filesystem решает:</p>
+<ul>
+<li>какие blocks использовать;</li>
+<li>как обновить extents;</li>
+<li>какие metadata изменить;</li>
+<li>какое crash-consistency ordering нужно.</li>
+</ul>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>dirty page
+↓
+filesystem
+↓
+block mapping
+</code></pre></div>
+<hr/>
+<h1 id="21-data-metadata">21. Data и metadata<a class="headerlink" href="#21-data-metadata" title="Permanent link">¶</a></h1>
+<p>Файл — не только payload.</p>
+<p>Есть:</p>
+<div class="highlight"><pre><span></span><code>file data
+size
+timestamps
+permissions
+directory entry
+block mapping
+inode metadata
+</code></pre></div>
+<p>Append может изменить и data, и metadata.</p>
+<p>Durability должна учитывать оба уровня.</p>
+<hr/>
+<h1 id="22-fsync">22. Почему <code>fsync()</code> не равен «запиши эти байты»<a class="headerlink" href="#22-fsync" title="Permanent link">¶</a></h1>
+<p><code>fsync(fd)</code> должен закрыть persistence obligations файла.</p>
+<p>Это может включать:</p>
+<div class="highlight"><pre><span></span><code>dirty data
++
+metadata required for retrieval
++
+filesystem journal/order
++
+device flush/FUA semantics
+</code></pre></div>
+<p>Поэтому <code>fsync()</code> часто намного дороже <code>write()</code>.</p>
+<hr/>
+<h1 id="23-fsync">23. <code>fsync()</code><a class="headerlink" href="#23-fsync" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>application
+↓
+fsync(fd)
+↓
+flush dirty data
+↓
+flush required metadata
+↓
+wait I/O completion
+↓
+close persistence ordering
+↓
+return
+</code></pre></div>
+<p>Вот это уже durability boundary прикладного уровня.</p>
+<hr/>
+<h1 id="24-write-fsync">24. <code>write()</code> против <code>fsync()</code><a class="headerlink" href="#24-write-fsync" title="Permanent link">¶</a></h1>
+<table>
+<thead>
+<tr>
+<th>Событие</th>
+<th>Что подтверждено</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>write()</code> вернулся</td>
+<td>kernel принял данные согласно syscall semantics</td>
+</tr>
+<tr>
+<td>writeback completed</td>
+<td>I/O по storage path завершено</td>
+</tr>
+<tr>
+<td><code>fsync()</code> вернулся</td>
+<td>filesystem/OS выполнили durability contract</td>
+</tr>
+<tr>
+<td>device completion</td>
+<td>device подтвердил конкретную command semantics</td>
+</tr>
+</tbody>
+</table>
+<p>Это не одна и та же точка.</p>
+<hr/>
+<h1 id="25-fdatasync">25. <code>fdatasync()</code><a class="headerlink" href="#25-fdatasync" title="Permanent link">¶</a></h1>
+<p><code>fdatasync()</code> ориентирован на:</p>
+<div class="highlight"><pre><span></span><code>data
++
+metadata required to retrieve data
+</code></pre></div>
+<p>и может иметь более узкие metadata obligations, чем <code>fsync()</code>.</p>
+<p>Он потенциально дешевле.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>fdatasync always faster
+</code></pre></div>
+<p>не является гарантией.</p>
+<hr/>
+<h1 id="26-o_sync-o_dsync">26. <code>O_SYNC</code> и <code>O_DSYNC</code><a class="headerlink" href="#26-o_sync-o_dsync" title="Permanent link">¶</a></h1>
+<p>Можно открыть файл с синхронной семантикой.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+data cannot simply remain as ordinary dirty backlog
+↓
+sync obligations paid before return
+</code></pre></div>
+<p>Цена durability переносится в каждый write.</p>
+<hr/>
+<h1 id="27-fsync">27. <code>fsync()</code> решил проблему файла. Но транзакция — это уже другой уровень<a class="headerlink" href="#27-fsync" title="Permanent link">¶</a></h1>
+<p>К этому месту мы уже умеем делать одну важную вещь:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+page cache
+↓
+fsync()
+↓
+durability boundary файла
+</code></pre></div>
+<p>То есть приложение может потребовать:</p>
+<blockquote>
+<p>Все необходимые изменения этого файла должны пережить crash согласно контракту filesystem/storage.</p>
+</blockquote>
+<p>Кажется, дальше база данных просто должна вызвать <code>fsync()</code>.</p>
+<p>Но теперь меняем постановку задачи.</p>
+<p>Транзакция обычно изменяет не один непрерывный кусок одного файла.</p>
+<p>Она может затронуть:</p>
+<div class="highlight"><pre><span></span><code>data page A
+data page B
+index page C
+metadata D
+</code></pre></div>
+<p>И все эти изменения логически должны образовать одну транзакцию.</p>
+<p>Новый вопрос:</p>
+<blockquote>
+<p>Как из durability отдельных writes построить durability и crash recovery целой транзакции?</p>
+</blockquote>
+<p>Вот здесь <code>fsync()</code> сам по себе уже недостаточен.</p>
+<hr/>
+<h1 id="28-data-pages">28. Специально ломаем прямую запись data pages<a class="headerlink" href="#28-data-pages" title="Permanent link">¶</a></h1>
+<p>Пусть есть перевод денег:</p>
+<div class="highlight"><pre><span></span><code>Account A: -100
+Account B: +100
+</code></pre></div>
+<p>Условно значения лежат на двух разных data pages:</p>
+<div class="highlight"><pre><span></span><code>page A
+page B
+</code></pre></div>
+<p>Самая очевидная реализация:</p>
+<div class="highlight"><pre><span></span><code>изменить A в RAM
+изменить B в RAM
+↓
+write page A
+write page B
+↓
+fsync data files
+↓
+COMMIT
+</code></pre></div>
+<p>Теперь crash происходит в неприятный момент.</p>
+<p>Storage уже сделал durable:</p>
+<div class="highlight"><pre><span></span><code>page A = новое состояние
+</code></pre></div>
+<p>Но ещё не успел:</p>
+<div class="highlight"><pre><span></span><code>page B = новое состояние
+</code></pre></div>
+<p>После reboot:</p>
+<div class="highlight"><pre><span></span><code>A = -100 применилось
+B = +100 не применилось
+</code></pre></div>
+<p>На storage появилось промежуточное состояние транзакции.</p>
+<p>Главный вывод:</p>
+<blockquote>
+<p><code>fsync()</code> обеспечивает persistence уже отправленных файловых изменений, но сам по себе не создаёт recovery protocol для набора логически связанных изменений.</p>
+</blockquote>
+<hr/>
+<h1 id="29">29. Почему нельзя просто «правильно синхронно записать все страницы»<a class="headerlink" href="#29" title="Permanent link">¶</a></h1>
+<p>Теоретически можно построить сложный протокол вокруг data pages.</p>
+<p>Но посмотрим на цену.</p>
+<p>Одна транзакция может изменить:</p>
+<div class="highlight"><pre><span></span><code>page 17
+page 821
+page 44 103
+index page 91
+catalog page 4
+</code></pre></div>
+<p>То есть commit-path превращается в:</p>
+<div class="highlight"><pre><span></span><code>несколько random writes
++
+несколько filesystem structures
++
+durability ordering
++
+ожидание storage
+</code></pre></div>
+<p>Чем больше транзакция, тем больше объектов нужно синхронно довести до persistent state перед ACK клиенту.</p>
+<p>Для OLTP это очень дорого.</p>
+<p>Нам хочется свести критический commit-path к чему-то намного более простому:</p>
+<div class="highlight"><pre><span></span><code>последовательный append
+↓
+одна durability boundary
+</code></pre></div>
+<hr/>
+<h1 id="30-durable">30. Какой объект удобно делать durable<a class="headerlink" href="#30-durable" title="Permanent link">¶</a></h1>
+<p>Вместо немедленной синхронной записи всех конечных data pages можно сначала сохранить компактное описание произошедших изменений.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>transaction changed A, B, C
+↓
+encode recovery information
+↓
+append it to sequential log
+</code></pre></div>
+<p>Теперь durable object на критическом пути:</p>
+<div class="highlight"><pre><span></span><code>не десяток random data pages
+</code></pre></div>
+<p>а:</p>
+<div class="highlight"><pre><span></span><code>последовательный журнал
+</code></pre></div>
+<p>Вот из этой потребности естественно появляется WAL.</p>
+<hr/>
+<h1 id="31-wal">31. WAL: что это на этом уровне<a class="headerlink" href="#31-wal" title="Permanent link">¶</a></h1>
+<p><strong>WAL — Write-Ahead Log.</strong></p>
+<p>На текущем уровне нам достаточно определения:</p>
+<blockquote>
+<p>WAL хранит информацию, необходимую recovery-механизму базы данных, и записывается с таким ordering, чтобы изменения data pages не могли стать опасно durable раньше соответствующей информации в журнале.</p>
+</blockquote>
+<p>Учебная цепочка:</p>
+<div class="highlight"><pre><span></span><code>transaction changes memory state
+↓
+generate WAL record
+↓
+append WAL
+↓
+make required WAL durable
+↓
+database may acknowledge durable commit
+</code></pre></div>
+<p>А data pages живут своим более медленным жизненным циклом.</p>
+<hr/>
+<h1 id="32-write-ahead">32. Почему именно Write-Ahead<a class="headerlink" href="#32-write-ahead" title="Permanent link">¶</a></h1>
+<p>Ключевое правило:</p>
+<div class="highlight"><pre><span></span><code>WAL first
+↓
+data page later
+</code></pre></div>
+<p>Точнее:</p>
+<blockquote>
+<p>Прежде чем изменённая data page может быть безопасно записана на persistent storage, WAL, необходимый для восстановления этой версии страницы, должен уже быть durable.</p>
+</blockquote>
+<p>Это и есть <strong>write-ahead rule</strong>.</p>
+<p>Слово:</p>
+<div class="highlight"><pre><span></span><code>Ahead
+</code></pre></div>
+<p>буквально означает:</p>
+<div class="highlight"><pre><span></span><code>журнал обязан опередить data page по durability
+</code></pre></div>
+<hr/>
+<h1 id="33-crash">33. Что это даёт при crash<a class="headerlink" href="#33-crash" title="Permanent link">¶</a></h1>
+<p>Допустим data page успела попасть на storage.</p>
+<p>Если WAL уже durable:</p>
+<div class="highlight"><pre><span></span><code>storage contains changed page
++
+recovery information exists
+</code></pre></div>
+<p>После crash база знает, как интерпретировать и восстанавливать состояние.</p>
+<p>Если data page ещё не успела записаться:</p>
+<div class="highlight"><pre><span></span><code>storage contains old page
++
+WAL contains recovery information
+</code></pre></div>
+<p>Recovery может повторно применить нужные изменения.</p>
+<p>Мы получили возможность отвязать:</p>
+<div class="highlight"><pre><span></span><code>transaction durability
+</code></pre></div>
+<p>от:</p>
+<div class="highlight"><pre><span></span><code>немедленной записи каждой data page на финальное место
+</code></pre></div>
+<hr/>
+<h1 id="34-data-page-commit">34. Важная точность: data page не обязана ждать COMMIT<a class="headerlink" href="#34-data-page-commit" title="Permanent link">¶</a></h1>
+<p>Здесь легко сформировать слишком простую модель:</p>
+<div class="highlight"><pre><span></span><code>COMMIT
+↓
+только потом data pages можно писать
+</code></pre></div>
+<p>Это не универсальное правило WAL-систем.</p>
+<p>Более точная модель:</p>
+<div class="highlight"><pre><span></span><code>data page contains some change
+↓
+before this page is flushed
+↓
+corresponding WAL must already be durable
+</code></pre></div>
+<p>То есть data page может в некоторых архитектурах попасть на storage:</p>
+<div class="highlight"><pre><span></span><code>до transaction COMMIT
+</code></pre></div>
+<p>если write-ahead condition выполнено.</p>
+<p>Как база потом отличает committed state от uncommitted и какой recovery protocol использует — это уже тема конкретной СУБД.</p>
+<p>Для PostgreSQL мы разберём это отдельно.</p>
+<hr/>
+<h1 id="35-durable-commit">35. Где появляется durable COMMIT<a class="headerlink" href="#35-durable-commit" title="Permanent link">¶</a></h1>
+<p>Теперь другой вопрос:</p>
+<blockquote>
+<p>В какой момент клиенту можно сказать <code>COMMIT OK</code>?</p>
+</blockquote>
+<p>Для durable commit недостаточно, чтобы commit record просто существовал в RAM.</p>
+<p>Нужна цепочка:</p>
+<div class="highlight"><pre><span></span><code>transaction work
+↓
+WAL records
+↓
+COMMIT record
+↓
+WAL flush / durability boundary
+↓
+только теперь ACK клиенту
+</code></pre></div>
+<p>Главная формула:</p>
+<blockquote>
+<p>Durable commit можно подтвердить после того, как информация журнала, необходимая для восстановления этого commit после crash, стала durable.</p>
+</blockquote>
+<p>Это уже прямой мост от <code>fsync()</code> к транзакционной durability.</p>
+<hr/>
+<h1 id="36-data-pages-commit">36. Почему data pages можно не синхронизировать на каждом COMMIT<a class="headerlink" href="#36-data-pages-commit" title="Permanent link">¶</a></h1>
+<p>После WAL flush transaction уже имеет durable recovery information.</p>
+<p>Data pages могут оставаться:</p>
+<div class="highlight"><pre><span></span><code>dirty in memory
+</code></pre></div>
+<p>и уходить на storage позже:</p>
+<div class="highlight"><pre><span></span><code>background writer
+checkpoint
+ordinary writeback
+</code></pre></div>
+<p>Получаем принципиальное разделение:</p>
+<div class="highlight"><pre><span></span><code>commit latency
+↓
+WAL durability
+
+data-file propagation
+↓
+background path
+</code></pre></div>
+<p>Именно это позволяет не заставлять каждый commit синхронно записывать весь набор random data pages.</p>
+<hr/>
+<h1 id="37-crash-ack-data-page">37. Crash после ACK, но до записи data page<a class="headerlink" href="#37-crash-ack-data-page" title="Permanent link">¶</a></h1>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>WAL COMMIT durable
+↓
+client received COMMIT OK
+↓
+data page still old on storage
+↓
+machine crashes
+</code></pre></div>
+<p>После restart:</p>
+<div class="highlight"><pre><span></span><code>read durable WAL
+↓
+recovery
+↓
+reapply required changes
+↓
+data state reconstructed
+</code></pre></div>
+<p>На высоком уровне это <strong>REDO</strong>:</p>
+<div class="highlight"><pre><span></span><code>повторить изменения, которые должны быть durable,
+но ещё не отражены в data files
+</code></pre></div>
+<p>Точный recovery algorithm зависит от СУБД.</p>
+<hr/>
+<h1 id="38-wal">38. WAL — не просто журнал аудита<a class="headerlink" href="#38-wal" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>WAL — файл, куда база логирует, что она делала.</p>
+</blockquote>
+<p>Слишком слабо.</p>
+<p>На текущем уровне WAL нужен ради:</p>
+<div class="highlight"><pre><span></span><code>durability
++
+crash recovery
++
+write ordering
++
+возможности откладывать data-page writes
+</code></pre></div>
+<p>Он является частью протокола хранения.</p>
+<p>Не просто историей событий.</p>
+<hr/>
+<h1 id="39-wal-append-oriented">39. Почему WAL обычно append-oriented<a class="headerlink" href="#39-wal-append-oriented" title="Permanent link">¶</a></h1>
+<p>Наш исходный problem:</p>
+<div class="highlight"><pre><span></span><code>random data pages all over database
+</code></pre></div>
+<p>Мы хотели заменить на:</p>
+<div class="highlight"><pre><span></span><code>compact sequential durability stream
+</code></pre></div>
+<p>Поэтому WAL естественно строится как append-oriented log:</p>
+<div class="highlight"><pre><span></span><code>record
+record
+record
+record
+↓
+sequential progression
+</code></pre></div>
+<p>Storage намного проще эффективно обслуживать такой поток, чем множество мелких random durable updates.</p>
+<hr/>
+<h1 id="40-commit-flush">40. Но теперь каждый COMMIT требует flush<a class="headerlink" href="#40-commit-flush" title="Permanent link">¶</a></h1>
+<p>Мы выиграли:</p>
+<div class="highlight"><pre><span></span><code>много random durable data-page writes
+</code></pre></div>
+<p>заменив их на:</p>
+<div class="highlight"><pre><span></span><code>append WAL
++
+durable flush
+</code></pre></div>
+<p>Но durability boundary всё ещё дорогая.</p>
+<p>Наивно:</p>
+<div class="highlight"><pre><span></span><code>T1
+↓
+fsync WAL
+
+T2
+↓
+fsync WAL
+
+T3
+↓
+fsync WAL
+</code></pre></div>
+<p>При большом TPS storage быстро упрётся в latency flush.</p>
+<hr/>
+<h1 id="41-group-commit">41. Group commit появляется сам<a class="headerlink" href="#41-group-commit" title="Permanent link">¶</a></h1>
+<p>Пусть несколько транзакций почти одновременно дошли до commit.</p>
+<p>Можно:</p>
+<div class="highlight"><pre><span></span><code>T1 WAL ─┐
+T2 WAL ─┼→ one WAL flush
+T3 WAL ─┘
+</code></pre></div>
+<p>После завершения одной durability operation:</p>
+<div class="highlight"><pre><span></span><code>все commit records до durable position
+↓
+соответствующие transactions можно ACK
+</code></pre></div>
+<p>Это <strong>group commit</strong>.</p>
+<p>Дорогая durability boundary амортизируется на несколько транзакций.</p>
+<hr/>
+<h1 id="42-commit-latency-fsync">42. Почему commit latency теперь зависит от <code>fsync()</code><a class="headerlink" href="#42-commit-latency-fsync" title="Permanent link">¶</a></h1>
+<p>Теперь цепочка уже прозрачная:</p>
+<div class="highlight"><pre><span></span><code>transaction
+↓
+WAL append
+↓
+wait for durable WAL position
+↓
+fsync / equivalent persistence operation
+↓
+storage
+↓
+ACK
+</code></pre></div>
+<p>Поэтому маленькая транзакция может менять всего сотню байт, но её latency всё равно зависеть от:</p>
+<div class="highlight"><pre><span></span><code>durable flush latency
+</code></pre></div>
+<p>А не от максимальных GB/s SSD.</p>
+<hr/>
+<h1 id="43-database-wal-filesystem-journal">43. Database WAL и filesystem journal — разные журналы<a class="headerlink" href="#43-database-wal-filesystem-journal" title="Permanent link">¶</a></h1>
+<p>Теперь особенно важно не смешать два слоя.</p>
+<h2 id="database-wal">Database WAL<a class="headerlink" href="#database-wal" title="Permanent link">¶</a></h2>
+<p>Знает про:</p>
+<div class="highlight"><pre><span></span><code>database pages
+transactions
+database recovery
+</code></pre></div>
+<p>Его задача:</p>
+<div class="highlight"><pre><span></span><code>восстановить корректное состояние СУБД
+</code></pre></div>
+<h2 id="filesystem-journal">Filesystem journal<a class="headerlink" href="#filesystem-journal" title="Permanent link">¶</a></h2>
+<p>Знает про:</p>
+<div class="highlight"><pre><span></span><code>inode
+extents
+directory metadata
+filesystem consistency
+</code></pre></div>
+<p>Его задача:</p>
+<div class="highlight"><pre><span></span><code>восстановить корректную структуру filesystem
+</code></pre></div>
+<p>Файловая система не знает:</p>
+<div class="highlight"><pre><span></span><code>что такое банковский перевод
+что такое PostgreSQL transaction
+что такое row visibility
+</code></pre></div>
+<p>А database WAL не отвечает за:</p>
+<div class="highlight"><pre><span></span><code>целостность inode tree файловой системы
+</code></pre></div>
+<hr/>
+<h1 id="44-ext4-journal-postgresql-wal">44. Почему ext4 journal не заменяет PostgreSQL WAL<a class="headerlink" href="#44-ext4-journal-postgresql-wal" title="Permanent link">¶</a></h1>
+<p>Допустим filesystem после crash идеально восстановила:</p>
+<div class="highlight"><pre><span></span><code>все inode
+все extents
+все directory entries
+</code></pre></div>
+<p>Это ещё ничего не говорит о том:</p>
+<div class="highlight"><pre><span></span><code>какая transaction committed
+какие DB pages должны содержать какую logical version
+</code></pre></div>
+<p>Filesystem видит bytes.</p>
+<p>Database видит transactional state.</p>
+<p>Поэтому нужны два recovery protocol на разных слоях.</p>
+<hr/>
+<h1 id="45-postgresql-wal-filesystem-journal">45. Почему PostgreSQL WAL не заменяет filesystem journal<a class="headerlink" href="#45-postgresql-wal-filesystem-journal" title="Permanent link">¶</a></h1>
+<p>Обратная сторона.</p>
+<p>PostgreSQL может иметь идеальный WAL.</p>
+<p>Но его файлы всё равно хранятся:</p>
+<div class="highlight"><pre><span></span><code>на filesystem
+</code></pre></div>
+<p>Если filesystem после crash не может корректно восстановить свои metadata:</p>
+<div class="highlight"><pre><span></span><code>файл может быть потерян / повреждён на уровне namespace/block mapping
+</code></pre></div>
+<p>Database recovery не заменяет correctness нижнего storage layer.</p>
+<hr/>
+<h1 id="46">46. Где мы останавливаемся в этой лекции<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<p>Здесь достаточно модели:</p>
+<div class="highlight"><pre><span></span><code>fsync
+↓
+durable file primitive
+↓
+WAL
+↓
+transaction durability + recovery
+↓
+group commit
+</code></pre></div>
+<p>Подробности конкретной PostgreSQL реализации оставляем на блок PostgreSQL:</p>
+<div class="highlight"><pre><span></span><code>WAL record
+LSN
+WAL buffers
+WAL writer
+XLogFlush
+checkpoint
+REDO
+full-page writes
+replication
+archive
+</code></pre></div>
+<p>Сейчас они только перегрузили бы storage-path лекцию.</p>
+<hr/>
+<h1 id="47-storage-postgresql">47. Мост от storage к будущей лекции PostgreSQL<a class="headerlink" href="#47-storage-postgresql" title="Permanent link">¶</a></h1>
+<p>Теперь полный путь commit уже можно нарисовать:</p>
+<div class="highlight"><pre><span></span><code>SQL COMMIT
+↓
+database produces WAL
+↓
+WAL write
+↓
+Linux page cache / filesystem path
+↓
+fsync / persistence operation
+↓
+block layer
+↓
+NVMe
+↓
+SSD controller
+↓
+persistent media
+↓
+completion
+↓
+database sees WAL durable
+↓
+COMMIT ACK
+</code></pre></div>
+<p>А data pages:</p>
+<div class="highlight"><pre><span></span><code>dirty database pages
+↓
+background flush / checkpoint
+↓
+storage later
+</code></pre></div>
+<p>Вот теперь WAL действительно вытекает из <code>fsync()</code>, а не появляется внезапно отдельным термином.</p>
+<h1 id="48-journaling-filesystem">48. Journaling filesystem<a class="headerlink" href="#48-journaling-filesystem" title="Permanent link">¶</a></h1>
+<p>Filesystem тоже должен переживать crash.</p>
+<p>Например ext4/XFS используют журналирование metadata и ordering protocols.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>filesystem change
+↓
+journal/log transaction
+↓
+persistent ordering
+↓
+metadata update
+</code></pre></div>
+<p><code>fsync()</code> может заставить закрыть эту цепочку для конкретного файла.</p>
+<hr/>
+<h1 id="49-filesystem-metadata-durability">49. Почему filesystem metadata вообще нужна durability<a class="headerlink" href="#49-filesystem-metadata-durability" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>new block contains correct data
+</code></pre></div>
+<p>но после crash inode не знает, что этот block принадлежит файлу.</p>
+<p>Данные физически есть.</p>
+<p>Файл логически повреждён.</p>
+<p>Поэтому durability — это не только payload bytes.</p>
+<hr/>
+<h1 id="50-delayed-allocation">50. Delayed allocation<a class="headerlink" href="#50-delayed-allocation" title="Permanent link">¶</a></h1>
+<p>Filesystem может отложить выбор physical blocks:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+page cache dirty
+↓
+later writeback
+↓
+allocate extents
+</code></pre></div>
+<p>Плюсы:</p>
+<ul>
+<li>крупнее extents;</li>
+<li>меньше fragmentation;</li>
+<li>лучше sequential placement.</li>
+</ul>
+<p>Цена:</p>
+<ul>
+<li>placement решается позже;</li>
+<li>ENOSPC может проявиться позже;</li>
+<li>writeback path сложнее.</li>
+</ul>
+<hr/>
+<h1 id="51-write-success-enospc">51. Почему <code>write()</code> success не гарантирует отсутствие ENOSPC позже<a class="headerlink" href="#51-write-success-enospc" title="Permanent link">¶</a></h1>
+<p>Buffered write мог лишь dirty'нуть page cache.</p>
+<p>Реальное block allocation:</p>
+<div class="highlight"><pre><span></span><code>later
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>write() success
+↓
+delayed allocation
+↓
+writeback/fsync
+↓
+ENOSPC
+</code></pre></div>
+<p>Durability-critical код должен обрабатывать поздние ошибки.</p>
+<hr/>
+<h1 id="52-writeback-io-error">52. Writeback I/O error<a class="headerlink" href="#52-writeback-io-error" title="Permanent link">¶</a></h1>
+<p>То же с device failure:</p>
+<div class="highlight"><pre><span></span><code>write()
+↓
+page cache
+↓
+return success
+↓
+later background I/O
+↓
+device error
+</code></pre></div>
+<p>Поэтому один buffered write не является конечной точкой ошибки/durability.</p>
+<hr/>
+<h1 id="53-close-fsync">53. <code>close()</code> не заменяет <code>fsync()</code><a class="headerlink" href="#53-close-fsync" title="Permanent link">¶</a></h1>
+<p>Плохое упрощение:</p>
+<blockquote>
+<p>Закроем файл — всё точно запишется.</p>
+</blockquote>
+<p>Нет.</p>
+<p><code>close()</code> закрывает descriptor.</p>
+<p>Если нужен explicit durable boundary:</p>
+<div class="highlight"><pre><span></span><code>fsync / fdatasync / sync-open semantics
+</code></pre></div>
+<p>должны быть частью протокола приложения.</p>
+<hr/>
+<h1 id="54-directory-durability">54. Directory durability<a class="headerlink" href="#54-directory-durability" title="Permanent link">¶</a></h1>
+<p>Создание/rename файла меняет directory metadata.</p>
+<p>Crash-safe pattern часто включает:</p>
+<div class="highlight"><pre><span></span><code>write temp
+↓
+fsync(file)
+↓
+rename
+↓
+fsync(directory)
+</code></pre></div>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>file contents durable
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>directory entry durable
+</code></pre></div>
+<p>разные обязательства.</p>
+<hr/>
+<h1 id="55-atomic-rename">55. Atomic rename<a class="headerlink" href="#55-atomic-rename" title="Permanent link">¶</a></h1>
+<p><code>rename()</code> полезен как building block:</p>
+<div class="highlight"><pre><span></span><code>old name
+↓
+atomically points to new inode/file state
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>atomic namespace update
+≠
+durable namespace after power loss
+</code></pre></div>
+<p>Для второго нужен правильный sync protocol.</p>
+<hr/>
+<h1 id="56-mmap-page-cache">56. <code>mmap</code> файла и page cache<a class="headerlink" href="#56-mmap-page-cache" title="Permanent link">¶</a></h1>
+<p>Memory-mapped file обычно использует тот же page cache.</p>
+<div class="highlight"><pre><span></span><code>file
+↓
+page cache
+├── read/write
+└── mmap
+</code></pre></div>
+<p><code>mmap</code> не означает automatic bypass page cache.</p>
+<hr/>
+<h1 id="57-msync">57. <code>msync()</code><a class="headerlink" href="#57-msync" title="Permanent link">¶</a></h1>
+<p>Для modified mmap pages есть:</p>
+<div class="highlight"><pre><span></span><code>msync()
+</code></pre></div>
+<p>Он управляет синхронизацией mapping с backing file.</p>
+<p>Но filesystem metadata/durability semantics всё равно нужно понимать отдельно.</p>
+<hr/>
+<h1 id="58-direct-io">58. Direct I/O<a class="headerlink" href="#58-direct-io" title="Permanent link">¶</a></h1>
+<p><code>O_DIRECT</code> позволяет обойти обычный data page-cache path.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>userspace buffer
+↓
+direct I/O
+↓
+filesystem/block layer
+↓
+device
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>O_DIRECT
+≠
+вообще никаких caches во всей системе
+</code></pre></div>
+<p>У SSD остаются controller caches.</p>
+<hr/>
+<h1 id="59-db-direct-io">59. Зачем DB может использовать Direct I/O<a class="headerlink" href="#59-db-direct-io" title="Permanent link">¶</a></h1>
+<p>Storage engine имеет собственный buffer pool.</p>
+<p>Если kernel тоже кэширует то же data:</p>
+<div class="highlight"><pre><span></span><code>database buffer pool
++
+page cache
+</code></pre></div>
+<p>получаем double caching.</p>
+<p>Direct I/O позволяет БД сильнее контролировать:</p>
+<ul>
+<li>caching;</li>
+<li>eviction;</li>
+<li>batching;</li>
+<li>I/O scheduling.</li>
+</ul>
+<hr/>
+<h1 id="60-direct-io">60. Цена Direct I/O<a class="headerlink" href="#60-direct-io" title="Permanent link">¶</a></h1>
+<p>Появляются ограничения:</p>
+<ul>
+<li>alignment;</li>
+<li>buffer lifetime;</li>
+<li>I/O sizes;</li>
+<li>filesystem/device rules.</li>
+</ul>
+<p>И приложение само отвечает за работу, которую раньше делал page cache.</p>
+<hr/>
+<h1 id="61-buffered-vs-direct">61. Buffered vs Direct<a class="headerlink" href="#61-buffered-vs-direct" title="Permanent link">¶</a></h1>
+<table>
+<thead>
+<tr>
+<th>Buffered I/O</th>
+<th>Direct I/O</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>page cache</td>
+<td>bypass ordinary data page cache</td>
+</tr>
+<tr>
+<td>kernel caching</td>
+<td>application controls more</td>
+</tr>
+<tr>
+<td>удобно для мелких I/O</td>
+<td>alignment constraints</td>
+</tr>
+<tr>
+<td>write может быстро вернуть</td>
+<td>path ближе к device</td>
+</tr>
+<tr>
+<td>возможен double cache</td>
+<td>useful for DB buffer pools</td>
+</tr>
+</tbody>
+</table>
+<p>Ни один подход не универсально лучше.</p>
+<hr/>
+<h1 id="62-block-layer">62. Переходим в block layer<a class="headerlink" href="#62-block-layer" title="Permanent link">¶</a></h1>
+<p>Filesystem решил:</p>
+<div class="highlight"><pre><span></span><code>какие logical blocks нужно читать/писать
+</code></pre></div>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>filesystem
+↓
+block layer
+↓
+device driver
+↓
+NVMe
+</code></pre></div>
+<p>Это граница между filesystem semantics и устройством.</p>
+<hr/>
+<h1 id="63-block-device">63. Block device<a class="headerlink" href="#63-block-device" title="Permanent link">¶</a></h1>
+<p>SSD/NVMe представлен Linux как block device.</p>
+<p>Filesystem переводит:</p>
+<div class="highlight"><pre><span></span><code>file offset
+↓
+extent / block mapping
+↓
+logical block address
+</code></pre></div>
+<p>Дальше filesystem уже работает через block I/O.</p>
+<hr/>
+<h1 id="64-bio">64. <code>bio</code><a class="headerlink" href="#64-bio" title="Permanent link">¶</a></h1>
+<p>Полезная историческая/учебная сущность block layer:</p>
+<div class="highlight"><pre><span></span><code>bio
+</code></pre></div>
+<p>Она описывает I/O:</p>
+<ul>
+<li>страницы/buffers;</li>
+<li>сектор/LBA;</li>
+<li>направление;</li>
+<li>flags;</li>
+<li>размер.</li>
+</ul>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>filesystem
+↓
+"write these pages to these blocks"
+↓
+bio
+</code></pre></div>
+<hr/>
+<h1 id="65-request">65. Request<a class="headerlink" href="#65-request" title="Permanent link">¶</a></h1>
+<p>Block layer организует I/O в requests, которые dispatch'ятся драйверу.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>bio
+↓
+request
+↓
+hardware queue
+↓
+driver
+</code></pre></div>
+<p>Точные внутренние structures зависят от текущего blk-mq.</p>
+<hr/>
+<h1 id="66-block-layer">66. Зачем block layer<a class="headerlink" href="#66-block-layer" title="Permanent link">¶</a></h1>
+<p>Он даёт общие механизмы:</p>
+<ul>
+<li>queueing;</li>
+<li>merging;</li>
+<li>scheduling;</li>
+<li>accounting;</li>
+<li>device limits;</li>
+<li>completion;</li>
+<li>fairness.</li>
+</ul>
+<p>Filesystem не должен знать внутренности каждого controller.</p>
+<hr/>
+<h1 id="67-blk-mq">67. Blk-mq<a class="headerlink" href="#67-blk-mq" title="Permanent link">¶</a></h1>
+<p>Современный Linux использует multi-queue block layer:</p>
+<div class="highlight"><pre><span></span><code>blk-mq
+</code></pre></div>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>many CPUs
+↓
+local/software queues
+↓
+hardware queues
+↓
+device
+</code></pre></div>
+<p>Зачем?</p>
+<p>Чтобы не получить:</p>
+<div class="highlight"><pre><span></span><code>64 CPU
+↓
+one global block queue lock
+</code></pre></div>
+<hr/>
+<h1 id="68-runtime-">68. Знакомый runtime-паттерн<a class="headerlink" href="#68-runtime-" title="Permanent link">¶</a></h1>
+<p>Снова видим:</p>
+<div class="highlight"><pre><span></span><code>hot path local
+↓
+global coordination less often
+</code></pre></div>
+<p>То же было:</p>
+<ul>
+<li>в Go scheduler;</li>
+<li>в <code>mcache</code>;</li>
+<li>в GC local work;</li>
+<li>в Linux block layer.</li>
+</ul>
+<p>Причина одна:</p>
+<div class="highlight"><pre><span></span><code>глобальная hot synchronization плохо масштабируется
+</code></pre></div>
+<hr/>
+<h1 id="69-io-scheduler">69. I/O scheduler<a class="headerlink" href="#69-io-scheduler" title="Permanent link">¶</a></h1>
+<p>Перед device dispatch может работать I/O scheduler.</p>
+<p>Для NVMe распространены политики вроде:</p>
+<div class="highlight"><pre><span></span><code>none
+mq-deadline
+</code></pre></div>
+<p>Конкретный выбор зависит от kernel/device/workload.</p>
+<p>Scheduler может:</p>
+<ul>
+<li>reorder;</li>
+<li>merge;</li>
+<li>enforce fairness;</li>
+<li>влиять на latency.</li>
+</ul>
+<hr/>
+<h1 id="70-nvme-hdd-style-scheduler">70. Почему NVMe часто не нужен HDD-style scheduler<a class="headerlink" href="#70-nvme-hdd-style-scheduler" title="Permanent link">¶</a></h1>
+<p>HDD:</p>
+<div class="highlight"><pre><span></span><code>seek head
+</code></pre></div>
+<p>дорогой.</p>
+<p>Reorder request'ов может радикально экономить механику.</p>
+<p>NVMe:</p>
+<ul>
+<li>нет механической головки;</li>
+<li>много hardware queues;</li>
+<li>controller сам параллелит.</li>
+</ul>
+<p>Поэтому дополнительный сложный scheduler не всегда полезен.</p>
+<hr/>
+<h1 id="71-none">71. <code>none</code> не означает «очередей нет»<a class="headerlink" href="#71-none" title="Permanent link">¶</a></h1>
+<p>Даже если scheduler:</p>
+<div class="highlight"><pre><span></span><code>none
+</code></pre></div>
+<p>остаются:</p>
+<ul>
+<li>blk-mq queues;</li>
+<li>driver queues;</li>
+<li>NVMe submission queues;</li>
+<li>controller queues;</li>
+<li>NAND internal parallelism.</li>
+</ul>
+<p>Queueing никуда не исчезло.</p>
+<hr/>
+<h1 id="72-queue-depth">72. Queue depth<a class="headerlink" href="#72-queue-depth" title="Permanent link">¶</a></h1>
+<p>Storage может выполнять много I/O одновременно.</p>
+<p>Количество outstanding commands:</p>
+<div class="highlight"><pre><span></span><code>queue depth
+</code></pre></div>
+<p>Слишком маленький queue depth:</p>
+<div class="highlight"><pre><span></span><code>device недогружен
+</code></pre></div>
+<p>Слишком большой:</p>
+<div class="highlight"><pre><span></span><code>throughput высокий
+↓
+queueing latency высокий
+</code></pre></div>
+<p>Это обычный throughput/latency trade-off.</p>
+<hr/>
+<h1 id="73-littles-law">73. Little’s Law снова работает<a class="headerlink" href="#73-littles-law" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>L = λW
+</code></pre></div>
+<p>Для storage:</p>
+<div class="highlight"><pre><span></span><code>outstanding requests
+≈
+IOPS × latency
+</code></pre></div>
+<p>Если service rate не растёт, а очередь растёт:</p>
+<div class="highlight"><pre><span></span><code>latency ↑
+</code></pre></div>
+<p>Та же математика, что в connection pool и scheduler.</p>
+<hr/>
+<h1 id="74-nvme">74. NVMe<a class="headerlink" href="#74-nvme" title="Permanent link">¶</a></h1>
+<p><strong>NVMe — Non-Volatile Memory Express.</strong></p>
+<p>Протокол проектировался под быстрые PCIe flash-устройства.</p>
+<p>Ключевые свойства:</p>
+<ul>
+<li>много очередей;</li>
+<li>большие queue depths;</li>
+<li>низкий protocol overhead;</li>
+<li>submission/completion model;</li>
+<li>высокий parallelism.</li>
+</ul>
+<hr/>
+<h1 id="75-submission-queue">75. Submission Queue<a class="headerlink" href="#75-submission-queue" title="Permanent link">¶</a></h1>
+<p>Driver помещает command в:</p>
+<div class="highlight"><pre><span></span><code>NVMe Submission Queue
+</code></pre></div>
+<p>Упрощённо command содержит:</p>
+<ul>
+<li>opcode;</li>
+<li>namespace;</li>
+<li>LBA;</li>
+<li>length;</li>
+<li>buffer addresses;</li>
+<li>flags.</li>
+</ul>
+<p>После этого controller нужно уведомить.</p>
+<hr/>
+<h1 id="76-doorbell">76. Doorbell<a class="headerlink" href="#76-doorbell" title="Permanent link">¶</a></h1>
+<p>Driver обновляет:</p>
+<div class="highlight"><pre><span></span><code>doorbell register
+</code></pre></div>
+<p>Тем самым говорит controller:</p>
+<blockquote>
+<p>В submission queue появились новые команды.</p>
+</blockquote>
+<p>Дальше controller сам забирает work.</p>
+<hr/>
+<h1 id="77-completion-queue">77. Completion Queue<a class="headerlink" href="#77-completion-queue" title="Permanent link">¶</a></h1>
+<p>После завершения:</p>
+<div class="highlight"><pre><span></span><code>NVMe controller
+↓
+Completion Queue
+</code></pre></div>
+<p>OS узнаёт о completion через:</p>
+<ul>
+<li>interrupt;</li>
+<li>polling;</li>
+<li>hybrid mechanisms.</li>
+</ul>
+<p>Потом completion поднимается вверх по stack.</p>
+<hr/>
+<h1 id="78-nvme-round-trip">78. Полный NVMe round trip<a class="headerlink" href="#78-nvme-round-trip" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>block request
+↓
+NVMe submission queue
+↓
+doorbell
+↓
+controller
+↓
+flash operation
+↓
+completion queue
+↓
+interrupt/poll
+↓
+driver
+↓
+block completion
+↓
+filesystem
+↓
+waiting task wakes
+</code></pre></div>
+<p>Вот что может скрываться под одним <code>fsync()</code>.</p>
+<hr/>
+<h1 id="79-interrupt-polling">79. Interrupt против polling<a class="headerlink" href="#79-interrupt-polling" title="Permanent link">¶</a></h1>
+<p>Interrupt:</p>
+<div class="highlight"><pre><span></span><code>completion
+↓
+interrupt
+↓
+handler
+↓
+wake task
+</code></pre></div>
+<p>Polling:</p>
+<div class="highlight"><pre><span></span><code>CPU actively checks queue
+</code></pre></div>
+<p>Polling тратит CPU.</p>
+<p>Но может уменьшить latency.</p>
+<p>Trade-off:</p>
+<div class="highlight"><pre><span></span><code>CPU efficiency
+↔
+lowest latency
+</code></pre></div>
+<hr/>
+<h1 id="80-ssd-controller">80. SSD controller<a class="headerlink" href="#80-ssd-controller" title="Permanent link">¶</a></h1>
+<p>Под NVMe protocol находится сам SSD controller.</p>
+<p>Он делает:</p>
+<ul>
+<li>command scheduling;</li>
+<li>FTL;</li>
+<li>garbage collection;</li>
+<li>wear leveling;</li>
+<li>ECC;</li>
+<li>bad block management;</li>
+<li>internal parallelism;</li>
+<li>caching.</li>
+</ul>
+<p>Современный SSD — отдельная вычислительная система.</p>
+<hr/>
+<h1 id="81-nand-ram">81. NAND не является RAM<a class="headerlink" href="#81-nand-ram" title="Permanent link">¶</a></h1>
+<p>В DRAM можно логически:</p>
+<div class="highlight"><pre><span></span><code>write address
+</code></pre></div>
+<p>и значение меняется.</p>
+<p>В NAND:</p>
+<div class="highlight"><pre><span></span><code>program → page
+erase → larger erase block
+</code></pre></div>
+<p>Произвольный overwrite уже запрограммированных cells так не работает.</p>
+<p>Перед повторным использованием нужен erase более крупной области.</p>
+<hr/>
+<h1 id="82-ftl">82. FTL<a class="headerlink" href="#82-ftl" title="Permanent link">¶</a></h1>
+<p><strong>FTL — Flash Translation Layer.</strong></p>
+<p>Он отображает:</p>
+<div class="highlight"><pre><span></span><code>logical block address
+↓
+physical NAND location
+</code></pre></div>
+<p>OS думает:</p>
+<div class="highlight"><pre><span></span><code>LBA 12345
+</code></pre></div>
+<p>Controller решает:</p>
+<div class="highlight"><pre><span></span><code>die / plane / block / page
+</code></pre></div>
+<p>Это ещё один слой виртуализации адресов.</p>
+<hr/>
+<h1 id="83-out-of-place-update">83. Out-of-place update<a class="headerlink" href="#83-out-of-place-update" title="Permanent link">¶</a></h1>
+<p>Host пишет:</p>
+<div class="highlight"><pre><span></span><code>LBA X
+</code></pre></div>
+<p>Controller может реально:</p>
+<div class="highlight"><pre><span></span><code>write new physical NAND page
+↓
+update mapping
+↓
+old physical page becomes invalid
+</code></pre></div>
+<p>То есть физически запись часто идёт в другое место.</p>
+<hr/>
+<h1 id="84-garbage-collection-ssd">84. Garbage collection внутри SSD<a class="headerlink" href="#84-garbage-collection-ssd" title="Permanent link">¶</a></h1>
+<p>Erase block содержит:</p>
+<div class="highlight"><pre><span></span><code>valid pages
+invalid pages
+free pages
+</code></pre></div>
+<p>Чтобы освободить его:</p>
+<div class="highlight"><pre><span></span><code>copy remaining valid pages
+↓
+erase block
+↓
+block reusable
+</code></pre></div>
+<p>Это <strong>internal garbage collection</strong> SSD.</p>
+<p>Да, GC у нас теперь есть и в Go, и в SSD — только задачи совершенно разные.</p>
+<hr/>
+<h1 id="85-write-amplification">85. Write amplification<a class="headerlink" href="#85-write-amplification" title="Permanent link">¶</a></h1>
+<p>Host записал:</p>
+<div class="highlight"><pre><span></span><code>1 GiB
+</code></pre></div>
+<p>NAND мог физически записать:</p>
+<div class="highlight"><pre><span></span><code>&gt; 1 GiB
+</code></pre></div>
+<p>из-за:</p>
+<ul>
+<li>relocation;</li>
+<li>GC;</li>
+<li>metadata;</li>
+<li>wear leveling.</li>
+</ul>
+<p>Отношение:</p>
+<div class="highlight"><pre><span></span><code>physical NAND writes
+/
+host writes
+</code></pre></div>
+<p>называют write amplification.</p>
+<hr/>
+<h1 id="86-write-amplification">86. Почему write amplification важен<a class="headerlink" href="#86-write-amplification" title="Permanent link">¶</a></h1>
+<p>Чем он выше:</p>
+<div class="highlight"><pre><span></span><code>internal work ↑
+↓
+latency ↑
+↓
+effective throughput ↓
+↓
+NAND wear ↑
+</code></pre></div>
+<p>Storage может выглядеть медленным не потому, что host отправляет много данных, а потому что controller делает много внутренней работы.</p>
+<hr/>
+<h1 id="87-over-provisioning">87. Over-provisioning<a class="headerlink" href="#87-over-provisioning" title="Permanent link">¶</a></h1>
+<p>SSD обычно имеет больше NAND capacity, чем отдаёт пользователю.</p>
+<p>Скрытая область нужна для:</p>
+<ul>
+<li>GC;</li>
+<li>wear leveling;</li>
+<li>bad blocks;</li>
+<li>free block reserve.</li>
+</ul>
+<p>Больше free internal space:</p>
+<div class="highlight"><pre><span></span><code>GC easier
+↓
+write amplification lower
+↓
+sustained writes more stable
+</code></pre></div>
+<hr/>
+<h1 id="88-ssd">88. Почему почти заполненный SSD может резко деградировать<a class="headerlink" href="#88-ssd" title="Permanent link">¶</a></h1>
+<p>Когда free blocks мало:</p>
+<div class="highlight"><pre><span></span><code>new write
+↓
+need internal GC
+↓
+copy valid pages
+↓
+erase
+↓
+write
+</code></pre></div>
+<p>То есть одна host write может вызвать много background work.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>95% full
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>50% full
+</code></pre></div>
+<p>могут давать очень разную sustained latency.</p>
+<hr/>
+<h1 id="89-slc-cache">89. SLC cache<a class="headerlink" href="#89-slc-cache" title="Permanent link">¶</a></h1>
+<p>Многие consumer SSD используют часть NAND как быстрый pseudo-SLC cache.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>burst write
+↓
+SLC cache
+↓
+очень высокий throughput
+</code></pre></div>
+<p>После заполнения:</p>
+<div class="highlight"><pre><span></span><code>direct TLC/QLC programming
++
+background folding
+↓
+throughput drops
+</code></pre></div>
+<hr/>
+<h1 id="90-benchmark">90. Почему короткий benchmark врёт<a class="headerlink" href="#90-benchmark" title="Permanent link">¶</a></h1>
+<p>Первые секунды:</p>
+<div class="highlight"><pre><span></span><code>SLC cache empty
+↓
+5 GB/s
+</code></pre></div>
+<p>Через минуту:</p>
+<div class="highlight"><pre><span></span><code>cache exhausted
+↓
+700 MB/s
+</code></pre></div>
+<p>Если production пишет долго:</p>
+<div class="highlight"><pre><span></span><code>короткий benchmark
+</code></pre></div>
+<p>не описывает sustained режим.</p>
+<hr/>
+<h1 id="91-device-dram-cache">91. Device DRAM cache<a class="headerlink" href="#91-device-dram-cache" title="Permanent link">¶</a></h1>
+<p>Некоторые SSD имеют DRAM.</p>
+<p>Она может использоваться для:</p>
+<ul>
+<li>FTL metadata;</li>
+<li>mapping cache;</li>
+<li>controller state;</li>
+<li>buffering.</li>
+</ul>
+<p>Но возникает durability-вопрос:</p>
+<blockquote>
+<p>Если controller подтвердил command, данные уже persistent?</p>
+</blockquote>
+<p>Ответ зависит от device semantics.</p>
+<hr/>
+<h1 id="92-volatile-write-cache">92. Volatile write cache<a class="headerlink" href="#92-volatile-write-cache" title="Permanent link">¶</a></h1>
+<p>Если device признал write завершённой, но data ещё только в volatile cache:</p>
+<div class="highlight"><pre><span></span><code>power loss
+↓
+data lost
+</code></pre></div>
+<p>Значит host должен уметь потребовать persistence.</p>
+<p>Появляются:</p>
+<div class="highlight"><pre><span></span><code>flush
+FUA
+</code></pre></div>
+<hr/>
+<h1 id="93-flush">93. Flush<a class="headerlink" href="#93-flush" title="Permanent link">¶</a></h1>
+<p>Учебная идея:</p>
+<blockquote>
+<p>Сделать ранее подтверждённые writes persistent согласно contract устройства.</p>
+</blockquote>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>fsync
+↓
+filesystem ordering
+↓
+block layer
+↓
+device flush
+↓
+controller drains volatile state
+↓
+durability boundary
+</code></pre></div>
+<hr/>
+<h1 id="94-fua">94. FUA<a class="headerlink" href="#94-fua" title="Permanent link">¶</a></h1>
+<p><strong>FUA — Force Unit Access.</strong></p>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>конкретная write
+↓
+completion только после нужной persistence semantics
+</code></pre></div>
+<p>Filesystem/block layer может использовать FUA и flush в комбинации.</p>
+<hr/>
+<h1 id="95-flush-fua">95. Flush и FUA — разные операции<a class="headerlink" href="#95-flush-fua" title="Permanent link">¶</a></h1>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>flush
+→ сделать durable накопленные ранее writes
+
+FUA
+→ конкретная write должна считаться durable по completion
+</code></pre></div>
+<p>Реальная sequence зависит от protocol/device/filesystem.</p>
+<hr/>
+<h1 id="96-power-loss-protection">96. Power Loss Protection<a class="headerlink" href="#96-power-loss-protection" title="Permanent link">¶</a></h1>
+<p>Enterprise SSD могут иметь:</p>
+<div class="highlight"><pre><span></span><code>PLP — Power Loss Protection
+</code></pre></div>
+<p>Например capacitors дают controller время сохранить critical volatile state.</p>
+<p>Это особенно важно для:</p>
+<ul>
+<li>database;</li>
+<li>WAL;</li>
+<li>metadata;</li>
+<li>predictable durability.</li>
+</ul>
+<hr/>
+<h1 id="97-consumer-ssd-enterprise-ssd">97. Почему consumer SSD и enterprise SSD — не одна категория<a class="headerlink" href="#97-consumer-ssd-enterprise-ssd" title="Permanent link">¶</a></h1>
+<p>Database полагается на storage durability contract.</p>
+<p>Consumer SSD может иметь:</p>
+<ul>
+<li>маленький SLC cache;</li>
+<li>большую latency variance;</li>
+<li>слабее PLP;</li>
+<li>aggressive GC;</li>
+<li>firmware, ориентированный на desktop bursts.</li>
+</ul>
+<p>Enterprise device обычно оптимизируется под:</p>
+<ul>
+<li>sustained write;</li>
+<li>endurance;</li>
+<li>predictable latency;</li>
+<li>PLP.</li>
+</ul>
+<hr/>
+<h1 id="98-trim-discard">98. TRIM / discard<a class="headerlink" href="#98-trim-discard" title="Permanent link">¶</a></h1>
+<p>Filesystem знает:</p>
+<div class="highlight"><pre><span></span><code>эти logical blocks больше не нужны
+</code></pre></div>
+<p>SSD controller этого сам не знает.</p>
+<p>TRIM/discard сообщает:</p>
+<div class="highlight"><pre><span></span><code>these LBAs can be forgotten
+</code></pre></div>
+<p>Это помогает:</p>
+<ul>
+<li>internal GC;</li>
+<li>free-space management;</li>
+<li>write amplification.</li>
+</ul>
+<hr/>
+<h1 id="99-online-discard-fstrim">99. Online discard и <code>fstrim</code><a class="headerlink" href="#99-online-discard-fstrim" title="Permanent link">¶</a></h1>
+<p>Filesystem может:</p>
+<div class="highlight"><pre><span></span><code>discard online
+</code></pre></div>
+<p>или периодически:</p>
+<div class="highlight"><pre><span></span><code>fstrim
+</code></pre></div>
+<p>Trade-off:</p>
+<div class="highlight"><pre><span></span><code>immediate metadata/device work
+↔
+batched discard later
+</code></pre></div>
+<p>Конкретная политика зависит от filesystem/device.</p>
+<hr/>
+<h1 id="100-write">100. Полная цепочка <code>write()</code><a class="headerlink" href="#100-write" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go f.Write()
+↓
+write syscall
+↓
+VFS
+↓
+filesystem
+↓
+page cache
+↓
+copy data
+↓
+mark dirty
+↓
+dirty accounting
+↓
+write returns
+</code></pre></div>
+<p>До persistence здесь ещё далеко.</p>
+<hr/>
+<h1 id="101-background-writeback">101. Полная цепочка background writeback<a class="headerlink" href="#101-background-writeback" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>dirty pages accumulate
+↓
+writeback triggered
+↓
+filesystem maps blocks/extents
+↓
+bio / requests
+↓
+blk-mq
+↓
+NVMe queues
+↓
+SSD controller
+↓
+NAND
+↓
+completion
+↓
+page clean
+</code></pre></div>
+<hr/>
+<h1 id="102-fsync">102. Полная цепочка <code>fsync()</code><a class="headerlink" href="#102-fsync" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>application calls fsync
+↓
+flush file dirty data
+↓
+flush required metadata / journal state
+↓
+submit block I/O
+↓
+wait completions
+↓
+issue flush/FUA if required
+↓
+device confirms persistence semantics
+↓
+fsync returns
+</code></pre></div>
+<p>Это основной durability path.</p>
+<hr/>
+<h1 id="103-50-000-writess">103. Что будет при 50 000 мелких writes/s<a class="headerlink" href="#103-50-000-writess" title="Permanent link">¶</a></h1>
+<p>Buffered path:</p>
+<div class="highlight"><pre><span></span><code>50k writes/s
+↓
+page cache absorbs burst
+↓
+Dirty ↑
+↓
+background writeback
+</code></pre></div>
+<p>Если storage успевает:</p>
+<div class="highlight"><pre><span></span><code>stable
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>dirty backlog ↑
+↓
+writer throttling
+↓
+write latency ↑
+</code></pre></div>
+<hr/>
+<h1 id="104-50-000-fsyncs">104. Что будет при 50 000 <code>fsync()</code>/s<a class="headerlink" href="#104-50-000-fsyncs" title="Permanent link">¶</a></h1>
+<p>Теперь каждый operation требует durable boundary.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>fsync rate
+&gt;
+device durable flush capacity
+</code></pre></div>
+<p>получаем:</p>
+<div class="highlight"><pre><span></span><code>queue depth ↑
+↓
+fsync latency ↑
+↓
+request p99 ↑
+</code></pre></div>
+<p>Page cache уже не может спрятать цену persistence.</p>
+<hr/>
+<h1 id="105-batching">105. Почему batching критичен<a class="headerlink" href="#105-batching" title="Permanent link">¶</a></h1>
+<p>Было:</p>
+<div class="highlight"><pre><span></span><code>1 record
+↓
+fsync
+</code></pre></div>
+<p>Стало:</p>
+<div class="highlight"><pre><span></span><code>100 records
+↓
+1 fsync
+</code></pre></div>
+<p>Durability cost amortized.</p>
+<p>Это один из фундаментальных механизмов высокой производительности WAL.</p>
+<hr/>
+<h1 id="106-tail-latency-fsync">106. Tail latency <code>fsync()</code><a class="headerlink" href="#106-tail-latency-fsync" title="Permanent link">¶</a></h1>
+<p>Даже при хорошем average SSD может периодически выполнять:</p>
+<ul>
+<li>internal GC;</li>
+<li>wear leveling;</li>
+<li>SLC folding;</li>
+<li>FTL metadata work.</li>
+</ul>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>p50 = low
+p99 = much higher
+p99.9 = occasionally huge
+</code></pre></div>
+<p>Для OLTP это критично.</p>
+<hr/>
+<h1 id="107-queueing">107. Queueing внутри устройства<a class="headerlink" href="#107-queueing" title="Permanent link">¶</a></h1>
+<p>Даже если Linux queues короткие:</p>
+<div class="highlight"><pre><span></span><code>SSD controller
+</code></pre></div>
+<p>может иметь собственную internal queueing.</p>
+<p>Поэтому нужно различать:</p>
+<div class="highlight"><pre><span></span><code>host queueing
+device service time
+device internal queueing
+</code></pre></div>
+<hr/>
+<h1 id="108-iops">108. IOPS — не вся история<a class="headerlink" href="#108-iops" title="Permanent link">¶</a></h1>
+<p>Спецификация:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 IOPS
+</code></pre></div>
+<p>может быть измерена при:</p>
+<ul>
+<li>QD64;</li>
+<li>4 KiB random read;</li>
+<li>определённом mix;</li>
+<li>fresh/preconditioned state.</li>
+</ul>
+<p>А DB workload:</p>
+<div class="highlight"><pre><span></span><code>QD1
+8 KiB
+sync write
+</code></pre></div>
+<p>совсем другой.</p>
+<hr/>
+<h1 id="109-sequential-bandwidth-wal-latency">109. Sequential bandwidth — не WAL latency<a class="headerlink" href="#109-sequential-bandwidth-wal-latency" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>7 GB/s sequential
+</code></pre></div>
+<p>ничего не гарантирует про:</p>
+<div class="highlight"><pre><span></span><code>8 KiB durable write + fsync at QD1
+</code></pre></div>
+<p>Latency и bandwidth — разные характеристики.</p>
+<hr/>
+<h1 id="110-random-write">110. Random write<a class="headerlink" href="#110-random-write" title="Permanent link">¶</a></h1>
+<p>Random writes усложняют FTL:</p>
+<ul>
+<li>scattered mappings;</li>
+<li>invalid pages;</li>
+<li>relocation;</li>
+<li>internal GC.</li>
+</ul>
+<p>Поэтому write amplification часто выше.</p>
+<hr/>
+<h1 id="111-sequential-write">111. Sequential write<a class="headerlink" href="#111-sequential-write" title="Permanent link">¶</a></h1>
+<p>Sequential host writes легче агрегировать и размещать.</p>
+<p>Это одна из причин, почему:</p>
+<div class="highlight"><pre><span></span><code>WAL append
+</code></pre></div>
+<p>storage-friendly по сравнению с random in-place updates.</p>
+<hr/>
+<h1 id="112-page-cache-database-buffer-pool">112. Page cache и database buffer pool<a class="headerlink" href="#112-page-cache-database-buffer-pool" title="Permanent link">¶</a></h1>
+<p>БД может иметь собственный buffer pool.</p>
+<p>Если kernel тоже хранит те же pages:</p>
+<div class="highlight"><pre><span></span><code>DB cache
++
+page cache
+</code></pre></div>
+<p>получаем double caching.</p>
+<p>Другие engines используют Direct I/O, чтобы сильнее контролировать memory/storage path.</p>
+<hr/>
+<h1 id="113-wal-page-cache">113. WAL и page cache<a class="headerlink" href="#113-wal-page-cache" title="Permanent link">¶</a></h1>
+<p>Даже WAL write может сначала попасть:</p>
+<div class="highlight"><pre><span></span><code>userspace
+↓
+page cache
+</code></pre></div>
+<p>Но transaction commit ждёт:</p>
+<div class="highlight"><pre><span></span><code>sync boundary
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>WAL write
+≠
+durable commit
+</code></pre></div>
+<hr/>
+<h1 id="114-postgresql-like-commit-path">114. PostgreSQL-like commit path<a class="headerlink" href="#114-postgresql-like-commit-path" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>transaction
+↓
+generate WAL record
+↓
+append WAL
+↓
+flush WAL
+↓
+commit acknowledged
+</code></pre></div>
+<p>Data pages можно writeback'ить позже.</p>
+<p>Durability переносится на журнал.</p>
+<hr/>
+<h1 id="115-durability">115. Что если durability отключить<a class="headerlink" href="#115-durability" title="Permanent link">¶</a></h1>
+<p>Если ack даётся после ordinary write:</p>
+<div class="highlight"><pre><span></span><code>data may exist only in volatile layers
+</code></pre></div>
+<p>При power loss:</p>
+<div class="highlight"><pre><span></span><code>acknowledged transaction
+↓
+may disappear
+</code></pre></div>
+<p>Это смена correctness contract.</p>
+<p>Не просто performance tuning.</p>
+<hr/>
+<h1 id="116-device-completion">116. Device completion ещё нужно правильно понимать<a class="headerlink" href="#116-device-completion" title="Permanent link">¶</a></h1>
+<p>Completion означает:</p>
+<div class="highlight"><pre><span></span><code>command completed according to command semantics
+</code></pre></div>
+<p>Но persistence зависит от:</p>
+<ul>
+<li>write cache mode;</li>
+<li>flush;</li>
+<li>FUA;</li>
+<li>PLP;</li>
+<li>firmware correctness.</li>
+</ul>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>NVMe completion
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>power-loss-safe durability
+</code></pre></div>
+<p>связаны через protocol semantics.</p>
+<hr/>
+<h1 id="117-ups-storage-semantics">117. Почему UPS не заменяет storage semantics<a class="headerlink" href="#117-ups-storage-semantics" title="Permanent link">¶</a></h1>
+<p>UPS снижает риск полного power loss.</p>
+<p>Но остаются:</p>
+<ul>
+<li>kernel panic;</li>
+<li>controller reset;</li>
+<li>PCIe error;</li>
+<li>firmware crash;</li>
+<li>host reboot;</li>
+<li>power path failure.</li>
+</ul>
+<p>Correctness строят на documented persistence protocol.</p>
+<hr/>
+<h1 id="118-iostat">118. Диагностика: <code>iostat</code><a class="headerlink" href="#118-iostat" title="Permanent link">¶</a></h1>
+<p>Базовый инструмент:</p>
+<div class="highlight"><pre><span></span><code>iostat<span class="w"> </span>-x<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+<p>Смотрим идеи:</p>
+<ul>
+<li>IOPS;</li>
+<li>throughput;</li>
+<li>request size;</li>
+<li>queueing;</li>
+<li>latency;</li>
+<li>utilization.</li>
+</ul>
+<p>Названия колонок могут различаться между версиями sysstat.</p>
+<hr/>
+<h1 id="119-await">119. <code>await</code><a class="headerlink" href="#119-await" title="Permanent link">¶</a></h1>
+<p>Традиционно:</p>
+<div class="highlight"><pre><span></span><code>await
+</code></pre></div>
+<p>отражает среднюю latency I/O с учётом host-visible queueing.</p>
+<p>Нельзя читать:</p>
+<div class="highlight"><pre><span></span><code>await = raw NAND latency
+</code></pre></div>
+<p>Это агрегированная метрика всего видимого block path.</p>
+<hr/>
+<h1 id="120-util">120. <code>%util</code><a class="headerlink" href="#120-util" title="Permanent link">¶</a></h1>
+<p>Для старых single-queue devices:</p>
+<div class="highlight"><pre><span></span><code>100%
+</code></pre></div>
+<p>часто означало явное насыщение.</p>
+<p>Для современного multi-queue NVMe:</p>
+<div class="highlight"><pre><span></span><code>100% util
+</code></pre></div>
+<p>не означает автоматически:</p>
+<div class="highlight"><pre><span></span><code>никакой capacity больше нет
+</code></pre></div>
+<p>Нужно смотреть:</p>
+<ul>
+<li>latency;</li>
+<li>queue depth;</li>
+<li>IOPS;</li>
+<li>device behaviour.</li>
+</ul>
+<hr/>
+<h1 id="121-pidstat-d">121. <code>pidstat -d</code><a class="headerlink" href="#121-pidstat-d" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>pidstat<span class="w"> </span>-d<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+<p>показывает process I/O activity.</p>
+<p>Полезно связать:</p>
+<div class="highlight"><pre><span></span><code>service
+↓
+writes
+↓
+device pressure
+</code></pre></div>
+<hr/>
+<h1 id="122-procpidio">122. <code>/proc/&lt;pid&gt;/io</code><a class="headerlink" href="#122-procpidio" title="Permanent link">¶</a></h1>
+<p>Показывает process I/O counters.</p>
+<p>Но нужно различать:</p>
+<div class="highlight"><pre><span></span><code>bytes submitted by syscalls
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>actual storage traffic
+</code></pre></div>
+<p>Page cache может разнести их во времени.</p>
+<hr/>
+<h1 id="123-procmeminfo">123. <code>/proc/meminfo</code><a class="headerlink" href="#123-procmeminfo" title="Permanent link">¶</a></h1>
+<p>Полезны:</p>
+<div class="highlight"><pre><span></span><code>Dirty
+Writeback
+Cached
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>Dirty steadily ↑
+</code></pre></div>
+<p>значит dirty backlog растёт.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>Writeback ↑
+</code></pre></div>
+<p>kernel активно flush'ит pages.</p>
+<hr/>
+<h1 id="124-vmstat">124. <code>vmstat</code><a class="headerlink" href="#124-vmstat" title="Permanent link">¶</a></h1>
+<p>На границе memory/storage полезно смотреть:</p>
+<ul>
+<li>blocked tasks;</li>
+<li>I/O wait;</li>
+<li>swapping;</li>
+<li>system load.</li>
+</ul>
+<p>Это общий индикатор.</p>
+<p>Не storage profiler.</p>
+<hr/>
+<h1 id="125-iotop">125. <code>iotop</code><a class="headerlink" href="#125-iotop" title="Permanent link">¶</a></h1>
+<p>Отвечает на вопрос:</p>
+<div class="highlight"><pre><span></span><code>кто сейчас создаёт/получает I/O?
+</code></pre></div>
+<p>Но page cache может размывать причинность:</p>
+<div class="highlight"><pre><span></span><code>process dirties now
+↓
+kernel writes later
+</code></pre></div>
+<hr/>
+<h1 id="126-strace">126. <code>strace</code><a class="headerlink" href="#126-strace" title="Permanent link">¶</a></h1>
+<p>Для простого доказательства:</p>
+<div class="highlight"><pre><span></span><code>strace<span class="w"> </span>-ttT<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>write,fsync,fdatasync<span class="w"> </span>./app
+</code></pre></div>
+<p>Можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>write duration
+fsync duration
+</code></pre></div>
+<p>Это отлично связывает application latency с syscall boundary.</p>
+<hr/>
+<h1 id="127-blktrace">127. <code>blktrace</code><a class="headerlink" href="#127-blktrace" title="Permanent link">¶</a></h1>
+<p>Глубокий уровень block layer.</p>
+<p>Позволяет наблюдать события вроде:</p>
+<div class="highlight"><pre><span></span><code>queue
+dispatch
+complete
+</code></pre></div>
+<p>Можно анализировать:</p>
+<div class="highlight"><pre><span></span><code>где именно копится latency
+</code></pre></div>
+<p>Инструмент низкоуровневый.</p>
+<hr/>
+<h1 id="128-ebpf-bpftrace">128. eBPF / bpftrace<a class="headerlink" href="#128-ebpf-bpftrace" title="Permanent link">¶</a></h1>
+<p>Можно использовать block/filesystem tracepoints:</p>
+<div class="highlight"><pre><span></span><code>writeback
+block requests
+fsync
+I/O completion
+</code></pre></div>
+<p>И строить latency histograms.</p>
+<p>Плюс:</p>
+<div class="highlight"><pre><span></span><code>production observability
+</code></pre></div>
+<p>Минус:</p>
+<blockquote>
+<p>Нужно точно понимать, какой слой измеряется.</p>
+</blockquote>
+<hr/>
+<h1 id="129-perf">129. <code>perf</code><a class="headerlink" href="#129-perf" title="Permanent link">¶</a></h1>
+<p><code>perf</code> показывает CPU-cost storage path:</p>
+<ul>
+<li>memcpy;</li>
+<li>filesystem code;</li>
+<li>checksums;</li>
+<li>interrupt/polling;</li>
+<li>block completion.</li>
+</ul>
+<p>Но I/O wait может вообще не проявляться как hot CPU stack.</p>
+<hr/>
+<h1 id="130-write-fsync">130. Почему <code>write()</code> может быть медленным без <code>fsync</code><a class="headerlink" href="#130-write-fsync" title="Permanent link">¶</a></h1>
+<p>Причины:</p>
+<ul>
+<li>dirty throttling;</li>
+<li>page allocation;</li>
+<li>memory pressure;</li>
+<li>filesystem locks;</li>
+<li>delayed allocation;</li>
+<li>quota;</li>
+<li>writeback congestion;</li>
+<li>cgroup I/O throttling.</li>
+</ul>
+<p>Buffered I/O — не обещание постоянной low latency.</p>
+<hr/>
+<h1 id="131-cgroup-v2-io-controller">131. Cgroup v2 I/O controller<a class="headerlink" href="#131-cgroup-v2-io-controller" title="Permanent link">¶</a></h1>
+<p>Container workload может быть ограничен:</p>
+<div class="highlight"><pre><span></span><code>io.max
+io.weight
+</code></pre></div>
+<p>Тогда storage path получает ещё один scheduler/resource-control слой.</p>
+<hr/>
+<h1 id="132-container-filesystem">132. Container filesystem<a class="headerlink" href="#132-container-filesystem" title="Permanent link">¶</a></h1>
+<p>В container путь может быть:</p>
+<div class="highlight"><pre><span></span><code>application
+↓
+overlay filesystem
+↓
+upper/lower layers
+↓
+host filesystem
+↓
+block layer
+↓
+device
+</code></pre></div>
+<p>Это уже не то же самое, что bare-metal ext4 benchmark.</p>
+<hr/>
+<h1 id="133-overlay-copy-up">133. Overlay copy-up<a class="headerlink" href="#133-overlay-copy-up" title="Permanent link">¶</a></h1>
+<p>Файл лежит в lower read-only layer.</p>
+<p>Контейнер впервые его изменяет:</p>
+<div class="highlight"><pre><span></span><code>copy-up
+↓
+upper layer
+↓
+modify
+</code></pre></div>
+<p>Это дополнительный I/O и metadata work.</p>
+<p>Для database data обычно используют volume, а не image layer.</p>
+<hr/>
+<h1 id="134-network-storage">134. Network storage<a class="headerlink" href="#134-network-storage" title="Permanent link">¶</a></h1>
+<p>Если backend device — EBS/Ceph/SAN:</p>
+<div class="highlight"><pre><span></span><code>block layer
+↓
+network
+↓
+remote storage
+</code></pre></div>
+<p>Тогда <code>fsync()</code> latency включает remote protocol.</p>
+<p>В этой лекции основной объект — локальный NVMe/SSD.</p>
+<hr/>
+<h1 id="135-buffered-write">135. Здоровый buffered write<a class="headerlink" href="#135-buffered-write" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>dirty rate
+&lt;
+sustained writeback capacity
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>Dirty stable
+write latency low
+device latency stable
+</code></pre></div>
+<p>Page cache успешно сглаживает burst.</p>
+<hr/>
+<h1 id="136-writeback-pressure">136. Writeback pressure<a class="headerlink" href="#136-writeback-pressure" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>dirty rate &gt; device capacity
+↓
+Dirty ↑
+↓
+background writeback saturated
+↓
+writer throttling
+↓
+write latency ↑
+↓
+request latency ↑
+</code></pre></div>
+<hr/>
+<h1 id="137-fsync-bottleneck">137. <code>fsync()</code> bottleneck<a class="headerlink" href="#137-fsync-bottleneck" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>write throughput modest
+↓
+fsync calls frequent
+↓
+device durable latency dominates
+↓
+transaction p99 ↑
+</code></pre></div>
+<p>Bandwidth может быть невысоким.</p>
+<p>Проблема — latency sync boundary.</p>
+<hr/>
+<h1 id="138-ssd-internal-pressure">138. SSD internal pressure<a class="headerlink" href="#138-ssd-internal-pressure" title="Permanent link">¶</a></h1>
+<p>Host workload тот же.</p>
+<p>Но периодически:</p>
+<div class="highlight"><pre><span></span><code>device latency spikes
+↓
+throughput dips
+</code></pre></div>
+<p>Причины могут быть ниже Linux:</p>
+<ul>
+<li>SLC cache exhausted;</li>
+<li>internal GC;</li>
+<li>low free blocks;</li>
+<li>wear leveling.</li>
+</ul>
+<hr/>
+<h1 id="139-page-cache-illusion">139. Page-cache illusion<a class="headerlink" href="#139-page-cache-illusion" title="Permanent link">¶</a></h1>
+<p>Application benchmark:</p>
+<div class="highlight"><pre><span></span><code>write 10 GiB
+↓
+finished in 2 s
+</code></pre></div>
+<p>Можно ошибочно сказать:</p>
+<div class="highlight"><pre><span></span><code>5 GiB/s device throughput
+</code></pre></div>
+<p>Но возможно приложение просто быстро заполнило page cache.</p>
+<p>Storage продолжает писать позже.</p>
+<hr/>
+<h1 id="140-dd">140. Почему <code>dd</code> легко меряет не то<a class="headerlink" href="#140-dd" title="Permanent link">¶</a></h1>
+<p>Обычный <code>dd</code> без sync/direct semantics может мерить смесь:</p>
+<div class="highlight"><pre><span></span><code>RAM copy
++
+page cache
++
+writeback
+</code></pre></div>
+<p>Storage benchmark без понимания caching легко становится RAM benchmark.</p>
+<hr/>
+<h1 id="141-fio">141. Почему <code>fio</code> полезнее<a class="headerlink" href="#141-fio" title="Permanent link">¶</a></h1>
+<p><code>fio</code> позволяет задать:</p>
+<ul>
+<li>buffered/direct;</li>
+<li>block size;</li>
+<li>queue depth;</li>
+<li>read/write mix;</li>
+<li>sync mode;</li>
+<li>I/O engine;</li>
+<li>duration;</li>
+<li>working set.</li>
+</ul>
+<p>Но неправильный job file всё равно даст бессмысленную цифру.</p>
+<hr/>
+<h1 id="142-1-write-fsync">142. Практика 1: <code>write()</code> против <code>fsync()</code><a class="headerlink" href="#142-1-write-fsync" title="Permanent link">¶</a></h1>
+<p>Написать Go-программу:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">"os"</span>
+<span class="p">)</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">f</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Create</span><span class="p">(</span><span class="s">"data.bin"</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">f</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+
+<span class="w">    </span><span class="nx">buf</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">4096</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100_000</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">f</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">buf</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Замерить:</p>
+<div class="highlight"><pre><span></span><code>total runtime
+write latency
+Dirty
+Writeback
+device I/O
+</code></pre></div>
+<p>Потом добавить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">f</span><span class="p">.</span><span class="nx">Sync</span><span class="p">();</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>после каждой записи.</p>
+<p>Снова измерить.</p>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>buffered write latency
+≠
+durable write latency
+</code></pre></div>
+<hr/>
+<h1 id="143-2-batch-sync">143. Практика 2: batch sync<a class="headerlink" href="#143-2-batch-sync" title="Permanent link">¶</a></h1>
+<p>Вариант A:</p>
+<div class="highlight"><pre><span></span><code>1 record
+↓
+fsync
+</code></pre></div>
+<p>Вариант B:</p>
+<div class="highlight"><pre><span></span><code>100 records
+↓
+fsync
+</code></pre></div>
+<p>Измерять:</p>
+<ul>
+<li>records/s;</li>
+<li>fsync/s;</li>
+<li>p50;</li>
+<li>p95;</li>
+<li>p99.</li>
+</ul>
+<p>Цель:</p>
+<blockquote>
+<p>Руками увидеть, почему group commit вообще существует.</p>
+</blockquote>
+<hr/>
+<h1 id="144-3-dirty-backlog">144. Практика 3: dirty backlog<a class="headerlink" href="#144-3-dirty-backlog" title="Permanent link">¶</a></h1>
+<p>Создать writer, который пишет быстрее storage.</p>
+<p>Параллельно:</p>
+<div class="highlight"><pre><span></span><code>watch<span class="w"> </span>-n<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="s1">'grep -E "Dirty|Writeback" /proc/meminfo'</span>
+</code></pre></div>
+<p>И мерить duration каждого <code>Write</code>.</p>
+<p>Ищем цепочку:</p>
+<div class="highlight"><pre><span></span><code>Dirty ↑
+↓
+background writeback
+↓
+dirty threshold
+↓
+writer throttling
+↓
+write latency spike
+</code></pre></div>
+<hr/>
+<h1 id="145-4-page-cache-benchmark-trap">145. Практика 4: page cache benchmark trap<a class="headerlink" href="#145-4-page-cache-benchmark-trap" title="Permanent link">¶</a></h1>
+<p>Записать файл размером меньше RAM.</p>
+<p>Сначала обычный buffered I/O.</p>
+<p>Потом:</p>
+<ul>
+<li><code>fsync</code>;</li>
+<li>direct I/O через <code>fio</code>;</li>
+<li>sustained test длиннее нескольких секунд.</li>
+</ul>
+<p>Сравнить.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Понять, где заканчивается benchmark RAM/page cache и начинается benchmark storage.</p>
+</blockquote>
+<hr/>
+<h1 id="146-5-strace-durability-path">146. Практика 5: <code>strace</code> durability path<a class="headerlink" href="#146-5-strace-durability-path" title="Permanent link">¶</a></h1>
+<p>Запуск:</p>
+<div class="highlight"><pre><span></span><code>strace<span class="w"> </span>-ttT<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>write,fsync,fdatasync<span class="w"> </span>./app
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>write(...)
+fsync(...)
+</code></pre></div>
+<p>и durations.</p>
+<p>Потом сопоставить:</p>
+<div class="highlight"><pre><span></span><code>request p99
+↔
+fsync duration
+</code></pre></div>
+<hr/>
+<h1 id="147-6-iostat">147. Практика 6: <code>iostat</code><a class="headerlink" href="#147-6-iostat" title="Permanent link">¶</a></h1>
+<p>Параллельно:</p>
+<div class="highlight"><pre><span></span><code>iostat<span class="w"> </span>-x<span class="w"> </span><span class="m">1</span>
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>IOPS
+throughput
+await
+queueing
+utilization
+</code></pre></div>
+<p>Сопоставлять с application latency.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть разницу между syscall wait и host-visible device latency.</p>
+</blockquote>
+<hr/>
+<h1 id="148-7-queue-depth">148. Практика 7: queue depth<a class="headerlink" href="#148-7-queue-depth" title="Permanent link">¶</a></h1>
+<p>Через <code>fio</code> менять:</p>
+<div class="highlight"><pre><span></span><code>iodepth=1
+iodepth=4
+iodepth=16
+iodepth=64
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>IOPS
+average latency
+p99
+</code></pre></div>
+<p>Ожидаемая модель:</p>
+<div class="highlight"><pre><span></span><code>queue depth ↑
+↓
+throughput сначала ↑
+↓
+queueing latency ↑
+</code></pre></div>
+<hr/>
+<h1 id="149-8-burst-sustained">149. Практика 8: burst против sustained<a class="headerlink" href="#149-8-burst-sustained" title="Permanent link">¶</a></h1>
+<p>Один workload:</p>
+<div class="highlight"><pre><span></span><code>30 seconds
+</code></pre></div>
+<p>Тот же:</p>
+<div class="highlight"><pre><span></span><code>20 minutes
+</code></pre></div>
+<p>Если SSD имеет SLC cache, короткий тест может выглядеть намного лучше.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Показать, почему sustained performance нельзя выводить из короткого burst benchmark.</p>
+</blockquote>
+<hr/>
+<h1 id="150-9-fill-level-ssd">150. Практика 9: fill level SSD<a class="headerlink" href="#150-9-fill-level-ssd" title="Permanent link">¶</a></h1>
+<p>Только на отдельном тестовом device.</p>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>SSD with plenty of free space
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>SSD nearly full
+</code></pre></div>
+<p>Под одинаковым sustained random write.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>throughput
+p95
+p99
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть влияние internal GC и свободного пространства SSD.</p>
+</blockquote>
+<hr/>
+<h1 id="151-10-buffered-direct">151. Практика 10: buffered против direct<a class="headerlink" href="#151-10-buffered-direct" title="Permanent link">¶</a></h1>
+<p>Сделать два <code>fio</code> workload.</p>
+<p>Вариант A:</p>
+<div class="highlight"><pre><span></span><code>buffered
+</code></pre></div>
+<p>Вариант B:</p>
+<div class="highlight"><pre><span></span><code>direct=1
+</code></pre></div>
+<p>Сравнить:</p>
+<ul>
+<li>throughput;</li>
+<li>latency;</li>
+<li>CPU;</li>
+<li><code>Dirty</code>;</li>
+<li>device I/O.</li>
+</ul>
+<p>Цель:</p>
+<blockquote>
+<p>Понять, какую работу page cache делает за приложение.</p>
+</blockquote>
+<hr/>
+<h1 id="152-11-append-only-log">152. Практика 11: простой append-only log<a class="headerlink" href="#152-11-append-only-log" title="Permanent link">¶</a></h1>
+<p>Сделать мини-журнал:</p>
+<div class="highlight"><pre><span></span><code>append record
+↓
+write
+↓
+optional sync
+↓
+ack
+</code></pre></div>
+<p>Два режима:</p>
+<div class="highlight"><pre><span></span><code>ACK after write
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>ACK after fsync
+</code></pre></div>
+<p>Не нужно физически выдёргивать питание.</p>
+<p>Нужно письменно определить correctness contract:</p>
+<div class="highlight"><pre><span></span><code>какие acknowledged records могут потеряться при crash?
+</code></pre></div>
+<hr/>
+<h1 id="153-12-postgresql-wal">153. Практика 12: PostgreSQL WAL<a class="headerlink" href="#153-12-postgresql-wal" title="Permanent link">¶</a></h1>
+<p>На лабораторной PostgreSQL:</p>
+<ol>
+<li>выполнить много маленьких autocommit transactions;</li>
+<li>измерить commit latency;</li>
+<li>смотреть <code>iostat</code>;</li>
+<li>смотреть WAL generation;</li>
+<li>сделать batching;</li>
+<li>повторить.</li>
+</ol>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>transaction
+↓
+WAL
+↓
+durable flush
+↓
+commit latency
+</code></pre></div>
+<hr/>
+<h1 id="154-13-container-io-throttling">154. Практика 13: container I/O throttling<a class="headerlink" href="#154-13-container-io-throttling" title="Permanent link">¶</a></h1>
+<p>В отдельном cgroup/container ограничить I/O.</p>
+<p>Например policy через:</p>
+<div class="highlight"><pre><span></span><code>io.max
+</code></pre></div>
+<p>Запустить тот же writer.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>write latency
+Dirty
+device utilization
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, что storage bottleneck может быть искусственно создан resource controller'ом выше физического SSD.</p>
+</blockquote>
+<hr/>
+<h1 id="155-14-overlayfs">155. Практика 14: overlayfs<a class="headerlink" href="#155-14-overlayfs" title="Permanent link">¶</a></h1>
+<p>В контейнере сравнить:</p>
+<div class="highlight"><pre><span></span><code>write into writable image layer
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>write into mounted volume
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>latency
+throughput
+metadata activity
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Показать, что filesystem topology контейнера тоже является частью storage path.</p>
+</blockquote>
+<hr/>
+<h1 id="156-15-slow-fsync-throughput">156. Практика 15: slow <code>fsync()</code> без высокого throughput<a class="headerlink" href="#156-15-slow-fsync-throughput" title="Permanent link">¶</a></h1>
+<p>Создать workload:</p>
+<div class="highlight"><pre><span></span><code>small append
+↓
+fsync
+</code></pre></div>
+<p>Очень низкий total MB/s.</p>
+<p>Но высокая commit latency.</p>
+<p>Сравнить с:</p>
+<div class="highlight"><pre><span></span><code>large sequential async write
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>low bandwidth
+≠
+storage not saturated for durability workload
+</code></pre></div>
+<hr/>
+<h1 id="157-write-ssd">157. Плохое упрощение: <code>write()</code> вернулся — SSD записал<a class="headerlink" href="#157-write-ssd" title="Permanent link">¶</a></h1>
+<p>Где ломается:</p>
+<div class="highlight"><pre><span></span><code>buffered write
+↓
+page cache
+↓
+dirty page
+↓
+return
+</code></pre></div>
+<p>Более точная модель:</p>
+<div class="highlight"><pre><span></span><code>write success
+=
+kernel accepted data
+</code></pre></div>
+<p>Практическое следствие:</p>
+<blockquote>
+<p>Для durability нужен sync protocol.</p>
+</blockquote>
+<hr/>
+<h1 id="158-fsync-write">158. Плохое упрощение: <code>fsync()</code> — просто более медленный <code>write()</code><a class="headerlink" href="#158-fsync-write" title="Permanent link">¶</a></h1>
+<p><code>write()</code>:</p>
+<div class="highlight"><pre><span></span><code>copy to kernel memory
+</code></pre></div>
+<p>может завершиться очень рано.</p>
+<p><code>fsync()</code>:</p>
+<div class="highlight"><pre><span></span><code>закрывает outstanding persistence obligations
+</code></pre></div>
+<p>Поэтому у него другой смысл.</p>
+<hr/>
+<h1 id="159-ssd-fsync">159. Плохое упрощение: быстрый SSD делает <code>fsync()</code> бесплатным<a class="headerlink" href="#159-ssd-fsync" title="Permanent link">¶</a></h1>
+<p>Даже быстрый NVMe имеет:</p>
+<ul>
+<li>queueing;</li>
+<li>protocol;</li>
+<li>controller;</li>
+<li>FTL;</li>
+<li>internal GC;</li>
+<li>flush ordering.</li>
+</ul>
+<p><code>fsync()</code> ждёт durability boundary.</p>
+<p>Микросекунды всё равно существуют.</p>
+<hr/>
+<h1 id="160-direct-io">160. Плохое упрощение: Direct I/O всегда быстрее<a class="headerlink" href="#160-direct-io" title="Permanent link">¶</a></h1>
+<p>Direct I/O убирает page cache.</p>
+<p>Но тогда:</p>
+<div class="highlight"><pre><span></span><code>application
+</code></pre></div>
+<p>должно само эффективнее работать с:</p>
+<ul>
+<li>batching;</li>
+<li>alignment;</li>
+<li>caching;</li>
+<li>readahead.</li>
+</ul>
+<p>Если workload маленький и нерегулярный, buffered path может быть лучше.</p>
+<hr/>
+<h1 id="161-nvme">161. Плохое упрощение: NVMe = очередей нет<a class="headerlink" href="#161-nvme" title="Permanent link">¶</a></h1>
+<p>Наоборот.</p>
+<p>NVMe проектировался вокруг:</p>
+<div class="highlight"><pre><span></span><code>many submission queues
+many completion queues
+high queue depth
+parallel commands
+</code></pre></div>
+<p>Преимущество не в отсутствии queueing.</p>
+<p>А в масштабируемой queue architecture.</p>
+<hr/>
+<h1 id="162-util-100-nvme">162. Плохое упрощение: <code>%util = 100</code> значит NVMe полностью исчерпан<a class="headerlink" href="#162-util-100-nvme" title="Permanent link">¶</a></h1>
+<p>На multi-queue device эта метрика требует осторожной интерпретации.</p>
+<p>Смотрим вместе:</p>
+<div class="highlight"><pre><span></span><code>await
+queue depth
+IOPS
+throughput
+p99
+</code></pre></div>
+<hr/>
+<h1 id="163-slc-cache-nand">163. Плохое упрощение: SLC cache = реальная скорость NAND<a class="headerlink" href="#163-slc-cache-nand" title="Permanent link">¶</a></h1>
+<p>SLC cache — burst accelerator.</p>
+<p>Когда он заполнен:</p>
+<div class="highlight"><pre><span></span><code>direct TLC/QLC program
++
+folding
++
+internal GC
+</code></pre></div>
+<p>скорость может радикально измениться.</p>
+<hr/>
+<h1 id="164-ssd-firmware">164. Плохое упрощение: SSD firmware — невидимая деталь<a class="headerlink" href="#164-ssd-firmware" title="Permanent link">¶</a></h1>
+<p>Если storage участвует в durability contract:</p>
+<div class="highlight"><pre><span></span><code>firmware correctness
+</code></pre></div>
+<p>уже часть correctness системы.</p>
+<p>Ошибки ниже ОС способны нарушать гарантии БД.</p>
+<hr/>
+<h1 id="165-wal">165. Плохое упрощение: WAL — просто лог для аудита<a class="headerlink" href="#165-wal" title="Permanent link">¶</a></h1>
+<p>WAL — механизм durability/recovery.</p>
+<p>Он нужен потому, что:</p>
+<div class="highlight"><pre><span></span><code>последовательный append + flush
+</code></pre></div>
+<p>проще и дешевле синхронной записи всех random data pages.</p>
+<hr/>
+<h1 id="166-page-cache">166. Плохое упрощение: высокий page cache — плохо<a class="headerlink" href="#166-page-cache" title="Permanent link">¶</a></h1>
+<p>Page cache — нормальное использование RAM.</p>
+<p>Проблема:</p>
+<div class="highlight"><pre><span></span><code>dirty backlog uncontrolled
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>double caching hurts memory budget
+</code></pre></div>
+<p>Сам по себе большой <code>Cached</code> не является багом.</p>
+<hr/>
+<h1 id="167-dirty">167. Плохое упрощение: <code>Dirty</code> всегда должен быть около нуля<a class="headerlink" href="#167-dirty" title="Permanent link">¶</a></h1>
+<p>Нет.</p>
+<p>Небольшой dirty backlog нормален.</p>
+<p>Он позволяет:</p>
+<div class="highlight"><pre><span></span><code>batching
++
+coalescing
++
+asynchronous writeback
+</code></pre></div>
+<p>Проблема — устойчивый рост и throttling.</p>
+<hr/>
+<h1 id="168-fsync-record">168. Плохое упрощение: <code>fsync()</code> каждого record = максимальная надёжность без цены<a class="headerlink" href="#168-fsync-record" title="Permanent link">¶</a></h1>
+<p>Надёжность действительно проще рассуждать.</p>
+<p>Но throughput:</p>
+<div class="highlight"><pre><span></span><code>≈ durable flush capacity
+</code></pre></div>
+<p>Поэтому высоконагруженные системы используют:</p>
+<div class="highlight"><pre><span></span><code>group commit
+</code></pre></div>
+<hr/>
+<h1 id="169-storage-incident">169. Как диагностировать storage incident от приложения вниз<a class="headerlink" href="#169-storage-incident" title="Permanent link">¶</a></h1>
+<p>Старт:</p>
+<div class="highlight"><pre><span></span><code>request latency ↑
+</code></pre></div>
+<p>Сначала:</p>
+<div class="highlight"><pre><span></span><code>CPU?
+locks?
+DB?
+network?
+</code></pre></div>
+<p>Если storage подозрителен:</p>
+<div class="highlight"><pre><span></span><code>syscall duration
+↓
+Dirty/Writeback
+↓
+filesystem
+↓
+block queue
+↓
+device
+</code></pre></div>
+<p>Не нужно начинать расследование сразу с NAND GC.</p>
+<hr/>
+<h1 id="170-1-syscall">170. Уровень 1: syscall<a class="headerlink" href="#170-1-syscall" title="Permanent link">¶</a></h1>
+<p>Вопрос:</p>
+<blockquote>
+<p>Где handler реально ждёт?</p>
+</blockquote>
+<p>Инструменты:</p>
+<div class="highlight"><pre><span></span><code>strace
+trace/eBPF
+application timings
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>fsync = 15 ms
+</code></pre></div>
+<p>мы уже нашли сильную связь.</p>
+<hr/>
+<h1 id="171-2-page-cachewriteback">171. Уровень 2: page cache/writeback<a class="headerlink" href="#171-2-page-cachewriteback" title="Permanent link">¶</a></h1>
+<p>Вопрос:</p>
+<blockquote>
+<p>Storage отстаёт от dirtying?</p>
+</blockquote>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>Dirty
+Writeback
+write latency
+writeback counters
+</code></pre></div>
+<hr/>
+<h1 id="172-3-filesystem">172. Уровень 3: filesystem<a class="headerlink" href="#172-3-filesystem" title="Permanent link">¶</a></h1>
+<p>Вопросы:</p>
+<ul>
+<li>metadata pressure?</li>
+<li>journal commit?</li>
+<li>delayed allocation?</li>
+<li>ENOSPC?</li>
+<li>fragmentation?</li>
+<li>overlay layer?</li>
+</ul>
+<p>Здесь уже нужны filesystem-specific tools/tracepoints.</p>
+<hr/>
+<h1 id="173-4-block-layer">173. Уровень 4: block layer<a class="headerlink" href="#173-4-block-layer" title="Permanent link">¶</a></h1>
+<p>Вопрос:</p>
+<blockquote>
+<p>Есть ли host-side queueing?</p>
+</blockquote>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>iostat
+block tracepoints
+blktrace/eBPF
+</code></pre></div>
+<hr/>
+<h1 id="174-5-device">174. Уровень 5: device<a class="headerlink" href="#174-5-device" title="Permanent link">¶</a></h1>
+<p>Если host path выглядит нормально, но completion latency нестабильна:</p>
+<div class="highlight"><pre><span></span><code>SSD internal GC?
+SLC exhaustion?
+device thermal throttling?
+firmware?
+wear?
+</code></pre></div>
+<p>Понадобятся device telemetry и vendor tools.</p>
+<hr/>
+<h1 id="175-throttling-ssd">175. Температурный throttling SSD<a class="headerlink" href="#175-throttling-ssd" title="Permanent link">¶</a></h1>
+<p>NVMe может нагреваться.</p>
+<p>Под длительной записью:</p>
+<div class="highlight"><pre><span></span><code>temperature ↑
+↓
+controller throttles
+↓
+throughput ↓
+↓
+latency ↑
+</code></pre></div>
+<p>Это ещё одна причина, почему:</p>
+<div class="highlight"><pre><span></span><code>burst benchmark
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>sustained production
+</code></pre></div>
+<p>различаются.</p>
+<hr/>
+<h1 id="176-smart-nvme-health">176. SMART / NVMe health<a class="headerlink" href="#176-smart-nvme-health" title="Permanent link">¶</a></h1>
+<p>Полезно смотреть:</p>
+<ul>
+<li>temperature;</li>
+<li>percentage used;</li>
+<li>media errors;</li>
+<li>available spare;</li>
+<li>data units written;</li>
+<li>unsafe shutdowns;</li>
+<li>error log.</li>
+</ul>
+<p>Это уже устройство, а не Linux page cache.</p>
+<p>Но storage incident может закончиться именно здесь.</p>
+<hr/>
+<h1 id="177-unsafe-shutdowns">177. Почему unsafe shutdowns важны<a class="headerlink" href="#177-unsafe-shutdowns" title="Permanent link">¶</a></h1>
+<p>Если device переживает sudden power loss/reset:</p>
+<div class="highlight"><pre><span></span><code>controller state
+FTL metadata
+volatile cache
+</code></pre></div>
+<p>могут быть под риском.</p>
+<p>PLP и корректная firmware design снижают этот риск.</p>
+<hr/>
+<h1 id="178-filesystem-ssd-discard">178. Как filesystem и SSD взаимодействуют через discard<a class="headerlink" href="#178-filesystem-ssd-discard" title="Permanent link">¶</a></h1>
+<p>Filesystem освобождает blocks.</p>
+<p>Без discard controller может думать:</p>
+<div class="highlight"><pre><span></span><code>LBA всё ещё содержит полезные данные
+</code></pre></div>
+<p>и переносить их при internal GC.</p>
+<p>TRIM/discard говорит:</p>
+<div class="highlight"><pre><span></span><code>можно не сохранять
+</code></pre></div>
+<p>Это уменьшает useless internal work.</p>
+<hr/>
+<h1 id="179-discard-erase-nand">179. Почему discard не является мгновенным erase NAND<a class="headerlink" href="#179-discard-erase-nand" title="Permanent link">¶</a></h1>
+<p>TRIM сообщает логическую ненужность.</p>
+<p>Controller сам решает:</p>
+<div class="highlight"><pre><span></span><code>когда реально использовать эту информацию
+</code></pre></div>
+<p>Физический erase может произойти позже.</p>
+<hr/>
+<h1 id="180-burst-load">180. Что происходит под burst load<a class="headerlink" href="#180-burst-load" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>RPS burst
+↓
+writes burst
+↓
+page cache absorbs
+↓
+Dirty ↑
+↓
+application still fast
+</code></pre></div>
+<p>Если burst закончился:</p>
+<div class="highlight"><pre><span></span><code>writeback catches up
+↓
+no visible incident
+</code></pre></div>
+<p>Page cache сработал как буфер.</p>
+<hr/>
+<h1 id="181-sustained-overload">181. Что происходит под sustained overload<a class="headerlink" href="#181-sustained-overload" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>write rate remains &gt; storage service rate
+↓
+Dirty keeps growing
+↓
+thresholds
+↓
+writer throttling
+↓
+queueing
+↓
+latency grows without bound until load changes
+</code></pre></div>
+<p>Буфер не увеличил capacity.</p>
+<p>Он только отсрочил проявление bottleneck.</p>
+<hr/>
+<h1 id="182-backend-">182. Почему это важный backend-паттерн<a class="headerlink" href="#182-backend-" title="Permanent link">¶</a></h1>
+<p>Любой буфер:</p>
+<ul>
+<li>page cache;</li>
+<li>Kafka;</li>
+<li>RabbitMQ;</li>
+<li>connection pool queue;</li>
+<li>request queue;</li>
+</ul>
+<p>делает похожую вещь:</p>
+<div class="highlight"><pre><span></span><code>absorbs burst
+</code></pre></div>
+<p>Но при sustained overload:</p>
+<div class="highlight"><pre><span></span><code>queue grows
+↓
+latency grows
+↓
+eventually backpressure/failure
+</code></pre></div>
+<p>Storage path — ещё один пример той же системы очередей.</p>
+<hr/>
+<h1 id="183-synchronous-workload">183. Что происходит при synchronous workload<a class="headerlink" href="#183-synchronous-workload" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>write
+↓
+sync
+↓
+wait
+↓
+next write
+</code></pre></div>
+<p>Queue depth маленький.</p>
+<p>Throughput ограничен latency одной durability operation.</p>
+<p>Чтобы увеличить throughput:</p>
+<div class="highlight"><pre><span></span><code>parallelism
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>batching
+</code></pre></div>
+<p>Но оба меняют latency/ordering model.</p>
+<hr/>
+<h1 id="184-io-parallelism">184. Почему слишком большой I/O parallelism вреден<a class="headerlink" href="#184-io-parallelism" title="Permanent link">¶</a></h1>
+<p>Добавили:</p>
+<div class="highlight"><pre><span></span><code>1 → 64 concurrent writers
+</code></pre></div>
+<p>Device throughput растёт.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>queue depth ↑
+↓
+individual latency ↑
+</code></pre></div>
+<p>Для request/response backend это может ухудшить p99.</p>
+<hr/>
+<h1 id="185-tail-latency-fairness">185. Tail latency и fairness<a class="headerlink" href="#185-tail-latency-fairness" title="Permanent link">¶</a></h1>
+<p>Background bulk writer может заполнить device queues.</p>
+<p>Foreground WAL fsync:</p>
+<div class="highlight"><pre><span></span><code>встаёт за bulk I/O
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>backup/import workload
+↓
+transaction latency ↑
+</code></pre></div>
+<p>I/O scheduler/resource control нужен в том числе для таких конфликтов.</p>
+<hr/>
+<h1 id="186-ionice-io-policy">186. <code>ionice</code> и I/O policy<a class="headerlink" href="#186-ionice-io-policy" title="Permanent link">¶</a></h1>
+<p>Linux имеет механизмы process I/O priority.</p>
+<p>На modern blk-mq/device поведение зависит от scheduler и cgroup.</p>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>background bulk I/O
+</code></pre></div>
+<p>не должен обязательно иметь тот же latency priority, что:</p>
+<div class="highlight"><pre><span></span><code>foreground DB commit
+</code></pre></div>
+<hr/>
+<h1 id="187-io-isolation-cgroup">187. I/O isolation через cgroup<a class="headerlink" href="#187-io-isolation-cgroup" title="Permanent link">¶</a></h1>
+<p>Для container/platform:</p>
+<div class="highlight"><pre><span></span><code>io.weight
+io.max
+</code></pre></div>
+<p>позволяют ограничивать throughput/IOPS или задавать относительный вес.</p>
+<p>Это storage-аналог:</p>
+<div class="highlight"><pre><span></span><code>CPU limits
+memory limits
+</code></pre></div>
+<p>Но ограничения тоже создают queueing.</p>
+<hr/>
+<h1 id="188-iomax">188. Что будет при слишком жёстком <code>io.max</code><a class="headerlink" href="#188-iomax" title="Permanent link">¶</a></h1>
+<p>Приложение способно dirty'ть быстрее разрешённого I/O.</p>
+<div class="highlight"><pre><span></span><code>I/O controller throttles
+↓
+writeback slower
+↓
+Dirty ↑
+↓
+application throttling
+↓
+p99 ↑
+</code></pre></div>
+<p>Ограничили storage — получили memory/writeback эффект выше по stack.</p>
+<hr/>
+<h1 id="189-memory-storage">189. Memory и storage снова замкнулись<a class="headerlink" href="#189-memory-storage" title="Permanent link">¶</a></h1>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>I/O throughput constrained
+↓
+writeback slow
+↓
+Dirty memory high
+↓
+less reclaimable RAM
+↓
+memory pressure ↑
+↓
+application latency ↑
+</code></pre></div>
+<p>Storage bottleneck может стать memory bottleneck.</p>
+<hr/>
+<h1 id="190-memory-pressure-storage-bottleneck">190. А memory pressure может стать storage bottleneck<a class="headerlink" href="#190-memory-pressure-storage-bottleneck" title="Permanent link">¶</a></h1>
+<p>Обратная цепочка:</p>
+<div class="highlight"><pre><span></span><code>RAM pressure
+↓
+dirty pages must writeback before reclaim
+↓
+more storage I/O
+↓
+device pressure
+↓
+latency ↑
+</code></pre></div>
+<p>Подсистемы связаны.</p>
+<hr/>
+<h1 id="191-production-incident">191. Почему production incident редко живёт в одном слое<a class="headerlink" href="#191-production-incident" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>container memory limit reduced
+↓
+page cache room smaller
+↓
+more reads miss cache
+↓
+storage reads ↑
+↓
+DB latency ↑
+↓
+request concurrency ↑
+↓
+memory pressure ↑
+</code></pre></div>
+<p>Один change может пройти через memory, storage и backend queueing.</p>
+<hr/>
+<h1 id="192-api">192. Гарантии спецификации, API и реализации<a class="headerlink" href="#192-api" title="Permanent link">¶</a></h1>
+<p>Нужно разделять.</p>
+<h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">¶</a></h2>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>write
+fsync
+fdatasync
+O_SYNC
+</code></pre></div>
+<p>дают документированный userspace contract.</p>
+<h2 id="filesystem-implementation">Filesystem implementation<a class="headerlink" href="#filesystem-implementation" title="Permanent link">¶</a></h2>
+<p>Определяет:</p>
+<ul>
+<li>journaling;</li>
+<li>delayed allocation;</li>
+<li>metadata ordering;</li>
+<li>writeback implementation.</li>
+</ul>
+<h2 id="block-layer">Block layer<a class="headerlink" href="#block-layer" title="Permanent link">¶</a></h2>
+<p>Решает:</p>
+<ul>
+<li>queueing;</li>
+<li>request dispatch;</li>
+<li>scheduler.</li>
+</ul>
+<h2 id="device">Device<a class="headerlink" href="#device" title="Permanent link">¶</a></h2>
+<p>Решает:</p>
+<ul>
+<li>FTL;</li>
+<li>flash GC;</li>
+<li>cache;</li>
+<li>PLP.</li>
+</ul>
+<p>Приложение должно строить correctness на верхнем контракте.</p>
+<hr/>
+<h1 id="193-correctness-ssd">193. Нельзя строить correctness на «обычно SSD пишет быстро»<a class="headerlink" href="#193-correctness-ssd" title="Permanent link">¶</a></h1>
+<p>Correctness:</p>
+<div class="highlight"><pre><span></span><code>fsync contract
+</code></pre></div>
+<p>Performance:</p>
+<div class="highlight"><pre><span></span><code>device latency
+</code></pre></div>
+<p>Это разные вопросы.</p>
+<p>Можно иметь:</p>
+<div class="highlight"><pre><span></span><code>correct but slow
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>fast but unsafe
+</code></pre></div>
+<hr/>
+<h1 id="194-crash-consistency-durability">194. Нельзя путать crash consistency и durability<a class="headerlink" href="#194-crash-consistency-durability" title="Permanent link">¶</a></h1>
+<p><strong>Durability</strong>:</p>
+<blockquote>
+<p>Подтверждённые данные переживают crash согласно contract.</p>
+</blockquote>
+<p><strong>Crash consistency</strong>:</p>
+<blockquote>
+<p>После crash структура данных остаётся в допустимом состоянии.</p>
+</blockquote>
+<p>Filesystem journal и WAL решают похожие, но не идентичные задачи на разных уровнях.</p>
+<hr/>
+<h1 id="195-wal-filesystem">195. WAL не заменяет filesystem<a class="headerlink" href="#195-wal-filesystem" title="Permanent link">¶</a></h1>
+<p>WAL обеспечивает recovery protocol базы.</p>
+<p>Filesystem обеспечивает:</p>
+<ul>
+<li>file namespace;</li>
+<li>block mapping;</li>
+<li>metadata consistency;</li>
+<li>storage access.</li>
+</ul>
+<p>Database WAL работает поверх filesystem/storage semantics.</p>
+<hr/>
+<h1 id="196-filesystem-journal-database-wal">196. Filesystem journal не заменяет database WAL<a class="headerlink" href="#196-filesystem-journal-database-wal" title="Permanent link">¶</a></h1>
+<p>Filesystem journal знает:</p>
+<div class="highlight"><pre><span></span><code>filesystem metadata
+</code></pre></div>
+<p>Он не знает:</p>
+<div class="highlight"><pre><span></span><code>transaction invariant database
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>ext4 journal
+</code></pre></div>
+<p>не делает ненужным:</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL WAL
+</code></pre></div>
+<p>Это разные уровни consistency.</p>
+<hr/>
+<h1 id="197-write">197. Финальная причинная цепочка <code>write()</code><a class="headerlink" href="#197-write" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>application
+↓
+write()
+↓
+copy to page cache
+↓
+dirty accounting
+↓
+return
+↓
+background writeback
+↓
+filesystem
+↓
+block requests
+↓
+NVMe
+↓
+SSD internal mapping
+↓
+NAND
+</code></pre></div>
+<hr/>
+<h1 id="198-fsync">198. Финальная причинная цепочка <code>fsync()</code><a class="headerlink" href="#198-fsync" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>application
+↓
+fsync()
+↓
+flush file dirty state
+↓
+filesystem closes journal/metadata ordering
+↓
+block I/O
+↓
+wait completions
+↓
+flush/FUA as needed
+↓
+device persistence semantics
+↓
+return
+</code></pre></div>
+<hr/>
+<h1 id="199-wal">199. Финальная причинная цепочка WAL<a class="headerlink" href="#199-wal" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>transaction
+↓
+logical changes
+↓
+WAL record
+↓
+append
+↓
+group commit
+↓
+fsync
+↓
+persistent WAL
+↓
+commit ACK
+↓
+data pages later
+</code></pre></div>
+<hr/>
+<h1 id="_2">Что важно запомнить<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<ol>
+<li><code>write()</code> success обычно означает, что kernel принял данные, а не что NAND уже изменена.</li>
+<li>Page cache скрывает device latency и объединяет I/O, но создаёт промежуток между write и durability.</li>
+<li>Dirty pages — это накопленная очередь storage work.</li>
+<li>Если dirtying rate выше sustained writeback rate, backlog растёт и Linux начинает throttling writers.</li>
+<li>Memory pressure и writeback связаны: dirty pages нельзя просто reclaim'нуть без сохранения.</li>
+<li><code>fsync()</code> — durability boundary, а не просто «ещё один write».</li>
+<li><code>fdatasync()</code> имеет более узкий data-centric contract, но выигрыш зависит от filesystem.</li>
+<li>WAL переводит random durable updates в компактную sequential durability path.</li>
+<li>Group commit амортизирует стоимость durable flush.</li>
+<li>Filesystem journal и database WAL решают разные consistency-задачи.</li>
+<li>Delayed allocation улучшает placement, но может сдвигать часть ошибок к writeback/fsync.</li>
+<li><code>close()</code> не является универсальной заменой <code>fsync()</code>.</li>
+<li>Direct I/O убирает ordinary data page cache, но не делает storage path cache-free.</li>
+<li>Blk-mq масштабирует block I/O через multi-queue architecture.</li>
+<li>Queue depth — ограниченный ресурс: он повышает throughput, но увеличивает queueing latency.</li>
+<li>NVMe использует submission/completion queues и PCIe, но всё равно имеет очереди и protocol overhead.</li>
+<li>SSD controller скрывает FTL, garbage collection, wear leveling и internal scheduling.</li>
+<li>NAND требует out-of-place updates и erase более крупными блоками, поэтому SSD не является «RAM, которая не забывает».</li>
+<li>Internal SSD GC создаёт write amplification и tail-latency spikes.</li>
+<li>SLC cache может сильно завышать короткие consumer-SSD benchmarks.</li>
+<li>Flush/FUA нужны потому, что device может иметь volatile write cache.</li>
+<li>PLP — часть storage durability engineering.</li>
+<li>Sequential bandwidth не описывает QD1 <code>fsync()</code> latency.</li>
+<li>Высокий device IOPS из datasheet не переносится автоматически на WAL/OLTP workload.</li>
+<li>Для диагностики нужно последовательно идти: syscall → page cache/writeback → filesystem → block layer → device.</li>
+<li><code>strace</code>, <code>iostat</code>, <code>/proc/meminfo</code>, <code>pidstat</code>, <code>fio</code>, eBPF и device telemetry отвечают на разные вопросы.</li>
+<li>Container overlayfs и I/O cgroup limits могут добавить latency выше physical device.</li>
+<li>Storage overload может перерасти в memory pressure через dirty pages.</li>
+<li>Memory pressure может перерасти в storage pressure через reclaim/writeback.</li>
+<li>Настоящая стоимость durable write определяется всей цепочкой от userspace до persistent media.</li>
+</ol>
+<hr/>
+<h1 id="_3">Финальная модель<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                       APPLICATION
+                            │
+                            ▼
+                          write()
+                            │
+                            ▼
+                           VFS
+                            │
+                            ▼
+                        filesystem
+                            │
+                            ▼
+                        page cache
+                            │
+                            ▼
+                       dirty pages
+                            │
+               ┌────────────┴────────────┐
+               │                         │
+               ▼                         ▼
+      background writeback             fsync()
+               │                         │
+               └────────────┬────────────┘
+                            ▼
+                    filesystem ordering
+                            │
+                            ▼
+                        block layer
+                            │
+                            ▼
+                          blk-mq
+                            │
+                            ▼
+                       NVMe queues
+                            │
+                            ▼
+                     SSD controller
+            ┌───────────────┼────────────────┐
+            ▼               ▼                ▼
+           FTL           volatile cache   internal GC
+            │               │                │
+            └───────────────┴────────────────┘
+                            ▼
+                           NAND
+</code></pre></div>
+<p>Durability:</p>
+<div class="highlight"><pre><span></span><code>write returned
+↓
+kernel accepted data
+
+writeback completed
+↓
+storage I/O completed
+
+fsync returned
+↓
+filesystem + device persistence contract completed
+</code></pre></div>
+<p>Под нагрузкой:</p>
+<div class="highlight"><pre><span></span><code>write rate ↑
+↓
+dirty backlog ↑
+↓
+writeback saturation
+↓
+writer throttling
+↓
+block/device queues ↑
+↓
+latency ↑
+↓
+p99 ↑
+</code></pre></div>
+<p>А для транзакционной системы:</p>
+<div class="highlight"><pre><span></span><code>transaction
+↓
+WAL
+↓
+batch
+↓
+fsync
+↓
+NVMe/SSD durability
+↓
+ACK
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Linux storage path — это цепочка кешей, очередей и durability boundaries. Page cache делает обычный <code>write()</code> дешёвым, пока storage успевает догонять. <code>fsync()</code> возвращает физическую цену persistence обратно в request path. Ни NVMe, ни SSD не являются «мгновенным диском»: ниже block layer остаются queueing, controller, FTL, NAND, internal GC и volatile caches. Поэтому backend-разработчик должен различать «ядро приняло данные», «I/O завершилось» и «данные переживут crash».</p>
+</blockquote>
+<hr/>
+<h1 id="_4">Основные источники<a class="headerlink" href="#_4" title="Permanent link">¶</a></h1>
+<ul>
+<li>Linux man-pages: <code>write(2)</code>, <code>fsync(2)</code>, <code>fdatasync(2)</code>, <code>open(2)</code>, <code>mmap(2)</code>, <code>msync(2)</code></li>
+<li>Linux Kernel Documentation — VM writeback settings: https://docs.kernel.org/admin-guide/sysctl/vm.html</li>
+<li>Linux Kernel Documentation — blk-mq: https://docs.kernel.org/block/blk-mq.html</li>
+<li>Linux Kernel Documentation — block layer: https://docs.kernel.org/block/</li>
+<li>Linux Kernel Documentation — filesystems: https://docs.kernel.org/filesystems/</li>
+<li>Linux Kernel Documentation — ext4: https://docs.kernel.org/filesystems/ext4/</li>
+<li>Linux Kernel Documentation — XFS: https://docs.kernel.org/filesystems/xfs/</li>
+<li>NVM Express Specifications: https://nvmexpress.org/specifications/</li>
+<li>fio documentation: https://fio.readthedocs.io/</li>
+<li>PostgreSQL Documentation — WAL: https://www.postgresql.org/docs/current/wal.html</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap" class="md-footer__link md-footer__link--prev" href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4. Go под капотом" class="md-footer__link md-footer__link--next" href="../4%20-%20Go%20under%20the%20hood/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4. Go под капотом
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

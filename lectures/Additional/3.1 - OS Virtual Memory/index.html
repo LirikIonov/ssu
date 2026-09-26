@@ -1,0 +1,2459 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/3.1%20-%20OS%20Virtual%20Memory/" rel="canonical"/>
+<link href="../3%20-%20GC%20deep/" rel="prev"/>
+<link href="../3.2%20-%20Linux%20memory%20reclaim/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>3.1. Виртуальная память ОС: от адреса Go до физической RAM - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#31-go-ram">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              3.1. Виртуальная память ОС: от адреса Go до физической RAM
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/I%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    I - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/II%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    II - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/III%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    III - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="31-go-ram">3.1. Виртуальная память ОС: от адреса Go до физической RAM<a class="headerlink" href="#31-go-ram" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Дополнительная углублённая лекция к теме «Память Go, GC и pprof».</p>
+<p>Главная задача этой лекции — открыть слой справа от цепочки:</p>
+<div class="highlight"><pre><span></span><code>GC
+↓
+sweep
+↓
+scavenger
+↓
+ОС
+</code></pre></div>
+<p>Нас интересует, что именно происходит после того, как рантайм Go решил:</p>
+<blockquote>
+<p>Эти страницы мне больше не нужны.</p>
+</blockquote>
+<p>И обратный путь:</p>
+<blockquote>
+<p>Откуда вообще берётся физическая память, когда Go начинает пользоваться новым виртуальным диапазоном?</p>
+</blockquote>
+</blockquote>
+<hr/>
+<h1 id="0-go">0. Где заканчивается Go и начинается ОС<a class="headerlink" href="#0-go" title="Permanent link">¶</a></h1>
+<p>В предыдущем блоке мы уже дошли до:</p>
+<div class="highlight"><pre><span></span><code>Go object
+↓
+slot
+↓
+mspan
+↓
+runtime page
+↓
+mheap
+↓
+page allocator
+↓
+scavenger
+↓
+ОС
+</code></pre></div>
+<p>До этого момента рантайм Go говорит на своём языке:</p>
+<div class="highlight"><pre><span></span><code>object
+slot
+span
+runtime page
+heap
+</code></pre></div>
+<p>Операционная система этих сущностей не знает.</p>
+<p>Для неё есть:</p>
+<div class="highlight"><pre><span></span><code>process
+virtual address
+mapping
+page
+physical memory
+permissions
+resident / non-resident
+</code></pre></div>
+<p>И вот здесь очень легко сделать неправильный вывод:</p>
+<blockquote>
+<p>GC освободил объект → RAM освободилась.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Более точная цепочка:</p>
+<div class="highlight"><pre><span></span><code>object unreachable
+↓
+GC не отметил его живым
+↓
+sweep сделал slot reusable
+↓
+span может стать пустым
+↓
+runtime pages могут стать свободными
+↓
+scavenger сообщает ОС, что backing можно вернуть
+↓
+ядро решает, что реально делать с physical pages
+</code></pre></div>
+<p>Между:</p>
+<div class="highlight"><pre><span></span><code>объект мёртв
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>физическая RAM снова доступна системе
+</code></pre></div>
+<p>несколько независимых стадий.</p>
+<hr/>
+<h1 id="1">1. Зачем вообще нужна виртуальная память<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<p>Начнём с слишком простой модели:</p>
+<div class="highlight"><pre><span></span><code>у процесса 8 GiB памяти
+↓
+адрес 0x1234
+↓
+конкретная ячейка в DIMM
+</code></pre></div>
+<p>Так современная ОС не работает.</p>
+<p>Процесс видит <strong>виртуальное адресное пространство</strong>.</p>
+<div class="highlight"><pre><span></span><code>CPU instruction
+↓
+virtual address
+↓
+translation
+↓
+physical address
+</code></pre></div>
+<p>Для программы существует удобная иллюзия:</p>
+<div class="highlight"><pre><span></span><code>адреса идут почти как обычное пространство чисел
+</code></pre></div>
+<p>Но физическая RAM под ними может:</p>
+<ul>
+<li>находиться в разных местах;</li>
+<li>вообще пока отсутствовать;</li>
+<li>быть выгружена;</li>
+<li>быть общей с другим mapping;</li>
+<li>быть file-backed;</li>
+<li>поменять physical frame без изменения указателя в программе.</li>
+</ul>
+<p>Зачем вся эта сложность?</p>
+<p>Потому что виртуальная память даёт:</p>
+<ul>
+<li>изоляцию процессов;</li>
+<li>защиту страниц;</li>
+<li>отдельные адресные пространства;</li>
+<li>lazy allocation;</li>
+<li>memory-mapped files;</li>
+<li>copy-on-write;</li>
+<li>возможность управлять resident memory независимо от виртуальных адресов;</li>
+<li>удобную основу для reclaim и swap.</li>
+</ul>
+<hr/>
+<h1 id="2-ram">2. Виртуальный адрес не означает занятую RAM<a class="headerlink" href="#2-ram" title="Permanent link">¶</a></h1>
+<p>Представим, что процессу зарезервировали:</p>
+<div class="highlight"><pre><span></span><code>10 GiB virtual address space
+</code></pre></div>
+<p>Это ещё не означает:</p>
+<div class="highlight"><pre><span></span><code>10 GiB physical RAM already occupied
+</code></pre></div>
+<p>Нужно разделить несколько уровней:</p>
+<div class="highlight"><pre><span></span><code>virtual address space
+↓
+mapping
+↓
+usable / committed memory
+↓
+resident physical memory
+</code></pre></div>
+<p>Это одна из ключевых моделей всей лекции.</p>
+<p>Большой VSS может означать:</p>
+<div class="highlight"><pre><span></span><code>у процесса большой виртуальный диапазон
+</code></pre></div>
+<p>и почти ничего не говорить о том, сколько физической памяти реально находится в RAM.</p>
+<hr/>
+<h1 id="3">3. Виртуальные страницы<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
+<p>Операционная система не переводит каждый байт отдельно.</p>
+<p>Адресное пространство делится на страницы.</p>
+<p>Типичная учебная модель:</p>
+<div class="highlight"><pre><span></span><code>4 KiB page
+</code></pre></div>
+<p>Виртуальный адрес можно представить как:</p>
+<div class="highlight"><pre><span></span><code>virtual page number
++
+offset inside page
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>virtual address
+↓
+[ virtual page ][ offset ]
+</code></pre></div>
+<p>Если размер страницы 4 KiB:</p>
+<div class="highlight"><pre><span></span><code>offset = 12 младших бит
+</code></pre></div>
+<p>потому что:</p>
+<div class="highlight"><pre><span></span><code>2^12 = 4096
+</code></pre></div>
+<p>Нас сейчас интересует идея, а не конкретный формат каждой ISA.</p>
+<hr/>
+<h1 id="4-page-table">4. Page table<a class="headerlink" href="#4-page-table" title="Permanent link">¶</a></h1>
+<p>Теперь вопрос:</p>
+<blockquote>
+<p>Кто переводит виртуальную страницу процесса в физическую страницу?</p>
+</blockquote>
+<p>Для этого существуют <strong>таблицы страниц (page tables)</strong>.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>virtual page
+↓
+page table
+↓
+physical frame
+</code></pre></div>
+<p>Запись таблицы страниц может содержать не только физический адрес.</p>
+<p>Ей также нужны признаки вроде:</p>
+<div class="highlight"><pre><span></span><code>present?
+readable?
+writable?
+executable?
+user-accessible?
+dirty?
+accessed?
+</code></pre></div>
+<p>Конкретный набор битов зависит от архитектуры и ОС.</p>
+<p>Главная идея:</p>
+<blockquote>
+<p>Виртуальная память — это ещё и система прав доступа.</p>
+</blockquote>
+<p>Именно поэтому один процесс не может просто взять произвольный указатель и читать память другого процесса.</p>
+<hr/>
+<h1 id="5">5. Многоуровневые таблицы страниц<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
+<p>Если бы под каждую возможную виртуальную страницу процесса существовала заранее огромная плоская таблица, мы потратили бы много памяти только на переводы адресов.</p>
+<p>Поэтому современные системы используют многоуровневые структуры.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>virtual address
+↓
+level 1
+↓
+level 2
+↓
+level 3
+↓
+page table entry
+↓
+physical frame
+</code></pre></div>
+<p>На x86-64 конкретных уровней может быть четыре или пять в зависимости от режима.</p>
+<p>Для этой лекции важнее другое:</p>
+<blockquote>
+<p>Перевод адреса сам по себе требует доступа к памяти.</p>
+</blockquote>
+<p>И если делать полный обход page tables для каждого load/store, система станет очень медленной.</p>
+<hr/>
+<h1 id="6-mmu">6. MMU<a class="headerlink" href="#6-mmu" title="Permanent link">¶</a></h1>
+<p>Перевод адресов выполняется аппаратно при помощи <strong>MMU — Memory Management Unit</strong>.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>CPU хочет load virtual address
+↓
+MMU
+↓
+translation
+↓
+physical memory
+</code></pre></div>
+<p>Программа не вызывает:</p>
+<div class="highlight"><pre><span></span><code>translateAddress()
+</code></pre></div>
+<p>на каждое обращение.</p>
+<p>Это часть аппаратного выполнения инструкций.</p>
+<p>Но теперь новая проблема:</p>
+<div class="highlight"><pre><span></span><code>каждый memory access
+↓
+page-table walk
+↓
+ещё несколько memory access
+</code></pre></div>
+<p>Получается дорого.</p>
+<p>Нужен кеш переводов.</p>
+<hr/>
+<h1 id="7-tlb">7. TLB<a class="headerlink" href="#7-tlb" title="Permanent link">¶</a></h1>
+<p><strong>TLB — Translation Lookaside Buffer</strong>.</p>
+<p>Это кеш недавних переводов:</p>
+<div class="highlight"><pre><span></span><code>virtual page
+→
+physical frame
+</code></pre></div>
+<p>Учебная цепочка:</p>
+<div class="highlight"><pre><span></span><code>virtual address
+↓
+TLB
+├── hit
+│   ↓
+│   physical address готов
+│
+└── miss
+    ↓
+    page-table walk
+    ↓
+    translation cached in TLB
+</code></pre></div>
+<p>Теперь важное разделение:</p>
+<div class="highlight"><pre><span></span><code>data cache miss
+≠
+TLB miss
+</code></pre></div>
+<p>В первом случае CPU знает physical address, но нужных данных нет в кеше.</p>
+<p>Во втором случае CPU ещё должен понять:</p>
+<blockquote>
+<p>К какой физической странице вообще относится виртуальный адрес?</p>
+</blockquote>
+<p>Это разные виды задержки.</p>
+<hr/>
+<h1 id="8-tlb">8. Почему размер страницы влияет на TLB<a class="headerlink" href="#8-tlb" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>page size = 4 KiB
+</code></pre></div>
+<p>Одна запись TLB покрывает 4 KiB виртуального пространства.</p>
+<p>Если процесс активно работает с огромным объёмом случайно разбросанных данных:</p>
+<div class="highlight"><pre><span></span><code>рабочий набор переводов &gt; TLB capacity
+</code></pre></div>
+<p>начинаются TLB misses.</p>
+<p>Можно использовать более крупные страницы.</p>
+<p>Например концептуально:</p>
+<div class="highlight"><pre><span></span><code>2 MiB
+</code></pre></div>
+<p>Теперь одна запись TLB покрывает гораздо больше памяти.</p>
+<p>Плюс:</p>
+<div class="highlight"><pre><span></span><code>меньше translations
+↓
+меньше TLB pressure
+</code></pre></div>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>более грубая гранулярность
+↓
+больше потенциального waste
+↓
+сложнее управление памятью
+</code></pre></div>
+<hr/>
+<h1 id="9-huge-pages-thp">9. Huge pages и THP<a class="headerlink" href="#9-huge-pages-thp" title="Permanent link">¶</a></h1>
+<p>На Linux существуют большие страницы и механизм Transparent Huge Pages.</p>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>много соседних обычных страниц
+↓
+более крупное отображение
+↓
+меньше TLB entries
+</code></pre></div>
+<p>Но огромные страницы — не универсальная оптимизация.</p>
+<p>Они могут:</p>
+<ul>
+<li>улучшить TLB behaviour;</li>
+<li>уменьшить page-table overhead;</li>
+<li>ухудшить гранулярность reclaim;</li>
+<li>увеличить внутренний waste;</li>
+<li>создавать дополнительные накладные расходы на collapse/split.</li>
+</ul>
+<p>В рамках этой лекции важно понять компромисс.</p>
+<p>Не нужно превращать THP в обязательный production-тюнинг.</p>
+<hr/>
+<h1 id="10-page-fault">10. Page fault: это не обязательно ошибка<a class="headerlink" href="#10-page-fault" title="Permanent link">¶</a></h1>
+<p>Процесс выполняет:</p>
+<div class="highlight"><pre><span></span><code>load [virtual address]
+</code></pre></div>
+<p>MMU смотрит translation и обнаруживает:</p>
+<div class="highlight"><pre><span></span><code>нужной resident page сейчас нет
+</code></pre></div>
+<p>Происходит <strong>page fault</strong>.</p>
+<p>Очень важно:</p>
+<blockquote>
+<p>Page fault — не обязательно баг программы.</p>
+</blockquote>
+<p>Это штатный механизм виртуальной памяти.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>instruction
+↓
+обращение к странице
+↓
+страница сейчас недоступна обычным путём
+↓
+CPU trap
+↓
+kernel page-fault handler
+↓
+ядро разбирает причину
+↓
+делает страницу доступной
+↓
+инструкция повторяется
+</code></pre></div>
+<hr/>
+<h1 id="11-page-fault">11. Когда page fault действительно означает ошибку<a class="headerlink" href="#11-page-fault" title="Permanent link">¶</a></h1>
+<p>Например процесс обращается:</p>
+<div class="highlight"><pre><span></span><code>к адресу, который ему вообще не отображён
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>пытается писать в read-only mapping
+</code></pre></div>
+<p>Тогда kernel не может просто подготовить нормальную страницу.</p>
+<p>В Unix-подобной системе результатом может стать:</p>
+<div class="highlight"><pre><span></span><code>SIGSEGV
+</code></pre></div>
+<p>Но огромное количество page faults в нормальной работе связано с законной ленивой подстановкой страниц.</p>
+<hr/>
+<h1 id="12-minor-page-fault">12. Minor page fault<a class="headerlink" href="#12-minor-page-fault" title="Permanent link">¶</a></h1>
+<p><strong>Minor fault</strong> — fault, для обработки которого не нужно читать данные с медленного внешнего накопителя.</p>
+<p>Например:</p>
+<ul>
+<li>first touch новой anonymous memory;</li>
+<li>copy-on-write;</li>
+<li>страница уже есть в page cache;</li>
+<li>zero-page механизм;</li>
+<li>mapping существует, но PTE нужно обновить.</li>
+</ul>
+<p>Цена есть:</p>
+<div class="highlight"><pre><span></span><code>trap в kernel
++
+обработка VM metadata
++
+обновление page table
++
+возврат в процесс
+</code></pre></div>
+<p>Но дискового I/O может не быть.</p>
+<hr/>
+<h1 id="13-major-page-fault">13. Major page fault<a class="headerlink" href="#13-major-page-fault" title="Permanent link">¶</a></h1>
+<p><strong>Major fault</strong> — для получения данных требуется реальное I/O.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>file-backed page отсутствует в RAM
+↓
+нужно читать storage
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>anonymous page выгружена в swap
+↓
+нужно прочитать её обратно
+</code></pre></div>
+<p>Здесь мы перескакиваем из мира:</p>
+<div class="highlight"><pre><span></span><code>десятки / сотни наносекунд
+</code></pre></div>
+<p>в мир:</p>
+<div class="highlight"><pre><span></span><code>микросекунд / миллисекунд
+</code></pre></div>
+<p>Поэтому major page faults способны разрушить p99.</p>
+<hr/>
+<h1 id="14-demand-paging">14. Demand paging<a class="headerlink" href="#14-demand-paging" title="Permanent link">¶</a></h1>
+<p>Допустим процесс получил большой виртуальный диапазон.</p>
+<p>Наивная модель:</p>
+<div class="highlight"><pre><span></span><code>запросили 10 GiB
+↓
+ОС немедленно выделила 10 GiB physical RAM
+↓
+обнулила всё
+</code></pre></div>
+<p>Это дорого и часто бессмысленно.</p>
+<p>Вместо этого работает <strong>demand paging</strong>.</p>
+<div class="highlight"><pre><span></span><code>виртуальный диапазон существует
+↓
+часть страниц физически ещё не backed
+↓
+процесс касается страницы
+↓
+page fault
+↓
+kernel выдаёт physical page
+</code></pre></div>
+<p>RAM появляется по требованию.</p>
+<hr/>
+<h1 id="15-make-rss">15. Почему большой <code>make</code> не всегда сразу равен такому же RSS<a class="headerlink" href="#15-make-rss" title="Permanent link">¶</a></h1>
+<p>Учебный эксперимент:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">buf</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="o">&lt;&lt;</span><span class="mi">30</span><span class="p">)</span>
+</code></pre></div>
+<p>Логически у процесса появился огромный массив.</p>
+<p>Но если реальные страницы ещё почти не трогались, физическое использование памяти может расти иначе, чем виртуальный диапазон.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">buf</span><span class="p">);</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">buf</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Мы касаемся страниц.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>page fault
+↓
+physical backing
+↓
+RSS растёт
+</code></pre></div>
+<p>Это очень хороший способ руками увидеть:</p>
+<div class="highlight"><pre><span></span><code>virtual memory
+≠
+resident memory
+</code></pre></div>
+<hr/>
+<h1 id="16-zero-page">16. Zero page<a class="headerlink" href="#16-zero-page" title="Permanent link">¶</a></h1>
+<p>Новая anonymous memory должна логически читать как нули.</p>
+<p>Но система не обязана заранее физически создавать миллиарды нулевых байт.</p>
+<p>Учебно можно представить:</p>
+<div class="highlight"><pre><span></span><code>много virtual pages
+↓
+пока только читаются
+↓
+могут логически ссылаться на общую read-only zero page
+</code></pre></div>
+<p>Когда процесс хочет записать:</p>
+<div class="highlight"><pre><span></span><code>write
+↓
+нужна собственная physical page
+↓
+fault
+↓
+выдать zeroed page
+</code></pre></div>
+<p>Главная идея:</p>
+<blockquote>
+<p>Семантика «там нули» не означает «ОС уже физически записала нули во весь диапазон».</p>
+</blockquote>
+<hr/>
+<h1 id="17-copy-on-write">17. Copy-on-write<a class="headerlink" href="#17-copy-on-write" title="Permanent link">¶</a></h1>
+<p>Теперь два mapping могут временно использовать одну physical page.</p>
+<div class="highlight"><pre><span></span><code>mapping A ─┐
+           ├── physical page
+mapping B ─┘
+</code></pre></div>
+<p>Пока оба читают:</p>
+<div class="highlight"><pre><span></span><code>ничего копировать не нужно
+</code></pre></div>
+<p>Один начинает писать:</p>
+<div class="highlight"><pre><span></span><code>write
+↓
+protection fault
+↓
+kernel
+↓
+создать private copy
+↓
+перенаправить mapping
+↓
+продолжить
+</code></pre></div>
+<p>Это <strong>copy-on-write (COW)</strong>.</p>
+<p>Классический пример — <code>fork</code>, но нам важнее сама модель:</p>
+<blockquote>
+<p>Физическое копирование можно отложить до реальной записи.</p>
+</blockquote>
+<hr/>
+<h1 id="18-anonymous-memory">18. Anonymous memory<a class="headerlink" href="#18-anonymous-memory" title="Permanent link">¶</a></h1>
+<p><strong>Anonymous memory</strong> — память, не привязанная напрямую к содержимому обычного файла.</p>
+<p>Типичные примеры:</p>
+<div class="highlight"><pre><span></span><code>heap
+stack
+anonymous mmap
+</code></pre></div>
+<p>Если её содержимое нужно сохранить при вытеснении из RAM, ОС не может просто сказать:</p>
+<div class="highlight"><pre><span></span><code>потом перечитаю исходный файл
+</code></pre></div>
+<p>Исходного файла нет.</p>
+<p>Нужен другой backing, например swap.</p>
+<hr/>
+<h1 id="19-file-backed-memory">19. File-backed memory<a class="headerlink" href="#19-file-backed-memory" title="Permanent link">¶</a></h1>
+<p>Другой класс:</p>
+<div class="highlight"><pre><span></span><code>file-backed mapping
+</code></pre></div>
+<p>Страница соответствует содержимому файла.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>исполняемый файл
+shared library
+memory-mapped file
+page cache
+</code></pre></div>
+<p>Если чистую file-backed страницу нужно освободить из RAM:</p>
+<div class="highlight"><pre><span></span><code>её можно просто выбросить
+</code></pre></div>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>если снова нужна
+↓
+перечитать файл
+</code></pre></div>
+<p>Это фундаментально отличается от dirty anonymous memory.</p>
+<hr/>
+<h1 id="20-page-cache">20. Page cache<a class="headerlink" href="#20-page-cache" title="Permanent link">¶</a></h1>
+<p>Обычное чтение файла часто выглядит:</p>
+<div class="highlight"><pre><span></span><code>read()
+↓
+kernel
+↓
+page cache
+├── hit
+│   ↓
+│   данные уже в RAM
+│
+└── miss
+    ↓
+    storage I/O
+    ↓
+    page cache
+    ↓
+    процесс
+</code></pre></div>
+<p>То есть RAM используется не только Go heap.</p>
+<p>ОС активно использует свободную память под кеш файловых данных.</p>
+<p>Отсюда важный вывод:</p>
+<blockquote>
+<p>«RAM занята» само по себе ничего не говорит о проблеме.</p>
+</blockquote>
+<p>Часть памяти может быть легко reclaimable page cache.</p>
+<hr/>
+<h1 id="21-resident">21. Что значит resident<a class="headerlink" href="#21-resident" title="Permanent link">¶</a></h1>
+<p>Виртуальная страница может существовать в адресном пространстве процесса, но её physical backing может не находиться сейчас в RAM.</p>
+<p>Когда physical page реально присутствует в оперативной памяти и учитывается как принадлежащая working set / resident set, говорят о <strong>resident memory</strong>.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>virtual page
+↓
+resident?
+├── yes → physical page в RAM
+└── no  → возможно fault при следующем access
+</code></pre></div>
+<hr/>
+<h1 id="22-rss">22. RSS<a class="headerlink" href="#22-rss" title="Permanent link">¶</a></h1>
+<p>На Unix-подобных системах часто смотрят <strong>RSS — Resident Set Size</strong>.</p>
+<p>Учебно:</p>
+<blockquote>
+<p>Сколько страниц процесса сейчас резидентно в физической памяти.</p>
+</blockquote>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>RSS
+≠
+Go live heap
+</code></pre></div>
+<p>RSS может включать:</p>
+<ul>
+<li>Go heap;</li>
+<li>стеки;</li>
+<li>runtime metadata;</li>
+<li>код;</li>
+<li>shared libraries;</li>
+<li>file-backed mappings;</li>
+<li>anonymous mappings;</li>
+<li>native memory;</li>
+<li>shared pages с особенностями учёта.</li>
+</ul>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>HeapAlloc = 500 MiB
+RSS = 1.2 GiB
+</code></pre></div>
+<p>само по себе не доказывает утечку.</p>
+<hr/>
+<h1 id="23-go">23. Как Go доходит до ОС<a class="headerlink" href="#23-go" title="Permanent link">¶</a></h1>
+<p>Возвращаемся к рантайму.</p>
+<div class="highlight"><pre><span></span><code>mheap
+↓
+page allocator
+↓
+platform-specific memory layer
+↓
+OS VM subsystem
+</code></pre></div>
+<p>На этом уровне Go скрывает различия платформ.</p>
+<p>Для аллокатора сверху идея одна:</p>
+<div class="highlight"><pre><span></span><code>зарезервировать адресное пространство
+сделать память пригодной для использования
+сообщить, что страницы можно reclaim'нуть
+полностью освободить mapping
+</code></pre></div>
+<p>Ниже конкретный API зависит от ОС.</p>
+<hr/>
+<h1 id="24-linux-mmap">24. Linux: <code>mmap</code><a class="headerlink" href="#24-linux-mmap" title="Permanent link">¶</a></h1>
+<p>Один из основных механизмов Linux VM:</p>
+<div class="highlight"><pre><span></span><code>mmap
+</code></pre></div>
+<p>Он создаёт mapping в виртуальном адресном пространстве процесса.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>process
+↓
+mmap
+↓
+virtual range
+</code></pre></div>
+<p>Это может быть:</p>
+<ul>
+<li>anonymous memory;</li>
+<li>file-backed mapping;</li>
+<li>shared/private mapping.</li>
+</ul>
+<p>Сам факт mapping ещё не означает, что весь диапазон уже resident.</p>
+<hr/>
+<h1 id="25-linux-munmap">25. Linux: <code>munmap</code><a class="headerlink" href="#25-linux-munmap" title="Permanent link">¶</a></h1>
+<p><code>munmap</code> удаляет mapping.</p>
+<div class="highlight"><pre><span></span><code>virtual range existed
+↓
+munmap
+↓
+range no longer mapped
+</code></pre></div>
+<p>После этого обращение к старому адресу уже не является нормальным доступом к прежней памяти.</p>
+<p>Но Go scavenger не обязан каждый раз полностью сносить виртуальный диапазон только потому, что физические страницы временно не нужны.</p>
+<p>И здесь появляется <code>madvise</code>.</p>
+<hr/>
+<h1 id="26-linux-madvise">26. Linux: <code>madvise</code><a class="headerlink" href="#26-linux-madvise" title="Permanent link">¶</a></h1>
+<p><code>madvise</code> позволяет сообщить ядру дополнительную информацию о диапазоне памяти.</p>
+<p>В контексте scavenger нас интересует идея:</p>
+<div class="highlight"><pre><span></span><code>этот диапазон остаётся частью virtual layout
+↓
+но физическое содержимое сейчас можно считать ненужным
+</code></pre></div>
+<p>В зависимости от режима и версии рантайм может использовать варианты вроде:</p>
+<div class="highlight"><pre><span></span><code>MADV_FREE
+MADV_DONTNEED
+</code></pre></div>
+<p>У них различается точная семантика.</p>
+<p>Для лекции главное:</p>
+<blockquote>
+<p>Go может сохранить виртуальный диапазон и отдельно ослабить требования к его physical backing.</p>
+</blockquote>
+<hr/>
+<h1 id="27-madv_dontneed">27. <code>MADV_DONTNEED</code>: учебная модель<a class="headerlink" href="#27-madv_dontneed" title="Permanent link">¶</a></h1>
+<p>Очень грубо:</p>
+<div class="highlight"><pre><span></span><code>эти страницы сейчас не нужны
+↓
+ядро может немедленно отбросить содержимое
+↓
+следующий access получит заново подготовленную страницу
+</code></pre></div>
+<p>Это полезно для понимания сильного reclaim-сигнала.</p>
+<p>Но конкретное поведение и бухгалтерия RSS зависят от ядра и режима.</p>
+<hr/>
+<h1 id="28-madv_free">28. <code>MADV_FREE</code>: учебная модель<a class="headerlink" href="#28-madv_free" title="Permanent link">¶</a></h1>
+<p>Идея более ленивая:</p>
+<div class="highlight"><pre><span></span><code>данные можно считать discardable
+↓
+пока памяти хватает, страницы могут ещё физически оставаться
+↓
+при pressure kernel может reclaim'нуть их
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>Go уже не считает данные нужными
+</code></pre></div>
+<p>не обязано мгновенно превратиться в:</p>
+<div class="highlight"><pre><span></span><code>RSS упал прямо сейчас
+</code></pre></div>
+<hr/>
+<h1 id="29-linux-rss-scavenger">29. Linux: почему RSS после scavenger может вести себя неинтуитивно<a class="headerlink" href="#29-linux-rss-scavenger" title="Permanent link">¶</a></h1>
+<p>Даже если рантайм уже сообщил:</p>
+<div class="highlight"><pre><span></span><code>страницы можно reclaim'нуть
+</code></pre></div>
+<p>ядро управляет physical memory глобально.</p>
+<p>Оно учитывает:</p>
+<ul>
+<li>pressure;</li>
+<li>тип страниц;</li>
+<li>текущую reclaim policy;</li>
+<li>активность;</li>
+<li>cgroup;</li>
+<li>другие процессы.</li>
+</ul>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>heap released
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>RSS мгновенно уменьшился
+</code></pre></div>
+<p>не являются одним событием.</p>
+<hr/>
+<h1 id="30-windows">30. Windows: другая терминология, та же базовая задача<a class="headerlink" href="#30-windows" title="Permanent link">¶</a></h1>
+<p>На Windows очень наглядно разделяются стадии:</p>
+<div class="highlight"><pre><span></span><code>reserve
+commit
+resident
+</code></pre></div>
+<p>Это полезная модель даже для разработчика, который не пишет WinAPI.</p>
+<hr/>
+<h1 id="31-mem_reserve">31. <code>MEM_RESERVE</code><a class="headerlink" href="#31-mem_reserve" title="Permanent link">¶</a></h1>
+<p>Резервирование:</p>
+<div class="highlight"><pre><span></span><code>VirtualAlloc(..., MEM_RESERVE, ...)
+</code></pre></div>
+<p>Учебно означает:</p>
+<blockquote>
+<p>Этот диапазон виртуальных адресов закреплён за процессом.</p>
+</blockquote>
+<p>Но это ещё не означает, что под весь диапазон уже выделена resident RAM.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>virtual address space reserved
+</code></pre></div>
+<hr/>
+<h1 id="32-mem_commit">32. <code>MEM_COMMIT</code><a class="headerlink" href="#32-mem_commit" title="Permanent link">¶</a></h1>
+<p>Commit:</p>
+<div class="highlight"><pre><span></span><code>VirtualAlloc(..., MEM_COMMIT, ...)
+</code></pre></div>
+<p>Означает уже более сильное обязательство системы:</p>
+<blockquote>
+<p>Эти страницы доступны для использования процессом.</p>
+</blockquote>
+<p>При этом физическая RAM всё равно может материализоваться лениво при реальном доступе.</p>
+<p>Поэтому полезная модель:</p>
+<div class="highlight"><pre><span></span><code>reserve
+≠
+commit
+≠
+resident
+</code></pre></div>
+<hr/>
+<h1 id="33-mem_decommit">33. <code>MEM_DECOMMIT</code><a class="headerlink" href="#33-mem_decommit" title="Permanent link">¶</a></h1>
+<p>Если backing больше не нужен:</p>
+<div class="highlight"><pre><span></span><code>VirtualFree(..., MEM_DECOMMIT)
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>данные страниц больше не нужны
+↓
+commit можно снять
+↓
+виртуальный диапазон остаётся зарезервирован
+</code></pre></div>
+<p>Это очень хорошо соответствует нашей общей модели:</p>
+<div class="highlight"><pre><span></span><code>virtual address сохраняется
+↓
+physical backing можно освободить
+</code></pre></div>
+<hr/>
+<h1 id="34-mem_release">34. <code>MEM_RELEASE</code><a class="headerlink" href="#34-mem_release" title="Permanent link">¶</a></h1>
+<p>Полное освобождение:</p>
+<div class="highlight"><pre><span></span><code>VirtualFree(..., MEM_RELEASE)
+</code></pre></div>
+<p>означает уже:</p>
+<div class="highlight"><pre><span></span><code>вернуть системе сам диапазон виртуальных адресов
+</code></pre></div>
+<p>Итого:</p>
+<div class="highlight"><pre><span></span><code>RESERVE
+→ адреса принадлежат процессу
+
+COMMIT
+→ память можно использовать
+
+DECOMMIT
+→ backing освобождается,
+  адреса остаются зарезервированы
+
+RELEASE
+→ освобождается и виртуальный диапазон
+</code></pre></div>
+<hr/>
+<h1 id="35-windows-working-set">35. Windows Working Set<a class="headerlink" href="#35-windows-working-set" title="Permanent link">¶</a></h1>
+<p>На Windows ближайший аналог привычной идеи resident memory — <strong>Working Set</strong>.</p>
+<p>Учебно:</p>
+<blockquote>
+<p>Набор страниц процесса, которые сейчас находятся в физической RAM.</p>
+</blockquote>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>Committed memory
+≠
+Working Set
+</code></pre></div>
+<p>Страница может оставаться committed для процесса, но временно выйти из Working Set.</p>
+<p>При следующем использовании она может снова стать resident.</p>
+<hr/>
+<h1 id="36-windows-commit">36. Windows Commit<a class="headerlink" href="#36-windows-commit" title="Permanent link">¶</a></h1>
+<p>Commit отвечает на другой вопрос:</p>
+<blockquote>
+<p>Какой объём памяти система обязалась backing'овать для процессов?</p>
+</blockquote>
+<p>Это не то же самое, что:</p>
+<div class="highlight"><pre><span></span><code>сколько страниц сейчас физически сидит в RAM
+</code></pre></div>
+<p>И не то же самое, что:</p>
+<div class="highlight"><pre><span></span><code>сколько виртуальных адресов зарезервировано
+</code></pre></div>
+<p>Полезное разделение:</p>
+<div class="highlight"><pre><span></span><code>Virtual Size
+Commit
+Working Set
+</code></pre></div>
+<hr/>
+<h1 id="37-windows-private-bytes">37. Windows Private Bytes<a class="headerlink" href="#37-windows-private-bytes" title="Permanent link">¶</a></h1>
+<p><code>Private Bytes</code> используют как ещё одну диагностическую величину процесса.</p>
+<p>Она ближе к приватной committed memory процесса.</p>
+<p>Но опять:</p>
+<div class="highlight"><pre><span></span><code>Private Bytes
+≠
+Working Set
+</code></pre></div>
+<p>Одна величина про commit.</p>
+<p>Другая про residency.</p>
+<p>Их нельзя механически сравнивать как «правильную» и «неправильную память».</p>
+<hr/>
+<h1 id="38-working-set-trimming">38. Working Set trimming<a class="headerlink" href="#38-working-set-trimming" title="Permanent link">¶</a></h1>
+<p>При memory pressure Windows может уменьшать working set процесса.</p>
+<div class="highlight"><pre><span></span><code>страница была resident
+↓
+ядро решило вытеснить её из working set
+↓
+виртуальный mapping остаётся
+↓
+commit может оставаться
+</code></pre></div>
+<p>Если страница снова потребуется:</p>
+<div class="highlight"><pre><span></span><code>fault
+↓
+возврат страницы в working set
+</code></pre></div>
+<p>Отсюда:</p>
+<blockquote>
+<p>Страница вышла из RAM — это ещё не означает, что процесс освободил адрес или снял commit.</p>
+</blockquote>
+<hr/>
+<h1 id="39-windows-pagefile">39. Windows pagefile<a class="headerlink" href="#39-windows-pagefile" title="Permanent link">¶</a></h1>
+<p>Для приватной памяти системе нужен backing, когда физическая RAM недоступна.</p>
+<p>Одним из механизмов служит pagefile.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>private committed page
+↓
+может перестать быть resident
+↓
+её содержимое должно где-то сохраниться
+↓
+pagefile
+</code></pre></div>
+<p>Когда страница снова нужна:</p>
+<div class="highlight"><pre><span></span><code>page fault
+↓
+pagefile I/O
+↓
+страница возвращается в RAM
+</code></pre></div>
+<p>Это уже дорогой путь.</p>
+<hr/>
+<h1 id="40-windows-memory-compression">40. Windows memory compression<a class="headerlink" href="#40-windows-memory-compression" title="Permanent link">¶</a></h1>
+<p>Современная Windows также умеет сжимать часть памяти.</p>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>редко используемая страница
+↓
+compress
+↓
+занимает меньше RAM
+</code></pre></div>
+<p>Это промежуточный механизм между:</p>
+<div class="highlight"><pre><span></span><code>держать страницу полностью resident
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>отправить её в pagefile
+</code></pre></div>
+<p>Для backend-разработчика главное:</p>
+<blockquote>
+<p>Working Set может уменьшаться не только потому, что приложение само освободило объекты.</p>
+</blockquote>
+<hr/>
+<h1 id="41-macos-unix-vm-">41. macOS: снова Unix-подобная VM-модель<a class="headerlink" href="#41-macos-unix-vm-" title="Permanent link">¶</a></h1>
+<p>Darwin использует familiar VM API:</p>
+<div class="highlight"><pre><span></span><code>mmap
+munmap
+madvise
+</code></pre></div>
+<p>Go на macOS работает через platform-specific слой рантайма.</p>
+<p>Учебная цепочка:</p>
+<div class="highlight"><pre><span></span><code>mheap
+↓
+runtime VM layer
+↓
+mmap / madvise / munmap
+↓
+Darwin VM
+</code></pre></div>
+<hr/>
+<h1 id="42-macos-reusable-memory">42. macOS: reusable memory<a class="headerlink" href="#42-macos-reusable-memory" title="Permanent link">¶</a></h1>
+<p>Для scavenger Go на macOS важна идея reusable memory.</p>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>Go больше не нуждается в physical contents
+↓
+MADV_FREE_REUSABLE
+↓
+Darwin может считать страницы reclaimable
+</code></pre></div>
+<p>Если диапазон снова начинает использоваться:</p>
+<div class="highlight"><pre><span></span><code>MADV_FREE_REUSE
+</code></pre></div>
+<p>Это ещё одна реализация общей модели:</p>
+<div class="highlight"><pre><span></span><code>virtual range жив
+↓
+physical backing может быть отдан
+</code></pre></div>
+<hr/>
+<h1 id="43-macos-memory-pressure">43. macOS Memory Pressure<a class="headerlink" href="#43-macos-memory-pressure" title="Permanent link">¶</a></h1>
+<p>На macOS смотреть только на:</p>
+<div class="highlight"><pre><span></span><code>Free Memory
+</code></pre></div>
+<p>особенно вредно.</p>
+<p>Система активно использует RAM.</p>
+<p>Поэтому Activity Monitor показывает интегральный показатель:</p>
+<div class="highlight"><pre><span></span><code>Memory Pressure
+</code></pre></div>
+<p>Он лучше отражает:</p>
+<ul>
+<li>доступность памяти;</li>
+<li>compression;</li>
+<li>swap;</li>
+<li>эффективность reclaim;</li>
+<li>способность системы удовлетворять новые запросы.</li>
+</ul>
+<hr/>
+<h1 id="44-compressed-memory-macos">44. Compressed memory в macOS<a class="headerlink" href="#44-compressed-memory-macos" title="Permanent link">¶</a></h1>
+<p>Когда RAM становится тесной, macOS может сжимать менее активно используемые страницы.</p>
+<div class="highlight"><pre><span></span><code>обычная resident page
+↓
+compress
+↓
+данные остаются в RAM
+↓
+занимают меньше места
+</code></pre></div>
+<p>Плюс:</p>
+<div class="highlight"><pre><span></span><code>меньше немедленного I/O
+</code></pre></div>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>CPU на compression/decompression
+</code></pre></div>
+<p>То есть память снова меняется на CPU.</p>
+<hr/>
+<h1 id="45-compression">45. Когда compression уже недостаточно<a class="headerlink" href="#45-compression" title="Permanent link">¶</a></h1>
+<p>Если pressure продолжает расти:</p>
+<div class="highlight"><pre><span></span><code>RAM pressure ↑
+↓
+compression ↑
+↓
+этого недостаточно
+↓
+swap
+</code></pre></div>
+<p>Потом страница снова нужна:</p>
+<div class="highlight"><pre><span></span><code>swap I/O
+↓
+decompression при необходимости
+↓
+страница resident
+</code></pre></div>
+<p>Задержка заметно выше обычного доступа к RAM.</p>
+<hr/>
+<h1 id="46">46. Одна задача — три ОС<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<p>Сведём базовую модель:</p>
+<table>
+<thead>
+<tr>
+<th>Задача</th>
+<th>Linux</th>
+<th>Windows</th>
+<th>macOS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Создать виртуальный диапазон</td>
+<td><code>mmap</code></td>
+<td><code>MEM_RESERVE</code></td>
+<td><code>mmap</code></td>
+</tr>
+<tr>
+<td>Сделать память доступной</td>
+<td>mapping / faults</td>
+<td><code>MEM_COMMIT</code></td>
+<td>mapping / faults</td>
+</tr>
+<tr>
+<td>Backing больше не нужен</td>
+<td><code>madvise</code></td>
+<td><code>MEM_DECOMMIT</code></td>
+<td><code>MADV_FREE_REUSABLE</code></td>
+</tr>
+<tr>
+<td>Полностью убрать mapping</td>
+<td><code>munmap</code></td>
+<td><code>MEM_RELEASE</code></td>
+<td><code>munmap</code></td>
+</tr>
+<tr>
+<td>Resident-метрика</td>
+<td>RSS</td>
+<td>Working Set</td>
+<td>resident memory</td>
+</tr>
+<tr>
+<td>Pressure-механизмы</td>
+<td>reclaim / swap</td>
+<td>trimming / compression / pagefile</td>
+<td>compression / swap</td>
+</tr>
+</tbody>
+</table>
+<p>Термины разные.</p>
+<p>Фундаментальная задача одна:</p>
+<div class="highlight"><pre><span></span><code>отделить виртуальный адрес
+от физической страницы
+</code></pre></div>
+<p>и уметь управлять residency.</p>
+<hr/>
+<h1 id="47-reclaim-ram">47. Reclaim: RAM становится мало<a class="headerlink" href="#47-reclaim-ram" title="Permanent link">¶</a></h1>
+<p>Теперь общий вопрос для любой ОС:</p>
+<blockquote>
+<p>Что делать, если свободной физической памяти мало?</p>
+</blockquote>
+<p>Упрощённо:</p>
+<div class="highlight"><pre><span></span><code>memory pressure
+↓
+найти страницы, которые можно reclaim'нуть
+</code></pre></div>
+<p>Дальше всё зависит от типа страницы.</p>
+<hr/>
+<h1 id="48-file-backed-pages-reclaim">48. File-backed pages reclaim'ить проще<a class="headerlink" href="#48-file-backed-pages-reclaim" title="Permanent link">¶</a></h1>
+<p>Есть чистая страница файла.</p>
+<div class="highlight"><pre><span></span><code>file-backed
+clean
+</code></pre></div>
+<p>Её содержимое уже существует на диске.</p>
+<p>Значит kernel может:</p>
+<div class="highlight"><pre><span></span><code>выбросить physical page из RAM
+</code></pre></div>
+<p>А если страница снова понадобится:</p>
+<div class="highlight"><pre><span></span><code>прочитать файл заново
+</code></pre></div>
+<p>Это не бесплатно.</p>
+<p>Но не нужно заранее писать страницу в swap.</p>
+<hr/>
+<h1 id="49-dirty-file-backed-pages">49. Dirty file-backed pages<a class="headerlink" href="#49-dirty-file-backed-pages" title="Permanent link">¶</a></h1>
+<p>Если страница файла изменена:</p>
+<div class="highlight"><pre><span></span><code>dirty
+</code></pre></div>
+<p>просто выбросить её нельзя.</p>
+<p>Сначала нужно сохранить изменения:</p>
+<div class="highlight"><pre><span></span><code>writeback
+↓
+storage
+↓
+только потом reclaim
+</code></pre></div>
+<p>Это уже мост к будущей лекции про page cache, dirty pages, writeback и <code>fsync</code>.</p>
+<p>Здесь глубже пока не идём.</p>
+<hr/>
+<h1 id="50-anonymous-pages-reclaim">50. Anonymous pages reclaim'ить сложнее<a class="headerlink" href="#50-anonymous-pages-reclaim" title="Permanent link">¶</a></h1>
+<p>Anonymous page не имеет исходного файла, из которого её можно просто перечитать.</p>
+<p>Если её содержимое нужно сохранить:</p>
+<div class="highlight"><pre><span></span><code>anonymous page
+↓
+swap
+</code></pre></div>
+<p>или другой platform-specific backing.</p>
+<p>Именно поэтому anonymous memory под давлением отличается от чистого page cache.</p>
+<hr/>
+<h1 id="51-swap">51. Swap<a class="headerlink" href="#51-swap" title="Permanent link">¶</a></h1>
+<p>Плохое упрощение:</p>
+<blockquote>
+<p>Swap включается только после полного исчерпания RAM.</p>
+</blockquote>
+<p>Реальные политики сложнее.</p>
+<p>ОС может заранее балансировать:</p>
+<ul>
+<li>page cache;</li>
+<li>anonymous pages;</li>
+<li>активность;</li>
+<li>reclaimability;</li>
+<li>будущие потребности.</li>
+</ul>
+<p>Для backend нас интересует эффект:</p>
+<div class="highlight"><pre><span></span><code>горячая страница ушла из RAM
+↓
+понадобилась снова
+↓
+fault
+↓
+storage I/O
+↓
+latency на порядки выше DRAM
+</code></pre></div>
+<hr/>
+<h1 id="52-thrashing">52. Thrashing<a class="headerlink" href="#52-thrashing" title="Permanent link">¶</a></h1>
+<p>Вот где память начинает ломать всю систему.</p>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>рабочий набор приложения
+&gt;
+реально доступная RAM
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>страницы вытесняются
+↓
+через секунду снова нужны
+↓
+page fault
+↓
+возвращаем
+↓
+вытесняем другие
+↓
+они снова нужны
+</code></pre></div>
+<p>Получаем <strong>thrashing</strong>.</p>
+<p>Система занята движением страниц вместо полезной работы.</p>
+<hr/>
+<h1 id="53-thrashing">53. Как выглядит thrashing снаружи<a class="headerlink" href="#53-thrashing" title="Permanent link">¶</a></h1>
+<p>Можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>latency огромная
+throughput падает
+disk I/O высокий
+major faults растут
+swap активен
+CPU ведёт себя странно
+</code></pre></div>
+<p>CPU может не быть честными 100%.</p>
+<p>Он может просто постоянно ждать память и I/O.</p>
+<hr/>
+<h1 id="54-cold-start-first-touch">54. Cold start и first-touch<a class="headerlink" href="#54-cold-start-first-touch" title="Permanent link">¶</a></h1>
+<p>Новая реплика процесса поднялась.</p>
+<p>Код уже запущен.</p>
+<p>Но:</p>
+<ul>
+<li>page cache холодный;</li>
+<li>TLB холодный;</li>
+<li>data cache холодный;</li>
+<li>части anonymous memory ещё не fault'ились;</li>
+<li>JIT тут нет, но данные и mappings всё равно должны прогреться.</li>
+</ul>
+<p>Первые запросы могут получить:</p>
+<div class="highlight"><pre><span></span><code>page faults
++
+cache misses
++
+disk reads
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>latency после рестарта
+</code></pre></div>
+<p>может отличаться от steady state.</p>
+<hr/>
+<h1 id="55-numa">55. Где здесь NUMA<a class="headerlink" href="#55-numa" title="Permanent link">¶</a></h1>
+<p>Связываем с предыдущим допом.</p>
+<div class="highlight"><pre><span></span><code>virtual page
+↓
+page table
+↓
+physical page
+↓
+physical page находится на NUMA node
+</code></pre></div>
+<p>Page table отвечает:</p>
+<blockquote>
+<p>Какая physical page соответствует адресу?</p>
+</blockquote>
+<p>NUMA добавляет:</p>
+<blockquote>
+<p>Насколько эта physical page близка текущему CPU?</p>
+</blockquote>
+<p>То есть одна технология не заменяет другую.</p>
+<p>Они работают на разных уровнях.</p>
+<hr/>
+<h1 id="56-linux-">56. Linux-контейнер не является маленькой отдельной машиной памяти<a class="headerlink" href="#56-linux-" title="Permanent link">¶</a></h1>
+<p>Очень полезное разрушение модели:</p>
+<blockquote>
+<p>В pod лимит 1 GiB, значит процесс просто видит компьютер с 1 GiB RAM.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Процесс использует обычную VM-подсистему Linux.</p>
+<p>Но сверху cgroup ведёт учёт и накладывает отдельную границу.</p>
+<div class="highlight"><pre><span></span><code>Go process
+↓
+Linux VM
+↓
+cgroup accounting
+↓
+memory limit
+</code></pre></div>
+<p>Физически host может иметь:</p>
+<div class="highlight"><pre><span></span><code>256 GiB RAM
+</code></pre></div>
+<p>Но конкретному cgroup разрешён другой бюджет.</p>
+<hr/>
+<h1 id="57-cgroup">57. Что делает cgroup<a class="headerlink" href="#57-cgroup" title="Permanent link">¶</a></h1>
+<p>Cgroup контролирует ресурсы группы процессов.</p>
+<p>Для памяти интересны:</p>
+<ul>
+<li>учёт;</li>
+<li>pressure;</li>
+<li>reclaim;</li>
+<li>ограничения;</li>
+<li>события OOM.</li>
+</ul>
+<p>На уровне backend достаточно модели:</p>
+<div class="highlight"><pre><span></span><code>процесс использует память
+↓
+kernel делает memory charge cgroup
+↓
+cgroup приближается к limit
+↓
+reclaim / pressure
+↓
+при жёстком нарушении возможен OOM
+</code></pre></div>
+<hr/>
+<h1 id="58-heapalloc-container-limit">58. Почему <code>HeapAlloc &lt; container limit</code> ничего не гарантирует<a class="headerlink" href="#58-heapalloc-container-limit" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>HeapAlloc = 600 MiB
+memory.max = 1 GiB
+</code></pre></div>
+<p>Кажется, запас 400 MiB.</p>
+<p>Но процесс и cgroup могут учитывать ещё:</p>
+<div class="highlight"><pre><span></span><code>goroutine stacks
+runtime metadata
+native memory
+cgo
+mmap
+file-backed memory
+page cache accounting
+fragmentation
+temporary bursts
+</code></pre></div>
+<p>И:</p>
+<div class="highlight"><pre><span></span><code>600 MiB heap
+</code></pre></div>
+<p>не превращается автоматически в:</p>
+<div class="highlight"><pre><span></span><code>процесс использует только 600 MiB
+</code></pre></div>
+<hr/>
+<h1 id="59-gomemlimit-cgroup-limit">59. <code>GOMEMLIMIT</code> и cgroup limit<a class="headerlink" href="#59-gomemlimit-cgroup-limit" title="Permanent link">¶</a></h1>
+<p>Связь:</p>
+<div class="highlight"><pre><span></span><code>GOMEMLIMIT
+→ мягкий бюджет рантайма
+
+memory.max
+→ жёсткая граница cgroup
+</code></pre></div>
+<p>Рантайм Go старается управлять своей памятью вокруг soft budget.</p>
+<p>Но hard boundary принадлежит kernel.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>GOMEMLIMIT = memory.max
+</code></pre></div>
+<p>без запаса, любой:</p>
+<ul>
+<li>native allocation;</li>
+<li>всплеск;</li>
+<li>дополнительный stack;</li>
+<li>mapping;</li>
+<li>фрагментация;</li>
+</ul>
+<p>может привести к жёсткому давлению.</p>
+<hr/>
+<h1 id="60-headroom">60. Почему нужен headroom<a class="headerlink" href="#60-headroom" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>container hard limit
+↓
+минус запас
+↓
+GOMEMLIMIT
+</code></pre></div>
+<p>Размер запаса нельзя дать одной универсальной константой.</p>
+<p>Он зависит от:</p>
+<ul>
+<li>workload;</li>
+<li><code>cgo</code>;</li>
+<li>количества goroutine;</li>
+<li>размера стеков;</li>
+<li>native libraries;</li>
+<li>mmap;</li>
+<li>интенсивности I/O;</li>
+<li>характера burst.</li>
+</ul>
+<p>Нужны нагрузочные измерения.</p>
+<hr/>
+<h1 id="61-oom">61. OOM бывает разный<a class="headerlink" href="#61-oom" title="Permanent link">¶</a></h1>
+<p>Полезно разделить два класса.</p>
+<h2 id="_1">Ошибка внутри процесса<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Рантайм не может получить необходимую память.</p>
+<div class="highlight"><pre><span></span><code>allocation
+↓
+OS memory operation failed
+↓
+runtime cannot continue
+↓
+fatal failure
+</code></pre></div>
+<h2 id="oom-cgroupkernel">OOM со стороны cgroup/kernel<a class="headerlink" href="#oom-cgroupkernel" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>memory charge
+↓
+hard boundary
+↓
+reclaim не спас
+↓
+OOM handling
+↓
+process may be killed
+</code></pre></div>
+<p>Это разные механизмы.</p>
+<hr/>
+<h1 id="62-kubernetes-oomkilled">62. Почему Kubernetes пишет <code>OOMKilled</code><a class="headerlink" href="#62-kubernetes-oomkilled" title="Permanent link">¶</a></h1>
+<p>Для контейнерного backend важна цепочка:</p>
+<div class="highlight"><pre><span></span><code>pod/container
+↓
+cgroup memory limit
+↓
+process memory usage
+↓
+hard limit pressure
+↓
+kernel OOM handling
+↓
+container process killed
+↓
+Kubernetes sees exit reason
+↓
+OOMKilled
+</code></pre></div>
+<p>Это не означает автоматически:</p>
+<blockquote>
+<p>GC не сработал.</p>
+</blockquote>
+<p>Причина может быть:</p>
+<ul>
+<li>слишком большой live set;</li>
+<li>native memory;</li>
+<li><code>GOMEMLIMIT</code> без запаса;</li>
+<li>burst;</li>
+<li>утечка;</li>
+<li>page cache/accounting;</li>
+<li>неправильный resource limit.</li>
+</ul>
+<hr/>
+<h1 id="63-linux-proc">63. Linux: что смотреть в <code>/proc</code><a class="headerlink" href="#63-linux-proc" title="Permanent link">¶</a></h1>
+<p>Для процесса:</p>
+<div class="highlight"><pre><span></span><code>/proc/&lt;pid&gt;/status
+/proc/&lt;pid&gt;/smaps
+/proc/&lt;pid&gt;/smaps_rollup
+</code></pre></div>
+<p>Они позволяют увидеть разные аспекты:</p>
+<ul>
+<li>virtual size;</li>
+<li>resident memory;</li>
+<li>anonymous;</li>
+<li>file-backed;</li>
+<li>private/shared mappings;</li>
+<li>детализацию mappings.</li>
+</ul>
+<p>Не нужно учить все поля.</p>
+<p>Нужно понимать, какой вопрос задаём.</p>
+<hr/>
+<h1 id="64-pmap">64. <code>pmap</code><a class="headerlink" href="#64-pmap" title="Permanent link">¶</a></h1>
+<p><code>pmap</code> помогает посмотреть виртуальные mappings процесса.</p>
+<p>Полезный вопрос:</p>
+<blockquote>
+<p>Откуда вообще взялся большой виртуальный диапазон?</p>
+</blockquote>
+<p>Или:</p>
+<blockquote>
+<p>Какие mapping занимают адресное пространство?</p>
+</blockquote>
+<p>Это уже уровень ниже Go heap profile.</p>
+<hr/>
+<h1 id="65-vmstat">65. <code>vmstat</code><a class="headerlink" href="#65-vmstat" title="Permanent link">¶</a></h1>
+<p>Для системного pressure:</p>
+<div class="highlight"><pre><span></span><code>vmstat
+</code></pre></div>
+<p>Нас интересуют паттерны:</p>
+<ul>
+<li>free memory;</li>
+<li>swap in/out;</li>
+<li>runnable tasks;</li>
+<li>I/O;</li>
+<li>faults косвенно через другие инструменты;</li>
+<li>системная нагрузка.</li>
+</ul>
+<p>Главное — смотреть динамику.</p>
+<hr/>
+<h1 id="66-minor-major-faults-linux">66. Minor и major faults в Linux<a class="headerlink" href="#66-minor-major-faults-linux" title="Permanent link">¶</a></h1>
+<p>На Linux можно наблюдать число faults процесса и системы.</p>
+<p>Полезная модель:</p>
+<div class="highlight"><pre><span></span><code>minor faults много
+→ часто normal VM activity
+
+major faults растут
+→ есть storage-backed misses
+→ потенциально серьёзная latency
+</code></pre></div>
+<p>Но один счётчик без контекста не является диагнозом.</p>
+<hr/>
+<h1 id="67-cgroup-v2-memorycurrent">67. Cgroup v2: <code>memory.current</code><a class="headerlink" href="#67-cgroup-v2-memorycurrent" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>memory.current
+</code></pre></div>
+<p>показывает текущее использование памяти cgroup по его правилам учёта.</p>
+<p>Это уже намного ближе к вопросу:</p>
+<blockquote>
+<p>Насколько контейнер приблизился к своему реальному kernel limit?</p>
+</blockquote>
+<p>чем один <code>HeapAlloc</code>.</p>
+<hr/>
+<h1 id="68-memorymax">68. <code>memory.max</code><a class="headerlink" href="#68-memorymax" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>memory.max
+</code></pre></div>
+<p>— жёсткая верхняя граница cgroup v2.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>current → max
+</code></pre></div>
+<p>система начинает жить в режиме высокого давления.</p>
+<p>Дальше возможны reclaim и OOM-механизмы.</p>
+<hr/>
+<h1 id="69-memoryevents">69. <code>memory.events</code><a class="headerlink" href="#69-memoryevents" title="Permanent link">¶</a></h1>
+<p>Очень полезная идея диагностики:</p>
+<div class="highlight"><pre><span></span><code>memory.events
+</code></pre></div>
+<p>позволяет увидеть, что cgroup переживал события memory pressure / limit / OOM соответствующего типа.</p>
+<p>То есть вместо:</p>
+<blockquote>
+<p>Наверное pod убило по памяти.</p>
+</blockquote>
+<p>можно проверить kernel accounting.</p>
+<hr/>
+<h1 id="70-windows">70. Windows: что смотреть<a class="headerlink" href="#70-windows" title="Permanent link">¶</a></h1>
+<p>На Windows для прикладной диагностики достаточно понимать:</p>
+<ul>
+<li>Task Manager;</li>
+<li>Resource Monitor;</li>
+<li>Performance Monitor;</li>
+<li>Process Explorer;</li>
+<li>Working Set;</li>
+<li>Commit Size;</li>
+<li>Private Bytes;</li>
+<li>page faults.</li>
+</ul>
+<p>Ключевой вопрос:</p>
+<div class="highlight"><pre><span></span><code>процесс committed много памяти?
+или
+прямо сейчас держит большой working set?
+</code></pre></div>
+<p>Это не одно и то же.</p>
+<hr/>
+<h1 id="71-macos">71. macOS: что смотреть<a class="headerlink" href="#71-macos" title="Permanent link">¶</a></h1>
+<p>Полезные команды:</p>
+<div class="highlight"><pre><span></span><code>vm_stat
+vmmap<span class="w"> </span>&lt;pid&gt;
+memory_pressure
+</code></pre></div>
+<p>В Activity Monitor:</p>
+<ul>
+<li>Memory Pressure;</li>
+<li>App Memory;</li>
+<li>Wired Memory;</li>
+<li>Compressed;</li>
+<li>Swap Used.</li>
+</ul>
+<p>Главный вопрос:</p>
+<blockquote>
+<p>Система испытывает pressure или просто эффективно использует RAM?</p>
+</blockquote>
+<hr/>
+<h1 id="72-free-ram">72. Почему free RAM сама по себе почти бесполезна<a class="headerlink" href="#72-free-ram" title="Permanent link">¶</a></h1>
+<p>Плохой диагноз:</p>
+<div class="highlight"><pre><span></span><code>Free = 200 MiB
+↓
+катастрофа
+</code></pre></div>
+<p>ОС специально старается использовать свободную RAM под полезные вещи:</p>
+<ul>
+<li>page cache;</li>
+<li>файловые данные;</li>
+<li>другие кеши.</li>
+</ul>
+<p>Если память легко reclaimable:</p>
+<div class="highlight"><pre><span></span><code>мало free
+</code></pre></div>
+<p>может быть полностью нормальным состоянием.</p>
+<p>Нужно смотреть pressure и reclaim behaviour.</p>
+<hr/>
+<h1 id="73-1-virtual-resident">73. Практика 1: virtual ≠ resident<a class="headerlink" href="#73-1-virtual-resident" title="Permanent link">¶</a></h1>
+<p>Написать программу, которая получает большой буфер.</p>
+<p>Сначала почти не трогает страницы.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>virtual size
+RSS / Working Set
+</code></pre></div>
+<p>Потом пройти по буферу с шагом страницы:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">buf</span><span class="p">);</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">4096</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">buf</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Снова снять метрики.</p>
+<p>Ожидаемая модель:</p>
+<div class="highlight"><pre><span></span><code>виртуальный диапазон появился раньше
+↓
+resident memory выросла после first touch
+</code></pre></div>
+<hr/>
+<h1 id="74-2-first-touch-page-faults">74. Практика 2: first-touch и page faults<a class="headerlink" href="#74-2-first-touch-page-faults" title="Permanent link">¶</a></h1>
+<p>Создать большой массив.</p>
+<p>Первый проход:</p>
+<div class="highlight"><pre><span></span><code>страницы ещё не resident
+↓
+faults
+</code></pre></div>
+<p>Второй проход:</p>
+<div class="highlight"><pre><span></span><code>страницы уже присутствуют
+↓
+faults меньше
+</code></pre></div>
+<p>Измерить время первого и второго проходов.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть цену материализации physical pages.</p>
+</blockquote>
+<hr/>
+<h1 id="75-3-scavenger-rss">75. Практика 3: scavenger и RSS<a class="headerlink" href="#75-3-scavenger-rss" title="Permanent link">¶</a></h1>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>allocate several GiB
+↓
+touch pages
+↓
+hold
+↓
+drop references
+↓
+force GC в лаборатории
+↓
+смотреть Go heap
+↓
+смотреть RSS
+↓
+дождаться / спровоцировать release
+↓
+смотреть снова
+</code></pre></div>
+<p>Измерять:</p>
+<div class="highlight"><pre><span></span><code>heap objects
+heap free
+heap released
+RSS / Working Set
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>dead object
+≠
+free slot
+≠
+released page
+≠
+RSS drop
+</code></pre></div>
+<hr/>
+<h1 id="76-4-gomemlimit-cgroup">76. Практика 4: <code>GOMEMLIMIT</code> и cgroup<a class="headerlink" href="#76-4-gomemlimit-cgroup" title="Permanent link">¶</a></h1>
+<p>На Linux-контейнере:</p>
+<div class="highlight"><pre><span></span><code>одинаковый workload
+↓
+одинаковый memory.max
+↓
+разные GOMEMLIMIT
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>live heap
+heap goal
+GC cycles
+assist CPU
+RSS
+memory.current
+memory.events
+p95/p99
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Руками увидеть границу между soft runtime budget и hard kernel boundary.</p>
+</blockquote>
+<hr/>
+<h1 id="77-5-memory-pressure">77. Практика 5: memory pressure<a class="headerlink" href="#77-5-memory-pressure" title="Permanent link">¶</a></h1>
+<p>В изолированной лабораторной среде приблизить рабочий набор к доступной памяти.</p>
+<p>Наблюдать:</p>
+<div class="highlight"><pre><span></span><code>reclaim
+↓
+faults
+↓
+swap / compression
+↓
+latency
+</code></pre></div>
+<p>На Linux — swap/reclaim.</p>
+<p>На macOS — compression + swap.</p>
+<p>На Windows — working set / compression / pagefile.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, как нехватка RAM превращается в задержку даже без изменения бизнес-кода.</p>
+</blockquote>
+<hr/>
+<h1 id="78-6-linux-page-cache">78. Практика 6: Linux page cache<a class="headerlink" href="#78-6-linux-page-cache" title="Permanent link">¶</a></h1>
+<p>Прочитать большой файл первый раз.</p>
+<p>Замерить.</p>
+<p>Прочитать повторно при наличии достаточной RAM.</p>
+<p>Сравнить.</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>первый read
+↓
+storage
+↓
+page cache
+
+второй read
+↓
+page cache hit
+↓
+RAM
+</code></pre></div>
+<p>Это мост к будущей теме storage path.</p>
+<hr/>
+<h1 id="79">79. Что нельзя смешивать<a class="headerlink" href="#79" title="Permanent link">¶</a></h1>
+<h2 id="virtual-size-rss">Virtual Size и RSS<a class="headerlink" href="#virtual-size-rss" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>virtual range
+≠
+resident pages
+</code></pre></div>
+<h2 id="rss-live-go-heap">RSS и live Go heap<a class="headerlink" href="#rss-live-go-heap" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>процесс resident memory
+≠
+достижимые Go-объекты
+</code></pre></div>
+<h2 id="commit-working-set-windows">Commit и Working Set на Windows<a class="headerlink" href="#commit-working-set-windows" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>обязательство backing
+≠
+страницы прямо сейчас в RAM
+</code></pre></div>
+<h2 id="free-ram-memory-pressure">Free RAM и memory pressure<a class="headerlink" href="#free-ram-memory-pressure" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>мало free
+≠
+обязательно плохо
+</code></pre></div>
+<h2 id="gc-release-kernel-reclaim">GC release и kernel reclaim<a class="headerlink" href="#gc-release-kernel-reclaim" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>Go сообщил «страница не нужна»
+≠
+kernel уже физически отдал её другому процессу
+</code></pre></div>
+<hr/>
+<h1 id="80">80. Сквозная цепочка: выделение памяти<a class="headerlink" href="#80" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go allocation
+↓
+mspan / runtime pages
+↓
+virtual address range
+↓
+page table
+↓
+first touch
+↓
+page fault
+↓
+physical page
+↓
+resident memory ↑
+</code></pre></div>
+<hr/>
+<h1 id="81">81. Сквозная цепочка: освобождение памяти<a class="headerlink" href="#81" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>object unreachable
+↓
+GC
+↓
+sweep
+↓
+slot reusable
+↓
+span/pages may become free
+↓
+scavenger
+↓
+platform VM API
+├── Linux: madvise
+├── Windows: decommit
+└── macOS: reusable memory advice
+↓
+kernel VM
+↓
+physical page may stop being resident
+</code></pre></div>
+<hr/>
+<h1 id="82-pressure">82. Сквозная цепочка: pressure<a class="headerlink" href="#82-pressure" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>working set ↑
+↓
+доступная RAM ↓
+↓
+memory pressure ↑
+↓
+reclaim ↑
+↓
+file cache eviction / anonymous handling
+↓
+swap / compression
+↓
+fault cost ↑
+↓
+latency ↑
+↓
+throughput ↓
+</code></pre></div>
+<hr/>
+<h1 id="83-oom">83. Сквозная цепочка: контейнерный OOM<a class="headerlink" href="#83-oom" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go heap
++
+stacks
++
+runtime metadata
++
+native memory
++
+mappings
++
+accounted file memory
+↓
+cgroup memory.current
+↓
+approaches memory.max
+↓
+reclaim / pressure
+↓
+hard boundary
+↓
+OOM handling
+↓
+process killed
+↓
+OOMKilled
+</code></pre></div>
+<hr/>
+<h1 id="84">84. Границы модели по ОС<a class="headerlink" href="#84" title="Permanent link">¶</a></h1>
+<p>Устойчивая общая модель:</p>
+<div class="highlight"><pre><span></span><code>virtual address
+↓
+translation
+↓
+physical page
+↓
+resident / non-resident
+↓
+fault
+↓
+reclaim
+</code></pre></div>
+<p>Platform-specific реализация:</p>
+<div class="highlight"><pre><span></span><code>Linux
+→ mmap / madvise / cgroup
+
+Windows
+→ reserve / commit / working set / pagefile
+
+macOS
+→ mmap / reusable memory / compression / swap
+</code></pre></div>
+<p>Нужно преподавать именно так:</p>
+<blockquote>
+<p>Общая причинная модель одна. Системные API и политика конкретной ОС различаются.</p>
+</blockquote>
+<hr/>
+<h1 id="_2">Что важно запомнить<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<ol>
+<li>Процесс работает с виртуальными адресами, а не напрямую с адресами DIMM.</li>
+<li>Page table связывает virtual page с physical frame.</li>
+<li>TLB кеширует переводы адресов; TLB miss и data-cache miss — разные события.</li>
+<li>Зарезервированная виртуальная память не равна занятой физической RAM.</li>
+<li>Page fault — штатный механизм виртуальной памяти, а не обязательно ошибка.</li>
+<li>Minor fault не требует чтения с накопителя; major fault обычно требует внешнего I/O.</li>
+<li>Demand paging позволяет выдавать physical backing только при фактическом доступе.</li>
+<li>Anonymous и file-backed memory по-разному ведут себя при reclaim.</li>
+<li>Page cache использует RAM как кеш файловых данных и конкурирует за физическую память с другими потребителями.</li>
+<li>RSS показывает resident pages процесса, а не только живой Go heap.</li>
+<li>На Windows нужно разделять Virtual Size, Commit и Working Set.</li>
+<li>На macOS memory pressure может приводить сначала к compression, затем к swap.</li>
+<li>Go scavenger использует platform-specific VM API, но общая модель <code>virtual range сохраняется → backing можно reclaim'нуть</code> одинакова.</li>
+<li><code>GOMEMLIMIT</code> — мягкий бюджет рантайма; cgroup <code>memory.max</code> — жёсткая граница ядра.</li>
+<li><code>HeapAlloc &lt; container limit</code> не гарантирует отсутствие OOM.</li>
+<li>Thrashing возникает, когда рабочий набор существенно превышает доступную RAM и страницы постоянно ходят между RAM и backing storage.</li>
+<li>При диагностике памяти нужно сопоставлять Go metrics, OS resident metrics и container accounting.</li>
+<li>Освобождение Go-объекта, освобождение слота, release страницы и уменьшение RSS — разные события.</li>
+</ol>
+<hr/>
+<h1 id="_3">Финальная модель<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go object
+↓
+slot
+↓
+mspan
+↓
+runtime page
+↓
+virtual address
+↓
+page table
+↓
+TLB
+↓
+physical page
+↓
+resident?
+├── да
+│   ↓
+│   RAM
+│
+└── нет
+    ↓
+    page fault
+    ↓
+    kernel VM
+    ↓
+    RAM / file / swap
+</code></pre></div>
+<p>Освобождение:</p>
+<div class="highlight"><pre><span></span><code>object unreachable
+↓
+GC
+↓
+sweep
+↓
+runtime page free
+↓
+scavenger
+↓
+platform-specific VM API
+↓
+kernel reclaim
+↓
+physical RAM may become free
+</code></pre></div>
+<p>И под нагрузкой:</p>
+<div class="highlight"><pre><span></span><code>working set ↑
+↓
+memory pressure ↑
+↓
+reclaim ↑
+↓
+faults ↑
+↓
+swap / compression ↑
+↓
+latency ↑
+↓
+throughput ↓
+↓
+OOM risk ↑
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Go управляет объектами, span и runtime pages. Физической RAM управляет ядро ОС. Между ними лежит слой виртуальной памяти: page tables, TLB, page faults, residency и reclaim. Поэтому метрика живого Go heap описывает только один слой системы. Чтобы понимать memory incident целиком, нужно уметь пройти путь от Go-объекта до физической страницы и обратно.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3. Аллокатор памяти и GC Go глубже" class="md-footer__link md-footer__link--prev" href="../3%20-%20GC%20deep/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3. Аллокатор памяти и GC Go глубже
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM" class="md-footer__link md-footer__link--next" href="../3.2%20-%20Linux%20memory%20reclaim/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
