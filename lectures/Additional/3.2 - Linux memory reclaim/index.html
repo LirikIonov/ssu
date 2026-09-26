@@ -8,7 +8,7 @@
 <link href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM - Go</title>
+<title>3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#32-linux-memory-reclaim-lrumglru-swap-psi-cgroup-v2-oom">
+<a class="md-skip" href="#32-linux-lrumglru-swap-psi-cgroup-v2-oom">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+              3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
             
           </span>
 </div>
@@ -269,7 +269,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
   
 
     
@@ -280,7 +280,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
   
 
     
@@ -309,7 +309,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
   
 
     
@@ -321,7 +321,7 @@
 <span class="md-ellipsis">
     
   
-    3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
   
 
     
@@ -536,10 +536,10 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="32-linux-memory-reclaim-lrumglru-swap-psi-cgroup-v2-oom">3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM<a class="headerlink" href="#32-linux-memory-reclaim-lrumglru-swap-psi-cgroup-v2-oom" title="Permanent link">¶</a></h1>
+<h1 id="32-linux-lrumglru-swap-psi-cgroup-v2-oom">3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM<a class="headerlink" href="#32-linux-lrumglru-swap-psi-cgroup-v2-oom" title="Permanent link">¶</a></h1>
 <blockquote>
 <p>Углублённая лекция к теме виртуальной памяти ОС.</p>
-<p>Конкретные структуры и эвристики reclaim зависят от версии и конфигурации ядра Linux. Отдельно различаем устойчивую модель, публичные интерфейсы Linux и детали текущей реализации.</p>
+<p>Конкретные структуры и эвристики освобождения памяти зависят от версии и конфигурации ядра Linux. Отдельно различаем устойчивую модель, публичные интерфейсы Linux и детали текущей реализации.</p>
 </blockquote>
 <h2 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
 <p>В предыдущей лекции мы дошли до:</p>
@@ -547,13 +547,13 @@
 ↓
 виртуальная память
 ↓
-physical pages
+физические страницы
 ↓
-resident / non-resident
+резидентные / нерезидентные
 ↓
-page fault
+страничная ошибка
 ↓
-reclaim
+освобождение памяти
 </code></pre></div>
 <p>Слово <code>reclaim</code> пока выглядело почти магически:</p>
 <blockquote>
@@ -563,7 +563,7 @@ reclaim
 <p>Пусть на машине:</p>
 <div class="highlight"><pre><span></span><code>RAM = 32 GiB
 </code></pre></div>
-<p>а workload вместе с page cache и другими потребителями хочет:</p>
+<p>а нагрузка вместе с страничным кешем и другими потребителями хочет:</p>
 <div class="highlight"><pre><span></span><code>40 GiB
 </code></pre></div>
 <p>Linux должен решить:</p>
@@ -573,26 +573,26 @@ reclaim
 <li>можно ли их просто выбросить;</li>
 <li>нужно ли сначала сохранить данные;</li>
 <li>есть ли swap;</li>
-<li>какой cgroup должен платить за pressure;</li>
-<li>когда reclaim ещё имеет смысл;</li>
-<li>когда уже нужен OOM killer.</li>
+<li>какой cgroup должен испытывать давление;</li>
+<li>когда освобождение памяти ещё имеет смысл;</li>
+<li>когда уже нужен OOM-killer.</li>
 </ol>
 <p>Главная цепочка:</p>
-<div class="highlight"><pre><span></span><code>memory pressure
+<div class="highlight"><pre><span></span><code>давление на память
 ↓
-reclaimable pages
+страницы, которые можно освободить
 ↓
-anonymous / file-backed
+анонимные / связанные с файлами
 ↓
 LRU / MGLRU
 ↓
-aging
+старение
 ↓
-eviction
+вытеснение
 ↓
-refault feedback
+обратная связь по refault
 ↓
-kswapd / direct reclaim
+kswapd / прямое освобождение
 ↓
 swap / zswap
 ↓
@@ -604,103 +604,103 @@ memory.high / memory.max
 ↓
 memcg OOM
 ↓
-OOM killer
+OOM-killer
 </code></pre></div>
 <p>А продакшен-цепочка:</p>
-<div class="highlight"><pre><span></span><code>working set ↑
+<div class="highlight"><pre><span></span><code>рабочий набор ↑
 ↓
-reclaim ↑
+освобождение памяти ↑
 ↓
-application stalls ↑
+остановки приложения ↑
 ↓
 PSI ↑
 ↓
-page faults / swap I/O ↑
+страничные ошибки / ввод-вывод swap ↑
 ↓
 p99 ↑
 ↓
-throughput ↓
+пропускная способность ↓
 ↓
-OOM risk ↑
+риск OOM ↑
 </code></pre></div>
 <hr/>
-<h1 id="1-reclaim">1. Reclaim не означает «стереть случайную страницу»<a class="headerlink" href="#1-reclaim" title="Permanent link">¶</a></h1>
+<h1 id="1">1. Освобождение памяти не означает «стереть случайную страницу»<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
 <p>RAM заполнена.</p>
 <p>Ядро не может выбрать любые 4 KiB и просто их забыть.</p>
 <p>У страницы может быть содержимое, которое нельзя потерять:</p>
 <div class="highlight"><pre><span></span><code>heap процесса
-dirty page файла
-anonymous memory
+изменённая страница файла
+анонимная память
 </code></pre></div>
 <p>Поэтому сначала нужно понять, что за память перед нами.</p>
 <hr/>
-<h1 id="2-file-backed-pages">2. File-backed pages<a class="headerlink" href="#2-file-backed-pages" title="Permanent link">¶</a></h1>
+<h1 id="2">2. Страницы, связанные с файлами<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
 <p>Страница соответствует содержимому файла:</p>
 <div class="highlight"><pre><span></span><code>исполняемый файл
-shared library
+динамическая библиотека
 mmap файла
-page cache
+страничный кеш
 </code></pre></div>
 <p>Если страница чистая:</p>
-<div class="highlight"><pre><span></span><code>clean file-backed page
+<div class="highlight"><pre><span></span><code>чистая страница, связанная с файлом
 </code></pre></div>
-<p>её содержимое уже есть на storage.</p>
-<p>Значит resident-копию можно выбросить:</p>
-<div class="highlight"><pre><span></span><code>drop page from RAM
+<p>её содержимое уже есть на накопитель.</p>
+<p>Значит резидентную копию можно выбросить:</p>
+<div class="highlight"><pre><span></span><code>вытеснить страницу из RAM
 ↓
 если снова понадобится
 ↓
 прочитать файл
 </code></pre></div>
-<p>Это делает чистые file-backed pages хорошими кандидатами для reclaim.</p>
+<p>Это делает чистые страницы, связанные с файлами хорошими кандидатами на освобождение.</p>
 <hr/>
-<h1 id="3-dirty-file-backed-pages">3. Dirty file-backed pages<a class="headerlink" href="#3-dirty-file-backed-pages" title="Permanent link">¶</a></h1>
+<h1 id="3">3. Изменённые страницы, связанные с файлами<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
 <p>Если страница изменена:</p>
-<div class="highlight"><pre><span></span><code>page cache
+<div class="highlight"><pre><span></span><code>страничный кеш
 ↓
 dirty
 </code></pre></div>
-<p>копия в RAM новее storage.</p>
+<p>копия в RAM новее накопитель.</p>
 <p>Просто выбросить её нельзя.</p>
 <p>Нужно:</p>
 <div class="highlight"><pre><span></span><code>writeback
 ↓
-storage
+накопитель
 ↓
-page clean
+страница чистая
 ↓
-reclaim
+освобождение памяти
 </code></pre></div>
-<p>Вот здесь memory pressure начинает зависеть от скорости storage.</p>
+<p>Вот здесь давление на память начинает зависеть от скорости накопитель.</p>
 <hr/>
-<h1 id="4-anonymous-pages">4. Anonymous pages<a class="headerlink" href="#4-anonymous-pages" title="Permanent link">¶</a></h1>
-<p>Anonymous memory не имеет обычного файла, из которого её можно перечитать.</p>
+<h1 id="4">4. Анонимные страницы<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
+<p>Анонимная память не имеет обычного файла, из которого её можно перечитать.</p>
 <p>Типичные примеры:</p>
 <div class="highlight"><pre><span></span><code>heap
 stack
-anonymous mmap
+анонимный mmap
 </code></pre></div>
 <p>Если её содержимое нужно сохранить, а RAM хочется освободить:</p>
-<div class="highlight"><pre><span></span><code>anonymous page
+<div class="highlight"><pre><span></span><code>анонимная страница
 ↓
 swap
 </code></pre></div>
-<p>Без swap пространство вариантов reclaim уже.</p>
+<p>Без swap пространство вариантов освобождения памяти уже.</p>
 <hr/>
 <h1 id="5">5. Рабочий набор<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
-<p><strong>Рабочий набор (working set)</strong> — данные, которые workload реально активно использует.</p>
+<p><strong>Рабочий набор (рабочий набор)</strong> — данные, которые нагрузка реально активно использует.</p>
 <p>Пусть процесс имеет:</p>
-<div class="highlight"><pre><span></span><code>10 GiB virtual memory
+<div class="highlight"><pre><span></span><code>10 GiB виртуальной памяти
 </code></pre></div>
 <p>но постоянно работает только с:</p>
 <div class="highlight"><pre><span></span><code>2 GiB
 </code></pre></div>
 <p>Если эти 2 GiB помещаются в RAM:</p>
-<div class="highlight"><pre><span></span><code>горячие данные остаются resident
+<div class="highlight"><pre><span></span><code>горячие данные остаются резидентными
 </code></pre></div>
-<p>и reclaim может выбирать холодные страницы.</p>
+<p>и освобождение памяти может выбирать холодные страницы.</p>
 <p>Если:</p>
-<div class="highlight"><pre><span></span><code>working set &gt; available RAM
+<div class="highlight"><pre><span></span><code>рабочий набор &gt; доступная RAM
 </code></pre></div>
 <p>начинается постоянная борьба за residency.</p>
 <hr/>
@@ -711,7 +711,7 @@ swap
 → вероятно, скоро понадобится снова
 
 страницу давно не использовали
-→ хороший кандидат на eviction
+→ хороший кандидат на вытеснение
 </code></pre></div>
 <p>Отсюда семейство LRU-подходов.</p>
 <hr/>
@@ -725,14 +725,14 @@ swap
 самая старая
 </code></pre></div>
 <p>и вытесняем хвост.</p>
-<p>Но отслеживать точный порядок каждого memory access было бы слишком дорого.</p>
-<p>Реальный Linux использует приближённое aging и batched-структуры.</p>
+<p>Но отслеживать точный порядок каждого обращение к памяти было бы слишком дорого.</p>
+<p>Реальный Linux использует приближённое старение и пакетные структуры.</p>
 <p>То есть:</p>
 <blockquote>
 <p>LRU в ядре — эвристика давности использования, а не идеальный список каждой операции чтения.</p>
 </blockquote>
 <hr/>
-<h1 id="8-activeinactive">8. Классическая active/inactive модель<a class="headerlink" href="#8-activeinactive" title="Permanent link">¶</a></h1>
+<h1 id="8-activeinactive">8. Классическая <code>active</code>/<code>inactive</code> модель<a class="headerlink" href="#8-activeinactive" title="Permanent link">¶</a></h1>
 <p>Удобная традиционная схема:</p>
 <div class="highlight"><pre><span></span><code>active
 inactive
@@ -754,81 +754,81 @@ inactive
 давно
 </code></pre></div>
 <p>Если возраст оценивается плохо:</p>
-<div class="highlight"><pre><span></span><code>горячая page ошибочно evicted
+<div class="highlight"><pre><span></span><code>горячая страница ошибочно вытеснена
 ↓
 быстрый refault
 ↓
-лишний fault / I/O
+лишняя страничная ошибка / ввод-вывод
 </code></pre></div>
-<p>Поэтому появляется более детальная generational-модель.</p>
+<p>Поэтому появляется более детальная модель поколений.</p>
 <hr/>
 <h1 id="10-mglru">10. MGLRU<a class="headerlink" href="#10-mglru" title="Permanent link">¶</a></h1>
 <p><strong>MGLRU — Multi-Gen LRU.</strong></p>
-<p>Это альтернативная реализация LRU в Linux, оптимизирующая page reclaim под memory pressure.</p>
+<p>Это альтернативная реализация LRU в Linux, оптимизирующая освобождение страниц под давлением на память.</p>
 <p>Важно:</p>
 <blockquote>
 <p>Доступность и включённость MGLRU зависят от ядра и конфигурации. Это не универсальная гарантия любого Linux.</p>
 </blockquote>
 <p>Учебная модель:</p>
-<div class="highlight"><pre><span></span><code>youngest generation
+<div class="highlight"><pre><span></span><code>самое молодое поколение
 ↓
 ...
 ↓
-oldest generation
+самое старое поколение
 </code></pre></div>
 <p>Недавно подтверждённо горячие страницы — моложе.</p>
 <p>Холодные — старше.</p>
-<p>Eviction начинается со старых кандидатов.</p>
+<p>Вытеснение начинается со старых кандидатов.</p>
 <hr/>
-<h1 id="11-aging-eviction">11. Aging и eviction<a class="headerlink" href="#11-aging-eviction" title="Permanent link">¶</a></h1>
+<h1 id="11">11. Старение и вытеснение<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
 <p>В MGLRU полезно разделять:</p>
-<div class="highlight"><pre><span></span><code>aging
+<div class="highlight"><pre><span></span><code>старение
 </code></pre></div>
 <p>и:</p>
-<div class="highlight"><pre><span></span><code>eviction
+<div class="highlight"><pre><span></span><code>вытеснение
 </code></pre></div>
-<p>Aging отвечает:</p>
+<p>Старение отвечает:</p>
 <blockquote>
 <p>Какие страницы всё ещё горячие и к какому поколению их относить?</p>
 </blockquote>
-<p>Eviction:</p>
+<p>Вытеснение:</p>
 <blockquote>
 <p>Какие старые страницы действительно вытеснять?</p>
 </blockquote>
-<p>Эти процедуры образуют feedback loop reclaim.</p>
+<p>Эти процедуры образуют петлю обратной связи освобождения памяти.</p>
 <hr/>
-<h1 id="12-page">12. Откуда ядро знает, что page использовалась<a class="headerlink" href="#12-page" title="Permanent link">¶</a></h1>
-<p>MMU/page tables помогают отмечать обращения.</p>
+<h1 id="12">12. Откуда ядро знает, что страница использовалась<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
+<p>MMU и таблицы страниц помогают отмечать обращения.</p>
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>процесс трогал page
 ↓
-page-table metadata отражает access
+метаданные таблиц страниц отражает access
 ↓
-aging замечает активность
+старение замечает активность
 ↓
 page остаётся молодой
 </code></pre></div>
-<p>MGLRU использует page-table walks и другие механизмы для сбора этой информации.</p>
-<p>Точный алгоритм — implementation detail.</p>
+<p>MGLRU использует обходы таблиц страниц и другие механизмы для сбора этой информации.</p>
+<p>Точный алгоритм — деталь реализации.</p>
 <hr/>
-<h1 id="13-refault">13. Refault<a class="headerlink" href="#13-refault" title="Permanent link">¶</a></h1>
+<h1 id="13-refault">13. Повторное обращение после вытеснения (<code>refault</code>)<a class="headerlink" href="#13-refault" title="Permanent link">¶</a></h1>
 <p>Страницу вытеснили.</p>
 <p>Через короткое время она понадобилась снова:</p>
 <div class="highlight"><pre><span></span><code>evict
 ↓
 fault
 ↓
-page returns
+страница возвращается
 </code></pre></div>
 <p>Это <strong>refault</strong>.</p>
 <p>Частые refault означают:</p>
 <blockquote>
-<p>Мы вытесняем данные, которые на самом деле входят в working set.</p>
+<p>Мы вытесняем данные, которые на самом деле входят в рабочий набор.</p>
 </blockquote>
-<p>Это один из важнейших сигналов качества reclaim.</p>
+<p>Это один из важнейших сигналов качества освобождение памяти.</p>
 <hr/>
-<h1 id="14-mglru-feedback">14. MGLRU использует feedback<a class="headerlink" href="#14-mglru-feedback" title="Permanent link">¶</a></h1>
-<p>Текущая MGLRU-модель учитывает refault-поведение anon/file страниц и использует feedback для выбора eviction policy.</p>
+<h1 id="14-mglru">14. MGLRU использует обратную связь<a class="headerlink" href="#14-mglru" title="Permanent link">¶</a></h1>
+<p>Текущая MGLRU-модель учитывает поведение повторных обращений к анонимным и файловым страницам и использует обратную связь для выбора политики вытеснения.</p>
 <p>Учебно:</p>
 <div class="highlight"><pre><span></span><code>evict
 ↓
@@ -845,202 +845,202 @@ page returns
 <p><code>vm.swappiness=60</code> означает «использовать swap на 60%».</p>
 </blockquote>
 <p>Нет.</p>
-<p><code>swappiness</code> влияет на относительную склонность reclaim выбирать anonymous memory по отношению к file-backed memory.</p>
-<p>Это tuning hint политики reclaim.</p>
+<p><code>swappiness</code> влияет на относительную склонность освобождение памяти выбирать анонимная память по отношению к связанный с файлом memory.</p>
+<p>Это параметр настройки политики освобождение памяти.</p>
 <p>Не целевой процент заполнения swap.</p>
 <hr/>
 <h1 id="16-swap">16. Swap меняет пространство решений<a class="headerlink" href="#16-swap" title="Permanent link">¶</a></h1>
 <p>Без swap:</p>
-<div class="highlight"><pre><span></span><code>anonymous page
+<div class="highlight"><pre><span></span><code>анонимная страница
 ↓
 нельзя просто выбросить,
 если данные ещё нужны
 </code></pre></div>
 <p>Со swap:</p>
-<div class="highlight"><pre><span></span><code>anonymous page
+<div class="highlight"><pre><span></span><code>анонимная страница
 ↓
-записать backing в swap
+записать содержимое страницы в swap
 ↓
-physical frame можно освободить
+физический кадр страницы можно освободить
 </code></pre></div>
 <p>Цена:</p>
-<div class="highlight"><pre><span></span><code>swap I/O
+<div class="highlight"><pre><span></span><code>ввод-вывод swap
 +
-future page-in latency
+будущая задержка возврата страницы
 </code></pre></div>
 <hr/>
-<h1 id="17-swap-out">17. Swap out<a class="headerlink" href="#17-swap-out" title="Permanent link">¶</a></h1>
+<h1 id="17-swap">17. Выгрузка в swap<a class="headerlink" href="#17-swap" title="Permanent link">¶</a></h1>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>anonymous page resident
+<div class="highlight"><pre><span></span><code>анонимная страница резидентна
 ↓
-reclaim chooses page
+ядро выбирает страницу для освобождения
 ↓
-write to swap
+записать в swap
 ↓
-PTE больше не указывает на resident frame
+PTE больше не указывает на резидентную физическую страницу
 ↓
-RAM frame free
+физическая страница RAM освобождена
 </code></pre></div>
 <p>Процесс продолжает жить.</p>
 <p>Но будущий access станет дорогим.</p>
 <hr/>
-<h1 id="18-swap-in">18. Swap in<a class="headerlink" href="#18-swap-in" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>load/store
+<h1 id="18-swap">18. Загрузка из swap<a class="headerlink" href="#18-swap" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>чтение/запись
 ↓
-page fault
+страничная ошибка
 ↓
-page is in swap
+страница находится в swap
 ↓
-storage read
+чтение с накопителя
 ↓
-physical page
+физическая страница
 ↓
-mapping restored
+отображение восстановлено
 ↓
-instruction continues
+инструкция продолжает выполнение
 </code></pre></div>
-<p>Это major fault.</p>
-<p>Для request path такой fault может быть огромным вкладом в p99.</p>
+<p>Это большая страничная ошибка.</p>
+<p>Для пути обработки запроса такая страничная ошибка может быть огромным вкладом в p99.</p>
 <hr/>
 <h1 id="19-swap">19. Swap не всегда зло<a class="headerlink" href="#19-swap" title="Permanent link">¶</a></h1>
 <p>Swap может:</p>
 <ul>
-<li>вытеснить действительно холодную anonymous memory;</li>
-<li>оставить RAM горячему working set;</li>
+<li>вытеснить действительно холодную анонимная память;</li>
+<li>оставить RAM горячему рабочий набор;</li>
 <li>дать системе больше времени до OOM.</li>
 </ul>
 <p>Плохо становится при:</p>
-<div class="highlight"><pre><span></span><code>hot working set &gt; RAM
+<div class="highlight"><pre><span></span><code>горячий рабочий набор &gt; RAM
 ↓
-swap out
+выгрузка в swap
 ↓
-swap in
+загрузка из swap
 ↓
-swap out
+выгрузка в swap
 ↓
-swap in
+загрузка из swap
 </code></pre></div>
-<p>Это уже thrashing.</p>
+<p>Это уже трэшинг.</p>
 <hr/>
 <h1 id="20-zswap">20. zswap<a class="headerlink" href="#20-zswap" title="Permanent link">¶</a></h1>
 <p><strong>zswap</strong> — сжатый кеш для страниц, уходящих в swap.</p>
-<div class="highlight"><pre><span></span><code>page going to swap
+<div class="highlight"><pre><span></span><code>страница уходит в swap
 ↓
-compress
+сжать
 ↓
-store compressed in RAM
+хранить сжатой в RAM
 ↓
-возможно пока не писать на swap device
+возможно пока не писать на устройство swap
 </code></pre></div>
 <p>Trade-off:</p>
-<div class="highlight"><pre><span></span><code>CPU на compression
+<div class="highlight"><pre><span></span><code>CPU на сжатие
 ↔
-меньше swap I/O
+меньше ввод-вывод swap
 </code></pre></div>
-<p>Но pressure никуда не исчезает.</p>
+<p>Но давление на память никуда не исчезает.</p>
 <hr/>
-<h1 id="21-reclaim">21. Когда начинается reclaim<a class="headerlink" href="#21-reclaim" title="Permanent link">¶</a></h1>
-<p>У Linux есть watermarks свободной памяти.</p>
+<h1 id="21">21. Когда начинается освобождение памяти<a class="headerlink" href="#21" title="Permanent link">¶</a></h1>
+<p>У Linux есть пороговые уровни свободной памяти.</p>
 <p>Для этой лекции достаточно:</p>
-<div class="highlight"><pre><span></span><code>free memory комфортная
+<div class="highlight"><pre><span></span><code>свободной памяти достаточно
 ↓
-обычные allocations
+обычные аллокации
 
-free memory снижается
+свободная память снижается
 ↓
-background reclaim усиливается
+фоновое освобождение памяти усиливается
 
-allocation не получает pages достаточно быстро
+аллокация не получает страницы достаточно быстро
 ↓
-direct reclaim
+прямое освобождение памяти
 </code></pre></div>
 <p>Теперь появляется принципиально важное различие.</p>
 <hr/>
 <h1 id="22-kswapd">22. <code>kswapd</code><a class="headerlink" href="#22-kswapd" title="Permanent link">¶</a></h1>
-<p><code>kswapd</code> — kernel thread фонового reclaim.</p>
+<p><code>kswapd</code> — поток ядра фонового освобождение памяти.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>free pages опускаются ниже желаемого уровня
+<div class="highlight"><pre><span></span><code>число свободных страниц опускается ниже желаемого уровня
 ↓
-kswapd wakes
+kswapd просыпается
 ↓
-scans reclaimable memory
+сканирует память, которую можно освободить
 ↓
-frees pages
+освобождает страницы
 ↓
-restores reserve
+восстанавливает запас свободных страниц
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Делать дорогую работу заранее, чтобы прикладной поток не платил её целиком на allocation path.</p>
+<p>Делать дорогую работу заранее, чтобы прикладной поток не платил её целиком на путь аллокации.</p>
 </blockquote>
 <hr/>
-<h1 id="23-direct-reclaim">23. Direct reclaim<a class="headerlink" href="#23-direct-reclaim" title="Permanent link">¶</a></h1>
-<p>Когда background reclaim не успевает:</p>
-<div class="highlight"><pre><span></span><code>application thread
+<h1 id="23-direct-reclaim">23. Прямое освобождение памяти (<code>direct reclaim</code>)<a class="headerlink" href="#23-direct-reclaim" title="Permanent link">¶</a></h1>
+<p>Когда фоновое освобождение памяти не успевает:</p>
+<div class="highlight"><pre><span></span><code>прикладной поток
 ↓
-allocation needs pages
+аллокации нужны страницы
 ↓
-not enough pages
+свободных страниц недостаточно
 ↓
-direct reclaim
+прямое освобождение памяти
 ↓
-scan / reclaim
+сканирование / освобождение
 ↓
-allocation continues
+аллокация продолжается
 </code></pre></div>
-<p>Вот здесь memory pressure напрямую превращается в application latency.</p>
+<p>Вот здесь давление на память напрямую превращается в задержку приложения.</p>
 <hr/>
-<h1 id="24-direct-reclaim-backend">24. Direct reclaim в backend<a class="headerlink" href="#24-direct-reclaim-backend" title="Permanent link">¶</a></h1>
-<p>Go-handler:</p>
-<div class="highlight"><pre><span></span><code>handler
+<h1 id="24">24. Прямое освобождение памяти в бэкенде<a class="headerlink" href="#24" title="Permanent link">¶</a></h1>
+<p>Go-обработчик:</p>
+<div class="highlight"><pre><span></span><code>обработчик
 ↓
-allocation
+аллокация
 ↓
-runtime asks OS for pages
+рантайм просит у ОС страницы
 ↓
-kernel allocation path
+путь выделения памяти в ядре
 ↓
-direct reclaim
+прямое освобождение памяти
 ↓
-handler stalls
+обработчик ждёт
 </code></pre></div>
 <p>Снаружи:</p>
 <div class="highlight"><pre><span></span><code>обычная аллокация стала медленной
 </code></pre></div>
-<p>А Go GC при этом может быть полностью здоров.</p>
+<p>А GC Go при этом может быть полностью здоров.</p>
 <hr/>
-<h1 id="25-reclaim">25. Reclaim тратит несколько ресурсов<a class="headerlink" href="#25-reclaim" title="Permanent link">¶</a></h1>
+<h1 id="25">25. Освобождение памяти тратит несколько ресурсов<a class="headerlink" href="#25" title="Permanent link">¶</a></h1>
 <p>Reclaim может включать:</p>
 <ul>
-<li>LRU scanning;</li>
-<li>page-table metadata;</li>
-<li>dropping clean pages;</li>
-<li>writeback dirty file pages;</li>
-<li>swapping anonymous pages;</li>
-<li>cgroup accounting.</li>
+<li>сканирование LRU;</li>
+<li>метаданные таблиц страниц;</li>
+<li>вытеснение чистых страниц;</li>
+<li>writeback изменённых файловых страниц;</li>
+<li>выгрузку анонимных страниц в swap;</li>
+<li>учёт cgroup.</li>
 </ul>
-<p>Поэтому memory pressure способен одновременно увеличить:</p>
+<p>Поэтому давление на память способен одновременно увеличить:</p>
 <div class="highlight"><pre><span></span><code>CPU
 I/O
-latency
+задержка
 </code></pre></div>
 <hr/>
-<h1 id="26-reclaim-efficiency">26. Reclaim efficiency<a class="headerlink" href="#26-reclaim-efficiency" title="Permanent link">¶</a></h1>
+<h1 id="26">26. Эффективность освобождения памяти<a class="headerlink" href="#26" title="Permanent link">¶</a></h1>
 <p>Условно:</p>
 <div class="highlight"><pre><span></span><code>просканировали 1 000 000 pages
 ↓
 освободили 5 000
 </code></pre></div>
-<p>Мы потратили CPU, а memory почти не получили.</p>
+<p>Мы потратили CPU, а свободной памяти почти не получили.</p>
 <p>Полезная модель:</p>
-<div class="highlight"><pre><span></span><code>scan много
-steal мало
+<div class="highlight"><pre><span></span><code>сканируем много
+освобождаем мало
 ↓
-reclaim efficiency плохая
+освобождение памяти малоэффективно
 </code></pre></div>
 <hr/>
 <h1 id="27-pgscan-pgsteal">27. <code>pgscan</code> и <code>pgsteal</code><a class="headerlink" href="#27-pgscan-pgsteal" title="Permanent link">¶</a></h1>
-<p>В <code>/proc/vmstat</code> есть группы счётчиков, отражающих scanning и реально reclaimed pages.</p>
+<p>В <code>/proc/vmstat</code> есть группы счётчиков, отражающих сканирование и реально освобождённые страницы.</p>
 <p>Точные имена зависят от ядра и контекста.</p>
 <p>Инженерный вопрос:</p>
 <div class="highlight"><pre><span></span><code>сколько страниц мы просмотрели?
@@ -1048,29 +1048,29 @@ reclaim efficiency плохая
 сколько реально удалось забрать?
 </code></pre></div>
 <hr/>
-<h1 id="28-thrashing">28. Thrashing<a class="headerlink" href="#28-thrashing" title="Permanent link">¶</a></h1>
+<h1 id="28">28. Трэшинг<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
 <p>Рабочий набор больше доступной RAM:</p>
-<div class="highlight"><pre><span></span><code>page A нужна
+<div class="highlight"><pre><span></span><code>нужна страница A
 ↓
-page B evicted
+страница B вытеснена
 
-page B нужна
+нужна страница B
 ↓
-page C evicted
+страница C вытеснена
 
-page C нужна
+нужна страница C
 ↓
-page A evicted
+страница A вытеснена
 </code></pre></div>
 <p>Система занята движением страниц вместо полезной работы.</p>
-<p>Это <strong>thrashing</strong>.</p>
+<p>Это <strong>трэшинг</strong>.</p>
 <hr/>
 <h1 id="29-cpu-100">29. Почему CPU может быть не 100%<a class="headerlink" href="#29-cpu-100" title="Permanent link">¶</a></h1>
-<p>Во время thrashing задачи могут ждать:</p>
+<p>Во время трэшинг задачи могут ждать:</p>
 <ul>
-<li>memory reclaim;</li>
-<li>swap I/O;</li>
-<li>page faults;</li>
+<li>освобождение памяти;</li>
+<li>ввод-вывод swap;</li>
+<li>страничные ошибки;</li>
 <li>writeback.</li>
 </ul>
 <p>Поэтому:</p>
@@ -1083,9 +1083,9 @@ p99 = ужасный
 <h1 id="30-psi">30. PSI<a class="headerlink" href="#30-psi" title="Permanent link">¶</a></h1>
 <p>Нужна метрика:</p>
 <blockquote>
-<p>Сколько времени workload реально не может продвигаться из-за нехватки ресурса?</p>
+<p>Сколько времени нагрузка реально не может продвигаться из-за нехватки ресурса?</p>
 </blockquote>
-<p>Linux даёт <strong>PSI — Pressure Stall Information</strong>.</p>
+<p>Linux даёт <strong>PSI — Pressure Stall Information, информация о простоях из-за нехватки ресурсов</strong>.</p>
 <p>Для memory:</p>
 <div class="highlight"><pre><span></span><code>/proc/pressure/memory
 </code></pre></div>
@@ -1097,24 +1097,24 @@ full avg10=... avg60=... avg300=... total=...
 <h1 id="31-psi-some">31. PSI <code>some</code><a class="headerlink" href="#31-psi-some" title="Permanent link">¶</a></h1>
 <p><code>some</code> означает:</p>
 <blockquote>
-<p>Хотя бы часть задач stalled из-за данного ресурса.</p>
+<p>Хотя бы часть задач остановлены из-за данного ресурса.</p>
 </blockquote>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>часть запросов stuck в reclaim
+<div class="highlight"><pre><span></span><code>часть запросов застряла в освобождении памяти
 ↓
 другие всё ещё работают
 </code></pre></div>
-<p>Это degradation, но система ещё продвигается.</p>
+<p>Это деградация, но система ещё продвигается.</p>
 <hr/>
 <h1 id="32-psi-full">32. PSI <code>full</code><a class="headerlink" href="#32-psi-full" title="Permanent link">¶</a></h1>
 <p><code>full</code> означает:</p>
 <blockquote>
-<p>Все non-idle задачи одновременно stalled на ресурсе.</p>
+<p>Все не простаивающие задачи одновременно остановлены на ресурсе.</p>
 </blockquote>
 <p>Для memory это намного тяжелее:</p>
-<div class="highlight"><pre><span></span><code>полезный workload почти целиком не продвигается
+<div class="highlight"><pre><span></span><code>полезный нагрузка почти целиком не продвигается
 </code></pre></div>
-<p>Продолжительное <code>full</code> хорошо соответствует модели тяжёлого thrashing.</p>
+<p>Продолжительное <code>full</code> хорошо соответствует модели тяжёлого трэшинг.</p>
 <hr/>
 <h1 id="33-psi-ram">33. Почему PSI лучше процента RAM<a class="headerlink" href="#33-psi-ram" title="Permanent link">¶</a></h1>
 <p>Система A:</p>
@@ -1128,23 +1128,23 @@ PSI высокий
 <p>Вторая может быть намного хуже для SLO.</p>
 <p>PSI измеряет влияние дефицита ресурса на выполнение работы, а не просто заполненность.</p>
 <hr/>
-<h1 id="34-psi-windows">34. PSI windows<a class="headerlink" href="#34-psi-windows" title="Permanent link">¶</a></h1>
+<h1 id="34-psi">34. Временные окна PSI<a class="headerlink" href="#34-psi" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>avg10
 avg60
 avg300
 </code></pre></div>
 <p>дают короткий, средний и длинный тренд.</p>
-<p><code>total</code> — накопленное время stalls.</p>
+<p><code>total</code> — накопленное время простои.</p>
 <p>В инциденте важна динамика и корреляция с p95/p99.</p>
 <hr/>
-<h1 id="35-psi-triggers">35. PSI triggers<a class="headerlink" href="#35-psi-triggers" title="Permanent link">¶</a></h1>
+<h1 id="35-psi">35. Пороговые уведомления PSI<a class="headerlink" href="#35-psi" title="Permanent link">¶</a></h1>
 <p>Можно регистрировать пороги:</p>
-<div class="highlight"><pre><span></span><code>за заданное окно накопилось слишком много stall time
+<div class="highlight"><pre><span></span><code>за заданное окно накопилось слишком много время простоя
 ↓
 monitor получает событие
 </code></pre></div>
 <p>Это позволяет реагировать на:</p>
-<div class="highlight"><pre><span></span><code>workload реально страдает
+<div class="highlight"><pre><span></span><code>нагрузка реально страдает
 </code></pre></div>
 <p>а не только на:</p>
 <div class="highlight"><pre><span></span><code>memory &gt; 90%
@@ -1153,29 +1153,29 @@ monitor получает событие
 <h1 id="36-cgroup-v2">36. Cgroup v2<a class="headerlink" href="#36-cgroup-v2" title="Permanent link">¶</a></h1>
 <p>С контейнерами вопрос меняется:</p>
 <blockquote>
-<p>Какая группа процессов должна испытывать pressure и в каких границах?</p>
+<p>Какая группа процессов должна испытывать давление на память и в каких границах?</p>
 </blockquote>
-<p>Memory controller cgroup v2 учитывает, среди прочего:</p>
+<p>Контроллер памяти cgroup v2 учитывает, среди прочего:</p>
 <ul>
-<li>anonymous memory;</li>
-<li>page cache;</li>
-<li>kernel structures;</li>
-<li>TCP socket buffers.</li>
+<li>анонимная память;</li>
+<li>страничный кеш;</li>
+<li>структуры ядра;</li>
+<li>TCP буферы сокетов.</li>
 </ul>
 <p>Поэтому:</p>
-<div class="highlight"><pre><span></span><code>container memory
+<div class="highlight"><pre><span></span><code>память контейнера
 ≠
-Go heap
+хип Go
 </code></pre></div>
 <hr/>
 <h1 id="37-memorycurrent">37. <code>memory.current</code><a class="headerlink" href="#37-memorycurrent" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>memory.current
 </code></pre></div>
-<p>показывает текущее использование памяти cgroup и его потомков по правилам memory controller.</p>
+<p>показывает текущее использование памяти cgroup и его потомков по правилам контроллера памяти cgroup.</p>
 <p>Это одна из ключевых величин контейнера.</p>
 <hr/>
 <h1 id="38-memorystat">38. <code>memory.stat</code><a class="headerlink" href="#38-memorystat" title="Permanent link">¶</a></h1>
-<p>Разбивает usage по категориям.</p>
+<p>Разбивает использование по категориям.</p>
 <p>Вместо:</p>
 <div class="highlight"><pre><span></span><code>контейнер использует 900 MiB
 </code></pre></div>
@@ -1187,21 +1187,21 @@ Go heap
 есть ли refaults?
 </code></pre></div>
 <hr/>
-<h1 id="39-working-set-counters-cgroup">39. Working-set counters в cgroup<a class="headerlink" href="#39-working-set-counters-cgroup" title="Permanent link">¶</a></h1>
-<p>Полезны counters вроде:</p>
+<h1 id="39-cgroup">39. Счётчики рабочего набора в cgroup<a class="headerlink" href="#39-cgroup" title="Permanent link">¶</a></h1>
+<p>Полезны счётчики вроде:</p>
 <div class="highlight"><pre><span></span><code>workingset_refault_anon
 workingset_refault_file
 workingset_activate_anon
 workingset_activate_file
 </code></pre></div>
 <p>Их смысл:</p>
-<div class="highlight"><pre><span></span><code>reclaim'нули
+<div class="highlight"><pre><span></span><code>освободили
 ↓
 данные быстро вернулись?
 </code></pre></div>
-<p>Это помогает увидеть pressure на working set.</p>
+<p>Это помогает увидеть давление на рабочий набор.</p>
 <hr/>
-<h1 id="40-fault-counters">40. Fault counters<a class="headerlink" href="#40-fault-counters" title="Permanent link">¶</a></h1>
+<h1 id="40">40. Счётчики страничных ошибок<a class="headerlink" href="#40" title="Permanent link">¶</a></h1>
 <p>В <code>memory.stat</code> полезны:</p>
 <div class="highlight"><pre><span></span><code>pgfault
 pgmajfault
@@ -1209,32 +1209,32 @@ pgmajfault
 <p>Связка:</p>
 <div class="highlight"><pre><span></span><code>pgmajfault ↑
 +
-storage/swap I/O ↑
+накопитель/ввод-вывод swap ↑
 +
 p99 ↑
 </code></pre></div>
 <p>уже содержательная гипотеза.</p>
 <hr/>
 <h1 id="41-memorymin">41. <code>memory.min</code><a class="headerlink" href="#41-memorymin" title="Permanent link">¶</a></h1>
-<p><code>memory.min</code> — жёсткая reclaim protection внутри effective boundary.</p>
+<p><code>memory.min</code> — жёсткая защита от освобождения памяти внутри эффективной границы.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>usage &lt;= effective memory.min
+<div class="highlight"><pre><span></span><code>использование &lt;= эффективный `memory.min`
 ↓
-обычный reclaim эту память не трогает
+обычный освобождение памяти эту память не трогает
 </code></pre></div>
-<p>Если unprotected reclaimable memory больше нет:</p>
+<p>Если незащищённая память, которую можно освободить больше нет:</p>
 <div class="highlight"><pre><span></span><code>OOM может наступить раньше
 </code></pre></div>
-<p>То есть protection тоже является ограниченным ресурсом.</p>
+<p>То есть защита тоже является ограниченным ресурсом.</p>
 <hr/>
 <h1 id="42-memorylow">42. <code>memory.low</code><a class="headerlink" href="#42-memorylow" title="Permanent link">¶</a></h1>
-<p><code>memory.low</code> — best-effort protection.</p>
-<p>Если cgroup укладывается в effective low:</p>
-<div class="highlight"><pre><span></span><code>ядро старается не reclaim'ить его память,
+<p><code>memory.low</code> — мягкая защита от освобождения.</p>
+<p>Если cgroup укладывается в эффективный <code>memory.low</code>:</p>
+<div class="highlight"><pre><span></span><code>ядро старается не освобождать его память,
 пока есть менее защищённые кандидаты
 </code></pre></div>
 <p>Но это не абсолютная гарантия.</p>
-<p>При сильном pressure low-protected memory тоже может попасть под reclaim.</p>
+<p>При сильном давлении на память память под защитой <code>memory.low</code> тоже может попасть под освобождение памяти.</p>
 <hr/>
 <h1 id="43-memorymin-memorylow-dimm">43. <code>memory.min</code> и <code>memory.low</code> не резервируют DIMM<a class="headerlink" href="#43-memorymin-memorylow-dimm" title="Permanent link">¶</a></h1>
 <p>Плохая модель:</p>
@@ -1242,7 +1242,7 @@ p99 ↑
 <p><code>memory.low=1G</code> означает, что ядро заранее отложило 1 GiB физической RAM именно этому контейнеру.</p>
 </blockquote>
 <p>Нет.</p>
-<p>Это политика выбора жертв reclaim.</p>
+<p>Это политика выбора жертв освобождение памяти.</p>
 <p>Она влияет на:</p>
 <div class="highlight"><pre><span></span><code>кого трогать раньше
 кого защищать дольше
@@ -1250,20 +1250,20 @@ p99 ↑
 <p>Но это не отдельный физический банк памяти.</p>
 <hr/>
 <h1 id="44-memoryhigh">44. <code>memory.high</code><a class="headerlink" href="#44-memoryhigh" title="Permanent link">¶</a></h1>
-<p><code>memory.high</code> — граница, после которой workload начинает платить тяжёлый reclaim/throttling.</p>
+<p><code>memory.high</code> — граница, после которой нагрузка начинает платить тяжёлое освобождение памяти и замедление.</p>
 <div class="highlight"><pre><span></span><code>memory.current &gt; memory.high
 ↓
-processes throttled
+процессы принудительно замедляются
 ↓
-direct reclaim / heavy pressure
+прямое освобождение памяти / сильное давление
 </code></pre></div>
 <p>И принципиальный момент:</p>
 <blockquote>
-<p>Превышение <code>memory.high</code> само по себе не запускает OOM killer.</p>
+<p>Превышение <code>memory.high</code> само по себе не запускает OOM-killer.</p>
 </blockquote>
-<p>Это слой контролируемой деградации до hard limit.</p>
+<p>Это слой контролируемой деградации до жёсткий лимит.</p>
 <hr/>
-<h1 id="45-memoryhigh-backend-">45. Почему <code>memory.high</code> особенно интересен backend-инженеру<a class="headerlink" href="#45-memoryhigh-backend-" title="Permanent link">¶</a></h1>
+<h1 id="45-memoryhigh-">45. Почему <code>memory.high</code> особенно интересен бэкенд-инженеру<a class="headerlink" href="#45-memoryhigh-" title="Permanent link">¶</a></h1>
 <p>Пусть:</p>
 <div class="highlight"><pre><span></span><code>memory.high = 900 MiB
 memory.max  = 1 GiB
@@ -1271,11 +1271,11 @@ memory.max  = 1 GiB
 <p>Сервис вышел за high:</p>
 <div class="highlight"><pre><span></span><code>процесс жив
 ↓
-requests начинают платить reclaim cost
+запросы начинают платить ценой освобождения памяти
 ↓
 p99 растёт
 ↓
-throughput падает
+пропускная способность падает
 </code></pre></div>
 <p>При этом:</p>
 <div class="highlight"><pre><span></span><code>OOMKilled = 0
@@ -1283,39 +1283,39 @@ throughput падает
 <p>То есть контейнер может быть серьёзно деградирован задолго до OOM.</p>
 <hr/>
 <h1 id="46-memorymax">46. <code>memory.max</code><a class="headerlink" href="#46-memorymax" title="Permanent link">¶</a></h1>
-<p><code>memory.max</code> — жёсткая граница memory controller.</p>
-<p>Если cgroup достиг max и reclaim не может вернуть использование вниз:</p>
-<div class="highlight"><pre><span></span><code>OOM path
+<p><code>memory.max</code> — жёсткая граница контроллера памяти cgroup.</p>
+<p>Если cgroup достиг <code>memory.max</code>, а освобождение памяти не может вернуть использование вниз:</p>
+<div class="highlight"><pre><span></span><code>путь OOM
 ↓
-OOM killer может быть invoked внутри cgroup
+OOM-killer может быть запущен внутри cgroup
 </code></pre></div>
-<p>Это уже containment.</p>
+<p>Это уже ограничение последствий.</p>
 <p>Учебная формула:</p>
 <div class="highlight"><pre><span></span><code>memory.high
-→ throttle / reclaim
+→ принудительное замедление / освобождение памяти
 
 memory.max
-→ hard limit / possible OOM
+→ жёсткий лимит / возможен OOM
 </code></pre></div>
 <hr/>
 <h1 id="47-memorymax">47. Почему первый байт выше <code>memory.max</code> не обязательно мгновенно убивает процесс<a class="headerlink" href="#47-memorymax" title="Permanent link">¶</a></h1>
 <p>Перед OOM ядро пытается вернуть память.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>new charge
+<div class="highlight"><pre><span></span><code>новый учтённый объём памяти
 ↓
-usage около max
+использование около max
 ↓
-memcg reclaim
+освобождение памяти внутри cgroup
 ↓
-достаточно progress?
-├── да → allocation продолжается
-└── нет → OOM state
+достаточно прогресса?
+├── да → аллокация продолжается
+└── нет → состояние OOM
 </code></pre></div>
-<p>Поэтому перед kill обычно уже есть признаки pressure.</p>
+<p>Поэтому перед убийством процесса обычно уже видны признаки давления на память.</p>
 <hr/>
 <h1 id="48-memoryevents">48. <code>memory.events</code><a class="headerlink" href="#48-memoryevents" title="Permanent link">¶</a></h1>
 <p>Очень полезный файл для расследования.</p>
-<p>Содержит counters вроде:</p>
+<p>Содержит счётчики вроде:</p>
 <div class="highlight"><pre><span></span><code>low
 high
 max
@@ -1325,16 +1325,16 @@ oom_group_kill
 </code></pre></div>
 <p>Интерпретация:</p>
 <div class="highlight"><pre><span></span><code>high растёт
-→ cgroup регулярно throttled/reclaimed из-за high
+→ cgroup регулярно замедляется и освобождает память из-за `memory.high`
 
 max растёт
-→ workload постоянно упирается в hard boundary
+→ нагрузка постоянно упирается в жёсткая граница
 
 oom растёт
-→ allocation доходила до OOM state
+→ аллокация доходила до состояние OOM
 
 oom_kill растёт
-→ OOM killer реально убивал процессы
+→ OOM-killer реально убивал процессы
 </code></pre></div>
 <hr/>
 <h1 id="49-memoryeventslocal">49. <code>memory.events.local</code><a class="headerlink" href="#49-memoryeventslocal" title="Permanent link">¶</a></h1>
@@ -1345,49 +1345,49 @@ oom_kill растёт
 <p>Это важно на сложных деревьях cgroup.</p>
 <hr/>
 <h1 id="50-memoryreclaim">50. <code>memory.reclaim</code><a class="headerlink" href="#50-memoryreclaim" title="Permanent link">¶</a></h1>
-<p>Cgroup v2 позволяет запросить proactive reclaim:</p>
+<p>Cgroup v2 позволяет запросить принудительное освобождение памяти:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">echo</span><span class="w"> </span><span class="s2">"1G"</span><span class="w"> </span>&gt;<span class="w"> </span>memory.reclaim
 </code></pre></div>
 <p>Смысл:</p>
-<div class="highlight"><pre><span></span><code>попросить kernel попытаться reclaim'ить память target cgroup
+<div class="highlight"><pre><span></span><code>попросить ядро попытаться освободить память целевого cgroup
 </code></pre></div>
 <p>Но важно:</p>
 <ul>
-<li>ядро может reclaim'ить больше или меньше;</li>
-<li>это не полный эквивалент естественного pressure;</li>
-<li>подсистемы могут реагировать иначе, чем на реальный shortage.</li>
+<li>ядро может освободить больше или меньше;</li>
+<li>это не полный эквивалент естественного давления на память;</li>
+<li>подсистемы могут реагировать иначе, чем на реальный дефицит памяти.</li>
 </ul>
 <p>Это диагностический и управляющий инструмент.</p>
 <p>Не точный симулятор OOM.</p>
 <hr/>
 <h1 id="51-memoryswapcurrent">51. <code>memory.swap.current</code><a class="headerlink" href="#51-memoryswapcurrent" title="Permanent link">¶</a></h1>
-<p>Показывает swap usage текущего cgroup и потомков.</p>
+<p>Показывает использование swap текущего cgroup и потомков.</p>
 <p>Полезно смотреть вместе:</p>
 <div class="highlight"><pre><span></span><code>anon
 swap.current
 pgmajfault
 memory.pressure
 </code></pre></div>
-<p>Одна цифра swap usage не говорит, страдает ли workload прямо сейчас.</p>
+<p>Одна цифра использование swap не говорит, страдает ли нагрузка прямо сейчас.</p>
 <hr/>
 <h1 id="52-memoryswapmax">52. <code>memory.swap.max</code><a class="headerlink" href="#52-memoryswapmax" title="Permanent link">¶</a></h1>
-<p><code>memory.swap.max</code> ограничивает swap usage cgroup.</p>
+<p><code>memory.swap.max</code> ограничивает использование swap cgroup.</p>
 <p>Если лимит достигнут:</p>
-<div class="highlight"><pre><span></span><code>дальнейший swap-out anonymous memory ограничен
+<div class="highlight"><pre><span></span><code>дальнейший выгрузка в swap анонимная память ограничен
 </code></pre></div>
-<p>Значит у reclaim меньше вариантов.</p>
-<p>При большом anon working set это может приблизить memcg OOM.</p>
+<p>Значит у освобождение памяти меньше вариантов.</p>
+<p>При большом рабочем наборе анонимной памяти это может приблизить memcg OOM.</p>
 <hr/>
 <h1 id="53-memoryswapmax0">53. <code>memory.swap.max=0</code> — не магическая оптимизация<a class="headerlink" href="#53-memoryswapmax0" title="Permanent link">¶</a></h1>
 <p>Плюс:</p>
-<div class="highlight"><pre><span></span><code>нет swap-out для cgroup
+<div class="highlight"><pre><span></span><code>нет выгрузки в swap для cgroup
 ↓
-меньше риска огромной page-in latency
+меньше риска огромной задержка возврата страницы
 </code></pre></div>
 <p>Минус:</p>
-<div class="highlight"><pre><span></span><code>cold anonymous pages нельзя убрать в swap
+<div class="highlight"><pre><span></span><code>холодные анонимные страницы нельзя убрать в swap
 ↓
-меньше reclaim options
+меньше вариантов освобождения памяти
 ↓
 OOM может наступить раньше
 </code></pre></div>
@@ -1401,7 +1401,7 @@ OOM может наступить раньше
 <p>Это очень сильная метрика.</p>
 <p>Она отвечает:</p>
 <blockquote>
-<p>Сколько времени workload внутри cgroup реально stalled из-за memory pressure?</p>
+<p>Сколько времени нагрузка внутри cgroup реально остановлены из-за давление на память?</p>
 </blockquote>
 <hr/>
 <h1 id="55-memoryhigh-psi">55. <code>memory.high</code> + PSI<a class="headerlink" href="#55-memoryhigh-psi" title="Permanent link">¶</a></h1>
@@ -1411,13 +1411,13 @@ OOM может наступить раньше
 <p>и одновременно:</p>
 <div class="highlight"><pre><span></span><code>PSI some ↑
 </code></pre></div>
-<p>значит reclaim уже влияет на выполнение задач.</p>
+<p>значит освобождение памяти уже влияет на выполнение задач.</p>
 <p>Если:</p>
 <div class="highlight"><pre><span></span><code>PSI full ↑
 </code></pre></div>
-<p>система ближе к тяжёлому pressure/thrashing режиму.</p>
+<p>система ближе к тяжёлому режиму давления на память и трэшинга.</p>
 <hr/>
-<h1 id="56-memory-usage-memory-pressure">56. Memory usage и memory pressure — разные вещи<a class="headerlink" href="#56-memory-usage-memory-pressure" title="Permanent link">¶</a></h1>
+<h1 id="56">56. Использование памяти и давление на память — разные вещи<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
 <p>Два контейнера:</p>
 <div class="highlight"><pre><span></span><code>A:
 current = 900 MiB / 1 GiB
@@ -1427,79 +1427,79 @@ B:
 current = 700 MiB / 1 GiB
 PSI высокий
 </code></pre></div>
-<p>По percentage used хуже выглядит A.</p>
-<p>По реальному влиянию на workload — B.</p>
+<p>По проценту использования хуже выглядит A.</p>
+<p>По реальному влиянию на нагрузка — B.</p>
 <p>Это важная инженерная мысль:</p>
 <blockquote>
-<p>Memory — stateful resource. Процент использования не описывает состояние системы целиком.</p>
+<p>Memory — ресурс с состоянием. Процент использования не описывает состояние системы целиком.</p>
 </blockquote>
 <hr/>
 <h1 id="57-oom-0">57. OOM — это не «в машине осталось 0 байт»<a class="headerlink" href="#57-oom-0" title="Permanent link">¶</a></h1>
 <p>Более точная модель:</p>
 <blockquote>
-<p>Ядро не смогло удовлетворить конкретную allocation в конкретных constraints после доступных reclaim-механизмов.</p>
+<p>Ядро не смогло удовлетворить конкретную аллокацию при текущих ограничениях после доступных механизмов освобождения памяти.</p>
 </blockquote>
 <p>Constraints могут включать:</p>
 <ul>
-<li>global memory;</li>
+<li>общую память системы;</li>
 <li>NUMA;</li>
 <li>cpuset;</li>
 <li>memcg;</li>
-<li>allocation type.</li>
+<li>аллокация type.</li>
 </ul>
 <p>Поэтому OOM всегда имеет контекст.</p>
 <hr/>
-<h1 id="58-global-oom">58. Global OOM<a class="headerlink" href="#58-global-oom" title="Permanent link">¶</a></h1>
-<p>Система в целом не может удовлетворить allocation.</p>
+<h1 id="58-oom">58. Глобальный OOM<a class="headerlink" href="#58-oom" title="Permanent link">¶</a></h1>
+<p>Система в целом не может удовлетворить аллокация.</p>
 <p>Reclaim не спасает.</p>
-<p>Тогда возможен global OOM killer.</p>
+<p>Тогда возможен глобальный OOM-killer.</p>
 <p>Его задача:</p>
-<div class="highlight"><pre><span></span><code>убить victim
+<div class="highlight"><pre><span></span><code>убить процесс-жертву
 ↓
 освободить память
 ↓
-вернуть системе progress
+вернуть системе прогресс
 </code></pre></div>
-<p>Это recovery mechanism.</p>
+<p>Это механизм восстановления работоспособности.</p>
 <hr/>
-<h1 id="59-memcg-oom">59. Memcg OOM<a class="headerlink" href="#59-memcg-oom" title="Permanent link">¶</a></h1>
+<h1 id="59-oom-cgroup">59. OOM внутри cgroup<a class="headerlink" href="#59-oom-cgroup" title="Permanent link">¶</a></h1>
 <p>Cgroup достиг:</p>
 <div class="highlight"><pre><span></span><code>memory.max
 </code></pre></div>
-<p>Host при этом может иметь много свободной RAM.</p>
-<p>Но isolation говорит:</p>
-<div class="highlight"><pre><span></span><code>этому workload больше памяти нельзя
+<p>Хост при этом может иметь много свободной RAM.</p>
+<p>Но изоляция говорит:</p>
+<div class="highlight"><pre><span></span><code>этому нагрузка больше памяти нельзя
 </code></pre></div>
-<p>Если reclaim внутри cgroup не спас:</p>
+<p>Если освобождение памяти внутри cgroup не спас:</p>
 <div class="highlight"><pre><span></span><code>memcg OOM
 </code></pre></div>
-<p>Victim выбирается внутри cgroup.</p>
+<p>Процесс-жертва выбирается внутри cgroup.</p>
 <hr/>
-<h1 id="60-pod-oomkill-node">60. Почему pod может OOMKill'нуться на свободной node<a class="headerlink" href="#60-pod-oomkill-node" title="Permanent link">¶</a></h1>
+<h1 id="60-pod-oom">60. Почему pod может получить OOM на свободной ноде<a class="headerlink" href="#60-pod-oom" title="Permanent link">¶</a></h1>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>node free = 40 GiB
+<div class="highlight"><pre><span></span><code>свободно на ноде = 40 GiB
 
-container memory.max = 1 GiB
-container usage ≈ 1 GiB
+`memory.max` контейнера = 1 GiB
+container использование ≈ 1 GiB
 </code></pre></div>
 <p>Контейнер просит ещё.</p>
-<p>Для host:</p>
+<p>Для хост:</p>
 <div class="highlight"><pre><span></span><code>проблемы нет
 </code></pre></div>
 <p>Для memcg:</p>
-<div class="highlight"><pre><span></span><code>hard boundary reached
+<div class="highlight"><pre><span></span><code>жёсткая граница reached
 </code></pre></div>
 <p>Результат:</p>
 <div class="highlight"><pre><span></span><code>memcg OOM
 ↓
-process killed
+процесс убит
 ↓
-container runtime sees death
+контейнерный рантайм видит завершение процесса
 ↓
-Kubernetes reports OOMKilled
+Kubernetes показывает OOMKilled
 </code></pre></div>
 <hr/>
-<h1 id="61-oom-score">61. OOM score<a class="headerlink" href="#61-oom-score" title="Permanent link">¶</a></h1>
+<h1 id="61-oom">61. Оценка OOM<a class="headerlink" href="#61-oom" title="Permanent link">¶</a></h1>
 <p>Для процессов Linux предоставляет:</p>
 <div class="highlight"><pre><span></span><code>/proc/&lt;pid&gt;/oom_score
 /proc/&lt;pid&gt;/oom_score_adj
@@ -1508,53 +1508,53 @@ Kubernetes reports OOMKilled
 <p>Но это не способ отменить физику:</p>
 <div class="highlight"><pre><span></span><code>защитили один process
 ↓
-memory shortage никуда не исчез
+memory дефицит памяти никуда не исчез
 ↓
-kernel выберет другого victim
+ядро выберет другой процесс-жертву
 </code></pre></div>
 <hr/>
 <h1 id="62-memoryoomgroup">62. <code>memory.oom.group</code><a class="headerlink" href="#62-memoryoomgroup" title="Permanent link">¶</a></h1>
-<p>Если workload состоит из нескольких процессов, убийство только одного может оставить систему полуживой.</p>
+<p>Если нагрузка состоит из нескольких процессов, убийство только одного может оставить систему полуживой.</p>
 <p>Cgroup v2 позволяет:</p>
 <div class="highlight"><pre><span></span><code>memory.oom.group = 1
 </code></pre></div>
 <p>Учебная идея:</p>
-<div class="highlight"><pre><span></span><code>cgroup рассматривается как единый workload
+<div class="highlight"><pre><span></span><code>cgroup рассматривается как единый нагрузка
 ↓
-OOM kill применяется к группе целиком или не применяется
+OOM применяется к группе целиком или не применяется
 </code></pre></div>
-<p>Это механизм сохранения целостности workload.</p>
+<p>Это механизм сохранения целостности нагрузка.</p>
 <hr/>
-<h1 id="63-oom-killer">63. OOM killer не определяет «виноватого»<a class="headerlink" href="#63-oom-killer" title="Permanent link">¶</a></h1>
-<p>OOM killer не проводит архитектурный postmortem.</p>
+<h1 id="63-oom-killer">63. OOM-killer не определяет «виноватого»<a class="headerlink" href="#63-oom-killer" title="Permanent link">¶</a></h1>
+<p>OOM-killer не проводит архитектурный разбор причин.</p>
 <p>Он решает задачу:</p>
 <blockquote>
-<p>Как освободить память и вернуть progress системе?</p>
+<p>Как освободить память и вернуть прогресс системе?</p>
 </blockquote>
-<p>Victim selection — survival heuristic.</p>
+<p>Выбор процесса-жертвы — эвристика выживания системы.</p>
 <p>Причину инцидента всё равно нужно расследовать отдельно.</p>
 <hr/>
 <h1 id="64-kubernetes-cgroup-v2">64. Kubernetes и cgroup v2<a class="headerlink" href="#64-kubernetes-cgroup-v2" title="Permanent link">¶</a></h1>
 <p>Полезно разделять уровни:</p>
-<div class="highlight"><pre><span></span><code>Kubernetes resource policy
+<div class="highlight"><pre><span></span><code>Kubernetes политика ресурсов
 ↓
-kubelet / container runtime
+kubelet / контейнерный рантайм
 ↓
 cgroup v2
 ↓
-Linux memory controller
+Linux контроллера памяти cgroup
 </code></pre></div>
 <p>Не нужно механически считать, что любое поле Kubernetes один-в-один означает все интерфейсы cgroup.</p>
-<p>Но hard memory limit контейнера в итоге реализуется через kernel memory control.</p>
+<p>Но жёсткий лимит памяти контейнера в итоге реализуется через контроллер памяти ядра.</p>
 <hr/>
-<h1 id="65-timeline-oomkilled">65. Timeline до <code>OOMKilled</code><a class="headerlink" href="#65-timeline-oomkilled" title="Permanent link">¶</a></h1>
+<h1 id="65-oomkilled">65. Временная шкала до <code>OOMKilled</code><a class="headerlink" href="#65-oomkilled" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>t0  memory.current растёт
 
-t1  background reclaim активнее
+t1  фоновое освобождение памяти активнее
 
 t2  PSI some растёт
 
-t3  direct reclaim появляется в allocation path
+t3  прямое освобождение памяти появляется в путь аллокации
 
 t4  refault / swap / writeback растут
 
@@ -1562,13 +1562,13 @@ t5  p99 растёт
 
 t6  memory.events high может расти
 
-t7  usage подходит к max
+t7  использование подходит к max
 
-t8  reclaim перестаёт давать progress
+t8  освобождение памяти перестаёт давать прогресс
 
 t9  memcg OOM
 
-t10 victim killed
+t10 процесс-жертва убит
 
 t11 Kubernetes показывает OOMKilled
 </code></pre></div>
@@ -1578,10 +1578,10 @@ t11 Kubernetes показывает OOMKilled
 <p>Go:</p>
 <div class="highlight"><pre><span></span><code>/gc/heap/live
 /gc/heap/goal
-heap released
+память хипа, возвращённая ОС
 GC CPU
-assist CPU
-goroutine stacks
+CPU на ассисты GC
+стеки goroutine
 </code></pre></div>
 <p>Linux/cgroup:</p>
 <div class="highlight"><pre><span></span><code>memory.current
@@ -1589,30 +1589,30 @@ memory.stat
 memory.pressure
 memory.events
 memory.swap.current
-page faults
-reclaim
+страничные ошибки
+освобождение памяти
 </code></pre></div>
 <p>Нужны обе картины.</p>
 <hr/>
-<h1 id="67-go-heap-cgroup">67. Сценарий: Go heap маленький, cgroup почти полный<a class="headerlink" href="#67-go-heap-cgroup" title="Permanent link">¶</a></h1>
+<h1 id="67-go-cgroup">67. Сценарий: хип Go маленький, cgroup почти полный<a class="headerlink" href="#67-go-cgroup" title="Permanent link">¶</a></h1>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>Go live heap = 400 MiB
+<div class="highlight"><pre><span></span><code>живой хип Go = 400 MiB
 memory.current = 1.8 GiB
 memory.max = 2 GiB
 </code></pre></div>
 <p>Ищем:</p>
 <ul>
-<li>page cache;</li>
-<li>native allocations;</li>
+<li>страничный кеш;</li>
+<li>аллокации вне Go;</li>
 <li>mmap;</li>
 <li>stacks;</li>
-<li>socket buffers;</li>
+<li>буферы сокетов;</li>
 <li>slab;</li>
-<li>shared/file memory.</li>
+<li>общая/файловая память.</li>
 </ul>
 <p>Вывод:</p>
 <blockquote>
-<p>Heap profile — не профиль всей memory charge контейнера.</p>
+<p>Профиль хипа — не профиль всей учёт памяти контейнера.</p>
 </blockquote>
 <hr/>
 <h1 id="68-go-gc-p99">68. Сценарий: Go GC нормальный, p99 растёт<a class="headerlink" href="#68-go-gc-p99" title="Permanent link">¶</a></h1>
@@ -1621,29 +1621,29 @@ STW короткая
 heap стабилен
 </code></pre></div>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>memory PSI ↑
-direct reclaim ↑
-major faults ↑
+<div class="highlight"><pre><span></span><code>PSI памяти ↑
+прямое освобождение памяти ↑
+большие страничные ошибки ↑
 </code></pre></div>
 <p>Причина:</p>
-<div class="highlight"><pre><span></span><code>kernel reclaim
+<div class="highlight"><pre><span></span><code>освобождение памяти ядром
 </code></pre></div>
 <p>А не Go GC.</p>
 <hr/>
-<h1 id="69-feedback-loop">69. Два feedback loop<a class="headerlink" href="#69-feedback-loop" title="Permanent link">¶</a></h1>
+<h1 id="69">69. Два петля обратной связи<a class="headerlink" href="#69" title="Permanent link">¶</a></h1>
 <p>У Go:</p>
-<div class="highlight"><pre><span></span><code>allocation pressure
+<div class="highlight"><pre><span></span><code>давление аллокаций
 ↓
 GC
 ↓
-assist
+ассисты GC
 </code></pre></div>
 <p>У Linux:</p>
-<div class="highlight"><pre><span></span><code>resident pressure
+<div class="highlight"><pre><span></span><code>давление на резидентную память
 ↓
-reclaim
+освобождение памяти
 ↓
-fault / swap / stall
+страничная ошибка / swap / ожидание
 </code></pre></div>
 <p>Они могут работать одновременно.</p>
 <p>И усиливать друг друга.</p>
@@ -1653,11 +1653,11 @@ fault / swap / stall
 ↓
 Go GC чаще
 ↓
-assist CPU ↑
+CPU на ассисты GC ↑
 ↓
-application CPU ↓
+CPU приложения ↓
 ↓
-latency ↑
+задержка ↑
 </code></pre></div>
 <p>Linux PSI при этом может быть низким.</p>
 <p>То есть сервис тормозит на уровне рантайма Go.</p>
@@ -1665,85 +1665,85 @@ latency ↑
 <h1 id="71-gomemlimit">71. Слишком высокий <code>GOMEMLIMIT</code><a class="headerlink" href="#71-gomemlimit" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>GOMEMLIMIT близок к memory.max
 ↓
-heap получает почти весь budget
+хип получает почти весь бюджет
 ↓
-headroom для остальных категорий мал
+запас для остальных категорий мал
 ↓
-memcg reclaim
+освобождение памяти внутри cgroup
 ↓
 PSI ↑
 ↓
-OOM risk ↑
+риск OOM ↑
 </code></pre></div>
 <p>Мы уменьшили GC CPU.</p>
-<p>Но купили больше kernel reclaim.</p>
+<p>Но купили больше освобождение памяти ядром.</p>
 <hr/>
-<h1 id="72-go-scavenger-linux-reclaim">72. Go scavenger и Linux reclaim — не одно и то же<a class="headerlink" href="#72-go-scavenger-linux-reclaim" title="Permanent link">¶</a></h1>
-<p>Go scavenger:</p>
-<div class="highlight"><pre><span></span><code>runtime уже знает:
-эти heap pages ему не нужны
+<h1 id="72-scavenger-go-linux">72. Scavenger Go и освобождение памяти Linux — не одно и то же<a class="headerlink" href="#72-scavenger-go-linux" title="Permanent link">¶</a></h1>
+<p>scavenger Go:</p>
+<div class="highlight"><pre><span></span><code>рантайм уже знает:
+эти страницы хипа ему не нужны
 ↓
 сообщает ОС
 </code></pre></div>
-<p>Linux reclaim:</p>
-<div class="highlight"><pre><span></span><code>kernel испытывает memory pressure
+<p>освобождение памяти Linux:</p>
+<div class="highlight"><pre><span></span><code>ядро испытывает давление на память
 ↓
-сам ищет reclaimable pages
+сам ищет страницы, которые можно освободить
 </code></pre></div>
-<p>Первое — инициатива Go memory manager.</p>
+<p>Первое — инициатива менеджер памяти Go.</p>
 <p>Второе — системная политика ядра.</p>
 <hr/>
-<h1 id="73-reclaim">73. Здоровый reclaim<a class="headerlink" href="#73-reclaim" title="Permanent link">¶</a></h1>
+<h1 id="73">73. Здоровый освобождение памяти<a class="headerlink" href="#73" title="Permanent link">¶</a></h1>
 <p>Пример:</p>
-<div class="highlight"><pre><span></span><code>pressure немного вырос
+<div class="highlight"><pre><span></span><code>давление немного выросло
 ↓
 kswapd проснулся
 ↓
-нашёл cold clean file pages
+нашёл холодные чистые файловые страницы
 ↓
 освободил memory
 ↓
-hot working set остался resident
+горячий рабочий набор остался resident
 ↓
 PSI почти нулевой
 ↓
-backend ничего не заметил
+бэкенд ничего не заметил
 </code></pre></div>
 <p>Это нормальная работа VM.</p>
 <hr/>
 <h1 id="74-oom">74. Деградация до OOM<a class="headerlink" href="#74-oom" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>memory.current → high
 ↓
-direct reclaim ↑
+прямое освобождение памяти ↑
 ↓
 memory.events high ↑
 ↓
 PSI some ↑
 ↓
-latency ↑
+задержка ↑
 ↓
 refaults ↑
 ↓
 swap / page-in ↑
 ↓
-usage → max
+использование → max
 </code></pre></div>
-<p>Это уже memory-pressure incident, хотя process ещё жив.</p>
+<p>Это уже инцидент из-за давления на память, хотя process ещё жив.</p>
 <hr/>
-<h1 id="75-thrashing">75. Thrashing<a class="headerlink" href="#75-thrashing" title="Permanent link">¶</a></h1>
+<h1 id="75">75. Трэшинг<a class="headerlink" href="#75" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>PSI full заметный
 +
-major faults high
+много больших страничных ошибок
 +
-refaults high
+много refault
 +
-swap I/O high
+высокий ввод-вывод swap
 ↓
-throughput collapses
+пропускная способность рушится
 </code></pre></div>
 <p>Система постоянно освобождает данные, которые почти сразу снова нужны.</p>
 <hr/>
-<h1 id="76-system-wide">76. Диагностика system-wide<a class="headerlink" href="#76-system-wide" title="Permanent link">¶</a></h1>
+<h1 id="76">76. Системная диагностика<a class="headerlink" href="#76" title="Permanent link">¶</a></h1>
 <p>Начальный набор:</p>
 <div class="highlight"><pre><span></span><code>free<span class="w"> </span>-h
 vmstat<span class="w"> </span><span class="m">1</span>
@@ -1759,14 +1759,14 @@ cat<span class="w"> </span>/proc/vmstat
 <div class="highlight"><pre><span></span><code>si
 so
 </code></pre></div>
-<p>swap in / swap out.</p>
+<p>загрузка из swap / выгрузка в swap.</p>
 <p>Также смотрим:</p>
 <ul>
-<li>runnable tasks;</li>
-<li>blocked tasks;</li>
+<li>готовые к выполнению задачи;</li>
+<li>заблокированные задачи;</li>
 <li>I/O;</li>
-<li>CPU wait;</li>
-<li>free memory.</li>
+<li>ожидание CPU;</li>
+<li>свободная память.</li>
 </ul>
 <p>Если:</p>
 <div class="highlight"><pre><span></span><code>si/so постоянно активны
@@ -1777,32 +1777,32 @@ p99 плохой
 <hr/>
 <h1 id="78-procvmstat">78. <code>/proc/vmstat</code><a class="headerlink" href="#78-procvmstat" title="Permanent link">¶</a></h1>
 <p>Ищем группы:</p>
-<div class="highlight"><pre><span></span><code>page scan
-page steal
+<div class="highlight"><pre><span></span><code>сканирование страниц
+освобождённые страницы
 faults
-major faults
-activation/deactivation
-refault behaviour
+большие страничные ошибки
+активация/деактивация
+поведение refault
 </code></pre></div>
 <p>Главная причинная модель:</p>
 <div class="highlight"><pre><span></span><code>сколько ищем
 ↓
 сколько освобождаем
 ↓
-сколько потом возвращается fault'ами
+сколько потом возвращается через страничные ошибки
 </code></pre></div>
 <hr/>
-<h1 id="79-psi-system-wide">79. PSI system-wide<a class="headerlink" href="#79-psi-system-wide" title="Permanent link">¶</a></h1>
+<h1 id="79-psi">79. Системный PSI<a class="headerlink" href="#79-psi" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>cat<span class="w"> </span>/proc/pressure/memory
 </code></pre></div>
 <p>Интерпретация:</p>
 <div class="highlight"><pre><span></span><code>some
-→ часть workload stalls
+→ часть нагрузка простои
 
 full
-→ одновременно stalls весь non-idle workload
+→ одновременно простои весь не простаивающие нагрузка
 </code></pre></div>
-<p>Для SLO это часто информативнее free memory.</p>
+<p>Для SLO это часто информативнее свободная память.</p>
 <hr/>
 <h1 id="80-cgroup-v2">80. Диагностика cgroup v2<a class="headerlink" href="#80-cgroup-v2" title="Permanent link">¶</a></h1>
 <p>Основной набор:</p>
@@ -1816,7 +1816,7 @@ memory.max
 memory.swap.current
 memory.swap.max
 </code></pre></div>
-<p>Почти готовый memory incident dashboard.</p>
+<p>Почти готовый панель диагностики памяти.</p>
 <hr/>
 <h1 id="81">81. Минимальный алгоритм расследования контейнера<a class="headerlink" href="#81" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>OOMKilled?
@@ -1827,9 +1827,9 @@ memory.current близко к max?
 ↓
 да
 
-high events росли до OOM?
+события `high` росли до OOM?
 ↓
-значит degradation была раньше
+значит деградация началась раньше
 
 memory.pressure?
 ↓
@@ -1844,22 +1844,22 @@ swap.current?
 использовался ли swap
 </code></pre></div>
 <p>Параллельно:</p>
-<div class="highlight"><pre><span></span><code>Go heap
+<div class="highlight"><pre><span></span><code>хип Go
 GC CPU
-assist CPU
+CPU на ассисты GC
 goroutines
 </code></pre></div>
 <hr/>
-<h1 id="82-1-file-backed-anonymous">82. Практика 1: file-backed против anonymous<a class="headerlink" href="#82-1-file-backed-anonymous" title="Permanent link">¶</a></h1>
-<p>Workload A:</p>
+<h1 id="82-1">82. Практика 1: память, связанная с файлом, против анонимной<a class="headerlink" href="#82-1" title="Permanent link">¶</a></h1>
+<p>Нагрузка A:</p>
 <div class="highlight"><pre><span></span><code>большой файл
 ↓
 read
 ↓
-page cache
+страничный кеш
 </code></pre></div>
-<p>Workload B:</p>
-<div class="highlight"><pre><span></span><code>большой anonymous buffer
+<p>Нагрузка B:</p>
+<div class="highlight"><pre><span></span><code>большой анонимный буфер
 ↓
 touch
 </code></pre></div>
@@ -1871,41 +1871,41 @@ PSI
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть, что file-backed и anonymous memory дают kernel разные reclaim options.</p>
+<p>Увидеть, что связанная с файлами и анонимная память дают ядру разные варианты освобождения.</p>
 </blockquote>
 <hr/>
-<h1 id="83-2-background-direct-reclaim">83. Практика 2: background и direct reclaim<a class="headerlink" href="#83-2-background-direct-reclaim" title="Permanent link">¶</a></h1>
-<p>Постепенно увеличивать working set в отдельной VM.</p>
+<h1 id="83-2">83. Практика 2: фоновое и прямое освобождение памяти<a class="headerlink" href="#83-2" title="Permanent link">¶</a></h1>
+<p>Постепенно увеличивать рабочий набор в отдельной VM.</p>
 <p>Снимать:</p>
 <div class="highlight"><pre><span></span><code>/proc/vmstat
 /proc/pressure/memory
-latency workload
+задержку нагрузки
 </code></pre></div>
 <p>Искать цепочку:</p>
-<div class="highlight"><pre><span></span><code>background reclaim
+<div class="highlight"><pre><span></span><code>фоновое освобождение памяти
 ↓
-direct reclaim
+прямое освобождение памяти
 ↓
-stalls
+простои
 ↓
 p99 ↑
 </code></pre></div>
 <hr/>
 <h1 id="84-3-swap">84. Практика 3: swap<a class="headerlink" href="#84-3-swap" title="Permanent link">¶</a></h1>
 <p>В изолированной VM включить swap.</p>
-<p>Создать anonymous working set больше RAM.</p>
+<p>Создать рабочий набор анонимной памяти больше RAM.</p>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>vmstat si/so
-major faults
+большие страничные ошибки
 PSI
-latency
+задержка
 </code></pre></div>
 <p>Потом повторить без swap.</p>
 <p>Цель:</p>
 <div class="highlight"><pre><span></span><code>swap
-→ больше reclaim options
-→ меньше immediate OOM
-→ возможна огромная page-in latency
+→ больше вариантов освобождения памяти
+→ меньше немедленного OOM
+→ возможна огромная задержка возврата страницы
 </code></pre></div>
 <hr/>
 <h1 id="85-4-psi">85. Практика 4: PSI<a class="headerlink" href="#85-4-psi" title="Permanent link">¶</a></h1>
@@ -1916,35 +1916,35 @@ latency
 <div class="highlight"><pre><span></span><code>p50
 p95
 p99
-throughput
+пропускная способность
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Связать stall time ядра с реальной деградацией backend.</p>
+<p>Связать время простоя из-за ядра с реальной деградацией бэкенд.</p>
 </blockquote>
 <hr/>
 <h1 id="86-5-memoryhigh">86. Практика 5: <code>memory.high</code><a class="headerlink" href="#86-5-memoryhigh" title="Permanent link">¶</a></h1>
 <p>В отдельном cgroup:</p>
 <div class="highlight"><pre><span></span><code>memory.high &lt; memory.max
 </code></pre></div>
-<p>Поднять working set выше high, но удерживать ниже max.</p>
+<p>Поднять рабочий набор выше <code>memory.high</code>, но удерживать ниже <code>memory.max</code>.</p>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>memory.events high
 memory.pressure
-latency
+задержка
 </code></pre></div>
 <p>Ожидаем:</p>
-<div class="highlight"><pre><span></span><code>process жив
+<div class="highlight"><pre><span></span><code>процесс жив
 ↓
-throttle / direct reclaim
+принудительное замедление / прямое освобождение памяти
 ↓
-latency ↑
+задержка ↑
 ↓
 OOM нет
 </code></pre></div>
 <hr/>
 <h1 id="87-6-memorymax">87. Практика 6: <code>memory.max</code><a class="headerlink" href="#87-6-memorymax" title="Permanent link">¶</a></h1>
-<p>Увеличить workload до hard boundary.</p>
+<p>Увеличить нагрузка до жёсткая граница.</p>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>memory.events max
 oom
@@ -1952,7 +1952,7 @@ oom_kill
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть переход от degradation к OOM containment.</p>
+<p>Увидеть переход от деградации к OOM.</p>
 </blockquote>
 <p>Только в отдельном cgroup/контейнере.</p>
 <hr/>
@@ -1969,7 +1969,7 @@ refaults
 <p>Потом снова активно обратиться к данным.</p>
 <p>Важно:</p>
 <blockquote>
-<p>Proactive reclaim не полностью эквивалентен естественному memory pressure.</p>
+<p>Принудительное освобождение памяти не полностью эквивалентен естественному давление на память.</p>
 </blockquote>
 <hr/>
 <h1 id="89-8-go-cgroup">89. Практика 8: Go + cgroup<a class="headerlink" href="#89-8-go-cgroup" title="Permanent link">¶</a></h1>
@@ -1978,7 +1978,7 @@ refaults
 /gc/heap/live
 /gc/heap/goal
 GC CPU
-assist CPU
+CPU на ассисты GC
 
 Linux:
 memory.current
@@ -1987,7 +1987,7 @@ memory.events
 memory.stat
 swap.current
 
-Backend:
+Бэкенд:
 RPS
 p50
 p95
@@ -2000,33 +2000,33 @@ memory.max
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть две системы обратной связи одновременно: Go GC и Linux reclaim.</p>
+<p>Увидеть две системы обратной связи одновременно: Go GC и освобождение памяти Linux.</p>
 </blockquote>
 <hr/>
-<h1 id="90-page-cache">90. Плохой вывод: «page cache украл память»<a class="headerlink" href="#90-page-cache" title="Permanent link">¶</a></h1>
-<p>Linux использует свободную RAM под page cache намеренно.</p>
-<p>При pressure clean file cache обычно хороший reclaim candidate.</p>
+<h1 id="90">90. Плохой вывод: «страничный кеш украл память»<a class="headerlink" href="#90" title="Permanent link">¶</a></h1>
+<p>Linux использует свободную RAM под страничный кеш намеренно.</p>
+<p>При давлении на память чистый файловый кеш обычно является хорошим кандидатом на освобождение.</p>
 <p>Проблема появляется, когда:</p>
 <ul>
 <li>страницы постоянно refault;</li>
-<li>dirty cache требует writeback;</li>
+<li>изменённый кеш требует writeback;</li>
 <li>protections ограничивают выбор;</li>
-<li>anon working set слишком велик.</li>
+<li>anon рабочий набор слишком велик.</li>
 </ul>
-<p>Большой page cache сам по себе нормален.</p>
+<p>Большой страничный кеш сам по себе нормален.</p>
 <hr/>
-<h1 id="91-swap-used-0">91. Плохой вывод: «swap used &gt; 0 — сервер умирает»<a class="headerlink" href="#91-swap-used-0" title="Permanent link">¶</a></h1>
-<p>Холодные pages могли давно уйти в swap и больше не использоваться.</p>
+<h1 id="91-swap-0">91. Плохой вывод: «использование swap &gt; 0 — сервер умирает»<a class="headerlink" href="#91-swap-0" title="Permanent link">¶</a></h1>
+<p>Холодные страницы могли давно уйти в swap и больше не использоваться.</p>
 <p>Нужны:</p>
-<div class="highlight"><pre><span></span><code>swap-in/out rate
-major faults
+<div class="highlight"><pre><span></span><code>скорость выгрузки в swap и загрузки из него
+большие страничные ошибки
 PSI
-latency
+задержка
 </code></pre></div>
 <p>А не один <code>SwapUsed</code>.</p>
 <hr/>
 <h1 id="92-psi-some-0">92. Плохой вывод: «PSI some &gt; 0 — авария»<a class="headerlink" href="#92-psi-some-0" title="Permanent link">¶</a></h1>
-<p>Короткие небольшие stalls возможны.</p>
+<p>Короткие небольшие простои возможны.</p>
 <p>Смотрим:</p>
 <ul>
 <li>величину;</li>
@@ -2034,56 +2034,56 @@ latency
 <li>тренд;</li>
 <li>связь с SLO.</li>
 </ul>
-<p><code>full</code> намного тяжелее, потому что отражает одновременный stall всех non-idle задач.</p>
+<p><code>full</code> намного тяжелее, потому что отражает одновременный простой всех активных задач.</p>
 <hr/>
 <h1 id="93-mglru-ram">93. Плохой вывод: «MGLRU решает нехватку RAM»<a class="headerlink" href="#93-mglru-ram" title="Permanent link">¶</a></h1>
 <p>Пусть:</p>
-<div class="highlight"><pre><span></span><code>working set = 64 GiB
-available RAM = 16 GiB
+<div class="highlight"><pre><span></span><code>рабочий набор = 64 GiB
+доступная RAM = 16 GiB
 </code></pre></div>
-<p>Более умный eviction не создаст ещё 48 GiB.</p>
-<p>MGLRU может уменьшить лишние refaults и overhead.</p>
-<p>Физический capacity limit остаётся.</p>
+<p>Более умный вытеснение не создаст ещё 48 GiB.</p>
+<p>MGLRU может уменьшить лишние повторные обращения и накладные расходы.</p>
+<p>Физический ограничение ёмкости остаётся.</p>
 <hr/>
-<h1 id="94-oom-killer">94. Плохой вывод: «OOM killer выбирает виноватого»<a class="headerlink" href="#94-oom-killer" title="Permanent link">¶</a></h1>
-<p>OOM killer выбирает victim ради освобождения памяти и progress.</p>
+<h1 id="94-oom-killer">94. Плохой вывод: «OOM-killer выбирает виноватого»<a class="headerlink" href="#94-oom-killer" title="Permanent link">¶</a></h1>
+<p>OOM-killer выбирает процесс-жертву ради освобождения памяти и восстановления прогресса.</p>
 <p>Это survival-механизм.</p>
 <p>Архитектурную причину инцидента всё равно ищет инженер.</p>
 <hr/>
-<h1 id="95-reclaim">95. Сквозная цепочка: здоровый reclaim<a class="headerlink" href="#95-reclaim" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>RAM pressure слегка вырос
+<h1 id="95">95. Сквозная цепочка: здоровый освобождение памяти<a class="headerlink" href="#95" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>давление на RAM слегка выросло
 ↓
 kswapd
 ↓
-cold clean pages
+холодные чистые страницы
 ↓
-reclaim
+освобождение памяти
 ↓
-working set сохранён
+рабочий набор сохранён
 ↓
 PSI ≈ 0
 ↓
-backend не заметил
+бэкенд не заметил
 </code></pre></div>
 <hr/>
-<h1 id="96-direct-reclaim-request">96. Сквозная цепочка: direct reclaim попал в request<a class="headerlink" href="#96-direct-reclaim-request" title="Permanent link">¶</a></h1>
+<h1 id="96">96. Сквозная цепочка: прямое освобождение попало в запрос<a class="headerlink" href="#96" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>pressure высокий
 ↓
 kswapd не успевает
 ↓
-Go handler требует pages
+Go-обработчику нужны страницы
 ↓
-direct reclaim
+прямое освобождение памяти
 ↓
-handler stalled
+обработчик ждёт
 ↓
 PSI some ↑
 ↓
 p99 ↑
 </code></pre></div>
 <hr/>
-<h1 id="97-thrashing">97. Сквозная цепочка: thrashing<a class="headerlink" href="#97-thrashing" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>working set &gt; RAM
+<h1 id="97">97. Сквозная цепочка: трэшинг<a class="headerlink" href="#97" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>рабочий набор &gt; RAM
 ↓
 evict
 ↓
@@ -2091,40 +2091,40 @@ refault
 ↓
 swap/page-in
 ↓
-evict another hot page
+вытеснить другую горячую страницу
 ↓
 PSI full ↑
 ↓
-throughput ↓
+пропускная способность ↓
 </code></pre></div>
 <hr/>
-<h1 id="98-cgroup-high">98. Сквозная цепочка: cgroup high<a class="headerlink" href="#98-cgroup-high" title="Permanent link">¶</a></h1>
+<h1 id="98-memoryhigh">98. Сквозная цепочка: <code>memory.high</code><a class="headerlink" href="#98-memoryhigh" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>memory.current &gt; memory.high
 ↓
-throttle / direct reclaim
+принудительное замедление / прямое освобождение памяти
 ↓
 memory.events high ↑
 ↓
 memory.pressure ↑
 ↓
-latency ↑
+задержка ↑
 </code></pre></div>
 <p>OOM ещё не обязателен.</p>
 <hr/>
 <h1 id="99-memcg-oom">99. Сквозная цепочка: memcg OOM<a class="headerlink" href="#99-memcg-oom" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>memory.current → memory.max
 ↓
-allocation wants more
+аллокации нужно больше памяти
 ↓
-memcg reclaim
+освобождение памяти внутри cgroup
 ↓
-progress insufficient
+прогресса недостаточно
 ↓
-OOM state
+состояние OOM
 ↓
-victim selection
+выбор процесса-жертвы
 ↓
-process killed
+процесс убит
 ↓
 memory.events oom_kill ↑
 ↓
@@ -2134,47 +2134,47 @@ OOMKilled
 <h1 id="100-go-linux">100. Сквозная цепочка: Go и Linux усиливают друг друга<a class="headerlink" href="#100-go-linux" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>RPS ↑
 ↓
-Go allocation rate ↑
+скорость аллокаций Go ↑
 ↓
-live / temporary memory ↑
+живая / временная память ↑
 ↓
 RSS / memory.current ↑
 ↓
 memory.high pressure
 ↓
-direct reclaim
+прямое освобождение памяти
 ↓
 PSI ↑
 ↓
-request latency ↑
+задержка запроса ↑
 ↓
-in-flight requests ↑
+запросы в обработке ↑
 ↓
-live state ↑
+живое состояние ↑
 ↓
 pressure ещё выше
 </code></pre></div>
-<p>Получили положительную feedback loop деградации.</p>
+<p>Получили положительную петля обратной связи деградации.</p>
 <hr/>
 <h1 id="101">101. Как разрывать такую петлю<a class="headerlink" href="#101" title="Permanent link">¶</a></h1>
 <p>Уровни разные.</p>
 <p>Приложение:</p>
-<div class="highlight"><pre><span></span><code>ограничить concurrency
-уменьшить retention
-уменьшить allocation rate
-уменьшить working set
+<div class="highlight"><pre><span></span><code>ограничить параллелизм
+уменьшить удержание памяти
+уменьшить скорость аллокаций
+уменьшить рабочий набор
 </code></pre></div>
-<p>Go runtime:</p>
+<p>Рантайм Go:</p>
 <div class="highlight"><pre><span></span><code>реалистичный GOMEMLIMIT
 </code></pre></div>
 <p>Контейнер:</p>
 <div class="highlight"><pre><span></span><code>разумный memory.max
 headroom
-осознанная swap policy
+осознанная политика swap
 </code></pre></div>
 <p>Linux:</p>
-<div class="highlight"><pre><span></span><code>наблюдать PSI/reclaim
-не создавать патологические protection/limit policies
+<div class="highlight"><pre><span></span><code>наблюдать PSI и освобождение памяти
+не создавать патологические политики защиты/лимитов
 </code></pre></div>
 <p>Одной ручки нет.</p>
 <hr/>
@@ -2188,23 +2188,23 @@ headroom
 </thead>
 <tbody>
 <tr>
-<td>Есть ли system-wide stalls?</td>
+<td>Есть ли системные простои?</td>
 <td><code>/proc/pressure/memory</code></td>
 </tr>
 <tr>
-<td>Есть ли stalls у cgroup?</td>
+<td>Есть ли простои cgroup?</td>
 <td><code>memory.pressure</code></td>
 </tr>
 <tr>
-<td>Сколько memory charged?</td>
+<td>Сколько учтено памяти?</td>
 <td><code>memory.current</code></td>
 </tr>
 <tr>
-<td>Из чего состоит usage?</td>
+<td>Из чего состоит использование?</td>
 <td><code>memory.stat</code></td>
 </tr>
 <tr>
-<td>Упираемся ли в high/max/OOM?</td>
+<td>Упираемся ли в <code>high</code>/<code>max</code>/OOM?</td>
 <td><code>memory.events</code></td>
 </tr>
 <tr>
@@ -2212,32 +2212,32 @@ headroom
 <td><code>memory.swap.current</code></td>
 </tr>
 <tr>
-<td>Какой hard limit?</td>
+<td>Какой жёсткий лимит?</td>
 <td><code>memory.max</code></td>
 </tr>
 <tr>
-<td>Есть ли swap I/O?</td>
+<td>Есть ли ввод-вывод swap?</td>
 <td><code>vmstat</code>, <code>sar</code></td>
 </tr>
 <tr>
-<td>Есть ли major faults?</td>
+<td>Есть ли большие страничные ошибки?</td>
 <td><code>memory.stat</code>, <code>/proc/vmstat</code></td>
 </tr>
 <tr>
-<td>Много ли reclaim scan?</td>
+<td>Много ли сканирование при освобождении?</td>
 <td><code>/proc/vmstat</code></td>
 </tr>
 <tr>
-<td>Что делает Go heap?</td>
+<td>Что делает хип Go?</td>
 <td><code>runtime/metrics</code>, pprof</td>
 </tr>
 <tr>
-<td>Кто удерживает Go memory?</td>
+<td>Кто удерживает память Go?</td>
 <td>heap profile</td>
 </tr>
 <tr>
 <td>Почему Go тратит CPU на GC?</td>
-<td>CPU profile + GC metrics</td>
+<td>CPU-профиль + метрики GC</td>
 </tr>
 </tbody>
 </table>
@@ -2245,17 +2245,17 @@ headroom
 <h1 id="103">103. Что является устойчивой моделью<a class="headerlink" href="#103" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>pressure
 ↓
-reclaim candidates
+кандидаты на освобождение
 ↓
-working-set estimation
+оценка рабочего набора
 ↓
-aging
+старение
 ↓
-eviction
+вытеснение
 ↓
-fault / refault feedback
+обратная связь по fault/refault
 ↓
-swap / file backing
+swap / файловое обеспечение
 </code></pre></div>
 <p>Это полезно помнить независимо от конкретной версии ядра.</p>
 <hr/>
@@ -2265,126 +2265,126 @@ swap / file backing
 cgroup v2 memory.*
 /proc/&lt;pid&gt;/oom_score_adj
 </code></pre></div>
-<p>Их semantics документируется kernel ABI/admin interfaces.</p>
+<p>Их семантика документируется интерфейсами ABI/администрирования ядра.</p>
 <hr/>
-<h1 id="105-implementation-detail">105. Что является implementation detail<a class="headerlink" href="#105-implementation-detail" title="Permanent link">¶</a></h1>
+<h1 id="105">105. Что является деталь реализации<a class="headerlink" href="#105" title="Permanent link">¶</a></h1>
 <p>К этому относятся:</p>
 <ul>
 <li>точные структуры MGLRU;</li>
-<li>число generations;</li>
-<li>конкретные aging heuristics;</li>
-<li>scan budgets;</li>
-<li>внутренние watermarks;</li>
-<li>точная OOM badness heuristic;</li>
-<li>набор некоторых vmstat counters конкретной версии.</li>
+<li>число поколения;</li>
+<li>конкретные эвристики старения;</li>
+<li>бюджеты сканирования;</li>
+<li>внутренние пороговые уровни;</li>
+<li>точная OOM эвристика выбора жертвы;</li>
+<li>набор некоторых счётчики vmstat конкретной версии.</li>
 </ul>
 <p>Их нужно понимать, но не превращать в вечный контракт.</p>
 <hr/>
 <h1 id="_2">Что важно запомнить<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
 <ol>
-<li>Reclaim ищет страницы, которые можно освободить с минимальным ущербом working set.</li>
-<li>Clean file-backed page можно drop'нуть и перечитать; anonymous memory обычно требует swap, если содержимое нужно сохранить.</li>
-<li>LRU — приближённая модель давности, а не идеальный список каждого access.</li>
-<li>MGLRU использует несколько поколений и refault feedback, чтобы лучше отделять hot pages от cold pages.</li>
-<li>Working set важнее общего virtual size процесса.</li>
-<li>Refault показывает, что недавно evicted данные снова понадобились.</li>
-<li><code>kswapd</code> делает background reclaim; direct reclaim заставляет прикладной поток самому платить за shortage памяти.</li>
-<li>Direct reclaim способен ухудшать backend latency при полностью нормальном Go GC.</li>
-<li>Swap расширяет reclaim options для anonymous memory, но page-in создаёт дорогие major faults.</li>
-<li>Swap usage сам по себе не диагноз; важны swap I/O, major faults, PSI и latency.</li>
-<li>PSI измеряет время, потерянное workload из-за pressure. <code>some</code> означает stall части задач, <code>full</code> — одновременный stall всего non-idle workload.</li>
-<li><code>memory.current</code> показывает usage cgroup, а <code>memory.stat</code> объясняет его состав.</li>
-<li><code>memory.min</code> — hard reclaim protection, <code>memory.low</code> — best-effort protection.</li>
-<li><code>memory.high</code> создаёт throttling/reclaim pressure и не должен сам по себе запускать OOM killer.</li>
-<li><code>memory.max</code> — hard cgroup limit; если reclaim не спасает, возможен memcg OOM.</li>
-<li><code>memory.events</code> позволяет увидеть high/max/OOM до и после аварии.</li>
-<li><code>memory.swap.max</code> меняет доступные reclaim strategies для anonymous memory.</li>
-<li>Memcg OOM может произойти даже при большом запасе RAM на host.</li>
-<li>OOM killer восстанавливает progress системы, а не определяет «виноватый» процесс.</li>
-<li>Go GC pressure и Linux reclaim pressure — разные слои, которые могут усиливать друг друга.</li>
-<li>Для memory incident нужно вместе смотреть Go metrics, cgroup accounting, PSI, faults, reclaim и backend latency.</li>
-<li><code>OOMKilled</code> — последний симптом цепочки; degradation часто начинается намного раньше.</li>
+<li>Механизм освобождения памяти ищет страницы, которые можно освободить с минимальным ущербом рабочему набору.</li>
+<li>Чистую страницу, связанную с файлом, можно выбросить и позже перечитать; анонимная память обычно требует swap, если содержимое нужно сохранить.</li>
+<li>LRU — приближённая модель давности, а не идеальный список каждого обращения.</li>
+<li>MGLRU использует несколько поколений и обратную связь по повторным обращениям, чтобы лучше отделять горячие страницы от холодных.</li>
+<li>Рабочий набор важнее общего размера виртуальной памяти процесса.</li>
+<li>Повторное обращение (<code>refault</code>) показывает, что недавно вытесненные данные снова понадобились.</li>
+<li><code>kswapd</code> делает фоновое освобождение памяти; прямое освобождение памяти заставляет прикладной поток самому платить за дефицит памяти памяти.</li>
+<li>Прямое освобождение памяти способно ухудшать задержку бэкенда при полностью нормальном Go GC.</li>
+<li>Swap расширяет варианты освобождения анонимной памяти, но загрузка из swap создаёт дорогие большие страничные ошибки.</li>
+<li>Сам объём используемого swap не диагноз; важны ввод-вывод swap, большие страничные ошибки, PSI и задержка.</li>
+<li>PSI измеряет время, потерянное нагрузкой из-за давления на память. <code>some</code> означает простой части задач, <code>full</code> — одновременный stall всей активной нагрузки.</li>
+<li><code>memory.current</code> показывает использование cgroup, а <code>memory.stat</code> объясняет его состав.</li>
+<li><code>memory.min</code> — жёсткая защита от освобождения, <code>memory.low</code> — мягкая защита от освобождения.</li>
+<li><code>memory.high</code> создаёт замедление и давление освобождения памяти и не должен сам по себе запускать OOM-killer.</li>
+<li><code>memory.max</code> — жёсткий лимит cgroup; если освобождение памяти не спасает, возможен memcg OOM.</li>
+<li><code>memory.events</code> позволяет увидеть <code>high</code>/<code>max</code>/OOM до и после аварии.</li>
+<li><code>memory.swap.max</code> меняет доступные стратегии освобождения анонимной памяти.</li>
+<li>OOM внутри cgroup может произойти даже при большом запасе RAM на хосте.</li>
+<li>OOM-killer восстанавливает прогресс системы, а не определяет «виноватый» процесс.</li>
+<li>Давление со стороны GC Go и механизма освобождения памяти Linux — разные слои, которые могут усиливать друг друга.</li>
+<li>Для инцидента с памятью нужно вместе смотреть метрики Go, учёт cgroup, PSI, страничные ошибки, освобождение памяти и задержку бэкенда.</li>
+<li><code>OOMKilled</code> — последний симптом цепочки; деградация часто начинается намного раньше.</li>
 </ol>
 <hr/>
 <h1 id="_3">Финальная модель<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>                  WORKLOAD
                      │
                      ▼
-                working set
+                рабочий набор
                      │
             ┌────────┴────────┐
             │                 │
          помещается         не помещается
             │                 │
             ▼                 ▼
-        normal work      memory pressure
+        обычная работа      давление на память
                               │
                               ▼
-                         reclaim policy
+                         политика освобождения памяти
                      ┌────────┴────────┐
                      │                 │
-                 file-backed         anonymous
+                 связанный с файлом         anonymous
                      │                 │
-             drop / writeback         swap?
+             выбросить / writeback         swap?
                      │                 │
                      └────────┬────────┘
                               ▼
                          LRU / MGLRU
                               │
-                    aging + eviction
+                    старение + вытеснение
                               │
                               ▼
-                           reclaim
+                           освобождение памяти
                      ┌────────┴────────┐
                      │                 │
-                  kswapd          direct reclaim
+                  kswapd          прямое освобождение памяти
                      │                 │
                      │                 ▼
-                     │          application stall
+                     │          остановка приложения
                      │                 │
                      └────────┬────────┘
                               ▼
                               PSI
                               │
                               ▼
-                         cgroup policy
+                         политика cgroup
           ┌─────────────┬─────┴─────┬─────────────┐
           ▼             ▼           ▼             ▼
-     memory.low     memory.high  memory.max   swap limits
+     memory.low     memory.high  memory.max   лимиты swap
           │             │           │
           │             ▼           ▼
-          │          throttle      OOM path
+          │          принудительное замедление      путь OOM
           │                         │
           └──────────────┬──────────┘
                          ▼
-                     OOM killer
+                     OOM-killer
                          │
                          ▼
-                     process dies
+                     процесс завершается
                          │
                          ▼
                      OOMKilled
 </code></pre></div>
 <p>Связь с Go:</p>
-<div class="highlight"><pre><span></span><code>Go allocation / live set
+<div class="highlight"><pre><span></span><code>аллокации Go / живой набор
 ↓
 Go GC + GOMEMLIMIT
 ↓
-resident footprint
+резидентный объём
 ↓
 cgroup memory.current
 ↓
-Linux reclaim
+освобождение памяти Linux
 ↓
 PSI
 ↓
-request latency
+задержка запроса
 ↓
-OOM risk
+риск OOM
 </code></pre></div>
 <p>Главный инженерный вывод:</p>
 <blockquote>
-<p>Linux memory reclaim — не аварийная кнопка, которая включается за секунду до OOM. Это постоянно работающая система управления working set. Backend начинает платить за shortage RAM тогда, когда его потоки входят в direct reclaim, страницы refault'ятся и PSI растёт. OOM killer появляется уже в конце цепочки, когда доступные способы вернуть memory progress перестали работать.</p>
+<p>Linux освобождение памяти — не аварийная кнопка, которая включается за секунду до OOM. Это постоянно работающая система управления рабочим набором. Бэкенд начинает платить за дефицит памяти RAM тогда, когда его потоки входят в прямое освобождение памяти, страницы refault'ятся и PSI растёт. OOM-killer появляется уже в конце цепочки, когда доступные способы вернуть прогресс системы перестали работать.</p>
 </blockquote>
 <hr/>
 <h1 id="_4">Официальные источники<a class="headerlink" href="#_4" title="Permanent link">¶</a></h1>
@@ -2421,13 +2421,13 @@ OOM risk
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap" class="md-footer__link md-footer__link--next" href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<a aria-label="Вперед: 3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap" class="md-footer__link md-footer__link--next" href="../3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+                3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
               </div>
 </div>
 <div class="md-footer__button md-icon">

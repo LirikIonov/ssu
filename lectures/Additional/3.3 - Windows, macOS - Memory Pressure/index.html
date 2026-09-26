@@ -8,7 +8,7 @@
 <link href="../3.4%20-%20Linux%20storage%20path/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap - Go</title>
+<title>3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#33-windows-macos-memory-pressure-working-set-commit-compression-swap">
+<a class="md-skip" href="#33-windows-macos-working-set-commit-swap">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+              3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
             
           </span>
 </div>
@@ -268,7 +268,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
   
 
     
@@ -281,7 +281,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
   
 
     
@@ -292,7 +292,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
   
 
     
@@ -321,7 +321,7 @@
 <span class="md-ellipsis">
     
   
-    3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
   
 
     
@@ -536,33 +536,33 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="33-windows-macos-memory-pressure-working-set-commit-compression-swap">3.3. Windows и macOS memory pressure глубже: Working Set, Commit, compression и swap<a class="headerlink" href="#33-windows-macos-memory-pressure-working-set-commit-compression-swap" title="Permanent link">¶</a></h1>
+<h1 id="33-windows-macos-working-set-commit-swap">3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap<a class="headerlink" href="#33-windows-macos-working-set-commit-swap" title="Permanent link">¶</a></h1>
 <blockquote>
-<p>Сравнительная углублённая лекция после Linux memory reclaim.</p>
-<p>Цель — понять, как две другие массовые desktop/server-платформы решают ту же базовую задачу:</p>
-<div class="highlight"><pre><span></span><code>virtual memory
+<p>Сравнительная углублённая лекция после лекции об освобождении памяти Linux.</p>
+<p>Цель — понять, как две другие массовые настольные и серверные платформы решают ту же базовую задачу:</p>
+<div class="highlight"><pre><span></span><code>виртуальная память
 ↓
-physical RAM
+физическая RAM
 ↓
-memory pressure
+давление на память
 ↓
-trimming / reclaim
+сокращение рабочего набора / освобождение памяти
 ↓
-compression / pagefile / swap
+сжатие / pagefile / swap
 ↓
-page fault
+страничная ошибка
 ↓
-application latency
+задержка приложения
 </code></pre></div>
-<p>Конкретные внутренние структуры и эвристики зависят от версии ОС. В лекции отдельно отмечаем устойчивую модель и platform-specific детали.</p>
+<p>Конкретные внутренние структуры и эвристики зависят от версии ОС. В лекции отдельно отмечаем устойчивую модель и детали, зависящие от платформы.</p>
 </blockquote>
 <h2 id="linux">Зачем эта лекция после Linux<a class="headerlink" href="#linux" title="Permanent link">¶</a></h2>
 <p>После Linux легко закрепить слишком узкую модель:</p>
-<div class="highlight"><pre><span></span><code>memory pressure
+<div class="highlight"><pre><span></span><code>давление на память
 ↓
 LRU / MGLRU
 ↓
-reclaim
+освобождение памяти
 ↓
 swap
 ↓
@@ -573,29 +573,29 @@ cgroup
 <blockquote>
 <p>RAM конечна, а процессов и виртуальной памяти больше.</p>
 </blockquote>
-<p>Но называют сущности иначе и используют другие механизмы управления residency.</p>
+<p>Но называют сущности иначе и используют другие механизмы управления резидентностью.</p>
 <p>Главная сравнительная карта:</p>
-<div class="highlight"><pre><span></span><code>                    COMMON PROBLEM
+<div class="highlight"><pre><span></span><code>                    ОБЩАЯ ПРОБЛЕМА
 
-virtual address space
+виртуальное адресное пространство
         ↓
-physical pages
+физические страницы
         ↓
-working set / resident set
+рабочий / резидентный набор
         ↓
-memory pressure
+давление на память
         ↓
-what can leave RAM?
+что можно вытеснить из RAM?
         │
         ├── Windows
-        │   Working Set trimming
-        │   transition / standby
-        │   memory compression
+        │   сокращение Working Set
+        │   состояния Transition / Standby
+        │   сжатие памяти
         │   pagefile
         │
         └── macOS
-            resident / wired / purgeable
-            compression
+            резидентная / wired / очищаемая память
+            сжатие
             swap
             Memory Pressure
 </code></pre></div>
@@ -603,18 +603,18 @@ what can leave RAM?
 <hr/>
 <h1 id="0">0. Что у всех ОС одинаково<a class="headerlink" href="#0" title="Permanent link">¶</a></h1>
 <p>Во всех трёх системах процесс работает с:</p>
-<div class="highlight"><pre><span></span><code>virtual addresses
+<div class="highlight"><pre><span></span><code>виртуальные адреса
 </code></pre></div>
 <p>А физическая RAM управляется ядром.</p>
 <p>Поэтому:</p>
-<div class="highlight"><pre><span></span><code>virtual address exists
+<div class="highlight"><pre><span></span><code>виртуальный адрес существует
 ≠
-physical page resident
+физическая страница резидентна
 </code></pre></div>
 <p>И:</p>
-<div class="highlight"><pre><span></span><code>process allocated memory
+<div class="highlight"><pre><span></span><code>процесс выделил память
 ≠
-all of it is currently in RAM
+вся она сейчас находится в RAM
 </code></pre></div>
 <p>Это фундаментальная модель и для Linux, и для Windows, и для macOS.</p>
 <hr/>
@@ -622,12 +622,12 @@ all of it is currently in RAM
 <p>Различаются:</p>
 <ul>
 <li>термины;</li>
-<li>accounting;</li>
-<li>reclaim policy;</li>
-<li>compression;</li>
-<li>swap/pagefile semantics;</li>
+<li>учёт;</li>
+<li>политика освобождения памяти;</li>
+<li>сжатие;</li>
+<li>семантика swap/pagefile;</li>
 <li>инструменты диагностики;</li>
-<li>process/container limits;</li>
+<li>лимиты процессов/контейнеров;</li>
 <li>пользовательские метрики.</li>
 </ul>
 <p>Но вопрос ядра везде один:</p>
@@ -637,7 +637,7 @@ all of it is currently in RAM
 <hr/>
 <h1 id="2-windows">2. Windows: три разных понятия, которые нельзя смешивать<a class="headerlink" href="#2-windows" title="Permanent link">¶</a></h1>
 <p>Для Windows нужно разделить минимум:</p>
-<div class="highlight"><pre><span></span><code>Virtual Address Space
+<div class="highlight"><pre><span></span><code>виртуальное адресное пространство (Virtual Address Space)
 Commit
 Working Set
 </code></pre></div>
@@ -649,10 +649,10 @@ Working Set
 </code></pre></div>
 <p>может быть полностью неправильной.</p>
 <hr/>
-<h1 id="3-virtual-address-space">3. Virtual Address Space<a class="headerlink" href="#3-virtual-address-space" title="Permanent link">¶</a></h1>
+<h1 id="3-virtual-address-space">3. виртуальное адресное пространство (Virtual Address Space)<a class="headerlink" href="#3-virtual-address-space" title="Permanent link">¶</a></h1>
 <p>Процесс имеет собственное виртуальное адресное пространство.</p>
 <p>В нём можно:</p>
-<div class="highlight"><pre><span></span><code>reserve address range
+<div class="highlight"><pre><span></span><code>зарезервировать диапазон адресов
 </code></pre></div>
 <p>не выделяя под него сразу физическую память.</p>
 <p>Это очень хорошо видно через WinAPI:</p>
@@ -669,11 +669,11 @@ Working Set
 диапазон виртуальных адресов закреплён за процессом
 </code></pre></div>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>physical RAM = ещё не обязана быть выделена
-pagefile backing = ещё не обязано быть выделено
+<div class="highlight"><pre><span></span><code>физическая RAM ещё не обязана быть выделена
+обеспечение через pagefile ещё не обязано быть выделено
 </code></pre></div>
 <p>То есть:</p>
-<div class="highlight"><pre><span></span><code>reserve
+<div class="highlight"><pre><span></span><code>резервирование
 =
 владение адресным диапазоном
 </code></pre></div>
@@ -684,76 +684,76 @@ pagefile backing = ещё не обязано быть выделено
 </code></pre></div>
 <p>Учебно:</p>
 <blockquote>
-<p>Система берёт обязательство обеспечить backing для этих страниц.</p>
+<p>Система берёт обязательство обеспечить обеспечение памяти для этих страниц.</p>
 </blockquote>
 <p>Backing обеспечивается комбинацией:</p>
 <div class="highlight"><pre><span></span><code>RAM
 +
-pagefile capacity
+ёмкость pagefile
 </code></pre></div>
-<p>При этом actual physical page может появиться лениво при first touch.</p>
+<p>При этом реальная физическая страница может появиться лениво при первом обращении.</p>
 <p>Значит:</p>
 <div class="highlight"><pre><span></span><code>commit
 ≠
-resident
+резидентная
 </code></pre></div>
 <hr/>
-<h1 id="6-commit-charge">6. Commit charge<a class="headerlink" href="#6-commit-charge" title="Permanent link">¶</a></h1>
+<h1 id="6-commit">6. Объём Commit<a class="headerlink" href="#6-commit" title="Permanent link">¶</a></h1>
 <p>Windows должна знать:</p>
 <blockquote>
-<p>Сколько приватной памяти система уже пообещала backing'овать?</p>
+<p>Сколько приватной памяти система уже пообещала обеспечение памяти'овать?</p>
 </blockquote>
-<p>Отсюда понятие <strong>commit charge</strong>.</p>
+<p>Отсюда понятие <strong>объём Commit (<code>commit charge</code>)</strong>.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>process commits pages
+<div class="highlight"><pre><span></span><code>процесс коммитит страницы
 ↓
-system-wide committed memory ↑
+общий системный Commit ↑
 </code></pre></div>
-<p>Commit — не текущая occupancy RAM.</p>
-<p>Это обязательство системы обеспечить backing.</p>
+<p>Commit — не текущая занятость RAM.</p>
+<p>Это обязательство системы обеспечить обеспечение памяти.</p>
 <hr/>
-<h1 id="7-commit-limit">7. Commit limit<a class="headerlink" href="#7-commit-limit" title="Permanent link">¶</a></h1>
+<h1 id="7-commit">7. Лимит Commit<a class="headerlink" href="#7-commit" title="Permanent link">¶</a></h1>
 <p>Commit не может расти бесконечно.</p>
-<p>Система имеет <strong>commit limit</strong>.</p>
+<p>Система имеет <strong>лимит Commit</strong>.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>available backing capacity
+<div class="highlight"><pre><span></span><code>доступная ёмкость для обеспечения памяти
 ≈
 RAM
 +
-pagefile capacity
+ёмкость pagefile
 -
 служебные ограничения
 </code></pre></div>
 <p>Не нужно воспринимать формулу как точный арифметический контракт.</p>
 <p>Главная идея:</p>
 <blockquote>
-<p>Pagefile увеличивает не только возможность page-out, но и общий commit budget системы.</p>
+<p>Pagefile увеличивает не только возможность выгрузки страницы, но и общий бюджет Commit системы.</p>
 </blockquote>
 <hr/>
-<h1 id="8-allocation-failure-ram">8. Почему можно получить allocation failure при ещё свободной RAM<a class="headerlink" href="#8-allocation-failure-ram" title="Permanent link">¶</a></h1>
+<h1 id="8-ram">8. Почему можно получить ошибку выделения памяти при ещё свободной RAM<a class="headerlink" href="#8-ram" title="Permanent link">¶</a></h1>
 <p>Плохая модель:</p>
 <blockquote>
-<p>Если есть free RAM, <code>VirtualAlloc(MEM_COMMIT)</code> всегда должен сработать.</p>
+<p>Если есть свободная RAM, <code>VirtualAlloc(MEM_COMMIT)</code> всегда должен сработать.</p>
 </blockquote>
 <p>Нет.</p>
 <p>Можно упереться в:</p>
-<div class="highlight"><pre><span></span><code>commit limit
+<div class="highlight"><pre><span></span><code>лимит Commit
 </code></pre></div>
-<p>даже если картина free physical RAM не выглядит катастрофической.</p>
-<p>Windows должна гарантировать backing committed memory.</p>
+<p>даже если картина свободная физическая RAM не выглядит катастрофической.</p>
+<p>Windows должна гарантировать обеспечение памяти, учтённой в Commit.</p>
 <hr/>
 <h1 id="9-working-set">9. Working Set<a class="headerlink" href="#9-working-set" title="Permanent link">¶</a></h1>
-<p><strong>Working Set</strong> процесса — страницы его виртуального адресного пространства, которые сейчас resident в физической RAM.</p>
-<div class="highlight"><pre><span></span><code>virtual pages
+<p><strong>Working Set</strong> процесса — страницы его виртуального адресного пространства, которые сейчас резидентны в физической RAM.</p>
+<div class="highlight"><pre><span></span><code>виртуальные страницы
 ↓
-subset currently resident
+подмножество, которое сейчас резидентно
 ↓
 Working Set
 </code></pre></div>
 <p>То есть:</p>
 <div class="highlight"><pre><span></span><code>Working Set
 =
-resident view процесса
+резидентный набор процесса
 </code></pre></div>
 <hr/>
 <h1 id="10-commit-working-set">10. Commit и Working Set — разные оси<a class="headerlink" href="#10-commit-working-set" title="Permanent link">¶</a></h1>
@@ -763,344 +763,344 @@ Commit = 4 GiB
 Working Set = 800 MiB
 </code></pre></div>
 <p>Это возможно.</p>
-<p>Процесс имеет обязательство backing на 4 GiB.</p>
-<p>Но прямо сейчас только 800 MiB его pageable memory resident.</p>
+<p>Процесс имеет обязательство обеспечение памяти на 4 GiB.</p>
+<p>Но прямо сейчас только 800 MiB его вытесняемая память резидентная.</p>
 <p>Другой пример:</p>
 <div class="highlight"><pre><span></span><code>Commit = 1 GiB
 Working Set = 900 MiB
 </code></pre></div>
-<p>Совсем другой профиль residency.</p>
+<p>Совсем другой профиль резидентность.</p>
 <hr/>
 <h1 id="11-working-set">11. Почему Working Set постоянно меняется<a class="headerlink" href="#11-working-set" title="Permanent link">¶</a></h1>
 <p>Working Set не является «объёмом памяти процесса навсегда».</p>
 <p>Страницы входят в него:</p>
-<div class="highlight"><pre><span></span><code>page fault resolved
+<div class="highlight"><pre><span></span><code>страничная ошибка обработана
 ↓
-page becomes resident
+страница становится резидентной
 ↓
-added to Working Set
+добавляется в Working Set
 </code></pre></div>
 <p>И выходят:</p>
-<div class="highlight"><pre><span></span><code>memory pressure
+<div class="highlight"><pre><span></span><code>давление на память
 ↓
-Working Set trimming
+сокращение Working Set
 ↓
-page removed
+страница удаляется
 </code></pre></div>
 <p>Это динамическая структура.</p>
 <hr/>
-<h1 id="12-soft-page-fault">12. Soft page fault<a class="headerlink" href="#12-soft-page-fault" title="Permanent link">¶</a></h1>
+<h1 id="12">12. Мягкая страничная ошибка<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
 <p>Процесс обращается к странице, которой сейчас нет в его Working Set.</p>
 <p>Но данные уже находятся в RAM.</p>
 <p>Например страница:</p>
 <ul>
 <li>в Working Set другого процесса;</li>
-<li>в transition state;</li>
-<li>была prefetched;</li>
-<li>demand-zero allocation может быть удовлетворена без чтения backing store.</li>
+<li>в состоянии Transition;</li>
+<li>была заранее подгружена;</li>
+<li>ленивое выделение нулевой страницы может быть удовлетворена без чтения хранилище обеспечения.</li>
 </ul>
 <p>Тогда fault можно разрешить без реального чтения с диска.</p>
-<p>Это <strong>soft page fault</strong>.</p>
+<p>Это <strong>мягкая страничная ошибка</strong>.</p>
 <hr/>
-<h1 id="13-hard-page-fault">13. Hard page fault<a class="headerlink" href="#13-hard-page-fault" title="Permanent link">¶</a></h1>
+<h1 id="13">13. Жёсткая страничная ошибка<a class="headerlink" href="#13" title="Permanent link">¶</a></h1>
 <p>Страница отсутствует в RAM.</p>
-<p>Нужно читать backing store:</p>
+<p>Нужно читать хранилище обеспечения:</p>
 <div class="highlight"><pre><span></span><code>pagefile
 </code></pre></div>
 <p>или:</p>
-<div class="highlight"><pre><span></span><code>memory-mapped file
+<div class="highlight"><pre><span></span><code>файл, отображённый в память
 </code></pre></div>
-<p>Это <strong>hard page fault</strong>.</p>
+<p>Это <strong>жёсткая страничная ошибка</strong>.</p>
 <p>Цена намного выше:</p>
-<div class="highlight"><pre><span></span><code>storage I/O
+<div class="highlight"><pre><span></span><code>ввод-вывод накопителя
 ↓
-latency
+задержка
 </code></pre></div>
 <hr/>
-<h1 id="14-page-faultssec">14. Почему счётчик Page Faults/sec легко неправильно читать<a class="headerlink" href="#14-page-faultssec" title="Permanent link">¶</a></h1>
-<p>Много page faults:</p>
-<div class="highlight"><pre><span></span><code>не обязательно много disk I/O
+<h1 id="14-page-faultssec">14. Почему счётчик <code>Page Faults/sec</code> легко неправильно читать<a class="headerlink" href="#14-page-faultssec" title="Permanent link">¶</a></h1>
+<p>Много страничные ошибки:</p>
+<div class="highlight"><pre><span></span><code>не обязательно много дисковый ввод-вывод
 </code></pre></div>
-<p>Потому что большая часть может быть soft faults.</p>
-<p>Для performance-инцидента важнее отделять:</p>
-<div class="highlight"><pre><span></span><code>soft faults
+<p>Потому что большая часть может быть мягкие страничные ошибки.</p>
+<p>Для инцидента производительности важнее отделять:</p>
+<div class="highlight"><pre><span></span><code>мягкие страничные ошибки
 </code></pre></div>
 <p>от:</p>
-<div class="highlight"><pre><span></span><code>hard faults / page reads
+<div class="highlight"><pre><span></span><code>больших страничных ошибок / чтение страниц
 </code></pre></div>
 <p>И смотреть реальные storage-события.</p>
 <hr/>
-<h1 id="15-working-set-trimming">15. Working Set trimming<a class="headerlink" href="#15-working-set-trimming" title="Permanent link">¶</a></h1>
+<h1 id="15-working-set">15. Сокращение Working Set<a class="headerlink" href="#15-working-set" title="Permanent link">¶</a></h1>
 <p>RAM становится нужна другим потребителям.</p>
-<p>Windows memory manager может уменьшать Working Set процессов:</p>
-<div class="highlight"><pre><span></span><code>process Working Set
+<p>менеджер памяти Windows может уменьшать Working Set процессов:</p>
+<div class="highlight"><pre><span></span><code>Working Set процесса
 ↓
-trim less valuable pages
+вытеснить менее ценные страницы
 ↓
-more available physical memory
+получить больше доступной физической памяти
 </code></pre></div>
-<p>Страница перестаёт быть resident у процесса.</p>
+<p>Страница перестаёт быть резидентная у процесса.</p>
 <p>Но это не означает автоматически:</p>
-<div class="highlight"><pre><span></span><code>virtual address released
-commit released
+<div class="highlight"><pre><span></span><code>виртуальный адрес освобождён
+Commit освобождён
 </code></pre></div>
 <hr/>
-<h1 id="16-trim">16. Страница после trim не обязана сразу попасть на диск<a class="headerlink" href="#16-trim" title="Permanent link">¶</a></h1>
+<h1 id="16">16. Страница после сокращение рабочего набора не обязана сразу попасть на диск<a class="headerlink" href="#16" title="Permanent link">¶</a></h1>
 <p>Очень важный момент.</p>
-<p>Страница может покинуть Working Set, но остаться в RAM в transition/standby-подобном состоянии.</p>
+<p>Страница может покинуть Working Set, но остаться в RAM в состоянии, подобном Transition/Standby.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>in Working Set
+<div class="highlight"><pre><span></span><code>в Working Set
 ↓
-trim
+сокращение рабочего набора
 ↓
-not in process Working Set
+не в Working Set процесса
 ↓
-still physically cached in RAM
+всё ещё физически кешируется в RAM
 </code></pre></div>
 <p>Если процесс быстро обратится снова:</p>
-<div class="highlight"><pre><span></span><code>soft fault
+<div class="highlight"><pre><span></span><code>малая страничная ошибка
 ↓
-page returns to Working Set
+страница возвращается в Working Set
 </code></pre></div>
-<p>Без storage I/O.</p>
+<p>Без ввод-вывод накопителя.</p>
 <hr/>
 <h1 id="17">17. Почему это полезно<a class="headerlink" href="#17" title="Permanent link">¶</a></h1>
-<p>Если любую trimmed page мгновенно писать на storage или полностью уничтожать:</p>
-<div class="highlight"><pre><span></span><code>короткий burst pressure
+<p>Если любую вытесненную страницу мгновенно писать на storage или полностью уничтожать:</p>
+<div class="highlight"><pre><span></span><code>короткий всплеск давления
 ↓
-огромный I/O
+огромный объём ввода-вывода
 ↓
 через миллисекунды данные снова нужны
 </code></pre></div>
 <p>Это было бы очень дорого.</p>
 <p>Поэтому Windows имеет промежуточные состояния физических страниц.</p>
 <hr/>
-<h1 id="18-standby-">18. Standby-подобная модель<a class="headerlink" href="#18-standby-" title="Permanent link">¶</a></h1>
+<h1 id="18-standby">18. Модель состояния Standby<a class="headerlink" href="#18-standby" title="Permanent link">¶</a></h1>
 <p>Для учебной модели полезно представить:</p>
 <div class="highlight"><pre><span></span><code>Working Set
 ↓
-trim
+сокращение рабочего набора
 ↓
-standby / transition-like cache
+кеш в состояниях Standby / Transition
 ↓
-page still in RAM
+страница всё ещё в RAM
 </code></pre></div>
 <p>Пока memory не перепрофилировали под другую задачу, данные можно вернуть быстро.</p>
-<p>Точные внутренние page lists — реализация Windows.</p>
+<p>Точные внутренние списки страниц — реализация Windows.</p>
 <p>Не пользовательский API.</p>
 <hr/>
-<h1 id="19-dirty-page">19. Dirty page<a class="headerlink" href="#19-dirty-page" title="Permanent link">¶</a></h1>
-<p>Если physical page изменена:</p>
+<h1 id="19">19. Изменённая страница<a class="headerlink" href="#19" title="Permanent link">¶</a></h1>
+<p>Если физическая страница изменена:</p>
 <div class="highlight"><pre><span></span><code>dirty
 </code></pre></div>
-<p>и её backing должен сохраняться, просто repurpose её нельзя.</p>
+<p>и её обеспечение памяти должен сохраняться, просто repurpose её нельзя.</p>
 <p>Нужно:</p>
-<div class="highlight"><pre><span></span><code>write to backing store
+<div class="highlight"><pre><span></span><code>записать в хранилище обеспечения
 ↓
-page becomes reusable
+страницу можно использовать повторно
 </code></pre></div>
-<p>В зависимости от типа страницы backing может быть:</p>
+<p>В зависимости от типа страницы обеспечение памяти может быть:</p>
 <div class="highlight"><pre><span></span><code>pagefile
-memory-mapped file
-file cache backing
+файл, отображённый в память
+файловое обеспечение
 </code></pre></div>
 <hr/>
 <h1 id="20-pagefile">20. Pagefile<a class="headerlink" href="#20-pagefile" title="Permanent link">¶</a></h1>
-<p>Pagefile — backing store для части committed/private virtual memory.</p>
+<p>Pagefile — хранилище обеспечения для части приватной виртуальной памяти, учтённой в Commit.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>private committed page
+<div class="highlight"><pre><span></span><code>приватная committed-страница
 ↓
-not valuable enough to remain resident
+недостаточно ценна, чтобы оставаться резидентной
 ↓
-page content can be written to pagefile
+содержимое страницы можно записать в pagefile
 ↓
-physical frame reused
+физическую страницу можно переиспользовать
 </code></pre></div>
 <p>Позже:</p>
-<div class="highlight"><pre><span></span><code>process accesses page
+<div class="highlight"><pre><span></span><code>процесс обращается к странице
 ↓
-hard fault
+большая страничная ошибка
 ↓
-pagefile read
+чтение из pagefile
 ↓
 Working Set
 </code></pre></div>
 <hr/>
 <h1 id="21-pagefile-ram">21. Pagefile не равен «дополнительная медленная RAM»<a class="headerlink" href="#21-pagefile-ram" title="Permanent link">¶</a></h1>
 <p>Так говорить слишком просто.</p>
-<p>Pagefile выполняет несколько ролей в общей commit/paging модели Windows.</p>
+<p>Pagefile выполняет несколько ролей в общей модели Commit и подкачки Windows.</p>
 <p>Но по performance полезна цепочка:</p>
-<div class="highlight"><pre><span></span><code>hot page left RAM
+<div class="highlight"><pre><span></span><code>горячая страница покинула RAM
 ↓
-pagefile backing
+pagefile обеспечение памяти
 ↓
-needed again
+снова нужна
 ↓
-hard fault
+большая страничная ошибка
 ↓
-storage latency
+задержке накопителя
 </code></pre></div>
 <hr/>
 <h1 id="22-pagefile-ram">22. Почему pagefile может быть полезен даже при большой RAM<a class="headerlink" href="#22-pagefile-ram" title="Permanent link">¶</a></h1>
-<p>Без pagefile commit budget и варианты управления private memory могут быть меньше.</p>
-<p>Холодные private pages нельзя так же гибко вынести из RAM.</p>
+<p>Без pagefile бюджет Commit и варианты управления приватной памятью могут быть меньше.</p>
+<p>Холодные приватные страницы нельзя так же гибко вынести из RAM.</p>
 <p>Поэтому:</p>
-<div class="highlight"><pre><span></span><code>pagefile exists
+<div class="highlight"><pre><span></span><code>pagefile существует
 </code></pre></div>
 <p>не равно:</p>
-<div class="highlight"><pre><span></span><code>система обязательно активно thrash'ит
+<div class="highlight"><pre><span></span><code>система обязательно активно трэшит
 </code></pre></div>
-<p>Нужно смотреть реальную paging activity.</p>
+<p>Нужно смотреть реальную активность подкачки.</p>
 <hr/>
-<h1 id="23-memory-priority">23. Memory priority<a class="headerlink" href="#23-memory-priority" title="Permanent link">¶</a></h1>
-<p>Windows умеет учитывать memory priority процесса/потока как hint.</p>
+<h1 id="23-memory-priority">23. Приоритет памяти (Memory Priority)<a class="headerlink" href="#23-memory-priority" title="Permanent link">¶</a></h1>
+<p>Windows умеет учитывать приоритет памяти процесса/потока как подсказка.</p>
 <p>Идея:</p>
-<div class="highlight"><pre><span></span><code>low-priority pages
+<div class="highlight"><pre><span></span><code>страницы с низким приоритетом
 ↓
-при прочих равных trim раньше
+при прочих равных вытесняются раньше
 </code></pre></div>
 <p>Это позволяет приложению сообщить:</p>
 <blockquote>
-<p>Эти данные background-workload менее ценны для residency.</p>
+<p>Эти данные фоновой нагрузки менее ценны для резидентность.</p>
 </blockquote>
 <p>Важно:</p>
-<p>это hint.</p>
+<p>это подсказка.</p>
 <p>Не абсолютная гарантия.</p>
 <hr/>
-<h1 id="24-memory-priority">24. Почему memory priority логична<a class="headerlink" href="#24-memory-priority" title="Permanent link">¶</a></h1>
+<h1 id="24">24. Почему приоритет памяти логична<a class="headerlink" href="#24" title="Permanent link">¶</a></h1>
 <p>Два массива:</p>
-<div class="highlight"><pre><span></span><code>A — hot request cache
-B — background file index scan
+<div class="highlight"><pre><span></span><code>A — горячий кеш запросов
+B — фоновое сканирование файлового индекса
 </code></pre></div>
-<p>Если pressure одинаково вытесняет их случайно:</p>
-<div class="highlight"><pre><span></span><code>hot cache может пострадать
+<p>Если давление одинаково вытесняет их случайно:</p>
+<div class="highlight"><pre><span></span><code>горячий кеш может пострадать
 </code></pre></div>
-<p>Memory priority позволяет дать ядру дополнительную информацию о ценности страниц.</p>
+<p>Приоритет памяти (Memory Priority) позволяет дать ядру дополнительную информацию о ценности страниц.</p>
 <hr/>
-<h1 id="25-system-file-cache-windows">25. System file cache Windows<a class="headerlink" href="#25-system-file-cache-windows" title="Permanent link">¶</a></h1>
-<p>Windows кэширует file data в памяти.</p>
+<h1 id="25-windows">25. Системный файловый кеш Windows<a class="headerlink" href="#25-windows" title="Permanent link">¶</a></h1>
+<p>Windows кеширует файловые данные в памяти.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>read file
+<div class="highlight"><pre><span></span><code>чтение файла
 ↓
 Cache Manager
 ↓
-system file cache
-├── hit → RAM
-└── miss → storage
+системный файловый кеш
+├── попадание → RAM
+└── промах → накопитель
 </code></pre></div>
-<p>Записи также могут идти через write-back caching.</p>
+<p>Записи также могут идти через кеширование отложенной записи.</p>
 <p>То есть физическая RAM Windows используется не только Working Set'ами обычных приложений.</p>
 <hr/>
-<h1 id="26-system-cache-leak">26. Большой system cache сам по себе не означает leak<a class="headerlink" href="#26-system-cache-leak" title="Permanent link">¶</a></h1>
+<h1 id="26">26. Большой системный кеш сам по себе не означает утечку<a class="headerlink" href="#26" title="Permanent link">¶</a></h1>
 <p>Свободная RAM предназначена для использования.</p>
-<p>File cache может быть полезной памятью.</p>
-<p>При pressure часть её данных может уйти из RAM.</p>
-<p>Проблема начинается, когда cache behaviour вытесняет более полезный рабочий набор и создаёт faults/I/O.</p>
+<p>Файловый кеш может быть полезной памятью.</p>
+<p>При давлении на память часть её данных может уйти из RAM.</p>
+<p>Проблема начинается, когда поведение кеша вытесняет более полезный рабочий набор и создаёт страничные ошибки/ввод-вывод.</p>
 <hr/>
-<h1 id="27-memory-compression-windows">27. Memory compression Windows<a class="headerlink" href="#27-memory-compression-windows" title="Permanent link">¶</a></h1>
+<h1 id="27-windows">27. Сжатие памяти Windows<a class="headerlink" href="#27-windows" title="Permanent link">¶</a></h1>
 <p>Современная Windows умеет сжимать часть памяти.</p>
 <p>Идея:</p>
 <div class="highlight"><pre><span></span><code>страница холодная
 ↓
-вместо немедленного page-out
+вместо немедленного выгрузки страницы
 ↓
-compress
+сжимать
 ↓
 оставить данные в RAM в меньшем объёме
 </code></pre></div>
-<p>Это уменьшает число hard faults по сравнению с немедленным уходом на disk.</p>
+<p>Это уменьшает число больших страничных ошибок по сравнению с немедленным уходом на диск.</p>
 <hr/>
-<h1 id="28-memory-compression">28. Цена memory compression<a class="headerlink" href="#28-memory-compression" title="Permanent link">¶</a></h1>
-<p>Compression экономит RAM.</p>
+<h1 id="28">28. Цена сжатие памяти<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
+<p>Сжатие экономит RAM.</p>
 <p>Но требует:</p>
 <div class="highlight"><pre><span></span><code>CPU
 </code></pre></div>
 <p>А при повторном использовании:</p>
-<div class="highlight"><pre><span></span><code>decompression
+<div class="highlight"><pre><span></span><code>распаковку
 </code></pre></div>
-<p>Получаем trade-off:</p>
-<div class="highlight"><pre><span></span><code>меньше storage I/O
+<p>Получаем компромисс:</p>
+<div class="highlight"><pre><span></span><code>меньше ввод-вывод накопителя
 ↔
 больше CPU
 </code></pre></div>
 <hr/>
-<h1 id="29-compression-pagefile">29. Compression не отменяет pagefile<a class="headerlink" href="#29-compression-pagefile" title="Permanent link">¶</a></h1>
-<p>Если pressure продолжает расти:</p>
-<div class="highlight"><pre><span></span><code>compression insufficient
+<h1 id="29-pagefile">29. Сжатие не отменяет pagefile<a class="headerlink" href="#29-pagefile" title="Permanent link">¶</a></h1>
+<p>Если давление продолжает расти:</p>
+<div class="highlight"><pre><span></span><code>сжатие insufficient
 ↓
-paging / pagefile activity
+активность подкачки / pagefile
 </code></pre></div>
-<p>Compression — промежуточный механизм.</p>
+<p>Сжатие — промежуточный механизм.</p>
 <p>Не бесконечная дополнительная память.</p>
 <hr/>
-<h1 id="30-windows-pressure-chain">30. Windows pressure chain<a class="headerlink" href="#30-windows-pressure-chain" title="Permanent link">¶</a></h1>
+<h1 id="30-windows">30. Цепочка давления на память Windows<a class="headerlink" href="#30-windows" title="Permanent link">¶</a></h1>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>RAM demand ↑
+<div class="highlight"><pre><span></span><code>потребность в RAM ↑
 ↓
-available pages ↓
+доступные страницы ↓
 ↓
-Working Set trimming ↑
+сокращение Working Set ↑
 ↓
-soft faults ↑
+мягкие страничные ошибки ↑
 ↓
-compression ↑
+сжатие ↑
 ↓
-если pressure ещё растёт
+если давление ещё растёт
 ↓
-pagefile / hard faults ↑
+pagefile / больших страничных ошибок ↑
 ↓
-application latency ↑
+задержка приложения ↑
 </code></pre></div>
-<p>Конкретная последовательность не является строгой state machine.</p>
+<p>Конкретная последовательность не является строгой машина состояний.</p>
 <p>Это инженерная модель возможных механизмов.</p>
 <hr/>
-<h1 id="31-thrashing-windows">31. Когда начинается thrashing на Windows<a class="headerlink" href="#31-thrashing-windows" title="Permanent link">¶</a></h1>
-<p>Рабочий набор всех активных приложений значительно больше доступной physical memory.</p>
+<h1 id="31-windows">31. Когда начинается трэшинг на Windows<a class="headerlink" href="#31-windows" title="Permanent link">¶</a></h1>
+<p>Рабочий набор всех активных приложений значительно больше доступной физическая память.</p>
 <p>Получаем:</p>
-<div class="highlight"><pre><span></span><code>trim
+<div class="highlight"><pre><span></span><code>сокращение рабочего набора
 ↓
-page needed again
+страница снова нужна
 ↓
 fault
 ↓
-trim another page
+вытеснить другую страницу
 ↓
 fault
 </code></pre></div>
-<p>Если backing store постоянно участвует:</p>
-<div class="highlight"><pre><span></span><code>hard faults
+<p>Если хранилище обеспечения постоянно участвует:</p>
+<div class="highlight"><pre><span></span><code>больших страничных ошибок
 ↓
-disk I/O
+дисковый ввод-вывод
 ↓
-throughput collapses
+пропускная способность рушится
 </code></pre></div>
 <hr/>
-<h1 id="32-commit-pressure-physical-pressure">32. Commit pressure и physical pressure — разные проблемы<a class="headerlink" href="#32-commit-pressure-physical-pressure" title="Permanent link">¶</a></h1>
+<h1 id="32-commit">32. Давление Commit и давление на физическую память — разные проблемы<a class="headerlink" href="#32-commit" title="Permanent link">¶</a></h1>
 <p>Можно упереться в:</p>
 <div class="highlight"><pre><span></span><code>Commit Limit
 </code></pre></div>
 <p>или:</p>
-<div class="highlight"><pre><span></span><code>physical memory pressure
+<div class="highlight"><pre><span></span><code>давление на физическую память
 </code></pre></div>
 <p>Это не одно и то же.</p>
-<p>Commit pressure:</p>
-<div class="highlight"><pre><span></span><code>system promised too much backing
+<p>Давление Commit:</p>
+<div class="highlight"><pre><span></span><code>система пообещала слишком много обеспеченной памяти
 </code></pre></div>
-<p>Physical pressure:</p>
-<div class="highlight"><pre><span></span><code>слишком большой active resident working set
+<p>Давление на физическую память:</p>
+<div class="highlight"><pre><span></span><code>слишком большой активный резидентный рабочий набор
 </code></pre></div>
 <p>Диагностика должна сначала понять, какой сценарий происходит.</p>
 <hr/>
-<h1 id="33-windows-job-objects-resource-boundary">33. Windows Job Objects: аналог resource boundary<a class="headerlink" href="#33-windows-job-objects-resource-boundary" title="Permanent link">¶</a></h1>
+<h1 id="33-windows-job-objects">33. Windows Job Objects: аналог границы ресурсов<a class="headerlink" href="#33-windows-job-objects" title="Permanent link">¶</a></h1>
 <p>Для группы процессов Windows предоставляет <strong>Job Objects</strong>.</p>
 <p>Можно ограничивать:</p>
-<div class="highlight"><pre><span></span><code>per-process committed memory
-job-wide committed memory
+<div class="highlight"><pre><span></span><code>committed-память процесса
+память всего Job, учтённая в Commit
 </code></pre></div>
 <p>То есть:</p>
-<div class="highlight"><pre><span></span><code>process/job tries to commit above limit
+<div class="highlight"><pre><span></span><code>процесс/Job пытается превысить лимит Commit
 ↓
-commit fails
+Commit завершается ошибкой
 </code></pre></div>
 <p>Это не прямая копия Linux cgroup.</p>
 <p>Но архитектурная роль похожа:</p>
@@ -1108,31 +1108,31 @@ commit fails
 <p>Ограничить ресурсы группы процессов.</p>
 </blockquote>
 <hr/>
-<h1 id="34-job-object-memory-limit-commit-limit-working-set-limit">34. Почему Job Object memory limit — это commit limit, а не Working Set limit<a class="headerlink" href="#34-job-object-memory-limit-commit-limit-working-set-limit" title="Permanent link">¶</a></h1>
+<h1 id="34-job-object-commit-working-set">34. Почему лимит памяти Job Object — это лимит Commit, а не лимит Working Set<a class="headerlink" href="#34-job-object-commit-working-set" title="Permanent link">¶</a></h1>
 <p>Важно не перепутать.</p>
-<p>Job memory limit относится к:</p>
-<div class="highlight"><pre><span></span><code>committed memory
+<p>Лимит памяти Job относится к:</p>
+<div class="highlight"><pre><span></span><code>памяти, учтённой в Commit
 </code></pre></div>
-<p>То есть ограничение формулируется вокруг обязательства backing.</p>
+<p>То есть ограничение формулируется вокруг обязательства обеспечение памяти.</p>
 <p>Это другая ось, чем:</p>
-<div class="highlight"><pre><span></span><code>сколько сейчас resident в RAM
+<div class="highlight"><pre><span></span><code>сколько сейчас резидентная в RAM
 </code></pre></div>
 <hr/>
-<h1 id="35-windows-container-memory">35. Windows container memory: ментальная модель<a class="headerlink" href="#35-windows-container-memory" title="Permanent link">¶</a></h1>
-<p>Windows-контейнеры в конечном счёте тоже используют механизмы Windows resource governance.</p>
+<h1 id="35-windows">35. Память контейнеров Windows: ментальная модель<a class="headerlink" href="#35-windows" title="Permanent link">¶</a></h1>
+<p>Windows-контейнеры в конечном счёте тоже используют механизмы управления ресурсами Windows.</p>
 <p>Для курса достаточно:</p>
-<div class="highlight"><pre><span></span><code>container/process group
+<div class="highlight"><pre><span></span><code>контейнер / группа процессов
 ↓
-job/resource limits
+лимиты Job/ресурсов
 ↓
-commit/resource accounting
+учёт Commit/ресурсов
 ↓
-Windows memory manager
+менеджер памяти Windows
 </code></pre></div>
 <p>Не нужно притягивать Linux cgroup-термины один в один.</p>
 <hr/>
-<h1 id="36-go-runtime-windows">36. Go runtime на Windows<a class="headerlink" href="#36-go-runtime-windows" title="Permanent link">¶</a></h1>
-<p>Текущий Go runtime использует Windows VM API напрямую.</p>
+<h1 id="36-go-windows">36. Рантайм Go на Windows<a class="headerlink" href="#36-go-windows" title="Permanent link">¶</a></h1>
+<p>Текущий рантайм Go использует Windows VM API напрямую.</p>
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>sysReserveOS
 ↓
@@ -1154,36 +1154,36 @@ sysFreeOS
 ↓
 VirtualFree(MEM_RELEASE)
 </code></pre></div>
-<p>Это очень наглядно связывает Go scavenger с Windows VM.</p>
+<p>Это очень наглядно связывает Scavenger Go с Windows VM.</p>
 <hr/>
-<h1 id="37-mem_decommit-go-scavenger">37. Что означает <code>MEM_DECOMMIT</code> для Go scavenger<a class="headerlink" href="#37-mem_decommit-go-scavenger" title="Permanent link">¶</a></h1>
+<h1 id="37-mem_decommit-scavenger-go">37. Что означает <code>MEM_DECOMMIT</code> для Scavenger Go<a class="headerlink" href="#37-mem_decommit-scavenger-go" title="Permanent link">¶</a></h1>
 <p>Go решил:</p>
-<div class="highlight"><pre><span></span><code>эти heap pages сейчас не нужны
+<div class="highlight"><pre><span></span><code>эти страницы хипа сейчас не нужны
 </code></pre></div>
 <p>На Windows:</p>
 <div class="highlight"><pre><span></span><code>VirtualFree(..., MEM_DECOMMIT)
 </code></pre></div>
-<p>может снять backing commitment с диапазона.</p>
+<p>может снять обязательство обеспечить память с диапазона.</p>
 <p>При этом:</p>
-<div class="highlight"><pre><span></span><code>reserved virtual range может сохраниться
+<div class="highlight"><pre><span></span><code>зарезервированный виртуальный диапазон может сохраниться
 </code></pre></div>
 <p>Если память понадобится снова:</p>
 <div class="highlight"><pre><span></span><code>VirtualAlloc(..., MEM_COMMIT)
 </code></pre></div>
 <hr/>
-<h1 id="38-windows-runtime">38. Почему Windows-runtime путь хорошо объясняет общую модель<a class="headerlink" href="#38-windows-runtime" title="Permanent link">¶</a></h1>
+<h1 id="38-windows">38. Почему путь рантайма Windows хорошо объясняет общую модель<a class="headerlink" href="#38-windows" title="Permanent link">¶</a></h1>
 <p>Получаем почти идеальную схему:</p>
 <div class="highlight"><pre><span></span><code>RESERVE
 → адресное пространство
 
 COMMIT
-→ backing obligation
+→ обязательство обеспечить память
 
-resident
+резидентная
 → Working Set
 
 DECOMMIT
-→ backing больше не нужен
+→ обеспечение памяти больше не нужен
 
 RELEASE
 → адресный диапазон возвращён
@@ -1191,15 +1191,15 @@ RELEASE
 <p>Это четыре разных состояния/уровня.</p>
 <hr/>
 <h1 id="39-windows-task-manager">39. Диагностика Windows: Task Manager<a class="headerlink" href="#39-windows-task-manager" title="Permanent link">¶</a></h1>
-<p>Task Manager полезен для первого взгляда.</p>
+<p>Диспетчер задач полезен для первого взгляда.</p>
 <p>Но нельзя останавливаться на одной колонке Memory.</p>
 <p>Нас интересуют разные вопросы:</p>
 <div class="highlight"><pre><span></span><code>Working Set?
 Commit?
-Private memory?
-system-wide committed?
-available RAM?
-paging activity?
+приватная память?
+системный Commit?
+доступная RAM?
+активность подкачки?
 </code></pre></div>
 <hr/>
 <h1 id="40-performance-monitor">40. Performance Monitor<a class="headerlink" href="#40-performance-monitor" title="Permanent link">¶</a></h1>
@@ -1217,55 +1217,55 @@ Memory\Pages Output/sec
 <h1 id="41-committed-bytes">41. <code>Committed Bytes</code><a class="headerlink" href="#41-committed-bytes" title="Permanent link">¶</a></h1>
 <p>Отвечает на вопрос:</p>
 <blockquote>
-<p>Какой commit demand сейчас существует в системе?</p>
+<p>Какой потребность в Commit сейчас существует в системе?</p>
 </blockquote>
 <p>Сравниваем с:</p>
 <div class="highlight"><pre><span></span><code>Commit Limit
 </code></pre></div>
-<p>Если committed близок к limit:</p>
-<div class="highlight"><pre><span></span><code>commit pressure
+<p>Если Commit близок к лимиту:</p>
+<div class="highlight"><pre><span></span><code>давление Commit
 </code></pre></div>
 <hr/>
 <h1 id="42-working-set">42. <code>Working Set</code><a class="headerlink" href="#42-working-set" title="Permanent link">¶</a></h1>
 <p>Отвечает:</p>
 <blockquote>
-<p>Сколько pageable memory процесса сейчас resident?</p>
+<p>Сколько вытесняемая память процесса сейчас резидентная?</p>
 </blockquote>
-<p>Это momentary view.</p>
-<p>Под pressure ОС может trim Working Set.</p>
+<p>Это моментальный снимок.</p>
+<p>Под давлением на память ОС может сокращать Working Set.</p>
 <p>Поэтому одно и то же приложение на машине с 64 GiB и 16 GiB RAM может показывать разные Working Set.</p>
 <hr/>
 <h1 id="43-private-bytes">43. <code>Private Bytes</code><a class="headerlink" href="#43-private-bytes" title="Permanent link">¶</a></h1>
-<p>Используется как мера private committed memory процесса.</p>
+<p>Используется как мера приватной памяти процесса, учтённой в Commit.</p>
 <p>Это не equivalent:</p>
-<div class="highlight"><pre><span></span><code>RAM usage
+<div class="highlight"><pre><span></span><code>использование RAM
 </code></pre></div>
 <p>И не equivalent:</p>
 <div class="highlight"><pre><span></span><code>Working Set
 </code></pre></div>
-<p>Если Private Bytes растёт стабильно, это повод расследовать private commit/retention.</p>
+<p>Если Private Bytes стабильно растёт, это повод расследовать приватный Commit/удержание.</p>
 <hr/>
-<h1 id="44-pages-inputsec-outputsec">44. Pages Input/sec и Output/sec<a class="headerlink" href="#44-pages-inputsec-outputsec" title="Permanent link">¶</a></h1>
-<p>Для paging-инцидента нужно смотреть реальное движение страниц.</p>
+<h1 id="44-pages-inputsec-pages-outputsec">44. <code>Pages Input/sec</code> и <code>Pages Output/sec</code><a class="headerlink" href="#44-pages-inputsec-pages-outputsec" title="Permanent link">¶</a></h1>
+<p>Для инцидента подкачки нужно смотреть реальное движение страниц.</p>
 <p><code>Pages Output/sec</code> полезен, когда подозреваем:</p>
-<div class="highlight"><pre><span></span><code>система выталкивает private pages ради освобождения RAM
+<div class="highlight"><pre><span></span><code>система выталкивает приватная pages ради освобождения RAM
 </code></pre></div>
 <p>Но один счётчик всегда читаем вместе с:</p>
 <ul>
-<li>disk latency;</li>
+<li>задержка диска;</li>
 <li>Working Set;</li>
-<li>available memory;</li>
-<li>hard faults;</li>
-<li>application latency.</li>
+<li>доступная память;</li>
+<li>больших страничных ошибок;</li>
+<li>задержка приложения.</li>
 </ul>
 <hr/>
 <h1 id="45-rammap">45. RAMMap<a class="headerlink" href="#45-rammap" title="Permanent link">¶</a></h1>
 <p>Sysinternals RAMMap показывает физическую память по типам.</p>
 <p>Полезные вопросы:</p>
-<div class="highlight"><pre><span></span><code>сколько file cache?
-сколько process working sets?
-какие page lists?
-что занимает physical RAM?
+<div class="highlight"><pre><span></span><code>сколько файловый кеш?
+сколько Working Set процессов?
+какие списки страниц?
+что занимает физическая RAM?
 </code></pre></div>
 <p>Это хороший инструмент, когда:</p>
 <div class="highlight"><pre><span></span><code>Task Manager говорит «RAM занята»
@@ -1279,88 +1279,88 @@ Process Explorer
 </code></pre></div>
 <p>Они помогают отделять:</p>
 <ul>
-<li>reserved;</li>
-<li>committed;</li>
-<li>private;</li>
-<li>mapped;</li>
-<li>image;</li>
-<li>working set.</li>
+<li>зарезервировано;</li>
+<li>учтённую в Commit;</li>
+<li>приватная;</li>
+<li>отображённая;</li>
+<li>образ;</li>
+<li>рабочий набор.</li>
 </ul>
 <p>То есть диагностировать именно виртуальную структуру процесса.</p>
 <hr/>
-<h1 id="47-wprwpa-reference-set">47. WPR/WPA и reference set<a class="headerlink" href="#47-wprwpa-reference-set" title="Permanent link">¶</a></h1>
-<p>Working Set зависит от текущего pressure и trimming.</p>
-<p>Для сценарного исследования Microsoft предлагает concept <strong>reference set</strong> через Windows Performance Recorder/Analyzer.</p>
+<h1 id="47-wprwpa-reference-set">47. WPR/WPA и набор обращавшихся страниц (<code>reference set</code>)<a class="headerlink" href="#47-wprwpa-reference-set" title="Permanent link">¶</a></h1>
+<p>Working Set зависит от текущего давления на память и сокращения Working Set.</p>
+<p>Для сценарного исследования Microsoft предлагает понятие <strong>набора обращавшихся страниц (<code>reference set</code>)</strong> через Windows Performance Recorder/Analyzer.</p>
 <p>Идея:</p>
-<div class="highlight"><pre><span></span><code>какие страницы workload реально трогал во время сценария?
+<div class="highlight"><pre><span></span><code>какие страницы нагрузка реально трогал во время сценария?
 </code></pre></div>
-<p>Это лучше отвечает на вопрос активного memory footprint workload, чем один моментальный Working Set.</p>
+<p>Это лучше отвечает на вопрос реального объёма памяти, к которому обращалась нагрузка, чем один моментальный Working Set.</p>
 <hr/>
 <h1 id="48-windows">48. Windows: симптом → гипотеза<a class="headerlink" href="#48-windows" title="Permanent link">¶</a></h1>
 <p>Сценарий:</p>
-<div class="highlight"><pre><span></span><code>Private Bytes stable
-Working Set falls
-soft faults rise
+<div class="highlight"><pre><span></span><code>Private Bytes стабильны
+Working Set уменьшается
+мягкие страничные ошибки растут
 </code></pre></div>
 <p>Гипотеза:</p>
-<div class="highlight"><pre><span></span><code>Working Set trimming
+<div class="highlight"><pre><span></span><code>сокращение Working Set
 </code></pre></div>
 <p>Данные всё ещё принадлежат процессу.</p>
-<p>Но residency уменьшается.</p>
+<p>Но резидентность уменьшается.</p>
 <hr/>
 <h1 id="49-windows">49. Windows: другой сценарий<a class="headerlink" href="#49-windows" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>Committed Bytes → Commit Limit
 ↓
-VirtualAlloc commit failures
+ошибки Commit в `VirtualAlloc`
 </code></pre></div>
-<p>Это commit exhaustion.</p>
+<p>Это исчерпание Commit.</p>
 <p>Добавить RAM может помочь.</p>
-<p>Увеличить pagefile тоже может изменить commit capacity.</p>
-<p>Это другой механизм, чем Working Set thrashing.</p>
+<p>Увеличить pagefile тоже может изменить ёмкость Commit.</p>
+<p>Это другой механизм, чем трэшинг Working Set.</p>
 <hr/>
-<h1 id="50-windows-pressure">50. Windows: тяжёлый pressure<a class="headerlink" href="#50-windows-pressure" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Working Set trim ↑
+<h1 id="50-windows">50. Windows: сильное давление на память<a class="headerlink" href="#50-windows" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>сокращение Working Set ↑
 ↓
-compressed memory ↑
+сжатая память ↑
 ↓
-pagefile activity ↑
+активность pagefile ↑
 ↓
-hard faults ↑
+больших страничных ошибок ↑
 ↓
-disk latency ↑
+задержка диска ↑
 ↓
-request latency ↑
+задержка запросов ↑
 </code></pre></div>
-<p>Backend может тормозить при полностью нормальном Go GC.</p>
+<p>Бэкенд может тормозить при полностью нормальном Go GC.</p>
 <hr/>
 <h1 id="51-windows-macos">51. Windows: что важно запомнить перед macOS<a class="headerlink" href="#51-windows-macos" title="Permanent link">¶</a></h1>
 <ol>
 <li><code>Reserve</code>, <code>Commit</code> и <code>Resident</code> — разные уровни.</li>
-<li>Working Set показывает resident pageable pages процесса.</li>
-<li>Commit показывает backing obligation.</li>
-<li>Trim Working Set не освобождает virtual address и не обязательно снимает commit.</li>
-<li>Trimmed page может остаться в RAM и вернуться через soft fault.</li>
-<li>Hard fault требует backing-store I/O.</li>
-<li>Compression меняет RAM на CPU и уменьшает часть hard-fault pressure.</li>
-<li>Pagefile участвует в commit/paging модели.</li>
-<li>Job Object limits могут ограничивать committed memory группы процессов.</li>
-<li>При Go memory incident на Windows нужно смотреть не только Go heap, но Working Set, Commit и paging.</li>
+<li>Working Set показывает резидентные вытесняемые страницы процесса.</li>
+<li>Commit показывает обязательство обеспечить память.</li>
+<li>Сокращение Working Set не освобождает виртуальный адрес и не обязательно снимает Commit.</li>
+<li>Вытесненная страница может остаться в RAM и вернуться через малая страничная ошибка.</li>
+<li>Большая страничная ошибка требует ввод-вывод хранилища обеспечения.</li>
+<li>Сжатие меняет RAM на CPU и уменьшает часть давление жёстких страничных ошибок.</li>
+<li>Pagefile участвует в commit/модели подкачки.</li>
+<li>Job Object limits могут ограничивать памяти, учтённой в Commit группы процессов.</li>
+<li>При инциденте памяти Go на Windows нужно смотреть не только хип Go, но Working Set, Commit и подкачка.</li>
 </ol>
 <hr/>
 <h1 id="52-macos">52. macOS: та же виртуальная память, другая модель давления<a class="headerlink" href="#52-macos" title="Permanent link">¶</a></h1>
 <p>macOS построена поверх Darwin/XNU и Mach VM.</p>
 <p>Базовая цепочка знакомая:</p>
-<div class="highlight"><pre><span></span><code>task
+<div class="highlight"><pre><span></span><code>процесс
 ↓
-virtual address space
+виртуальное адресное пространство
 ↓
-VM mappings
+отображения VM
 ↓
-resident pages
+резидентные страницы
 ↓
-memory pressure
+давление на память
 ↓
-compression / reclaim / swap
+сжатие / освобождение памяти / swap
 </code></pre></div>
 <p>Но пользовательская диагностика здесь устроена заметно иначе, чем в Windows.</p>
 <p>Главный термин:</p>
@@ -1372,36 +1372,36 @@ compression / reclaim / swap
 <p>Mach поддерживает:</p>
 <div class="highlight"><pre><span></span><code>VM map
 VM objects
-physical pages
+физические страницы
 pmap
 </code></pre></div>
 <p>Не нужно уходить в исходники XNU.</p>
 <p>Учебная модель:</p>
-<div class="highlight"><pre><span></span><code>virtual range
+<div class="highlight"><pre><span></span><code>виртуальный диапазон
 ↓
-VM map entry
+запись карты VM
 ↓
-VM object / backing
+объект VM / обеспечение памяти
 ↓
-physical pages
+физические страницы
 </code></pre></div>
 <hr/>
-<h1 id="54-large-allocation-immediate-ram">54. Почему large allocation не означает immediate RAM<a class="headerlink" href="#54-large-allocation-immediate-ram" title="Permanent link">¶</a></h1>
-<p>Apple VM давно использует demand paging.</p>
+<h1 id="54-ram">54. Почему большая аллокация не означает немедленное занятие RAM<a class="headerlink" href="#54-ram" title="Permanent link">¶</a></h1>
+<p>Apple VM давно использует выделение страниц по требованию.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>allocate large virtual range
+<div class="highlight"><pre><span></span><code>выделить большой виртуальный диапазон
 ↓
-mapping exists
+отображение существует
 ↓
-physical pages absent
+физические страницы отсутствуют
 ↓
-first touch
+первом обращении
 ↓
 fault
 ↓
-zeroed physical page
+обнулённая физическая страница
 ↓
-mapping updated
+отображение обновлено
 </code></pre></div>
 <p>Это та же фундаментальная модель, что мы уже видели в Linux и Windows.</p>
 <hr/>
@@ -1415,30 +1415,30 @@ mapping updated
 → логическая карта виртуальных диапазонов
 
 pmap
-→ низкоуровневое отображение virtual → physical
+→ низкоуровневое отображение виртуальный → физический
 </code></pre></div>
 <hr/>
-<h1 id="56-resident-memory">56. Resident memory<a class="headerlink" href="#56-resident-memory" title="Permanent link">¶</a></h1>
+<h1 id="56">56. Резидентная память<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
 <p>Как и в других ОС:</p>
-<div class="highlight"><pre><span></span><code>virtual address exists
+<div class="highlight"><pre><span></span><code>виртуальный адрес существует
 ≠
-page resident
+page резидентная
 </code></pre></div>
-<p>Процесс может иметь большой address space.</p>
-<p>Но physical RAM занимает только resident subset.</p>
+<p>Процесс может иметь большой адресное пространство.</p>
+<p>Но физическая RAM занимает только резидентная часть.</p>
 <p>В macOS Activity Monitor не даёт одной «истинной» цифры всей памяти приложения.</p>
 <p>Нужно читать контекст.</p>
 <hr/>
-<h1 id="57-wired-memory">57. Wired memory<a class="headerlink" href="#57-wired-memory" title="Permanent link">¶</a></h1>
-<p><strong>Wired Memory</strong> — память, которую система должна держать в RAM и не может просто вытеснить обычным paging/reclaim.</p>
+<h1 id="57-wired-memory">57. Wired Memory<a class="headerlink" href="#57-wired-memory" title="Permanent link">¶</a></h1>
+<p><strong>Wired Memory</strong> — память, которую система должна держать в RAM и не может просто вытеснить обычным подкачка/освобождение памяти.</p>
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>wired
 ↓
-must remain resident
+должна оставаться резидентной
 </code></pre></div>
 <p>Отсюда:</p>
 <blockquote>
-<p>Wired memory уменьшает количество RAM, которое можно свободно перераспределять между pageable workloads.</p>
+<p>Wired Memory уменьшает количество RAM, которое можно свободно перераспределять между pageable workloads.</p>
 </blockquote>
 <hr/>
 <h1 id="58-app-memory">58. App Memory<a class="headerlink" href="#58-app-memory" title="Permanent link">¶</a></h1>
@@ -1457,18 +1457,18 @@ vm_stat
 <h1 id="59-cached-files">59. Cached Files<a class="headerlink" href="#59-cached-files" title="Permanent link">¶</a></h1>
 <p>macOS использует свободную RAM под файловый кеш.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>file read
+<div class="highlight"><pre><span></span><code>чтение файла
 ↓
 cache
 ↓
 RAM
 </code></pre></div>
-<p>Пока memory pressure низкий, cached files — полезное использование памяти.</p>
-<p>Если pressure растёт:</p>
-<div class="highlight"><pre><span></span><code>cache can be reclaimed
+<p>Пока давление на память низкий, кешированные файлы — полезное использование памяти.</p>
+<p>Если давление растёт:</p>
+<div class="highlight"><pre><span></span><code>кеш можно освободить
 </code></pre></div>
 <p>Поэтому:</p>
-<div class="highlight"><pre><span></span><code>little free RAM
+<div class="highlight"><pre><span></span><code>мало свободной RAM
 </code></pre></div>
 <p>само по себе не означает аварии.</p>
 <hr/>
@@ -1476,74 +1476,74 @@ RAM
 <p>Apple специально выводит отдельный показатель:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
 </code></pre></div>
-<p>Он учитывает не только free memory.</p>
+<p>Он учитывает не только свободную память.</p>
 <p>В пользовательской документации Apple прямо связывает его с:</p>
 <ul>
-<li>free memory;</li>
-<li>swap rate;</li>
-<li>wired memory;</li>
-<li>file cached memory.</li>
+<li>свободную память;</li>
+<li>скорость swap;</li>
+<li>закреплённая память;</li>
+<li>кешированную файловую память.</li>
 </ul>
 <p>Идея:</p>
 <blockquote>
-<p>Насколько эффективно текущая memory subsystem удовлетворяет запросы workload?</p>
+<p>Насколько эффективно текущая подсистемы памяти удовлетворяет запросы нагрузка?</p>
 </blockquote>
 <hr/>
-<h1 id="61-memory-pressure-free-memory">61. Почему Memory Pressure лучше Free Memory<a class="headerlink" href="#61-memory-pressure-free-memory" title="Permanent link">¶</a></h1>
+<h1 id="61-memory-pressure-free-memory">61. Почему Memory Pressure информативнее Free Memory<a class="headerlink" href="#61-memory-pressure-free-memory" title="Permanent link">¶</a></h1>
 <p>Система A:</p>
 <div class="highlight"><pre><span></span><code>Free = 500 MiB
-Memory Pressure = green
+Memory Pressure = зелёный
 </code></pre></div>
 <p>Система может быть здоровой.</p>
 <p>Потому что:</p>
 <ul>
-<li>file cache reclaimable;</li>
-<li>compression работает;</li>
+<li>файловый кеш reclaimable;</li>
+<li>сжатие работает;</li>
 <li>swap почти не нужен;</li>
-<li>workload продвигается.</li>
+<li>нагрузка продвигается.</li>
 </ul>
 <p>Система B:</p>
 <div class="highlight"><pre><span></span><code>Free = 2 GiB
-Memory Pressure = red
+Memory Pressure = красный
 </code></pre></div>
 <p>может испытывать тяжёлую динамическую проблему.</p>
-<p>Один снимок free memory недостаточен.</p>
+<p>Один снимок свободную память недостаточен.</p>
 <hr/>
-<h1 id="62-green-yellow-red">62. Green / Yellow / Red<a class="headerlink" href="#62-green-yellow-red" title="Permanent link">¶</a></h1>
+<h1 id="62">62. Зелёный / жёлтый / красный<a class="headerlink" href="#62" title="Permanent link">¶</a></h1>
 <p>Activity Monitor показывает:</p>
-<div class="highlight"><pre><span></span><code>green
-yellow
-red
+<div class="highlight"><pre><span></span><code>зелёный
+жёлтый
+красный
 </code></pre></div>
 <p>Учебная интерпретация:</p>
-<div class="highlight"><pre><span></span><code>green
-→ system handles memory efficiently
+<div class="highlight"><pre><span></span><code>зелёный
+→ система эффективно управляет памятью
 
-yellow
-→ pressure растёт
+жёлтый
+→ давление растёт
 
-red
-→ memory subsystem серьёзно напряжена
+красный
+→ подсистемы памяти испытывает сильное давление
 </code></pre></div>
 <p>Это диагностическая агрегация.</p>
-<p>Не низкоуровневый kernel state machine.</p>
+<p>Не низкоуровневый машина состояний ядра.</p>
 <hr/>
-<h1 id="63-compression-macos">63. Compression в macOS<a class="headerlink" href="#63-compression-macos" title="Permanent link">¶</a></h1>
+<h1 id="63-macos">63. Сжатие в macOS<a class="headerlink" href="#63-macos" title="Permanent link">¶</a></h1>
 <p>Когда RAM становится тесной, macOS может сжимать менее активно используемую память.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>inactive / cold page
+<div class="highlight"><pre><span></span><code>неактивная / холодная страница
 ↓
-compress
+сжимать
 ↓
-store compressed representation in RAM
+хранить сжатое представление в RAM
 ↓
-free part of physical capacity
+освободить часть физической ёмкости
 </code></pre></div>
 <p>Плюс:</p>
 <div class="highlight"><pre><span></span><code>не нужно сразу идти на storage
 </code></pre></div>
 <hr/>
-<h1 id="64-compression">64. Почему compression вообще выгодна<a class="headerlink" href="#64-compression" title="Permanent link">¶</a></h1>
+<h1 id="64">64. Почему сжатие вообще выгодна<a class="headerlink" href="#64" title="Permanent link">¶</a></h1>
 <p>Допустим:</p>
 <div class="highlight"><pre><span></span><code>4 KiB page
 </code></pre></div>
@@ -1554,34 +1554,34 @@ free part of physical capacity
 <div class="highlight"><pre><span></span><code>занимать 4 KiB RAM
 </code></pre></div>
 <p>она занимает условно:</p>
-<div class="highlight"><pre><span></span><code>1 KiB compressed storage in RAM
+<div class="highlight"><pre><span></span><code>1 KiB сжатое представление в RAM
 </code></pre></div>
 <p>Мы освобождаем capacity.</p>
 <p>Цена:</p>
-<div class="highlight"><pre><span></span><code>CPU на compression
+<div class="highlight"><pre><span></span><code>CPU на сжатие
 +
-CPU на decompression
+CPU на распаковку
 </code></pre></div>
 <hr/>
-<h1 id="65-compression-memory-cpu">65. Compression — это ещё один обмен memory ↔ CPU<a class="headerlink" href="#65-compression-memory-cpu" title="Permanent link">¶</a></h1>
-<p>При низком pressure:</p>
-<div class="highlight"><pre><span></span><code>страницы resident
+<h1 id="65-cpu">65. Сжатие — ещё один обмен памяти на CPU<a class="headerlink" href="#65-cpu" title="Permanent link">¶</a></h1>
+<p>При низком давление:</p>
+<div class="highlight"><pre><span></span><code>страницы резидентная
 ↓
 обычный access
 </code></pre></div>
-<p>При compression:</p>
-<div class="highlight"><pre><span></span><code>compressed representation
+<p>При сжатие:</p>
+<div class="highlight"><pre><span></span><code>сжатое представление
 ↓
 нужно развернуть при повторном использовании
 ↓
-CPU work
+работу CPU
 </code></pre></div>
 <p>Но это часто дешевле:</p>
-<div class="highlight"><pre><span></span><code>SSD I/O
+<div class="highlight"><pre><span></span><code>ввод-вывод SSD
 </code></pre></div>
-<p>Поэтому compression может отсрочить swap.</p>
+<p>Поэтому сжатие может отсрочить swap.</p>
 <hr/>
-<h1 id="66-compressed-memory-free-memory">66. Почему compressed memory не является free memory<a class="headerlink" href="#66-compressed-memory-free-memory" title="Permanent link">¶</a></h1>
+<h1 id="66">66. Почему сжатая память не является свободную память<a class="headerlink" href="#66" title="Permanent link">¶</a></h1>
 <p>Сжатая страница всё ещё занимает RAM.</p>
 <p>Просто меньше.</p>
 <p>Поэтому:</p>
@@ -1592,29 +1592,29 @@ CPU work
 </code></pre></div>
 <p>Это означает:</p>
 <blockquote>
-<p>Часть логической памяти сейчас хранится в compressed representation.</p>
+<p>Часть логической памяти сейчас хранится в сжатое представление.</p>
 </blockquote>
 <hr/>
-<h1 id="67-compression">67. Когда compression становится дорогой<a class="headerlink" href="#67-compression" title="Permanent link">¶</a></h1>
+<h1 id="67">67. Когда сжатие становится дорогой<a class="headerlink" href="#67" title="Permanent link">¶</a></h1>
 <p>Если рабочий набор большой и данные постоянно переходят:</p>
-<div class="highlight"><pre><span></span><code>decompress
+<div class="highlight"><pre><span></span><code>распаковывать
 ↓
 use
 ↓
-compress
+сжимать
 ↓
-decompress
+распаковывать
 </code></pre></div>
-<p>CPU начинает заметно тратиться на memory management.</p>
-<p>Получаем аналог thrashing, только часть pressure сначала живёт внутри RAM.</p>
+<p>CPU начинает заметно тратиться на управление памятью.</p>
+<p>Получаем аналог трэшинга, только часть давления сначала живёт внутри RAM.</p>
 <hr/>
 <h1 id="68-swap-macos">68. Swap в macOS<a class="headerlink" href="#68-swap-macos" title="Permanent link">¶</a></h1>
-<p>Если compression недостаточно:</p>
-<div class="highlight"><pre><span></span><code>memory pressure ↑
+<p>Если сжатие недостаточно:</p>
+<div class="highlight"><pre><span></span><code>давление на память ↑
 ↓
 swap
 </code></pre></div>
-<p>Часть данных перемещается на startup disk.</p>
+<p>Часть данных перемещается на системный накопитель.</p>
 <p>Activity Monitor показывает:</p>
 <div class="highlight"><pre><span></span><code>Swap Used
 </code></pre></div>
@@ -1625,21 +1625,21 @@ swap
 <p>Нужно смотреть:</p>
 <ul>
 <li>Memory Pressure;</li>
-<li>swap dynamics;</li>
-<li>application latency;</li>
-<li>compressed memory;</li>
-<li>actual workload.</li>
+<li>динамику swap;</li>
+<li>задержка приложения;</li>
+<li>сжатая память;</li>
+<li>реальную нагрузку.</li>
 </ul>
 <hr/>
-<h1 id="69-page-in-swap">69. Page-in из swap<a class="headerlink" href="#69-page-in-swap" title="Permanent link">¶</a></h1>
-<p>Когда swapped data снова нужны:</p>
-<div class="highlight"><pre><span></span><code>memory access
+<h1 id="69-swap">69. Загрузка страницы из swap<a class="headerlink" href="#69-swap" title="Permanent link">¶</a></h1>
+<p>Когда данные в swap снова нужны:</p>
+<div class="highlight"><pre><span></span><code>обращение к памяти
 ↓
-page unavailable
+страница недоступна
 ↓
 fault
 ↓
-storage read
+чтение с накопителя
 ↓
 RAM
 ↓
@@ -1648,116 +1648,116 @@ continue
 <p>На современных SSD это намного быстрее старых HDD.</p>
 <p>Но всё равно на порядки медленнее доступа к DRAM.</p>
 <hr/>
-<h1 id="70-apple-silicon-memory-pressure">70. Почему Apple Silicon не отменяет memory pressure<a class="headerlink" href="#70-apple-silicon-memory-pressure" title="Permanent link">¶</a></h1>
-<p>На Apple Silicon unified memory объединяет физическую память для CPU/GPU и других подсистем в общей архитектуре.</p>
-<p>Это меняет topology и устраняет часть копирований между отдельными memory pools.</p>
+<h1 id="70-apple-silicon">70. Почему Apple Silicon не отменяет давление на память<a class="headerlink" href="#70-apple-silicon" title="Permanent link">¶</a></h1>
+<p>На Apple Silicon единая память объединяет физическую память для CPU/GPU и других подсистем в общей архитектуре.</p>
+<p>Это меняет topology и устраняет часть копирований между отдельными пулы памяти.</p>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>physical memory всё равно конечна
+<div class="highlight"><pre><span></span><code>физическая память всё равно конечна
 </code></pre></div>
 <p>Поэтому остаются:</p>
 <ul>
-<li>compression;</li>
+<li>сжатие;</li>
 <li>swap;</li>
-<li>pressure;</li>
-<li>eviction/reclaim;</li>
-<li>latency under shortage.</li>
+<li>давление;</li>
+<li>вытеснение/освобождение;</li>
+<li>задержка при дефиците памяти.</li>
 </ul>
 <hr/>
-<h1 id="71-unified-memory">71. Unified memory делает конкуренцию шире<a class="headerlink" href="#71-unified-memory" title="Permanent link">¶</a></h1>
+<h1 id="71-unified-memory">71. Единая память (Unified Memory) делает конкуренцию шире<a class="headerlink" href="#71-unified-memory" title="Permanent link">¶</a></h1>
 <p>На классической дискретной системе:</p>
 <div class="highlight"><pre><span></span><code>CPU RAM
 GPU VRAM
 </code></pre></div>
 <p>могут быть отдельными бюджетами.</p>
-<p>На Apple Silicon многие потребители делят unified memory.</p>
-<p>Значит pressure может приходить не только от:</p>
-<div class="highlight"><pre><span></span><code>Go process
+<p>На Apple Silicon многие потребители делят объединённую память.</p>
+<p>Значит давление может приходить не только от:</p>
+<div class="highlight"><pre><span></span><code>процесс Go
 </code></pre></div>
 <p>но и от:</p>
 <ul>
-<li>GPU workloads;</li>
-<li>media processing;</li>
-<li>other apps;</li>
-<li>caches;</li>
-<li>system services.</li>
+<li>нагрузки GPU;</li>
+<li>обработки медиа;</li>
+<li>других приложений;</li>
+<li>кешей;</li>
+<li>системных служб.</li>
 </ul>
 <hr/>
-<h1 id="72-backend-mac-workload">72. Почему backend-процесс на Mac может тормозить из-за чужого workload<a class="headerlink" href="#72-backend-mac-workload" title="Permanent link">¶</a></h1>
+<h1 id="72-mac-">72. Почему бэкенд-процесс на Mac может тормозить из-за чужой нагрузки<a class="headerlink" href="#72-mac-" title="Permanent link">¶</a></h1>
 <p>Разработчик запускает:</p>
-<div class="highlight"><pre><span></span><code>Go service
+<div class="highlight"><pre><span></span><code>Go-сервис
 +
 Docker/VM
 +
 IDE
 +
-browser
+браузер
 +
-video call
+видеозвонок
 </code></pre></div>
-<p>Все конкурируют за physical memory.</p>
+<p>Все конкурируют за физическая память.</p>
 <p>Сервис сам может иметь стабильный heap.</p>
-<p>Но system pressure растёт.</p>
+<p>Но системного давления на память растёт.</p>
 <p>Получаем:</p>
-<div class="highlight"><pre><span></span><code>compression ↑
+<div class="highlight"><pre><span></span><code>сжатие ↑
 swap ↑
-fault latency ↑
-service p99 ↑
+задержка страничных ошибок ↑
+p99 сервиса ↑
 </code></pre></div>
-<p>Это особенно полезно помнить при локальных performance-тестах.</p>
+<p>Это особенно полезно помнить при локальных тестах производительности.</p>
 <hr/>
-<h1 id="73-macos-purgeable-memory">73. macOS purgeable memory<a class="headerlink" href="#73-macos-purgeable-memory" title="Permanent link">¶</a></h1>
-<p>Darwin/macOS также поддерживает идеи purgeable/reclaimable caches.</p>
-<p>Приложение или framework может хранить данные, которые:</p>
+<h1 id="73-macos-purgeable-memory">73. macOS очищаемая память (<code>purgeable memory</code>)<a class="headerlink" href="#73-macos-purgeable-memory" title="Permanent link">¶</a></h1>
+<p>Darwin/macOS также поддерживает идеи очищаемые кеши.</p>
+<p>Приложение или фреймворк может хранить данные, которые:</p>
 <div class="highlight"><pre><span></span><code>полезны
-но могут быть выброшены при pressure
+но могут быть выброшены при давление
 </code></pre></div>
 <p>Это хорошая архитектурная идея:</p>
 <div class="highlight"><pre><span></span><code>cache
 ≠
-must-preserve state
+обязательное состояние
 </code></pre></div>
-<p>Чем больше данных можно безопасно recreate, тем больше свободы у memory manager.</p>
+<p>Чем больше данных можно безопасно восстановить, тем больше свободы у менеджера памяти.</p>
 <hr/>
-<h1 id="74-cache-purgeable">74. Почему cache должен быть purgeable по смыслу<a class="headerlink" href="#74-cache-purgeable" title="Permanent link">¶</a></h1>
+<h1 id="74">74. Почему кеш должен быть очищаемым по смыслу<a class="headerlink" href="#74" title="Permanent link">¶</a></h1>
 <p>Если приложение хранит:</p>
 <div class="highlight"><pre><span></span><code>огромный cache
 </code></pre></div>
 <p>но система не знает, что его можно восстановить, память выглядит как обязательная.</p>
 <p>Если cache может быть отброшен:</p>
-<div class="highlight"><pre><span></span><code>pressure
+<div class="highlight"><pre><span></span><code>давление
 ↓
-purge cache
+очистить кеш
 ↓
 не нужен swap для этих данных
 </code></pre></div>
-<p>Общая идея совпадает с Linux clean page cache:</p>
+<p>Общая идея совпадает с чистым страничным кешем Linux:</p>
 <blockquote>
-<p>Reconstructible data дешевле reclaim'ить, чем уникальное mutable state.</p>
+<p>Восстанавливаемые данные дешевле освобождать, чем уникальное изменяемое состояние.</p>
 </blockquote>
 <hr/>
-<h1 id="75-macos-swap-ssd-wear">75. macOS swap и SSD wear<a class="headerlink" href="#75-macos-swap-ssd-wear" title="Permanent link">¶</a></h1>
-<p>Иногда обсуждение memory pressure сводят к:</p>
+<h1 id="75-macos-swap-ssd">75. macOS swap и износ SSD<a class="headerlink" href="#75-macos-swap-ssd" title="Permanent link">¶</a></h1>
+<p>Иногда обсуждение давление на память сводят к:</p>
 <blockquote>
 <p>Swap убивает SSD.</p>
 </blockquote>
 <p>Такой вывод слишком грубый.</p>
-<p>Нас в backend-курсе интересуют:</p>
+<p>Нас в бэкенд-курсе интересуют:</p>
 <ul>
-<li>actual swap write volume;</li>
-<li>frequency;</li>
-<li>workload;</li>
-<li>latency;</li>
-<li>pressure.</li>
+<li>реальный объём записи в swap;</li>
+<li>частоту;</li>
+<li>нагрузка;</li>
+<li>задержка;</li>
+<li>давление.</li>
 </ul>
 <p>Современная система проектируется с учётом swap.</p>
-<p>Но постоянный тяжёлый swap — признак того, что working set плохо помещается в RAM.</p>
+<p>Но постоянный тяжёлый swap — признак того, что рабочий набор плохо помещается в RAM.</p>
 <hr/>
 <h1 id="76-vm_stat">76. <code>vm_stat</code><a class="headerlink" href="#76-vm_stat" title="Permanent link">¶</a></h1>
 <p>Основной системный инструмент:</p>
 <div class="highlight"><pre><span></span><code>vm_stat
 </code></pre></div>
 <p>Он показывает статистику виртуальной памяти.</p>
-<p>Набор counters может зависеть от версии.</p>
+<p>Набор счётчики может зависеть от версии.</p>
 <p>Полезные категории могут включать:</p>
 <ul>
 <li>free;</li>
@@ -1766,21 +1766,21 @@ purge cache
 <li>speculative;</li>
 <li>wired;</li>
 <li>compressed;</li>
-<li>pageins/pageouts;</li>
-<li>faults.</li>
+<li>загрузки/выгрузки страниц;</li>
+<li>страничные ошибки.</li>
 </ul>
 <p>Нужно смотреть динамику.</p>
 <hr/>
 <h1 id="77-vm_stat">77. Почему одна строка <code>vm_stat</code> мало полезна<a class="headerlink" href="#77-vm_stat" title="Permanent link">¶</a></h1>
 <p>Снимок:</p>
-<div class="highlight"><pre><span></span><code>Pages free = N
+<div class="highlight"><pre><span></span><code>Свободных страниц = N
 </code></pre></div>
 <p>не отвечает:</p>
 <ul>
-<li>растёт ли compression;</li>
-<li>есть ли swap churn;</li>
-<li>насколько быстро страницы fault'ятся;</li>
-<li>какой процесс создаёт pressure.</li>
+<li>растёт ли сжатие;</li>
+<li>есть ли постоянную активность swap;</li>
+<li>насколько быстро возникают страничные ошибки;</li>
+<li>какой процесс создаёт давление.</li>
 </ul>
 <p>Нужно:</p>
 <div class="highlight"><pre><span></span><code>vm_stat 1
@@ -1791,7 +1791,7 @@ purge cache
 <p>Утилита:</p>
 <div class="highlight"><pre><span></span><code>memory_pressure
 </code></pre></div>
-<p>даёт системный взгляд на доступность памяти и pressure.</p>
+<p>даёт системный взгляд на доступность памяти и давление.</p>
 <p>Она полезна для:</p>
 <div class="highlight"><pre><span></span><code>системная проблема?
 или
@@ -1802,16 +1802,16 @@ purge cache
 <p>Для конкретного процесса:</p>
 <div class="highlight"><pre><span></span><code>vmmap<span class="w"> </span>&lt;pid&gt;
 </code></pre></div>
-<p>показывает структуру виртуальных mappings и memory regions.</p>
+<p>показывает структуру виртуальных отображения и области памяти.</p>
 <p>Можно увидеть:</p>
 <ul>
-<li>region types;</li>
-<li>virtual sizes;</li>
-<li>resident/dirty information;</li>
-<li>shared/private mappings;</li>
-<li>allocator regions.</li>
+<li>типы областей;</li>
+<li>виртуальные размеры;</li>
+<li>информацию о резидентных/изменённых страницах;</li>
+<li>общие/приватные отображения;</li>
+<li>области аллокатора.</li>
 </ul>
-<p>Это macOS-аналог глубокого взгляда на address space процесса.</p>
+<p>Это macOS-аналог глубокого взгляда на адресное пространство процесса.</p>
 <hr/>
 <h1 id="80-activity-monitor">80. Activity Monitor<a class="headerlink" href="#80-activity-monitor" title="Permanent link">¶</a></h1>
 <p>Для первого уровня:</p>
@@ -1833,19 +1833,19 @@ Swap Used
 <p>Для приложений Apple экосистема даёт Instruments.</p>
 <p>Полезные направления:</p>
 <ul>
-<li>Allocations;</li>
-<li>Leaks;</li>
-<li>VM Tracker;</li>
-<li>Time Profiler.</li>
+<li><code>Allocations</code>;</li>
+<li><code>Leaks</code>;</li>
+<li><code>VM Tracker</code>;</li>
+<li><code>Time Profiler</code>.</li>
 </ul>
 <p>Для Go-процесса нативные инструменты не заменяют:</p>
 <div class="highlight"><pre><span></span><code>pprof
-runtime/metrics
+`runtime/metrics`
 </code></pre></div>
-<p>Но помогают видеть system/process VM слой.</p>
+<p>Но помогают видеть слой виртуальной памяти ОС/процесса.</p>
 <hr/>
-<h1 id="82-go-runtime-macos">82. Go runtime на macOS<a class="headerlink" href="#82-go-runtime-macos" title="Permanent link">¶</a></h1>
-<p>Текущий Go runtime использует Darwin VM через:</p>
+<h1 id="82-go-macos">82. Рантайм Go на macOS<a class="headerlink" href="#82-go-macos" title="Permanent link">¶</a></h1>
+<p>Текущий рантайм Go использует Darwin VM через:</p>
 <div class="highlight"><pre><span></span><code>mmap
 madvise
 munmap
@@ -1869,114 +1869,114 @@ munmap
 </code></pre></div>
 <hr/>
 <h1 id="83-madv_free_reusable">83. <code>MADV_FREE_REUSABLE</code><a class="headerlink" href="#83-madv_free_reusable" title="Permanent link">¶</a></h1>
-<p>Когда Go scavenger решил:</p>
-<div class="highlight"><pre><span></span><code>physical contents больше не нужны
+<p>Когда Scavenger Go решил:</p>
+<div class="highlight"><pre><span></span><code>физическое содержимое больше не нужны
 </code></pre></div>
 <p>на Darwin он может использовать:</p>
 <div class="highlight"><pre><span></span><code>MADV_FREE_REUSABLE
 </code></pre></div>
 <p>Идея:</p>
-<div class="highlight"><pre><span></span><code>virtual range remains
+<div class="highlight"><pre><span></span><code>виртуальный диапазон сохраняется
 ↓
-kernel may reclaim physical backing
+ядро может освободить физическую память
 </code></pre></div>
-<p>Плюс этот механизм участвует в корректном memory accounting Darwin.</p>
+<p>Плюс этот механизм участвует в корректном учёте памяти Darwin.</p>
 <hr/>
 <h1 id="84-madv_free_reuse">84. <code>MADV_FREE_REUSE</code><a class="headerlink" href="#84-madv_free_reuse" title="Permanent link">¶</a></h1>
-<p>Если Go снова хочет использовать range:</p>
+<p>Если Go снова хочет использовать диапазон:</p>
 <div class="highlight"><pre><span></span><code>MADV_FREE_REUSE
 </code></pre></div>
-<p>помогает сообщить kernel:</p>
-<div class="highlight"><pre><span></span><code>эта reusable region снова используется
+<p>помогает сообщить ядру:</p>
+<div class="highlight"><pre><span></span><code>эта повторно используемая область снова используется
 </code></pre></div>
-<p>То есть macOS runtime API явно отражает reuse lifecycle.</p>
+<p>То есть API рантайма macOS явно отражает жизненный цикл повторного использования.</p>
 <hr/>
-<h1 id="85-go-scavenger-macos-compression">85. Почему Go scavenger на macOS не равен compression<a class="headerlink" href="#85-go-scavenger-macos-compression" title="Permanent link">¶</a></h1>
+<h1 id="85-scavenger-go-macos">85. Почему Scavenger Go на macOS не равен сжатию<a class="headerlink" href="#85-scavenger-go-macos" title="Permanent link">¶</a></h1>
 <p>Две разные системы.</p>
-<p>Go scavenger:</p>
-<div class="highlight"><pre><span></span><code>Go runtime говорит:
-эти heap pages мне не нужны
+<p>Scavenger Go:</p>
+<div class="highlight"><pre><span></span><code>рантайм Go говорит:
+эти страницы хипа мне не нужны
 </code></pre></div>
-<p>macOS compression:</p>
-<div class="highlight"><pre><span></span><code>kernel говорит:
+<p>macOS сжатие:</p>
+<div class="highlight"><pre><span></span><code>ядро говорит:
 эта ещё нужная memory холодная,
 я попробую хранить её компактнее
 </code></pre></div>
 <p>Первое:</p>
-<div class="highlight"><pre><span></span><code>application/runtime ownership decision
+<div class="highlight"><pre><span></span><code>решение приложения/рантайма о владении памятью
 </code></pre></div>
 <p>Второе:</p>
-<div class="highlight"><pre><span></span><code>OS pressure policy
+<div class="highlight"><pre><span></span><code>давление ОС policy
 </code></pre></div>
 <hr/>
 <h1 id="86">86. Почему это разделение важно<a class="headerlink" href="#86" title="Permanent link">¶</a></h1>
 <p>Сценарий A:</p>
-<div class="highlight"><pre><span></span><code>Go heap освобождён
+<div class="highlight"><pre><span></span><code>хип Go освобождён
 ↓
-scavenger отдаёт pages
+scavenger возвращает страницы
 </code></pre></div>
 <p>Это оптимально.</p>
 <p>Сценарий B:</p>
-<div class="highlight"><pre><span></span><code>Go всё ещё считает objects live
+<div class="highlight"><pre><span></span><code>Go всё ещё считает объекты живыми
 ↓
-kernel compresses/swaps pages
+ядро сжимает/выгружает страницы
 </code></pre></div>
 <p>GC их не может удалить.</p>
-<p>OS только меняет способ physical storage.</p>
+<p>OS только меняет способ физического хранения.</p>
 <hr/>
-<h1 id="87-macos-pressure-chain">87. macOS pressure chain<a class="headerlink" href="#87-macos-pressure-chain" title="Permanent link">¶</a></h1>
+<h1 id="87-macos">87. Цепочка давления на память macOS<a class="headerlink" href="#87-macos" title="Permanent link">¶</a></h1>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>physical demand ↑
+<div class="highlight"><pre><span></span><code>потребность в физической памяти ↑
 ↓
-cached/reclaimable memory ↓
+кешируемая/освобождаемая память ↓
 ↓
-compression ↑
+сжатие ↑
 ↓
-если pressure растёт
+если давление растёт
 ↓
 swap ↑
 ↓
-fault / decompression / I/O ↑
+страничные ошибки / распаковка / ввод-вывод ↑
 ↓
-application latency ↑
+задержка приложения ↑
 </code></pre></div>
-<p>Это не строгая последовательность kernel states.</p>
+<p>Это не строгая последовательность состояний ядра.</p>
 <p>Это причинная модель.</p>
 <hr/>
-<h1 id="88-macos-thrash">88. Когда macOS начинает thrash'ить<a class="headerlink" href="#88-macos-thrash" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>hot working set
+<h1 id="88-macos">88. Когда macOS начинает трэшить<a class="headerlink" href="#88-macos" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>горячий рабочий набор
 &gt;
-effective physical capacity
+доступная физическая ёмкость
 </code></pre></div>
 <p>И данные начинают постоянно:</p>
-<div class="highlight"><pre><span></span><code>compress
-decompress
-swap out
-swap in
+<div class="highlight"><pre><span></span><code>сжимать
+распаковывать
+выгружать в swap
+загружать из swap
 </code></pre></div>
 <p>Тогда:</p>
 <div class="highlight"><pre><span></span><code>CPU ↑
-storage I/O ↑
-latency ↑
-throughput ↓
-Memory Pressure → yellow/red
+ввод-вывод накопителя ↑
+задержка ↑
+пропускная способность ↓
+Memory Pressure → жёлтый/красный
 </code></pre></div>
 <hr/>
 <h1 id="89-mac-ram">89. Почему Mac может использовать почти всю RAM и быть быстрым<a class="headerlink" href="#89-mac-ram" title="Permanent link">¶</a></h1>
 <p>Потому что:</p>
-<div class="highlight"><pre><span></span><code>unused RAM
+<div class="highlight"><pre><span></span><code>неиспользуемая RAM
 </code></pre></div>
 <p>не является целью.</p>
 <p>RAM должна использоваться:</p>
 <ul>
 <li>приложениями;</li>
 <li>cache;</li>
-<li>filesystem data.</li>
+<li>данными файловой системы.</li>
 </ul>
-<p>Если system может легко reclaim'ить нужный объём:</p>
-<div class="highlight"><pre><span></span><code>Memory Pressure green
+<p>Если система может легко освободить нужный объём:</p>
+<div class="highlight"><pre><span></span><code>Memory Pressure зелёный
 </code></pre></div>
-<p>даже при небольшом free memory система здорова.</p>
+<p>даже при небольшом свободную память система здорова.</p>
 <hr/>
 <h1 id="90-windows-macos">90. Windows и macOS: ключевое различие метрик<a class="headerlink" href="#90-windows-macos" title="Permanent link">¶</a></h1>
 <p>Windows учит нас смотреть:</p>
@@ -1984,7 +1984,7 @@ Memory Pressure → yellow/red
 +
 Working Set
 +
-paging
+подкачка
 </code></pre></div>
 <p>macOS:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
@@ -1993,7 +1993,7 @@ Compressed
 +
 Swap Used
 +
-process resident view
+резидентный набор процесса
 </code></pre></div>
 <p>Обе системы говорят о той же физике, но разными языками.</p>
 <hr/>
@@ -2010,50 +2010,50 @@ process resident view
 <tr>
 <td>Виртуальный диапазон</td>
 <td><code>MEM_RESERVE</code></td>
-<td>VM mapping / <code>mmap</code></td>
+<td>VM отображение / <code>mmap</code></td>
 </tr>
 <tr>
-<td>Backing obligation</td>
+<td>Обязательство по обеспечению</td>
 <td>Commit</td>
-<td>VM backing управляется Mach/Darwin</td>
+<td>VM обеспечение памяти управляется Mach/Darwin</td>
 </tr>
 <tr>
-<td>Resident pages процесса</td>
+<td>Резидентные страницы процесса</td>
 <td>Working Set</td>
-<td>resident memory</td>
+<td>резидентная память</td>
 </tr>
 <tr>
-<td>Уменьшение residency</td>
-<td>Working Set trimming</td>
-<td>reclaim / compression / paging</td>
+<td>Уменьшение резидентности</td>
+<td>сокращение Working Set</td>
+<td>освобождение памяти / сжатие / подкачка</td>
 </tr>
 <tr>
-<td>Быстрое возвращение страницы без disk I/O</td>
-<td>soft fault</td>
-<td>resident/cache/VM fault paths</td>
+<td>Быстрое возвращение страницы без дискового ввода-вывода</td>
+<td>малая страничная ошибка</td>
+<td>резидентные/кешированные пути обработки страничной ошибки VM</td>
 </tr>
 <tr>
-<td>Disk backing private memory</td>
+<td>Дисковое обеспечение приватной памяти</td>
 <td>pagefile</td>
 <td>swap</td>
 </tr>
 <tr>
-<td>Compression</td>
+<td>Сжатие</td>
 <td>Memory Compression</td>
 <td>Compressed Memory</td>
 </tr>
 <tr>
-<td>Основной system-pressure индикатор</td>
+<td>Основной индикатор системного давления</td>
 <td>Available/Commit/Paging + ETW/PerfMon</td>
 <td>Memory Pressure</td>
 </tr>
 <tr>
-<td>Go release physical backing</td>
+<td>Возврат физической памяти Go</td>
 <td><code>MEM_DECOMMIT</code></td>
 <td><code>MADV_FREE_REUSABLE</code></td>
 </tr>
 <tr>
-<td>Полный release range</td>
+<td>Полное освобождение диапазона</td>
 <td><code>MEM_RELEASE</code></td>
 <td><code>munmap</code></td>
 </tr>
@@ -2063,10 +2063,10 @@ process resident view
 <h1 id="92-windows-commit-macos-memory-pressure">92. Windows <code>Commit</code> и macOS <code>Memory Pressure</code> нельзя сравнивать как одинаковые метрики<a class="headerlink" href="#92-windows-commit-macos-memory-pressure" title="Permanent link">¶</a></h1>
 <p>Это разные уровни.</p>
 <p>Windows Commit:</p>
-<div class="highlight"><pre><span></span><code>backing obligation
+<div class="highlight"><pre><span></span><code>обязательство обеспечить память
 </code></pre></div>
 <p>macOS Memory Pressure:</p>
-<div class="highlight"><pre><span></span><code>integrated system pressure signal
+<div class="highlight"><pre><span></span><code>интегральный сигнал давления системы
 </code></pre></div>
 <p>Они отвечают на разные вопросы.</p>
 <p>Сравнивать можно только причинные модели, а не названия полей.</p>
@@ -2076,30 +2076,30 @@ process resident view
 <div class="highlight"><pre><span></span><code>Working Set
 </code></pre></div>
 <p>На macOS полезнее говорить:</p>
-<div class="highlight"><pre><span></span><code>resident working set
+<div class="highlight"><pre><span></span><code>резидентный рабочий набор
 </code></pre></div>
 <p>как учебная модель.</p>
 <p>В обоих случаях вопрос:</p>
 <blockquote>
-<p>Какие данные workload реально держит/трогает в RAM?</p>
+<p>Какие данные нагрузка реально держит/трогает в RAM?</p>
 </blockquote>
-<p>Это намного важнее total virtual size.</p>
+<p>Это намного важнее общий виртуальный размер.</p>
 <hr/>
-<h1 id="94-compression">94. Общая модель compression<a class="headerlink" href="#94-compression" title="Permanent link">¶</a></h1>
+<h1 id="94">94. Общая модель сжатие<a class="headerlink" href="#94" title="Permanent link">¶</a></h1>
 <p>Windows:</p>
-<div class="highlight"><pre><span></span><code>trim pressure
+<div class="highlight"><pre><span></span><code>сокращение рабочего набора давление
 ↓
-compressed memory can keep cold pages in RAM
+сжатая память может удерживать холодные страницы в RAM
 </code></pre></div>
 <p>macOS:</p>
-<div class="highlight"><pre><span></span><code>memory pressure
+<div class="highlight"><pre><span></span><code>давление на память
 ↓
-compressed pages
+сжатые страницы
 </code></pre></div>
-<p>Общий trade-off:</p>
-<div class="highlight"><pre><span></span><code>RAM saved
+<p>Общий компромисс:</p>
+<div class="highlight"><pre><span></span><code>экономия RAM
 ↔
-CPU spent
+затраты CPU
 </code></pre></div>
 <hr/>
 <h1 id="95-swappagefile">95. Общая модель swap/pagefile<a class="headerlink" href="#95-swappagefile" title="Permanent link">¶</a></h1>
@@ -2110,112 +2110,112 @@ CPU spent
 <div class="highlight"><pre><span></span><code>swap
 </code></pre></div>
 <p>В обоих случаях:</p>
-<div class="highlight"><pre><span></span><code>page leaves RAM
+<div class="highlight"><pre><span></span><code>страница покидает RAM
 ↓
-backing on storage
+обеспечение хранится на накопителе
 ↓
-needed again
+снова нужна
 ↓
 I/O
 ↓
-latency
+задержка
 </code></pre></div>
 <p>Названия разные.</p>
 <p>Цена физики похожа.</p>
 <hr/>
 <h1 id="96-windows-">96. Как выглядит здоровая Windows-система<a class="headerlink" href="#96-windows-" title="Permanent link">¶</a></h1>
 <p>Примерно:</p>
-<div class="highlight"><pre><span></span><code>Commit далеко от limit
+<div class="highlight"><pre><span></span><code>Commit далеко от лимита
 ↓
-Working Sets стабильны
+Working Set стабилен
 ↓
-hard faults low
+жёстких страничных ошибок мало
 ↓
-pagefile I/O low
+ввод-вывод pagefile низкий
 ↓
-Available memory достаточная
+доступной памяти достаточно
 ↓
-application latency stable
+задержка приложения стабильна
 </code></pre></div>
 <p>При этом:</p>
 <div class="highlight"><pre><span></span><code>RAM может быть сильно занята
 </code></pre></div>
 <p>Это нормально.</p>
 <hr/>
-<h1 id="97-windows-pressure-degradation">97. Как выглядит Windows pressure degradation<a class="headerlink" href="#97-windows-pressure-degradation" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Available RAM ↓
+<h1 id="97-windows-">97. Как выглядит деградация Windows из-за давления на память<a class="headerlink" href="#97-windows-" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Доступная RAM ↓
 ↓
-Working Set trimming ↑
+сокращение Working Set ↑
 ↓
-soft faults ↑
+мягкие страничные ошибки ↑
 ↓
-compression ↑
+сжатие ↑
 ↓
-pagefile writes/reads ↑
+запись/чтение pagefile ↑
 ↓
-hard faults ↑
+больших страничных ошибок ↑
 ↓
-disk latency ↑
+задержка диска ↑
 ↓
 p99 ↑
 </code></pre></div>
-<p>До allocation failure ещё может быть далеко.</p>
+<p>До ошибку выделения памяти ещё может быть далеко.</p>
 <hr/>
 <h1 id="98-macos">98. Как выглядит здоровый macOS<a class="headerlink" href="#98-macos" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Memory Pressure green
+<div class="highlight"><pre><span></span><code>Memory Pressure зелёный
 ↓
-Compressed умеренная/stable
+Compressed умеренна и стабильна
 ↓
-Swap stable/low activity
+Swap стабилен, активность низкая
 ↓
-application latency stable
+задержка приложения стабильна
 </code></pre></div>
-<p>Free memory при этом может быть небольшой.</p>
+<p>Свободная память при этом может быть небольшой.</p>
 <hr/>
-<h1 id="99-macos-pressure-degradation">99. Как выглядит macOS pressure degradation<a class="headerlink" href="#99-macos-pressure-degradation" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Memory Pressure yellow/red
+<h1 id="99-macos-">99. Как выглядит деградация macOS из-за давления на память<a class="headerlink" href="#99-macos-" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Memory Pressure жёлтый/красный
 ↓
 Compressed ↑
 ↓
-swap activity ↑
+активность swap ↑
 ↓
-fault/decompression work ↑
+страничные ошибки/распаковка ↑
 ↓
-CPU/storage pressure ↑
+давление на CPU/накопитель ↑
 ↓
-application latency ↑
+задержка приложения ↑
 </code></pre></div>
 <hr/>
-<h1 id="100-go-heap-windows">100. Сценарий: Go heap стабильный, Windows тормозит<a class="headerlink" href="#100-go-heap-windows" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Go live heap stable
-GC CPU low
+<h1 id="100-go-windows">100. Сценарий: хип Go стабильный, Windows тормозит<a class="headerlink" href="#100-go-windows" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>живой хип Go стабилен
+CPU GC низкий
 </code></pre></div>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>Working Set trimming ↑
-hard faults ↑
+<div class="highlight"><pre><span></span><code>сокращение Working Set ↑
+больших страничных ошибок ↑
 pagefile I/O ↑
 </code></pre></div>
 <p>Причина:</p>
-<div class="highlight"><pre><span></span><code>OS-level memory pressure
+<div class="highlight"><pre><span></span><code>давление на память на уровне ОС
 </code></pre></div>
 <p>Не GC.</p>
 <hr/>
-<h1 id="101-go-heap-macos">101. Сценарий: Go heap стабильный, macOS тормозит<a class="headerlink" href="#101-go-heap-macos" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Go live heap stable
-GC normal
+<h1 id="101-go-macos">101. Сценарий: хип Go стабильный, macOS тормозит<a class="headerlink" href="#101-go-macos" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>живой хип Go стабилен
+GC работает нормально
 </code></pre></div>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>Memory Pressure red
+<div class="highlight"><pre><span></span><code>Memory Pressure красный
 Compressed ↑
 Swap Used ↑
 </code></pre></div>
 <p>Причина:</p>
-<div class="highlight"><pre><span></span><code>system-wide pressure
+<div class="highlight"><pre><span></span><code>системное давление
 </code></pre></div>
 <hr/>
-<h1 id="102-benchmark-mac">102. Локальный benchmark на Mac может обмануть<a class="headerlink" href="#102-benchmark-mac" title="Permanent link">¶</a></h1>
+<h1 id="102-mac">102. Локальный тест производительности на Mac может обмануть<a class="headerlink" href="#102-mac" title="Permanent link">¶</a></h1>
 <p>Ты запускаешь:</p>
-<div class="highlight"><pre><span></span><code>Go benchmark
+<div class="highlight"><pre><span></span><code>тест Go
 </code></pre></div>
 <p>Но параллельно:</p>
 <ul>
@@ -2228,30 +2228,30 @@ Swap Used ↑
 </ul>
 <p>Memory Pressure меняется.</p>
 <p>Получаем:</p>
-<div class="highlight"><pre><span></span><code>benchmark variance
+<div class="highlight"><pre><span></span><code>разброс результатов теста
 </code></pre></div>
 <p>Причина не обязательно в Go-коде.</p>
 <hr/>
-<h1 id="103-benchmark-windows">103. Локальный benchmark на Windows тоже может обмануть<a class="headerlink" href="#103-benchmark-windows" title="Permanent link">¶</a></h1>
+<h1 id="103-windows">103. Локальный тест производительности на Windows тоже может обмануть<a class="headerlink" href="#103-windows" title="Permanent link">¶</a></h1>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>Defender scanning
-browser
+<div class="highlight"><pre><span></span><code>сканирование Defender
+браузер
 IDE
 Docker Desktop / VM
-file cache pressure
+давление файлового кеша
 </code></pre></div>
 <p>меняют:</p>
 <ul>
 <li>Working Set;</li>
 <li>cache;</li>
-<li>page faults;</li>
-<li>disk activity.</li>
+<li>страничные ошибки;</li>
+<li>диск активность.</li>
 </ul>
-<p>Поэтому microbenchmark памяти лучше повторять в контролируемой среде.</p>
+<p>Поэтому микротест памяти лучше повторять в контролируемой среде.</p>
 <hr/>
-<h1 id="104-1-windows-reserve-commit-resident">104. Практика 1: Windows reserve → commit → resident<a class="headerlink" href="#104-1-windows-reserve-commit-resident" title="Permanent link">¶</a></h1>
+<h1 id="104-1-windows-commit">104. Практика 1: Windows резервирование → Commit → резидентность<a class="headerlink" href="#104-1-windows-commit" title="Permanent link">¶</a></h1>
 <p>Небольшая программа через WinAPI:</p>
-<div class="highlight"><pre><span></span><code>MEM_RESERVE большой range
+<div class="highlight"><pre><span></span><code>MEM_RESERVE большого диапазона
 ↓
 снять Virtual Size / Commit / Working Set
 </code></pre></div>
@@ -2261,49 +2261,49 @@ file cache pressure
 снять метрики
 </code></pre></div>
 <p>Потом:</p>
-<div class="highlight"><pre><span></span><code>touch every page
+<div class="highlight"><pre><span></span><code>обратиться к каждой странице
 ↓
-Working Set grows
+Working Set растёт
 </code></pre></div>
 <p>Цель:</p>
-<div class="highlight"><pre><span></span><code>reserve
+<div class="highlight"><pre><span></span><code>резервирование
 ≠
 commit
 ≠
-resident
+резидентная
 </code></pre></div>
 <hr/>
-<h1 id="105-2-windows-working-set-trimming">105. Практика 2: Windows Working Set trimming<a class="headerlink" href="#105-2-windows-working-set-trimming" title="Permanent link">¶</a></h1>
+<h1 id="105-2-windows-working-set">105. Практика 2: Windows сокращение Working Set<a class="headerlink" href="#105-2-windows-working-set" title="Permanent link">¶</a></h1>
 <p>В лабораторной среде создать процесс с большим Working Set.</p>
-<p>Создать memory pressure другим процессом.</p>
+<p>Создать давление на память другим процессом.</p>
 <p>Наблюдать:</p>
 <div class="highlight"><pre><span></span><code>Working Set
-soft faults
-hard faults
-pagefile activity
+мягкие страничные ошибки
+больших страничных ошибок
+активность pagefile
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть, что process ownership memory и residency расходятся.</p>
+<p>Увидеть, что process ownership memory и резидентность расходятся.</p>
 </blockquote>
 <hr/>
-<h1 id="106-3-windows-compression-paging">106. Практика 3: Windows compression / paging<a class="headerlink" href="#106-3-windows-compression-paging" title="Permanent link">¶</a></h1>
-<p>Под контролируемым pressure смотреть:</p>
+<h1 id="106-3-windows">106. Практика 3: Windows сжатие / подкачка<a class="headerlink" href="#106-3-windows" title="Permanent link">¶</a></h1>
+<p>Под контролируемым давление смотреть:</p>
 <div class="highlight"><pre><span></span><code>Task Manager
 PerfMon
 RAMMap
 </code></pre></div>
 <p>И коррелировать:</p>
-<div class="highlight"><pre><span></span><code>compressed memory
-pagefile activity
-hard faults
-latency
+<div class="highlight"><pre><span></span><code>сжатая память
+активность pagefile
+больших страничных ошибок
+задержка
 </code></pre></div>
 <p>Не пытаться добиться конкретной цифры.</p>
-<p>Политика kernel адаптивна.</p>
+<p>Политика ядра адаптивна.</p>
 <hr/>
 <h1 id="107-4-windows-commit-limit">107. Практика 4: Windows Commit Limit<a class="headerlink" href="#107-4-windows-commit-limit" title="Permanent link">¶</a></h1>
-<p>Создать процесс, который постепенно commit'ит private memory.</p>
+<p>Создать процесс, который постепенно увеличивает Commit приватной памяти.</p>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>Committed Bytes
 Commit Limit
@@ -2312,27 +2312,27 @@ Working Set
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Доказать, что commit exhaustion и physical-memory pressure — разные проблемы.</p>
+<p>Доказать, что исчерпание Commit и давление на физическую память — разные проблемы.</p>
 </blockquote>
 <p>Тест выполнять только на изолированной VM с безопасным лимитом.</p>
 <hr/>
-<h1 id="108-5-macos-virtual-range-first-touch">108. Практика 5: macOS virtual range → first touch<a class="headerlink" href="#108-5-macos-virtual-range-first-touch" title="Permanent link">¶</a></h1>
-<p>Создать большой memory range.</p>
+<h1 id="108-5-macos">108. Практика 5: macOS — виртуальный диапазон → первое обращение<a class="headerlink" href="#108-5-macos" title="Permanent link">¶</a></h1>
+<p>Создать большой диапазон памяти.</p>
 <p>Сначала не трогать его полностью.</p>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>vmmap<span class="w"> </span>&lt;pid&gt;
 vm_stat<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
-<p>Потом touch страниц.</p>
-<p>Снова смотреть resident behaviour.</p>
+<p>Потом обратиться к страницам.</p>
+<p>Снова смотреть поведение резидентной памяти.</p>
 <p>Цель:</p>
-<div class="highlight"><pre><span></span><code>virtual allocation
+<div class="highlight"><pre><span></span><code>виртуальная аллокация
 ≠
-resident RAM
+резидентная RAM
 </code></pre></div>
 <hr/>
-<h1 id="109-6-macos-compression">109. Практика 6: macOS compression<a class="headerlink" href="#109-6-macos-compression" title="Permanent link">¶</a></h1>
-<p>Создать контролируемый memory pressure.</p>
+<h1 id="109-6-macos">109. Практика 6: macOS сжатие<a class="headerlink" href="#109-6-macos" title="Permanent link">¶</a></h1>
+<p>Создать контролируемый давление на память.</p>
 <p>Смотреть Activity Monitor:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
 Compressed
@@ -2344,263 +2344,263 @@ memory_pressure
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть переход от ordinary residency к compression.</p>
+<p>Увидеть переход от обычной резидентности к сжатие.</p>
 </blockquote>
 <hr/>
 <h1 id="110-7-macos-swap">110. Практика 7: macOS swap<a class="headerlink" href="#110-7-macos-swap" title="Permanent link">¶</a></h1>
-<p>Увеличивать working set дальше.</p>
+<p>Увеличивать рабочий набор дальше.</p>
 <p>Наблюдать:</p>
 <div class="highlight"><pre><span></span><code>Swap Used
 pageouts/pageins
 Memory Pressure
-application latency
+задержка приложения
 </code></pre></div>
 <p>Цель:</p>
-<div class="highlight"><pre><span></span><code>compression insufficient
+<div class="highlight"><pre><span></span><code>сжатие insufficient
 ↓
-swap enters picture
+подключается swap
 ↓
-latency rises
+задержка растёт
 </code></pre></div>
 <hr/>
 <h1 id="111-8-go-windows-macos">111. Практика 8: один Go-сервис на Windows и macOS<a class="headerlink" href="#111-8-go-windows-macos" title="Permanent link">¶</a></h1>
 <p>Запустить один и тот же сервис.</p>
 <p>Нагрузка одинаковая.</p>
 <p>Собирать Go:</p>
-<div class="highlight"><pre><span></span><code>live heap
-heap goal
+<div class="highlight"><pre><span></span><code>живой хип
+цель хипа
 GC CPU
-assist CPU
+CPU на ассисты GC
 goroutines
 </code></pre></div>
 <p>На Windows:</p>
 <div class="highlight"><pre><span></span><code>Working Set
 Private Bytes
 Committed Bytes
-hard faults
-pagefile activity
+больших страничных ошибок
+активность pagefile
 </code></pre></div>
 <p>На macOS:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
 Compressed
 Swap Used
 vm_stat
-resident process memory
+резидентная память процесса
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Показать, что Go-level metrics одинаковые, а OS-level interpretation разная.</p>
+<p>Показать, что метрики Go одинаковые, а интерпретация на уровне ОС разная.</p>
 </blockquote>
 <hr/>
-<h1 id="112-9-go-scavenger-windows-macos">112. Практика 9: Go scavenger на Windows и macOS<a class="headerlink" href="#112-9-go-scavenger-windows-macos" title="Permanent link">¶</a></h1>
+<h1 id="112-9-scavenger-go-windows-macos">112. Практика 9: Scavenger Go на Windows и macOS<a class="headerlink" href="#112-9-scavenger-go-windows-macos" title="Permanent link">¶</a></h1>
 <p>Сервис:</p>
-<div class="highlight"><pre><span></span><code>allocate several GiB
+<div class="highlight"><pre><span></span><code>выделить несколько GiB
 ↓
-touch
+обратиться к страницам
 ↓
-drop references
+удалить ссылки
 ↓
 GC
 ↓
-observe release
+наблюдать возврат памяти
 </code></pre></div>
 <p>Windows:</p>
-<div class="highlight"><pre><span></span><code>decommit path
+<div class="highlight"><pre><span></span><code>путь decommit
 ↓
 Working Set / Commit changes
 </code></pre></div>
 <p>macOS:</p>
 <div class="highlight"><pre><span></span><code>MADV_FREE_REUSABLE
 ↓
-resident/accounting behaviour
+резидентность/учёт памяти
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть, как один runtime concept адаптируется к разным VM API.</p>
+<p>Увидеть, как один механизм рантайма адаптируется к разным VM API.</p>
 </blockquote>
 <hr/>
 <h1 id="113-windows">113. Диагностическая карта Windows<a class="headerlink" href="#113-windows" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Process memory high?
+<div class="highlight"><pre><span></span><code>Память процесса велика?
 ↓
-Private Bytes or Working Set?
+`Private Bytes` или `Working Set`?
 
-Working Set high
+Working Set велик
 ↓
-resident footprint
+резидентный объём
 
-Private Bytes high
+Private Bytes велики
 ↓
-private commit
+приватный Commit
 
-Committed Bytes near Commit Limit
+Committed Bytes близки к Commit Limit
 ↓
-system commit pressure
+системное давление Commit
 
-Hard faults high
+много жёстких страничных ошибок
 ↓
-backing-store I/O
+ввод-вывод хранилища обеспечения
 
-Working Set falls + soft faults rise
+Working Set уменьшается + мягкие страничные ошибки растут
 ↓
-trimming pressure
+давление сокращения рабочего набора
 </code></pre></div>
 <hr/>
 <h1 id="114-macos">114. Диагностическая карта macOS<a class="headerlink" href="#114-macos" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>Memory Pressure?
-├── green
+├── зелёный
 │   ↓
-│   system likely healthy
+│   система, вероятно, здорова
 │
-├── yellow
+├── жёлтый
 │   ↓
-│   investigate compression / swap trend
+│   проверить динамику сжатия / swap
 │
-└── red
+└── красный
     ↓
-    serious memory pressure
+    сильное давление на память
 </code></pre></div>
 <p>Потом:</p>
 <div class="highlight"><pre><span></span><code>Compressed
 Swap Used
 vm_stat
-vmmap process
-Go metrics
+`vmmap` процесса
+метрики Go
 </code></pre></div>
 <hr/>
 <h1 id="115-windows">115. Что нельзя делать на Windows<a class="headerlink" href="#115-windows" title="Permanent link">¶</a></h1>
 <h2 id="task-manager-memory">Смотреть только Task Manager Memory<a class="headerlink" href="#task-manager-memory" title="Permanent link">¶</a></h2>
 <p>Одна цифра может скрыть:</p>
 <div class="highlight"><pre><span></span><code>commit
-resident
+резидентная
 shared
-private
+приватная
 </code></pre></div>
-<h2 id="page-fault-disk-fault">Считать любой page fault disk fault<a class="headerlink" href="#page-fault-disk-fault" title="Permanent link">¶</a></h2>
-<p>Soft faults могут обходиться без storage.</p>
+<h2 id="_1">Считать любой страничная ошибка дисковая страничная ошибка<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Малые страничные ошибки могут обходиться без накопителя.</p>
 <h2 id="working-set">Считать Working Set полной стоимостью процесса<a class="headerlink" href="#working-set" title="Permanent link">¶</a></h2>
-<p>Он зависит от pressure и trimming.</p>
+<p>Он зависит от давления на память и сокращения Working Set.</p>
 <h2 id="pagefile">Отключать pagefile как универсальную «оптимизацию»<a class="headerlink" href="#pagefile" title="Permanent link">¶</a></h2>
-<p>Это меняет commit/paging model.</p>
-<p>Сначала нужен конкретный workload и измерения.</p>
+<p>Это меняет commit/модель подкачки.</p>
+<p>Сначала нужен конкретный нагрузка и измерения.</p>
 <hr/>
 <h1 id="116-macos">116. Что нельзя делать на macOS<a class="headerlink" href="#116-macos" title="Permanent link">¶</a></h1>
-<h2 id="free-memory">Считать маленькую Free Memory проблемой<a class="headerlink" href="#free-memory" title="Permanent link">¶</a></h2>
+<h2 id="free-memory">Считать малый объём Free Memory проблемой<a class="headerlink" href="#free-memory" title="Permanent link">¶</a></h2>
 <p>macOS специально использует RAM под полезные данные.</p>
 <h2 id="compressed">Считать Compressed всегда плохим<a class="headerlink" href="#compressed" title="Permanent link">¶</a></h2>
-<p>Умеренная compression может быть нормальной эффективной политикой.</p>
+<p>Умеренная сжатие может быть нормальной эффективной политикой.</p>
 <h2 id="swap-used-0">Считать Swap Used &gt; 0 аварией<a class="headerlink" href="#swap-used-0" title="Permanent link">¶</a></h2>
-<p>Важна текущая activity и Memory Pressure.</p>
-<h2 id="slowdown-go-gc">Объяснять любой slowdown Go GC<a class="headerlink" href="#slowdown-go-gc" title="Permanent link">¶</a></h2>
-<p>System-wide pressure может быть сильнее runtime GC.</p>
+<p>Важна текущая активность и Memory Pressure.</p>
+<h2 id="gc-go">Объяснять любое замедление через GC Go<a class="headerlink" href="#gc-go" title="Permanent link">¶</a></h2>
+<p>Системное давление на память может влиять сильнее, чем GC рантайма.</p>
 <hr/>
-<h1 id="117-compression">117. Почему compression не бесплатна в обеих ОС<a class="headerlink" href="#117-compression" title="Permanent link">¶</a></h1>
+<h1 id="117">117. Почему сжатие не бесплатна в обеих ОС<a class="headerlink" href="#117" title="Permanent link">¶</a></h1>
 <p>Общая модель:</p>
-<div class="highlight"><pre><span></span><code>pressure
+<div class="highlight"><pre><span></span><code>давление
 ↓
-compress cold page
+сжать холодную страницу
 ↓
-RAM saved
+экономия RAM
 </code></pre></div>
 <p>Но потом:</p>
-<div class="highlight"><pre><span></span><code>page hot again
+<div class="highlight"><pre><span></span><code>страница снова стала горячей
 ↓
-decompress
+распаковывать
 ↓
 CPU
 </code></pre></div>
 <p>При частых переходах:</p>
-<div class="highlight"><pre><span></span><code>compression churn
+<div class="highlight"><pre><span></span><code>постоянное сжатие/распаковка
 </code></pre></div>
 <p>может стать самостоятельной нагрузкой.</p>
 <hr/>
-<h1 id="118-storage-latency">118. Почему storage latency всё равно остаётся последней стеной<a class="headerlink" href="#118-storage-latency" title="Permanent link">¶</a></h1>
-<p>Когда compression недостаточно:</p>
+<h1 id="118">118. Почему задержке накопителя всё равно остаётся последней стеной<a class="headerlink" href="#118" title="Permanent link">¶</a></h1>
+<p>Когда сжатие недостаточно:</p>
 <div class="highlight"><pre><span></span><code>pagefile / swap
 </code></pre></div>
 <p>Теперь доступ стоит:</p>
-<div class="highlight"><pre><span></span><code>storage I/O
+<div class="highlight"><pre><span></span><code>ввод-вывод накопителя
 </code></pre></div>
 <p>Даже быстрый NVMe намного медленнее DRAM.</p>
-<p>Поэтому heavy paging всегда опасен для tail latency.</p>
+<p>Поэтому интенсивная подкачка всегда опасен для хвостовой задержки.</p>
 <hr/>
 <h1 id="119-windows-macos-linux-psi">119. Windows и macOS не имеют прямого аналога Linux PSI в обычной модели<a class="headerlink" href="#119-windows-macos-linux-psi" title="Permanent link">¶</a></h1>
 <p>Linux даёт очень прямую метрику:</p>
-<div class="highlight"><pre><span></span><code>stall time due to pressure
+<div class="highlight"><pre><span></span><code>время простоя из-за давления
 </code></pre></div>
 <p>На Windows и macOS диагностика чаще собирается из нескольких сигналов.</p>
 <p>Windows:</p>
 <div class="highlight"><pre><span></span><code>Working Set
-paging
-hard faults
+подкачка
+больших страничных ошибок
 commit
 ETW/WPA
 </code></pre></div>
 <p>macOS:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
-compression
+сжатие
 swap
 vm_stat
 </code></pre></div>
 <p>То есть Linux PSI удобно отвечает на вопрос напрямую, а здесь картину чаще собираем композиционно.</p>
 <hr/>
-<h1 id="120-memory-pressure-macos-closest-high-level-signal">120. Memory Pressure macOS — closest high-level signal<a class="headerlink" href="#120-memory-pressure-macos-closest-high-level-signal" title="Permanent link">¶</a></h1>
+<h1 id="120-memory-pressure-macos">120. Memory Pressure macOS — ближайший высокоуровневый сигнал<a class="headerlink" href="#120-memory-pressure-macos" title="Permanent link">¶</a></h1>
 <p>С точки зрения эксплуатации macOS:</p>
 <div class="highlight"><pre><span></span><code>Memory Pressure
 </code></pre></div>
 <p>ближе всего к вопросу:</p>
 <blockquote>
-<p>Насколько system memory subsystem справляется с текущим workload?</p>
+<p>Насколько подсистемы памяти ОС справляется с текущим нагрузка?</p>
 </blockquote>
-<p>Но это Apple-defined integrated indicator.</p>
+<p>Но это интегральный показатель Apple.</p>
 <p>Не аналог PSI 1:1.</p>
 <hr/>
 <h1 id="121-windows-reference-set">121. Windows Reference Set как другой подход<a class="headerlink" href="#121-windows-reference-set" title="Permanent link">¶</a></h1>
-<p>Windows Performance Toolkit позволяет измерять <strong>reference set</strong> сценария:</p>
-<div class="highlight"><pre><span></span><code>какие pages реально были accessed workload'ом
+<p>Windows Performance Toolkit позволяет измерять <strong>набор обращавшихся страниц (<code>reference set</code>)</strong> сценария:</p>
+<div class="highlight"><pre><span></span><code>какие страницы, к которым нагрузка реально обращалась
 </code></pre></div>
-<p>Это полезно, потому что Working Set зависит от текущего pressure.</p>
+<p>Это полезно, потому что Working Set зависит от текущего давление.</p>
 <p>Reference Set ближе к вопросу:</p>
 <blockquote>
-<p>Каков фактический memory footprint этого сценария?</p>
+<p>Каков фактический объём реально используемой памяти этого сценария?</p>
 </blockquote>
 <hr/>
-<h1 id="122-working-set-allocation-size">122. Почему working set важнее allocation size<a class="headerlink" href="#122-working-set-allocation-size" title="Permanent link">¶</a></h1>
+<h1 id="122">122. Почему рабочий набор важнее объёма выделенной памяти<a class="headerlink" href="#122" title="Permanent link">¶</a></h1>
 <p>Приложение может выделить:</p>
 <div class="highlight"><pre><span></span><code>20 GiB
 </code></pre></div>
 <p>но горячо использовать:</p>
 <div class="highlight"><pre><span></span><code>1 GiB
 </code></pre></div>
-<p>OS может держать активный рабочий набор в RAM и вытеснить холодные данные.</p>
+<p>ОС может держать активный рабочий набор в RAM и вытеснить холодные данные.</p>
 <p>Другой процесс:</p>
-<div class="highlight"><pre><span></span><code>allocated = 4 GiB
-working set = 4 GiB hot
+<div class="highlight"><pre><span></span><code>выделено = 4 GiB
+рабочий набор = 4 GiB горячий
 </code></pre></div>
-<p>может создавать больше pressure.</p>
+<p>может создавать больше давление.</p>
 <hr/>
-<h1 id="123-gc-live-heap-working-set">123. Почему GC live heap и working set тоже разные вещи<a class="headerlink" href="#123-gc-live-heap-working-set" title="Permanent link">¶</a></h1>
-<p>Go live heap:</p>
+<h1 id="123-go">123. Почему живой хип Go и рабочий набор — разные вещи<a class="headerlink" href="#123-go" title="Permanent link">¶</a></h1>
+<p>Go живой хип:</p>
 <div class="highlight"><pre><span></span><code>объекты достижимы
 </code></pre></div>
-<p>Working set:</p>
-<div class="highlight"><pre><span></span><code>какие physical pages реально нужны сейчас
+<p>Рабочий набор:</p>
+<div class="highlight"><pre><span></span><code>какие физические страницы реально нужны сейчас
 </code></pre></div>
-<p>Долгоживущий Go cache может быть:</p>
+<p>Долгоживущий кеш Go может быть:</p>
 <div class="highlight"><pre><span></span><code>live
 </code></pre></div>
 <p>но редко используем.</p>
 <p>GC его не удалит.</p>
-<p>OS может compress/page его.</p>
+<p>ОС может сжать или выгрузить его страницы.</p>
 <p>Это два разных понятия «нужности».</p>
 <hr/>
-<h1 id="124-reachability-hotness">124. Очень важная модель: reachability ≠ hotness<a class="headerlink" href="#124-reachability-hotness" title="Permanent link">¶</a></h1>
+<h1 id="124">124. Очень важная модель: достижимость ≠ активность<a class="headerlink" href="#124" title="Permanent link">¶</a></h1>
 <p>Go GC спрашивает:</p>
 <blockquote>
-<p>Есть ли путь от roots?</p>
+<p>Есть ли путь от корней?</p>
 </blockquote>
-<p>OS memory manager:</p>
+<p>менеджер памяти ОС:</p>
 <blockquote>
-<p>Насколько недавно эта physical page реально использовалась?</p>
+<p>Насколько недавно эта физическая страница реально использовалась?</p>
 </blockquote>
 <p>Объект может быть:</p>
 <div class="highlight"><pre><span></span><code>reachable
@@ -2609,86 +2609,86 @@ cold
 </code></pre></div>
 <p>Тогда:</p>
 <div class="highlight"><pre><span></span><code>Go сохраняет его
-OS может вытеснить / compress
+OS может вытеснить / сжимать
 </code></pre></div>
-<p>Вот почему runtime GC и OS reclaim решают разные задачи.</p>
+<p>Вот почему GC рантайма и освобождение памяти ОС решают разные задачи.</p>
 <hr/>
 <h1 id="125-windows">125. Сквозная цепочка Windows<a class="headerlink" href="#125-windows" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Go object reachable
+<div class="highlight"><pre><span></span><code>объект Go достижим
 ↓
-GC keeps object
+GC сохраняет объект
 ↓
-page belongs to committed virtual memory
+страница относится к committed-виртуальной памяти
 ↓
-page becomes cold
+страница становится холодной
 ↓
-Working Set trim
+сокращение Working Set
 ↓
-compressed / standby / pagefile path
+сжатие / Standby / pagefile
 ↓
-later access
+последующее обращение
 ↓
-soft or hard fault
+мягкая или жёсткая страничная ошибка
 ↓
-request latency
+задержка запросов
 </code></pre></div>
 <hr/>
 <h1 id="126-macos">126. Сквозная цепочка macOS<a class="headerlink" href="#126-macos" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>Go object reachable
+<div class="highlight"><pre><span></span><code>объект Go достижим
 ↓
-GC keeps object
+GC сохраняет объект
 ↓
-page becomes cold
+страница становится холодной
 ↓
-memory pressure
+давление на память
 ↓
-compression
+сжатие
 ↓
-pressure continues
+давление продолжает расти
 ↓
 swap
 ↓
-later access
+последующее обращение
 ↓
-decompress / page-in
+распаковывать / загрузка страницы
 ↓
-request latency
+задержка запросов
 </code></pre></div>
 <hr/>
-<h1 id="127-go-scavenger-windows">127. Сквозная цепочка Go scavenger на Windows<a class="headerlink" href="#127-go-scavenger-windows" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>object unreachable
+<h1 id="127-scavenger-go-windows">127. Сквозная цепочка Scavenger Go на Windows<a class="headerlink" href="#127-scavenger-go-windows" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>объект недостижим
 ↓
 Go GC
 ↓
 sweep
 ↓
-span/pages free
+span/страницы свободны
 ↓
 scavenger
 ↓
 VirtualFree(MEM_DECOMMIT)
 ↓
-backing released
+обеспечение памяти освобождено
 ↓
-virtual reservation may remain
+резерв виртуального диапазона может сохраниться
 </code></pre></div>
 <hr/>
-<h1 id="128-go-scavenger-macos">128. Сквозная цепочка Go scavenger на macOS<a class="headerlink" href="#128-go-scavenger-macos" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>object unreachable
+<h1 id="128-scavenger-go-macos">128. Сквозная цепочка Scavenger Go на macOS<a class="headerlink" href="#128-scavenger-go-macos" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>объект недостижим
 ↓
 Go GC
 ↓
 sweep
 ↓
-span/pages free
+span/страницы свободны
 ↓
 scavenger
 ↓
 MADV_FREE_REUSABLE
 ↓
-kernel can reclaim physical backing
+ядро может освободить физическую память
 ↓
-virtual mapping remains reusable
+виртуальное отображение остаётся пригодным для повторного использования
 </code></pre></div>
 <hr/>
 <h1 id="129">129. Сравнение ошибок мышления<a class="headerlink" href="#129" title="Permanent link">¶</a></h1>
@@ -2702,61 +2702,61 @@ virtual mapping remains reusable
 <tbody>
 <tr>
 <td>Выделили 1 GiB → заняли 1 GiB RAM</td>
-<td>reserve/commit/residency разделены</td>
+<td>резервирование/Commit/резидентность разделены</td>
 </tr>
 <tr>
-<td>Page fault → disk I/O</td>
-<td>fault может быть soft</td>
+<td>Страничная ошибка → дисковый ввод-вывод</td>
+<td>страничная ошибка может быть мягкой</td>
 </tr>
 <tr>
 <td>Working Set = вся память процесса</td>
-<td>Working Set = resident pageable subset</td>
+<td>Working Set = резидентная вытесняемая часть</td>
 </tr>
 <tr>
 <td>Free RAM мало → проблема</td>
-<td>важен pressure и reclaimability</td>
+<td>важны давление и возможность освобождения</td>
 </tr>
 <tr>
-<td>Compression = авария</td>
-<td>compression — нормальный промежуточный механизм</td>
+<td>Сжатие = авария</td>
+<td>сжатие — нормальный промежуточный механизм</td>
 </tr>
 <tr>
-<td>Swap Used &gt; 0 → thrashing</td>
-<td>важна текущая swap activity и latency</td>
+<td>Swap Used &gt; 0 → трэшинг</td>
+<td>важна текущая активность swap и задержка</td>
 </tr>
 <tr>
-<td>Go heap stable → memory problem отсутствует</td>
-<td>OS pressure может быть system-wide</td>
+<td>хип Go стабилен → проблемы памяти нет</td>
+<td>давление ОС может быть системный</td>
 </tr>
 <tr>
 <td>GC освободил → RAM мгновенно свободна</td>
-<td>нужен OS-specific release/reclaim</td>
+<td>нужен зависящий от ОС возврат/освобождение</td>
 </tr>
 </tbody>
 </table>
 <hr/>
 <h1 id="130-windows">130. Инженерный порядок диагностики Windows<a class="headerlink" href="#130-windows" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>backend latency
+<div class="highlight"><pre><span></span><code>задержка бэкенда
 ↓
-Go CPU/heap profiles
+профили CPU/хипа Go
 ↓
-process Working Set / Private Bytes
+Working Set процесса / Private Bytes
 ↓
-system Commit / Commit Limit
+системный Commit / Commit Limit
 ↓
-soft vs hard faults
+мягкие и больших страничных ошибок
 ↓
-pagefile / disk activity
+активность pagefile / диска
 ↓
 RAMMap / VMMap
 ↓
-WPR/WPA if needed
+WPR/WPA при необходимости
 </code></pre></div>
 <hr/>
 <h1 id="131-macos">131. Инженерный порядок диагностики macOS<a class="headerlink" href="#131-macos" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>backend latency
+<div class="highlight"><pre><span></span><code>задержка бэкенда
 ↓
-Go CPU/heap profiles
+профили CPU/хипа Go
 ↓
 Activity Monitor Memory Pressure
 ↓
@@ -2764,36 +2764,36 @@ Compressed / Swap Used
 ↓
 vm_stat
 ↓
-vmmap process
+`vmmap` процесса
 ↓
-Instruments if needed
+Instruments при необходимости
 </code></pre></div>
 <hr/>
 <h1 id="132">132. Что является устойчивой моделью<a class="headerlink" href="#132" title="Permanent link">¶</a></h1>
 <p>Полезно преподавать как долгоживущие идеи:</p>
-<div class="highlight"><pre><span></span><code>virtual memory
+<div class="highlight"><pre><span></span><code>виртуальная память
 ≠
-resident memory
+резидентная память
 
-working set
+рабочий набор
 ↓
-pressure
+давление
 ↓
-reclaim / trimming
+освобождение памяти / trimming
 ↓
-compression
+сжатие
 ↓
 swap/pagefile
 ↓
 fault
 </code></pre></div>
 <p>И:</p>
-<div class="highlight"><pre><span></span><code>GC reachability
+<div class="highlight"><pre><span></span><code>достижимость для GC
 ≠
-OS hotness
+активность для ОС
 </code></pre></div>
 <hr/>
-<h1 id="133-platform-specific-api">133. Что является platform-specific API<a class="headerlink" href="#133-platform-specific-api" title="Permanent link">¶</a></h1>
+<h1 id="133-api">133. Что является API конкретной платформы<a class="headerlink" href="#133-api" title="Permanent link">¶</a></h1>
 <p>Windows:</p>
 <div class="highlight"><pre><span></span><code>VirtualAlloc
 VirtualFree
@@ -2815,57 +2815,57 @@ vmmap
 Memory Pressure
 </code></pre></div>
 <hr/>
-<h1 id="134-implementation-detail">134. Что является implementation detail<a class="headerlink" href="#134-implementation-detail" title="Permanent link">¶</a></h1>
+<h1 id="134">134. Что является деталь реализации<a class="headerlink" href="#134" title="Permanent link">¶</a></h1>
 <p>Windows:</p>
 <ul>
-<li>конкретные working-set manager heuristics;</li>
-<li>внутренние page lists;</li>
-<li>compression implementation;</li>
-<li>exact trimming policy;</li>
-<li>exact page replacement heuristics.</li>
+<li>конкретные эвристики менеджера Working Set;</li>
+<li>внутренние списки страниц;</li>
+<li>реализация сжатия;</li>
+<li>точная политика сокращения;</li>
+<li>точные эвристики вытеснения страниц.</li>
 </ul>
 <p>macOS:</p>
 <ul>
-<li>compressor internals;</li>
-<li>exact eviction policy;</li>
-<li>swap heuristics;</li>
-<li>XNU internal queues;</li>
-<li>exact Memory Pressure formula.</li>
+<li>внутренности компрессора;</li>
+<li>точная политика вытеснения;</li>
+<li>эвристики swap;</li>
+<li>XNU внутренние очереди;</li>
+<li>точная формула Memory Pressure.</li>
 </ul>
 <p>Эти детали меняются между версиями.</p>
 <hr/>
-<h1 id="_1">Что важно запомнить<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h1 id="_2">Что важно запомнить<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
 <ol>
-<li>Windows разделяет Virtual Address Space, Commit и Working Set. Их нельзя складывать в одну метрику «память процесса».</li>
-<li><code>MEM_RESERVE</code> закрепляет адресный диапазон, <code>MEM_COMMIT</code> создаёт backing obligation, а Working Set показывает текущую residency.</li>
-<li>Working Set trimming уменьшает resident footprint процесса, но не обязан освобождать virtual address или commit.</li>
-<li>Soft fault можно разрешить без backing-store I/O; hard fault требует чтения pagefile или mapped file.</li>
-<li>Pagefile участвует и в paging, и в system commit capacity.</li>
-<li>Windows memory compression меняет RAM на CPU и может уменьшать число hard faults.</li>
-<li>Job Objects могут ограничивать committed memory процесса или группы процессов.</li>
-<li>Текущий Go runtime на Windows использует <code>VirtualAlloc</code>/<code>VirtualFree</code>: reserve/commit/decommit/release напрямую соответствуют VM lifecycle.</li>
-<li>macOS использует Mach VM и управляет pressure через reclaim, compression и swap.</li>
-<li>Memory Pressure в macOS полезнее одной Free Memory, потому что отражает эффективность memory subsystem с учётом swap, wired и cached memory.</li>
+<li>Windows разделяет виртуальное адресное пространство (Virtual Address Space), Commit и Working Set. Их нельзя складывать в одну метрику «память процесса».</li>
+<li><code>MEM_RESERVE</code> закрепляет адресный диапазон, <code>MEM_COMMIT</code> создаёт обязательство обеспечить память, а Working Set показывает текущую резидентность.</li>
+<li>Сокращение Working Set уменьшает резидентный объём процесса, но не обязано освобождать виртуальный адрес или Commit.</li>
+<li>Малую страничную ошибку можно обработать без ввода-вывода хранилища обеспечения; большая страничная ошибка требует чтения pagefile или отображённого файла.</li>
+<li>Pagefile участвует и в подкачке, и в системной ёмкости Commit.</li>
+<li>Windows сжатие памяти меняет RAM на CPU и может уменьшать число больших страничных ошибок.</li>
+<li>Job Objects могут ограничивать объём памяти, учтённой в Commit процесса или группы процессов.</li>
+<li>Текущий рантайм Go на Windows использует <code>VirtualAlloc</code>/<code>VirtualFree</code>: резервирование/commit/decommit/release напрямую соответствуют жизненному циклу VM.</li>
+<li>macOS использует Mach VM и управляет давлением через освобождение памяти, сжатие и swap.</li>
+<li>Memory Pressure в macOS полезнее одной Free Memory, потому что отражает эффективность подсистемы памяти с учётом swap, закреплённой и кешированной памяти.</li>
 <li>Compressed Memory остаётся памятью в RAM, просто в более плотном представлении.</li>
-<li>Compression экономит RAM ценой CPU; swap добавляет storage latency.</li>
-<li>На Apple Silicon unified memory не отменяет pressure: физический memory budget всё равно конечен и делится несколькими подсистемами.</li>
-<li>Go scavenger на macOS использует <code>MADV_FREE_REUSABLE</code>, сохраняя reusable virtual mapping и позволяя kernel reclaim physical backing.</li>
-<li>Reachable Go object может быть холодным для ОС: GC сохранит его, а OS может compress/page out его physical pages.</li>
-<li>Go heap metrics и OS memory metrics отвечают на разные вопросы и должны анализироваться вместе.</li>
-<li>Working Set на Windows и resident memory на macOS зависят от system pressure, поэтому benchmark memory нельзя интерпретировать вне состояния всей машины.</li>
-<li><code>Swap Used &gt; 0</code> и <code>Compressed &gt; 0</code> сами по себе не являются аварией. Важны динамика, fault/paging activity и latency.</li>
-<li>Heavy paging на любой ОС означает переход от DRAM latency к storage latency и поэтому особенно опасен для p95/p99.</li>
-<li>Для production-инцидента нужно восстановить цепочку: Go live set → virtual memory → residency → pressure → compression/pagefile/swap → faults → latency.</li>
+<li>Сжатие экономит RAM ценой CPU; swap добавляет задержку накопителя.</li>
+<li>На Apple Silicon единая память не отменяет давление: физический бюджет памяти всё равно конечен и делится несколькими подсистемами.</li>
+<li>Scavenger Go на macOS использует <code>MADV_FREE_REUSABLE</code>, сохраняя повторно используемое виртуальное отображение и позволяя ядру освобождать физическое обеспечение памяти.</li>
+<li>Достижимый объект Go может быть холодным для ОС: GC сохранит его, а ОС может сжать или выгрузить его физические страницы.</li>
+<li>Метрики хипа Go и метрики памяти ОС отвечают на разные вопросы и должны анализироваться вместе.</li>
+<li>Working Set на Windows и резидентная память на macOS зависят от системного давления на память, поэтому тест памяти нельзя интерпретировать вне состояния всей машины.</li>
+<li><code>Swap Used &gt; 0</code> и <code>Compressed &gt; 0</code> сами по себе не являются аварией. Важны динамика, страничные ошибки и активность подкачки и задержка.</li>
+<li>Интенсивная подкачка на любой ОС означает переход от задержки DRAM к задержке накопителя и поэтому особенно опасна для p95/p99.</li>
+<li>Для прод-инцидента нужно восстановить цепочку: живой набор Go → виртуальная память → резидентность → давление → сжатие/pagefile/swap → страничные ошибки → задержка.</li>
 </ol>
 <hr/>
-<h1 id="_2">Финальная сравнительная модель<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>                           GO PROCESS
+<h1 id="_3">Финальная сравнительная модель<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                           ПРОЦЕСС GO
                                │
                                ▼
-                         Go live objects
+                         Живые объекты Go
                                │
                                ▼
-                         virtual memory
+                         виртуальная память
                                │
                 ┌──────────────┴──────────────┐
                 │                             │
@@ -2873,33 +2873,33 @@ Memory Pressure
              Windows                        macOS
                 │                             │
                 ▼                             ▼
-         Reserve / Commit                Mach VM mapping
+         Резервирование / Commit                Mach VM отображение
                 │                             │
                 ▼                             ▼
-          Working Set                  Resident memory
+          Working Set                  Резидентная память
                 │                             │
-        memory pressure                 memory pressure
+        давление на память                 давление на память
                 │                             │
        ┌────────┴────────┐            ┌──────┴──────┐
        ▼                 ▼            ▼             ▼
-    trim             compression   compression     reclaim
+    сокращение рабочего набора             сжатие   сжатие     освобождение памяти
        │                 │            │             │
        └────────┬────────┘            └──────┬──────┘
                 ▼                            ▼
              pagefile                       swap
                 │                            │
                 ▼                            ▼
-            hard fault                   page-in
+            большая страничная ошибка                   загрузка страницы
                 │                            │
                 └────────────┬───────────────┘
                              ▼
-                       application stall
+                       остановка приложения
                              │
                              ▼
                            p99 ↑
 </code></pre></div>
 <p>И отдельный путь, когда Go сам больше не нуждается в страницах:</p>
-<div class="highlight"><pre><span></span><code>                Go scavenger
+<div class="highlight"><pre><span></span><code>                Scavenger Go
                      │
           ┌──────────┴──────────┐
           ▼                     ▼
@@ -2909,15 +2909,15 @@ MEM_DECOMMIT          MADV_FREE_REUSABLE
           │                     │
           └──────────┬──────────┘
                      ▼
-             physical backing
-              can be reclaimed
+             физическое обеспечение памяти
+              можно освободить
 </code></pre></div>
 <p>Главный инженерный вывод:</p>
 <blockquote>
-<p>Windows и macOS используют разные API и разные эксплуатационные метрики, но решают одну физическую задачу: оставить горячий working set в RAM и вытеснить менее ценные данные с минимальной ценой. Windows особенно удобно учит разделять reserve, commit и Working Set; macOS — смотреть на pressure, compression и swap как на единую динамическую систему. В обоих случаях Go GC отвечает за достижимость объектов, а ОС отдельно решает, должны ли страницы этих объектов прямо сейчас находиться в физической RAM.</p>
+<p>Windows и macOS используют разные API и разные эксплуатационные метрики, но решают одну физическую задачу: оставить горячий рабочий набор в RAM и вытеснить менее ценные данные с минимальной ценой. Windows особенно удобно учит разделять резервирование, Commit и Working Set; macOS — смотреть на давление на память, сжатие и swap как на единую динамическую систему. В обоих случаях Go GC отвечает за достижимость объектов, а ОС отдельно решает, должны ли страницы этих объектов прямо сейчас находиться в физической RAM.</p>
 </blockquote>
 <hr/>
-<h1 id="_3">Основные источники<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<h1 id="_4">Основные источники<a class="headerlink" href="#_4" title="Permanent link">¶</a></h1>
 <h2 id="windows">Windows<a class="headerlink" href="#windows" title="Permanent link">¶</a></h2>
 <ul>
 <li>Microsoft Learn — Working Set: https://learn.microsoft.com/windows/win32/memory/working-set</li>
@@ -2949,7 +2949,7 @@ MEM_DECOMMIT          MADV_FREE_REUSABLE
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM" class="md-footer__link md-footer__link--prev" href="../3.2%20-%20Linux%20memory%20reclaim/">
+<a aria-label="Назад: 3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM" class="md-footer__link md-footer__link--prev" href="../3.2%20-%20Linux%20memory%20reclaim/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -2958,17 +2958,17 @@ MEM_DECOMMIT          MADV_FREE_REUSABLE
                 Назад
               </span>
 <div class="md-ellipsis">
-                3.2. Linux memory reclaim глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+                3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD" class="md-footer__link md-footer__link--next" href="../3.4%20-%20Linux%20storage%20path/">
+<a aria-label="Вперед: 3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD" class="md-footer__link md-footer__link--next" href="../3.4%20-%20Linux%20storage%20path/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                3.4. Linux storage path глубже: page cache, dirty pages, writeback, write(), fsync(), block layer и NVMe/SSD
+                3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
               </div>
 </div>
 <div class="md-footer__button md-icon">
