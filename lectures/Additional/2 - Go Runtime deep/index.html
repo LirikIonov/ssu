@@ -539,12 +539,12 @@
 <h1 id="2-go">2. Рантайм Go глубже: планировщик, парковка и синхронизация<a class="headerlink" href="#2-go" title="Permanent link">¶</a></h1>
 <blockquote>
 <p>Дополнительный блок к теме «Рантайм Go».</p>
-<p>Здесь мы спускаемся ниже обычной модели goroutine → G/M/P и разбираем, как текущая реализация рантайма переводит G между состояниями, где хранит готовую работу, как паркует ожидающих и почему внутри <code>sync.Mutex</code> появляется целая машина состояний.</p>
+<p>Здесь мы спускаемся ниже обычной модели горутина → G/M/P и разбираем, как текущая реализация рантайма переводит G между состояниями, где хранит готовую работу, как паркует ожидающих и почему внутри <code>sync.Mutex</code> появляется целая машина состояний.</p>
 <p>Названия внутренних функций и конкретные поля относятся к текущей реализации Go и могут меняться между версиями. Прикладной код не должен считать их публичным контрактом.</p>
 </blockquote>
 <h2 id="_1">Зачем вообще открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
 <p>В основной лекции достаточно модели:</p>
-<div class="highlight"><pre><span></span><code>goroutine
+<div class="highlight"><pre><span></span><code>горутина
 ↓
 G
 ↓
@@ -557,50 +557,50 @@ M + P
 CPU
 </code></pre></div>
 <p>Но под нагрузкой появляются вопросы, на которые эта картинка уже не отвечает.</p>
-<p>Почему новая goroutine иногда запускается почти сразу, а иногда долго ждёт?</p>
-<p>Почему <code>RUNNABLE</code> может быть дорогим состоянием?</p>
+<p>Почему новая горутина иногда запускается почти сразу, а иногда долго ждёт?</p>
+<p>Почему состояние «готова к выполнению» может быть дорогим состоянием?</p>
 <p>Зачем планировщику <code>runnext</code>, если уже есть локальная очередь?</p>
 <p>Почему свободный M иногда не засыпает сразу?</p>
 <p>Как одна G может одновременно ждать несколько каналов?</p>
-<p>Где лежат ожидающие <code>Mutex</code>, если сам <code>sync.Mutex</code> занимает всего несколько машинных слов?</p>
+<p>Где лежат ожидающие <code>мьютекс</code>, если сам <code>sync.Mutex</code> занимает всего несколько машинных слов?</p>
 <p>Почему <code>Unlock</code> не просто ставит <code>locked = false</code>?</p>
-<p>И почему CAS-цикл, который выглядит красивее mutex, под конкуренцией способен масштабироваться хуже?</p>
+<p>И почему CAS-цикл, который выглядит красивее мьютекс, под конкуренцией способен масштабироваться хуже?</p>
 <p>Вот здесь абстракция начинает протекать.</p>
 <p>Главная цепочка лекции:</p>
-<div class="highlight"><pre><span></span><code>go f()
+<div class="highlight"><pre><span></span><code>`go f()`
 ↓
-newproc
+`newproc`
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
-локальная очередь / runnext
+локальная очередь / `runnext`
 ↓
-findRunnable
+`findRunnable`
 ↓
-RUNNING
+ВЫПОЛНЯЕТСЯ
 ↓
 gopark
 ↓
-WAITING
+ЖДЕТ
 ↓
-sudog / semaphore
+`sudog` / семафор
 ↓
-goready
+`goready`
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>А затем:</p>
 <div class="highlight"><pre><span></span><code>sync.Mutex
 ↓
 CAS
 ↓
-state machine
+машина состояний
 ↓
-spin
+активное ожидание
 ↓
-parking
+парковка
 ↓
-starvation handoff
+режим голодания / передача владения
 ↓
 модель памяти
 ↓
@@ -619,7 +619,7 @@ starvation handoff
 <li>модель памяти Go;</li>
 <li>поведение публичных API.</li>
 </ul>
-<p>Например, <code>Unlock</code> одного <code>Mutex</code> создаёт определённую моделью памяти связь с последующим успешным <code>Lock</code> того же mutex.</p>
+<p>Например, <code>Unlock</code> одного мьютекса создаёт определённую моделью памяти связь с последующим успешным <code>Lock</code> того же мьютекс.</p>
 <p>Это часть публичного поведения.</p>
 <h2 id="_2">Детали текущей реализации<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
 <p>Сюда относятся:</p>
@@ -633,9 +633,9 @@ starvation handoff
 <li><code>gopark</code>;</li>
 <li><code>sudog</code>;</li>
 <li><code>semaRoot</code>;</li>
-<li>конкретные биты <code>Mutex.state</code>;</li>
+<li>конкретные биты <code>мьютекс.state</code>;</li>
 <li>эвристики спина;</li>
-<li>пороги starvation;</li>
+<li>пороги голодание;</li>
 <li>точный порядок поиска работы.</li>
 </ul>
 <p>Это может измениться в будущей версии Go без нарушения публичного API.</p>
@@ -650,8 +650,8 @@ starvation handoff
 mcall
 park_m
 g0
-dropg
-schedule
+`dropg`
+`schedule`
 </code></pre></div>
 <p>Нам нужен механизм и причинность.</p>
 <p>Не заучивание <code>proc.go</code> по строкам.</p>
@@ -662,13 +662,13 @@ schedule
 </code></pre></div>
 <p>На уровне языка:</p>
 <blockquote>
-<p><code>worker</code> должна начать выполняться в новой goroutine.</p>
+<p><code>worker</code> должна начать выполняться в новой горутины.</p>
 </blockquote>
 <p>Рантайм должен превратить это в новую единицу планирования.</p>
 <p>Концептуально:</p>
 <div class="highlight"><pre><span></span><code>go worker()
 ↓
-runtime.newproc
+runtime.`newproc`
 ↓
 runtime.newproc1
 ↓
@@ -688,20 +688,20 @@ runqput
 </blockquote>
 <hr/>
 <h1 id="2-g">2. Почему G можно переиспользовать<a class="headerlink" href="#2-g" title="Permanent link">¶</a></h1>
-<p>Завершившаяся goroutine больше не выполняет пользовательский код.</p>
+<p>Завершившаяся горутина больше не выполняет пользовательский код.</p>
 <p>Но это не означает, что рантайм обязан немедленно освобождать сам объект <code>g</code>.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>goroutine завершилась
+<div class="highlight"><pre><span></span><code>горутина завершилась
 ↓
 G → _Gdead
 ↓
 G попала в пул рантайма
 ↓
-следующий go statement
+следующий оператор `go`
 ↓
 структура G может быть использована снова
 </code></pre></div>
-<p>Это уменьшает стоимость частого создания goroutine.</p>
+<p>Это уменьшает стоимость частого создания горутина.</p>
 <p>Но бесплатной новая G всё равно не становится.</p>
 <p>Нужны:</p>
 <ul>
@@ -739,7 +739,7 @@ _Grunnable
 она уже получила CPU
 </code></pre></div>
 <hr/>
-<h1 id="4-runnable-g">4. Куда положить новую RUNNABLE G<a class="headerlink" href="#4-runnable-g" title="Permanent link">¶</a></h1>
+<h1 id="4-g">4. Куда положить новую ГОТОВА К ВЫПОЛНЕНИЮ G<a class="headerlink" href="#4-g" title="Permanent link">¶</a></h1>
 <p>Наивная модель:</p>
 <div class="highlight"><pre><span></span><code>все G
 ↓
@@ -758,7 +758,7 @@ _Grunnable
 <p>Получаем горячую точку синхронизации.</p>
 <p>Поэтому у каждого P есть локальная очередь готовых G.</p>
 <div class="highlight"><pre><span></span><code>P0
-├── runnext
+├── `runnext`
 └── runq:
     G12
     G35
@@ -804,9 +804,9 @@ P3: пусто
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>schedule()
 ↓
-найти RUNNABLE G
+найти ГОТОВА К ВЫПОЛНЕНИЮ G
 ↓
-execute(nextG)
+`execute(nextG)`
 </code></pre></div>
 <p>Но фраза:</p>
 <blockquote>
@@ -815,7 +815,7 @@ execute(nextG)
 <p>уже недостаточна.</p>
 <p>Очередь не одна.</p>
 <hr/>
-<h1 id="7-findrunnable">7. <code>findRunnable()</code>: откуда вообще можно взять работу<a class="headerlink" href="#7-findrunnable" title="Permanent link">¶</a></h1>
+<h1 id="7-findrunnable">7. <code>`findRunnable</code>()`: откуда вообще можно взять работу<a class="headerlink" href="#7-findrunnable" title="Permanent link">¶</a></h1>
 <p>Источники могут включать:</p>
 <div class="highlight"><pre><span></span><code>локальную очередь
 глобальную очередь
@@ -849,18 +849,18 @@ execute(nextG)
 <ul>
 <li>брать глобальный лок;</li>
 <li>координироваться со всеми P;</li>
-<li>искать жертву для stealing;</li>
+<li>искать жертву для кража работы;</li>
 <li>будить другой поток ОС.</li>
 </ul>
 <p>Именно поэтому локальный путь является основным.</p>
 <p>Но на P есть ещё одна странная сущность:</p>
-<div class="highlight"><pre><span></span><code>runnext
+<div class="highlight"><pre><span></span><code>`runnext`
 </code></pre></div>
 <p>Зачем она?</p>
 <hr/>
-<h1 id="9-execute-g-running">9. <code>execute()</code>: G действительно становится RUNNING<a class="headerlink" href="#9-execute-g-running" title="Permanent link">¶</a></h1>
+<h1 id="9-execute-g">9. <code>execute()</code>: G действительно становится ВЫПОЛНЯЕТСЯ<a class="headerlink" href="#9-execute-g" title="Permanent link">¶</a></h1>
 <p>Пусть нашли:</p>
-<div class="highlight"><pre><span></span><code>G42 = RUNNABLE
+<div class="highlight"><pre><span></span><code>G42 = ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>Теперь нужно связать её с M.</p>
 <p>Упрощённо:</p>
@@ -868,9 +868,9 @@ execute(nextG)
 G42.m = M
 </code></pre></div>
 <p>И перевести:</p>
-<div class="highlight"><pre><span></span><code>RUNNABLE
+<div class="highlight"><pre><span></span><code>ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
-RUNNING
+ВЫПОЛНЯЕТСЯ
 </code></pre></div>
 <p>Дальше восстанавливается сохранённый контекст выполнения, и пользовательский Go-код продолжает работу.</p>
 <p>Отсюда важный вывод:</p>
@@ -879,17 +879,17 @@ RUNNING
 </blockquote>
 <p>G представляет продолжение вычисления.</p>
 <hr/>
-<h1 id="10-goroutine">10. Что нужно сохранить, чтобы потом продолжить goroutine<a class="headerlink" href="#10-goroutine" title="Permanent link">¶</a></h1>
+<h1 id="10">10. Что нужно сохранить, чтобы потом продолжить горутина<a class="headerlink" href="#10" title="Permanent link">¶</a></h1>
 <p>G может находиться глубоко в цепочке:</p>
-<div class="highlight"><pre><span></span><code>handler
+<div class="highlight"><pre><span></span><code>обработчик
 ↓
-service
+сервис
 ↓
-repository
+репозиторий
 ↓
-decoder
+декодер
 ↓
-channel receive
+получение из канала
 </code></pre></div>
 <p>После пробуждения нужно вернуться не в начало <code>handler</code>.</p>
 <p>Нужно продолжить после конкретной блокирующей операции.</p>
@@ -911,14 +911,14 @@ channel receive
 └── метаданные планировщика
 </code></pre></div>
 <hr/>
-<h1 id="11-goroutine">11. Goroutine блокируется: начинается парковка<a class="headerlink" href="#11-goroutine" title="Permanent link">¶</a></h1>
+<h1 id="11">11. Горутина блокируется: начинается парковка<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
 <p>Пишем:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
 </code></pre></div>
 <p>Данных нет.</p>
 <p>Продолжать выполнение нельзя.</p>
 <p>Путь концептуально:</p>
-<div class="highlight"><pre><span></span><code>G RUNNING
+<div class="highlight"><pre><span></span><code>G ВЫПОЛНЯЕТСЯ
 ↓
 зарегистрировать ожидание
 ↓
@@ -928,11 +928,11 @@ mcall(park_m)
 ↓
 перейти на g0
 ↓
-RUNNING → WAITING
+ВЫПОЛНЯЕТСЯ → ЖДЕТ
 ↓
-dropg
+`dropg`
 ↓
-schedule
+`schedule`
 </code></pre></div>
 <p>Ключевой момент:</p>
 <div class="highlight"><pre><span></span><code>G перестала выполняться
@@ -952,37 +952,37 @@ schedule
 <li>переключить контекст.</li>
 </ul>
 <p>Делать всю эту работу на пользовательском стеке G1 неудобно.</p>
-<p>У каждого M есть специальная системная goroutine <code>g0</code> со служебным стеком.</p>
+<p>У каждого M есть специальная служебная горутина <code>g0</code> со служебным стеком.</p>
 <div class="highlight"><pre><span></span><code>M
 ├── curg → пользовательская G
 └── g0   → служебный стек рантайма
 </code></pre></div>
 <p>Переход:</p>
-<div class="highlight"><pre><span></span><code>G1 user stack
+<div class="highlight"><pre><span></span><code>пользовательский стек G1
 ↓
-mcall / system transition
+`mcall` / переход в служебный контекст
 ↓
 M.g0
 ↓
-park_m / schedule
+park_m / `schedule`
 </code></pre></div>
 <p>После выбора G2:</p>
 <div class="highlight"><pre><span></span><code>M.g0
 ↓
 execute(G2)
 ↓
-G2 user stack
+пользовательский стек G2
 </code></pre></div>
-<p><code>g0</code> — не обычная прикладная goroutine.</p>
+<p><code>g0</code> — не обычная прикладная горутина.</p>
 <p>Это служебный контекст рантайма.</p>
 <hr/>
-<h1 id="13-dropg-g-m">13. <code>dropg()</code>: почему связь G ↔ M временная<a class="headerlink" href="#13-dropg-g-m" title="Permanent link">¶</a></h1>
+<h1 id="13-dropg-g-m">13. <code>`dropg</code>()`: почему связь G ↔ M временная<a class="headerlink" href="#13-dropg-g-m" title="Permanent link">¶</a></h1>
 <p>Пока G выполняется:</p>
 <div class="highlight"><pre><span></span><code>M.curg → G
 G.m    → M
 </code></pre></div>
 <p>После парковки:</p>
-<div class="highlight"><pre><span></span><code>G = WAITING
+<div class="highlight"><pre><span></span><code>G = ЖДЕТ
 </code></pre></div>
 <p>Этот M уже может выполнять другую работу.</p>
 <p>Связь больше не нужна.</p>
@@ -999,21 +999,21 @@ M возвращается в планировщик
 <p>Позже событие произошло:</p>
 <ul>
 <li>канал получил данные;</li>
-<li>mutex освободился;</li>
+<li>мьютекс освободился;</li>
 <li>таймер сработал;</li>
 <li>сокет стал готов.</li>
 </ul>
 <p>Ожидающую G можно вернуть планировщику:</p>
-<div class="highlight"><pre><span></span><code>WAITING
+<div class="highlight"><pre><span></span><code>ЖДЕТ
 ↓
-goready / ready
+`goready` / готовность
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 очередь
 </code></pre></div>
 <p>Очень важно:</p>
-<div class="highlight"><pre><span></span><code>goready
+<div class="highlight"><pre><span></span><code>`goready`
 ≠
 немедленное продолжение G
 </code></pre></div>
@@ -1021,18 +1021,18 @@ RUNNABLE
 <blockquote>
 <p>G снова имеет право выполняться.</p>
 </blockquote>
-<p>Между <code>RUNNABLE</code> и <code>RUNNING</code> может пройти заметное время.</p>
+<p>Между <code>ГОТОВА К ВЫПОЛНЕНИЮ</code> и <code>ВЫПОЛНЯЕТСЯ</code> может пройти заметное время.</p>
 <hr/>
-<h1 id="15-runnable">15. Почему RUNNABLE может быть дорогим состоянием<a class="headerlink" href="#15-runnable" title="Permanent link">¶</a></h1>
-<p>WAITING G почти не требует CPU.</p>
-<div class="highlight"><pre><span></span><code>WAITING
+<h1 id="15">15. Почему ГОТОВА К ВЫПОЛНЕНИЮ может быть дорогим состоянием<a class="headerlink" href="#15" title="Permanent link">¶</a></h1>
+<p>Ожидающая G почти не требует CPU.</p>
+<div class="highlight"><pre><span></span><code>ЖДЕТ
 ↓
 события нет
 ↓
 планировщик не считает её готовой работой
 </code></pre></div>
-<p>RUNNABLE G — настоящий бэклог CPU.</p>
-<div class="highlight"><pre><span></span><code>RUNNABLE
+<p>Готовая к выполнению G — настоящая очередь CPU-работы.</p>
+<div class="highlight"><pre><span></span><code>ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 нужно получить P/M
 ↓
@@ -1041,27 +1041,27 @@ RUNNABLE
 <p>Если входящий поток вычислительной работы выше пропускной способности CPU:</p>
 <div class="highlight"><pre><span></span><code>приходит больше CPU-работы, чем выполняется
 ↓
-RUNNABLE-очереди растут
+ГОТОВА К ВЫПОЛНЕНИЮ-очереди растут
 ↓
 задержка планирования растёт
 ↓
 задержка запросов растёт
 </code></pre></div>
 <p>Два сервиса могут иметь:</p>
-<div class="highlight"><pre><span></span><code>50 000 goroutine
+<div class="highlight"><pre><span></span><code>50 000 горутин
 </code></pre></div>
 <p>Сервис A:</p>
-<div class="highlight"><pre><span></span><code>49 900 WAITING на сети
-100 RUNNING/RUNNABLE
+<div class="highlight"><pre><span></span><code>49 900 ЖДЕТ на сети
+100 ВЫПОЛНЯЕТСЯ/ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>может быть полностью нормальным.</p>
 <p>Сервис B:</p>
-<div class="highlight"><pre><span></span><code>49 000 RUNNABLE
+<div class="highlight"><pre><span></span><code>49 000 ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>уже имеет огромную очередь CPU-работы.</p>
-<p>Поэтому число goroutine без состояний почти ничего не говорит.</p>
+<p>Поэтому число горутин без состояний почти ничего не говорит.</p>
 <hr/>
-<h1 id="16-preemption-running-runnable">16. Preemption: RUNNING → RUNNABLE<a class="headerlink" href="#16-preemption-running-runnable" title="Permanent link">¶</a></h1>
+<h1 id="16">16. Вытеснение: ВЫПОЛНЯЕТСЯ → ГОТОВА К ВЫПОЛНЕНИЮ<a class="headerlink" href="#16" title="Permanent link">¶</a></h1>
 <p>Теперь G вообще не блокируется.</p>
 <div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">doCPUWork</span><span class="p">()</span>
@@ -1070,66 +1070,66 @@ RUNNABLE-очереди растут
 <p>Она способна работать бесконечно.</p>
 <p>Чтобы другие G получали прогресс, рантайм может запросить вытеснение.</p>
 <p>Учебно:</p>
-<div class="highlight"><pre><span></span><code>RUNNING
+<div class="highlight"><pre><span></span><code>ВЫПОЛНЯЕТСЯ
 ↓
 запрос вытеснения
 ↓
 безопасная точка
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 планировщик может выбрать другую G
 </code></pre></div>
 <p>Это принципиально отличается от парковки:</p>
 <div class="highlight"><pre><span></span><code>вытеснение:
-RUNNING → RUNNABLE
+ВЫПОЛНЯЕТСЯ → ГОТОВА К ВЫПОЛНЕНИЮ
 
 парковка:
-RUNNING → WAITING
+ВЫПОЛНЯЕТСЯ → ЖДЕТ
 </code></pre></div>
 <p>В первом случае G готова продолжить работу.</p>
 <p>Во втором без события продолжать нельзя.</p>
 <hr/>
 <h1 id="17-g">17. Завершение G<a class="headerlink" href="#17-g" title="Permanent link">¶</a></h1>
-<p>Когда верхнеуровневая функция goroutine возвращается:</p>
-<div class="highlight"><pre><span></span><code>RUNNING
+<p>Когда верхнеуровневая функция горутина возвращается:</p>
+<div class="highlight"><pre><span></span><code>ВЫПОЛНЯЕТСЯ
 ↓
-goexit
+`goexit`
 ↓
-gdestroy
+`gdestroy`
 ↓
 _Gdead
 ↓
 G можно переиспользовать
 ↓
-schedule
+`schedule`
 </code></pre></div>
 <p>Получаем полную учебную машину состояний:</p>
-<div class="highlight"><pre><span></span><code>                 newproc
+<div class="highlight"><pre><span></span><code>                 `newproc`
                     │
                     ▼
-                RUNNABLE
+                ГОТОВА К ВЫПОЛНЕНИЮ
                     │
                  execute
                     │
                     ▼
-                 RUNNING
+                 ВЫПОЛНЯЕТСЯ
                /    |     \
-          gopark  preempt  goexit
+          gopark  вытеснение  `goexit`
              │       │       │
              ▼       ▼       ▼
-          WAITING RUNNABLE   DEAD
+          ЖДЕТ ГОТОВА К ВЫПОЛНЕНИЮ   ЗАВЕРШЕНА
              │
-           ready
+           готовность
              │
-             └──────────────► RUNNABLE
+             └──────────────► ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>Если эту картину понять, большая часть планировщика становится логичной.</p>
 <hr/>
 <h1 id="18-runnext">18. <code>runnext</code>: зачем ещё один слот рядом с очередью<a class="headerlink" href="#18-runnext" title="Permanent link">¶</a></h1>
 <p>У P есть:</p>
 <div class="highlight"><pre><span></span><code>P
-├── runnext → G17
+├── `runnext` → G17
 └── runq    → G42 G43 G44 ...
 </code></pre></div>
 <p><code>runnext</code> — один привилегированный слот.</p>
@@ -1162,7 +1162,7 @@ G2
 ↓
 создала данные
 ↓
-сделала G2 RUNNABLE
+сделала G2 готовой к выполнению
 </code></pre></div>
 <p>Эти данные только что использовались текущим ядром.</p>
 <p>Если G2 быстро продолжит выполнение рядом:</p>
@@ -1204,7 +1204,7 @@ G2
 ↓
 schedtick++
 
-runnext с наследованием
+`runnext` с наследованием
 ↓
 тот же schedtick
 </code></pre></div>
@@ -1214,25 +1214,25 @@ runnext с наследованием
 <div class="highlight"><pre><span></span><code>одна G слишком долго занимает CPU
 </code></pre></div>
 <p>или:</p>
-<div class="highlight"><pre><span></span><code>длинная цепочка runnext
+<div class="highlight"><pre><span></span><code>длинная цепочка `runnext`
 </code></pre></div>
 <p>Системный монитор рантайма <code>sysmon</code> может увидеть отсутствие прогресса и запросить вытеснение.</p>
 <p>Получаем связь:</p>
-<div class="highlight"><pre><span></span><code>runnext
+<div class="highlight"><pre><span></span><code>`runnext`
 ↓
 inheritTime
 ↓
 schedtick долго не меняется
 ↓
-sysmon
+`sysmon`
 ↓
-preemption
+вытеснение
 </code></pre></div>
 <p>Это один из механизмов, не позволяющих локальной оптимизации полностью разрушить справедливость.</p>
 <hr/>
 <h1 id="23-fifo">23. Справедливость не означает FIFO<a class="headerlink" href="#23-fifo" title="Permanent link">¶</a></h1>
 <p>Плохая модель:</p>
-<div class="highlight"><pre><span></span><code>G1 стала RUNNABLE раньше G2
+<div class="highlight"><pre><span></span><code>G1 стала ГОТОВА К ВЫПОЛНЕНИЮ раньше G2
 ↓
 G1 обязана запуститься раньше G2
 </code></pre></div>
@@ -1242,7 +1242,7 @@ G1 обязана запуститься раньше G2
 <li><code>runnext</code>;</li>
 <li>локальные очереди;</li>
 <li>глобальная очередь;</li>
-<li>stealing;</li>
+<li>кража работы;</li>
 <li>таймеры;</li>
 <li>сетевой опросчик;</li>
 <li>работа GC;</li>
@@ -1257,7 +1257,7 @@ G1 обязана запуститься раньше G2
 <p>Локальная очередь хороша для масштабирования.</p>
 <p>Но представим:</p>
 <div class="highlight"><pre><span></span><code>P0.runq постоянно пополняется
-GLOBAL содержит старую G
+глобальная очередь содержит старую G
 </code></pre></div>
 <p>Если P0 смотрит только локально, глобальная работа может ждать слишком долго.</p>
 <p>Поэтому планировщик периодически учитывает глобальную очередь даже при наличии локальной работы.</p>
@@ -1273,7 +1273,7 @@ GLOBAL содержит старую G
 <p>Пусть работа закончилась.</p>
 <p>Через две микросекунды появилась новая G.</p>
 <p>Если M мгновенно уснул:</p>
-<div class="highlight"><pre><span></span><code>park
+<div class="highlight"><pre><span></span><code>парковка
 ↓
 новая G
 ↓
@@ -1285,7 +1285,7 @@ GLOBAL содержит старую G
 </code></pre></div>
 <p>Это добавляет задержку.</p>
 <p>Поэтому часть M может короткое время активно искать работу.</p>
-<p>Это <strong>спин (spinning)</strong>.</p>
+<p>Это <strong>спин (активное ожидание)</strong>.</p>
 <div class="highlight"><pre><span></span><code>работы нет
 ↓
 короткое активное ожидание
@@ -1303,7 +1303,7 @@ GLOBAL содержит старую G
 <p>и готова одна G.</p>
 <p>Если десятки M одновременно начнут искать работу:</p>
 <div class="highlight"><pre><span></span><code>выбор жертвы
-stealing
+кража работы
 атомики
 чтение очередей
 </code></pre></div>
@@ -1311,7 +1311,7 @@ stealing
 <p>Поэтому рантайм ограничивает количество спинящихся исполнителей.</p>
 <p>Точная эвристика — деталь реализации.</p>
 <hr/>
-<h1 id="27-wakep-g">27. <code>wakep()</code>: почему новую G не всегда сопровождает новый поток<a class="headerlink" href="#27-wakep-g" title="Permanent link">¶</a></h1>
+<h1 id="27-p-g">27. <code>пробуждениеp()</code>: почему новую G не всегда сопровождает новый поток<a class="headerlink" href="#27-p-g" title="Permanent link">¶</a></h1>
 <p>Наивно:</p>
 <div class="highlight"><pre><span></span><code>появилась G
 ↓
@@ -1342,16 +1342,16 @@ stealing
 <div class="highlight"><pre><span></span><code>M1 решил: работы нет, сейчас перестану спиниться
 </code></pre></div>
 <p>Одновременно:</p>
-<div class="highlight"><pre><span></span><code>G1 создаёт новую RUNNABLE G
+<div class="highlight"><pre><span></span><code>G1 создаёт новую ГОТОВА К ВЫПОЛНЕНИЮ G
 </code></pre></div>
 <p>Если создатель увидит:</p>
 <div class="highlight"><pre><span></span><code>ещё есть спинящийся M
 </code></pre></div>
 <p>и решит никого не будить, а M1 сразу после этого уснёт, работа рискует остаться без активного исполнителя.</p>
 <p>Поэтому переходы:</p>
-<div class="highlight"><pre><span></span><code>spinning
-idle
-wake
+<div class="highlight"><pre><span></span><code>активное ожидание
+простаивает
+пробуждение
 </code></pre></div>
 <p>требуют аккуратного атомарного протокола.</p>
 <p>Общий урок:</p>
@@ -1370,9 +1370,9 @@ P3: пусто
 <p>Пустой P выбирает жертву и пытается забрать часть работы.</p>
 <div class="highlight"><pre><span></span><code>P0
 ↓
-victim = P2
+жертва = P2
 ↓
-runqsteal
+`runqsteal`
 ↓
 часть G переезжает к P0
 </code></pre></div>
@@ -1388,7 +1388,7 @@ runqsteal
 ↓
 украли одну
 </code></pre></div>
-<p>приходится слишком часто платить за stealing.</p>
+<p>приходится слишком часто платить за кража работы.</p>
 <p>Пачка амортизирует стоимость:</p>
 <div class="highlight"><pre><span></span><code>одна операция координации
 ↓
@@ -1396,7 +1396,7 @@ runqsteal
 </code></pre></div>
 <hr/>
 <h1 id="31">31. Кража работы не бесплатна<a class="headerlink" href="#31" title="Permanent link">¶</a></h1>
-<p>Stealing требует:</p>
+<p>Кража работы требует:</p>
 <ul>
 <li>атомарных операций;</li>
 <li>чтения состояния другого P;</li>
@@ -1411,7 +1411,7 @@ runqsteal
 </code></pre></div>
 <p>Отсюда вывод:</p>
 <blockquote>
-<p>Дешёвая goroutine не означает, что каждую микроскопическую операцию выгодно делать отдельной goroutine.</p>
+<p>Дешёвая горутина не означает, что каждую микроскопическую операцию выгодно выносить в отдельную горутину.</p>
 </blockquote>
 <p>Гранулярность работы имеет значение.</p>
 <hr/>
@@ -1419,17 +1419,17 @@ runqsteal
 <p>Пусть PostgreSQL уже ответила.</p>
 <p>Сеть тоже готова.</p>
 <p>G стала:</p>
-<div class="highlight"><pre><span></span><code>RUNNABLE
+<div class="highlight"><pre><span></span><code>ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>Но CPU насыщен.</p>
 <p>Она ждёт 20 мс до:</p>
-<div class="highlight"><pre><span></span><code>RUNNING
+<div class="highlight"><pre><span></span><code>ВЫПОЛНЯЕТСЯ
 </code></pre></div>
 <p>Пользователь увидит эти 20 мс как задержку запроса.</p>
 <p>Хотя:</p>
 <div class="highlight"><pre><span></span><code>БД быстрая
 сеть быстрая
-mutex свободен
+мьютекс свободен
 </code></pre></div>
 <p>Причина находится в очереди CPU.</p>
 <p>Под насыщением планировочная очередь становится частью p95/p99.</p>
@@ -1437,14 +1437,14 @@ mutex свободен
 <h1 id="33">33. Что важно запомнить про планировщик<a class="headerlink" href="#33" title="Permanent link">¶</a></h1>
 <ol>
 <li>G проходит машину состояний, а внутренние функции обслуживают переходы между ними.</li>
-<li><code>RUNNABLE</code> означает «готова к CPU», а <code>WAITING</code> — «без события продолжать нельзя».</li>
+<li><code>ГОТОВА К ВЫПОЛНЕНИЮ</code> означает «готова к CPU», а <code>ЖДЕТ</code> — «без события продолжать нельзя».</li>
 <li><code>gopark</code> и <code>goready</code> образуют фундаментальный цикл ожидания и пробуждения.</li>
 <li><code>g0</code> нужен рантайму для служебных переходов вне пользовательского стека.</li>
 <li>Локальная очередь уменьшает координацию; глобальная нужна для общей справедливости.</li>
 <li><code>runnext</code> оптимизирует задержку и локальность, но не является строгим приоритетом.</li>
 <li>Спинящиеся M уменьшают задержку пробуждения ценой CPU.</li>
 <li>Кража работы балансирует P, но имеет стоимость и может ухудшить локальность.</li>
-<li>Большая очередь RUNNABLE G — уже реальный CPU-бэклог.</li>
+<li>Большая очередь ГОТОВА К ВЫПОЛНЕНИЮ G — уже реальный CPU-бэклог.</li>
 <li>Внутренние имена и эвристики не являются публичным API.</li>
 </ol>
 <hr/>
@@ -1517,7 +1517,7 @@ G
 <p>Когда одно событие выигрывает:</p>
 <div class="highlight"><pre><span></span><code>определить победителя
 ↓
-сделать G RUNNABLE
+сделать G ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 убрать остальные регистрации
 </code></pre></div>
@@ -1528,18 +1528,18 @@ G
 <div class="highlight"><pre><span></span><code>100 000 блокирующих операций/с
 </code></pre></div>
 <p>Если каждая делает:</p>
-<div class="highlight"><pre><span></span><code>malloc waiter
+<div class="highlight"><pre><span></span><code>аллокация структуры ожидания
 ↓
 потом GC
 </code></pre></div>
 <p>мы создаём дополнительный поток аллокаций только ради внутренней синхронизации.</p>
 <p>Поэтому рантайм переиспользует <code>sudog</code>.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>acquireSudog
+<div class="highlight"><pre><span></span><code>`acquireSudog`
 ↓
 использование
 ↓
-releaseSudog
+`releaseSudog`
 ↓
 пул
 </code></pre></div>
@@ -1557,29 +1557,29 @@ releaseSudog
 </code></pre></div>
 <p>Рантайму нужно сохранить связь с данными операции.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>sudog.elem
+<div class="highlight"><pre><span></span><code>`sudog.elem`
 ↓
 данные, участвующие в операции
 </code></pre></div>
-<p>Но стек goroutine способен перемещаться при росте.</p>
+<p>Но стек горутина способен перемещаться при росте.</p>
 <p>Значит, ссылки между <code>sudog</code> и пользовательским стеком должны учитываться при переносе.</p>
 <p>Вот почему перенос стека не сводится к тупому <code>memcpy</code>.</p>
 <p>Синхронизация и управление стеком внутри рантайма реально пересекаются.</p>
 <hr/>
 <h1 id="39-syncmutex">39. От канала к <code>sync.Mutex</code><a class="headerlink" href="#39-syncmutex" title="Permanent link">¶</a></h1>
 <p>У канала наличие очередей ожидания ожидаемо.</p>
-<p>Теперь смотрим на Mutex.</p>
+<p>Теперь смотрим на мьютекс.</p>
 <p>Концептуально он очень маленький:</p>
-<div class="highlight"><pre><span></span><code>state int32
-sema  uint32
+<div class="highlight"><pre><span></span><code>`state int32`
+`sema uint32`
 </code></pre></div>
 <p>Там нет:</p>
 <div class="highlight"><pre><span></span><code>[]*sudog
-head
-tail
-queue mutex
+голова
+хвост
+мьютекс очереди
 </code></pre></div>
-<p>Но под конкуренцией тысячи G могут ждать один Mutex.</p>
+<p>Но под конкуренцией тысячи G могут ждать один мьютекс.</p>
 <p>Где они находятся?</p>
 <p>Ответ:</p>
 <blockquote>
@@ -1592,8 +1592,8 @@ queue mutex
 <blockquote>
 <p>Каждый <code>sync.Mutex</code> создаёт отдельный семафор ядра ОС.</p>
 </blockquote>
-<p>Речь об внутреннем механизме Go для сна и пробуждения goroutine.</p>
-<p>Mutex использует адрес своего поля <code>sema</code> как ключ.</p>
+<p>Речь о внутреннем механизме Go для сна и пробуждения горутин.</p>
+<p>Мьютекс использует адрес своего поля <code>sema</code> как ключ.</p>
 <div class="highlight"><pre><span></span><code>&amp;m.sema
 ↓
 таблица семафоров рантайма
@@ -1609,20 +1609,20 @@ G
 </code></pre></div>
 <p>а не обязательно блокировать отдельный поток ОС.</p>
 <hr/>
-<h1 id="41-mutex">41. Почему нельзя хранить очередь внутри каждого Mutex<a class="headerlink" href="#41-mutex" title="Permanent link">¶</a></h1>
+<h1 id="41">41. Почему нельзя хранить очередь внутри каждого мьютекса<a class="headerlink" href="#41" title="Permanent link">¶</a></h1>
 <p>Представим:</p>
-<div class="highlight"><pre><span></span><code>Mutex
-├── state
-├── queue lock
-├── head
-├── tail
-├── metadata
+<div class="highlight"><pre><span></span><code>мьютекс
+├── `state`
+├── блокировка очереди
+├── голова
+├── хвост
+├── метаданные
 └── ...
 </code></pre></div>
-<p>Большинство mutex большую часть времени вообще не имеют конкуренции.</p>
+<p>Большинство мьютексов большую часть времени вообще не испытывают конкуренции.</p>
 <p>Мы бы сделали каждый объект тяжёлым ради редкого медленного пути.</p>
 <p>Go выбирает другую архитектуру:</p>
-<div class="highlight"><pre><span></span><code>маленький Mutex
+<div class="highlight"><pre><span></span><code>маленький мьютекс
 +
 дешёвый быстрый путь
 +
@@ -1633,20 +1633,20 @@ G
 <h1 id="42-semaroot">42. <code>semaRoot</code>: почему таблица разделена<a class="headerlink" href="#42-semaroot" title="Permanent link">¶</a></h1>
 <p>Разные адреса семафоров отображаются на несколько внутренних корней.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>&amp;mutexA.sema ─┐
-&amp;mutexB.sema ─┼─ mapping ─→ semaRoot
-&amp;mutexC.sema ─┘
+<div class="highlight"><pre><span></span><code>`&amp;mutexA.sema` ─┐
+`&amp;mutexB.sema` ─┼─ отображение ─→ `semaRoot`
+`&amp;mutexC.sema` ─┘
 </code></pre></div>
 <p>Почему не одна глобальная очередь?</p>
-<p>Потому что тогда независимые mutex начали бы конкурировать за один внутренний лок рантайма.</p>
+<p>Потому что тогда независимые мьютексы начали бы конкурировать за одну внутреннюю блокировку рантайма.</p>
 <p>Получили бы:</p>
-<div class="highlight"><pre><span></span><code>разные бизнес-локи
+<div class="highlight"><pre><span></span><code>разные прикладные блокировки
 ↓
 одна глобальная точка синхронизации рантайма
 </code></pre></div>
 <p>и сами создали бы узкое место.</p>
 <p>Поэтому структура разделяется на несколько частей.</p>
-<p>Это та же идея, что шардирование прикладных данных.</p>
+<p>Это та же идея, что сегментирование прикладных данных.</p>
 <hr/>
 <h1 id="43-semacquire1">43. <code>semacquire1</code>: где появляется потерянное пробуждение<a class="headerlink" href="#43-semacquire1" title="Permanent link">¶</a></h1>
 <p>Наивный алгоритм:</p>
@@ -1657,10 +1657,10 @@ G
 уснули
 </code></pre></div>
 <p>Но между проверкой и сном другой поток может освободить ресурс.</p>
-<div class="highlight"><pre><span></span><code>G1: token нет
-G2: release
+<div class="highlight"><pre><span></span><code>G1: ресурс нет
+G2: освобождает ресурс
 G2: будить пока некого
-G1: sleep
+G1: сон
 </code></pre></div>
 <p>G1 может уснуть навсегда.</p>
 <p>Это <strong>потерянное пробуждение</strong>.</p>
@@ -1671,41 +1671,41 @@ G1: sleep
 ↓
 повторно проверить ресурс
 ├── появился → забрать и не спать
-└── нет      → поставить sudog в очередь и park
+└── нет      → поставить sudog в очередь и парковка
 </code></pre></div>
 <p>Повторная проверка закрывает окно гонки.</p>
 <hr/>
-<h1 id="44-mutex">44. Mutex через семафорный механизм<a class="headerlink" href="#44-mutex" title="Permanent link">¶</a></h1>
+<h1 id="44">44. мьютекс через семафорный механизм<a class="headerlink" href="#44" title="Permanent link">¶</a></h1>
 <p>Под конкуренцией:</p>
 <div class="highlight"><pre><span></span><code>G
 ↓
-Mutex.lockSlow
+`мьютекс.lockSlow`
 ↓
-runtime_SemacquireMutex(&amp;m.sema)
+`runtime_SemacquireMutex`(&amp;m.sema)
 ↓
-semacquire1
+`semacquire1`
 ↓
 sudog
 ↓
-semaRoot
+`semaRoot`
 ↓
 gopark
 ↓
-WAITING
+ЖДЕТ
 </code></pre></div>
 <p>При освобождении:</p>
 <div class="highlight"><pre><span></span><code>Unlock
 ↓
-runtime_Semrelease
+`runtime_Semrelease`
 ↓
 найти sudog
 ↓
-goready
+`goready`
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
 <p>Здесь наконец соединяются:</p>
-<div class="highlight"><pre><span></span><code>Mutex
+<div class="highlight"><pre><span></span><code>мьютекс
 ↓
 семафор рантайма
 ↓
@@ -1731,9 +1731,9 @@ sudog
 └──────────────────────────────────┴─┴─┴─┘
 </code></pre></div>
 <p>Где:</p>
-<div class="highlight"><pre><span></span><code>L = mutexLocked
-W = mutexWoken
-S = mutexStarving
+<div class="highlight"><pre><span></span><code>L = `mutexLocked`
+W = `mutexWoken`
+S = `mutexStarving`
 </code></pre></div>
 <p>Старшие биты кодируют число ожидающих.</p>
 <p>Важно:</p>
@@ -1746,35 +1746,35 @@ S = mutexStarving
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">mutexState</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">locked</span><span class="w">   </span><span class="kt">bool</span>
 <span class="w">    </span><span class="nx">woken</span><span class="w">    </span><span class="kt">bool</span>
-<span class="w">    </span><span class="nx">starving</span><span class="w"> </span><span class="kt">bool</span>
-<span class="w">    </span><span class="nx">waiters</span><span class="w">  </span><span class="kt">int</span>
+<span class="w">    </span><span class="s">`starving`</span><span class="w"> </span><span class="kt">bool</span>
+<span class="w">    </span><span class="nx">ожиданиеers</span><span class="w">  </span><span class="kt">int</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>Но теперь нужно согласованно менять несколько связанных полей.</p>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>снять Locked
-уменьшить waiters
-установить Woken
+<div class="highlight"><pre><span></span><code>снять `mutexLocked`
+уменьшить ожидающие
+установить `mutexWoken`
 </code></pre></div>
-<p>Если это три независимые записи, между ними другие goroutine могут увидеть промежуточное состояние.</p>
+<p>Если это три независимые записи, между ними другие горутина могут увидеть промежуточное состояние.</p>
 <p>Упаковка в одно слово позволяет:</p>
-<div class="highlight"><pre><span></span><code>old
+<div class="highlight"><pre><span></span><code>старое состояние
 ↓
-вычислить new
+вычислить новое состояние
 ↓
-CAS(old, new)
+CAS(старое состояние, новое состояние)
 </code></pre></div>
 <p>и выполнить переход протокола одной атомарной операцией.</p>
 <hr/>
 <h1 id="47">47. Быстрый путь<a class="headerlink" href="#47" title="Permanent link">¶</a></h1>
-<p>Свободный mutex:</p>
+<p>Свободный мьютекс:</p>
 <div class="highlight"><pre><span></span><code>state = 0
 </code></pre></div>
 <p><code>Lock()</code> сначала пытается:</p>
 <div class="highlight"><pre><span></span><code>CAS(0, mutexLocked)
 </code></pre></div>
 <p>Успех:</p>
-<div class="highlight"><pre><span></span><code>state: 0 → Locked
+<div class="highlight"><pre><span></span><code>`state`: 0 → `mutexLocked`
 </code></pre></div>
 <p>Всё.</p>
 <p>Не нужны:</p>
@@ -1785,43 +1785,43 @@ CAS(old, new)
 <li>планировщик;</li>
 <li>пробуждение.</li>
 </ul>
-<p>Поэтому mutex без конкуренции может быть очень дешёвым.</p>
+<p>Поэтому мьютекс без конкуренции может быть очень дешёвым.</p>
 <hr/>
 <h1 id="48">48. Быстрый путь проигран<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
-<p>Mutex уже занят.</p>
+<p>Мьютекс уже занят.</p>
 <p>Теперь мы попадаем в <code>lockSlow</code>.</p>
 <p>Наивная реакция:</p>
 <div class="highlight"><pre><span></span><code>занят
 ↓
-sleep
+сон
 </code></pre></div>
-<p>Но если владелец отпустит лок через несколько десятков наносекунд, полный путь:</p>
-<div class="highlight"><pre><span></span><code>зарегистрировать waiter
+<p>Но если владелец отпустит блокировку через несколько десятков наносекунд, полный путь:</p>
+<div class="highlight"><pre><span></span><code>зарегистрировать ожидающую горутину
 ↓
-park
+парковка
 ↓
-scheduler
+планировщик
 ↓
-wake
+пробуждение
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
-RUNNING
+ВЫПОЛНЯЕТСЯ
 </code></pre></div>
 <p>может оказаться дороже самой критической секции.</p>
 <p>Поэтому перед парковкой рантайм иногда коротко спинится.</p>
 <hr/>
 <h1 id="49">49. Спин имеет смысл только при коротком ожидании<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
 <p>Условия грубо такие:</p>
-<div class="highlight"><pre><span></span><code>mutex занят
+<div class="highlight"><pre><span></span><code>мьютекс занят
 +
-не starvation mode
+не режим голодания
 +
 рантайм считает активное ожидание разумным
 </code></pre></div>
 <p>Тогда G некоторое время повторяет попытку.</p>
-<p>Если лок быстро освободился:</p>
-<div class="highlight"><pre><span></span><code>избежали park/wake
+<p>Если блокировка быстро освободилась:</p>
+<div class="highlight"><pre><span></span><code>избежали парковки и пробуждения
 </code></pre></div>
 <p>Если нет:</p>
 <div class="highlight"><pre><span></span><code>жжём CPU зря
@@ -1830,28 +1830,28 @@ RUNNING
 <hr/>
 <h1 id="50">50. Почему нельзя спиниться всегда<a class="headerlink" href="#50" title="Permanent link">¶</a></h1>
 <p>Пусть <code>GOMAXPROCS=1</code>.</p>
-<p>G1 владеет mutex.</p>
+<p>G1 владеет мьютексом.</p>
 <p>Но сейчас CPU получила G2.</p>
-<p>G2 хочет этот же mutex и начинает бесконечно спиниться.</p>
+<p>G2 хочет этот же мьютекс и начинает бесконечно спиниться.</p>
 <div class="highlight"><pre><span></span><code>G2 занимает единственный P
 ↓
 G1 не получает CPU
 ↓
 G1 не может Unlock
 ↓
-G2 продолжает spin
+G2 продолжает активное ожидание
 </code></pre></div>
 <p>Мы сами мешаем владельцу освободить ресурс.</p>
 <p>Поэтому решение о спине должно учитывать состояние планировщика.</p>
 <hr/>
 <h1 id="51-lockslow">51. <code>lockSlow</code> как цикл пересчёта гипотезы<a class="headerlink" href="#51-lockslow" title="Permanent link">¶</a></h1>
 <p>Полезнее всего читать его не как набор битовых трюков, а так:</p>
-<div class="highlight"><pre><span></span><code>1. прочитать old
+<div class="highlight"><pre><span></span><code>1. прочитать старое состояние
 2. понять текущее состояние
 3. решить, что хотим сделать
-4. построить new
-5. CAS(old, new)
-6. если CAS проигран — old устарел
+4. построить новое состояние
+5. CAS(старое состояние, новое состояние)
+6. если CAS проигран — старое состояние устарело
 7. перечитать и пересчитать
 </code></pre></div>
 <p>То есть:</p>
@@ -1859,25 +1859,25 @@ G2 продолжает spin
 <p><code>lockSlow</code> — оптимистическая машина состояний.</p>
 </blockquote>
 <p>Каждый проигранный CAS означает:</p>
-<div class="highlight"><pre><span></span><code>между чтением и попыткой commit
-кто-то изменил протокол mutex
+<div class="highlight"><pre><span></span><code>между чтением и попыткой фиксации
+кто-то изменил протокол мьютекса
 </code></pre></div>
 <hr/>
 <h1 id="52">52. Локальное и глобальное состояние<a class="headerlink" href="#52" title="Permanent link">¶</a></h1>
 <p>Внутри медленного пути есть локальные переменные текущего конкурента:</p>
 <div class="highlight"><pre><span></span><code>waitStartTime
-starving
-awoke
-iter
-old
+`starving`
+`awoke`
+`iter`
+старое состояние
 </code></pre></div>
-<p>А <code>m.state</code> — глобальное состояние самого mutex.</p>
+<p>А <code>m.state</code> — глобальное состояние самого мьютекса.</p>
 <p>Например:</p>
 <div class="highlight"><pre><span></span><code>mutexWoken
 </code></pre></div>
 <p>означает состояние протокола для всех.</p>
 <p>А:</p>
-<div class="highlight"><pre><span></span><code>awoke
+<div class="highlight"><pre><span></span><code>`awoke`
 </code></pre></div>
 <p>означает:</p>
 <blockquote>
@@ -1887,14 +1887,14 @@ old
 <hr/>
 <h1 id="53-mutexwoken">53. Зачем нужен <code>mutexWoken</code><a class="headerlink" href="#53-mutexwoken" title="Permanent link">¶</a></h1>
 <p>Представим:</p>
-<div class="highlight"><pre><span></span><code>G1 держит mutex
-G2 G3 G4 G5 спят
+<div class="highlight"><pre><span></span><code>G1 держит мьютекс
+G2 G3 G4 G5 ждут
 </code></pre></div>
 <p>Наивный <code>Unlock</code>:</p>
-<div class="highlight"><pre><span></span><code>wake all
+<div class="highlight"><pre><span></span><code>разбудить всех
 </code></pre></div>
 <p>Получаем:</p>
-<div class="highlight"><pre><span></span><code>4 G → RUNNABLE
+<div class="highlight"><pre><span></span><code>4 G → ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 4 планирования
 ↓
@@ -1917,74 +1917,74 @@ G2 G3 G4 G5 спят
 <p>Одного уже активировали — остальных пока не будим.</p>
 </blockquote>
 <hr/>
-<h1 id="54-waiting-runnable-mutex">54. WAITING → RUNNABLE ещё не означает владение mutex<a class="headerlink" href="#54-waiting-runnable-mutex" title="Permanent link">¶</a></h1>
-<p>G2 ждёт лок.</p>
+<h1 id="54">54. ЖДЕТ → ГОТОВА К ВЫПОЛНЕНИЮ ещё не означает владение мьютекс<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
+<p>G2 ждет блокировку.</p>
 <p>G1 делает <code>Unlock</code>.</p>
 <p>G2 пробуждается:</p>
-<div class="highlight"><pre><span></span><code>WAITING
+<div class="highlight"><pre><span></span><code>ЖДЕТ
 ↓
-RUNNABLE
+ГОТОВА К ВЫПОЛНЕНИЮ
 </code></pre></div>
-<p>Но она ещё не получила mutex.</p>
+<p>Но она ещё не получила мьютекс.</p>
 <p>Пока G2 стоит в очереди планировщика, G3 уже выполняется и вызывает:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
 </code></pre></div>
-<p>Если mutex сейчас свободен, G3 может выиграть CAS раньше.</p>
-<p>Это <strong>barging</strong> — вклинивание нового конкурента перед старым ожидающим.</p>
+<p>Если мьютекс сейчас свободен, G3 может выиграть CAS раньше.</p>
+<p>Это <strong>вклинивание</strong> — вклинивание нового конкурента перед старым ожидающим.</p>
 <hr/>
-<h1 id="55-barging">55. Зачем вообще разрешать barging<a class="headerlink" href="#55-barging" title="Permanent link">¶</a></h1>
+<h1 id="55">55. Зачем вообще разрешать вклинивание<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
 <p>На первый взгляд несправедливо.</p>
 <p>Но G3 уже находится на CPU.</p>
 <p>Если заставить её:</p>
-<div class="highlight"><pre><span></span><code>увидеть свободный mutex
+<div class="highlight"><pre><span></span><code>увидеть свободный мьютекс
 ↓
 всё равно уснуть
 ↓
-ждать, пока scheduler запустит G2
+ждать, пока планировщик запустит G2
 </code></pre></div>
 <p>мы добавляем лишнюю задержку и переключения.</p>
-<p>Для коротких критических секций выгоднее иногда позволить уже работающей G сразу забрать mutex.</p>
+<p>Для коротких критических секций выгоднее иногда позволить уже работающей G сразу забрать мьютекс.</p>
 <p>Нормальный режим оптимизирует пропускную способность.</p>
 <hr/>
-<h1 id="56-barging">56. Цена barging — хвост задержки<a class="headerlink" href="#56-barging" title="Permanent link">¶</a></h1>
+<h1 id="56">56. Цена вклинивания — хвост задержки<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
 <p>Старый ожидающий может проигрывать снова:</p>
-<div class="highlight"><pre><span></span><code>G2 wake
+<div class="highlight"><pre><span></span><code>G2 пробуждение
 ↓
-G3 wins
+G3 побеждает
 ↓
-G2 снова wait
+G2 снова ожидание
 ↓
-wake
+пробуждение
 ↓
-G4 wins
+G4 побеждает
 </code></pre></div>
 <p>Средняя пропускная способность хорошая.</p>
 <p>Но конкретная G может ждать слишком долго.</p>
 <p>Значит нужен механизм, который переключает приоритет:</p>
-<div class="highlight"><pre><span></span><code>throughput
+<div class="highlight"><pre><span></span><code>пропускная способность
 ↓
 если несправедливость становится патологической
 ↓
-progress старых waiters
+прогресс давно ожидающих горутин
 </code></pre></div>
-<p>Вот здесь появляется starvation mode.</p>
+<p>Вот здесь появляется режим голодания.</p>
 <hr/>
-<h1 id="57-starvation-mode">57. Starvation mode<a class="headerlink" href="#57-starvation-mode" title="Permanent link">¶</a></h1>
-<p>У текущего mutex есть два режима:</p>
-<div class="highlight"><pre><span></span><code>normal
-starvation
+<h1 id="57">57. Режим голодания<a class="headerlink" href="#57" title="Permanent link">¶</a></h1>
+<p>У текущего мьютекса есть два режима:</p>
+<div class="highlight"><pre><span></span><code>обычный
+голодание
 </code></pre></div>
 <p>В обычном режиме:</p>
 <div class="highlight"><pre><span></span><code>Unlock
 ↓
-разбудить waiter
+разбудить ожидающую горутину
 ↓
-он снова конкурирует
+она снова конкурирует
 </code></pre></div>
-<p>В starvation:</p>
+<p>В режиме голодания:</p>
 <div class="highlight"><pre><span></span><code>Unlock
 ↓
-предпочтительная передача старому waiter
+предпочтительная передача давно ожидающей горутине
 </code></pre></div>
 <p>Новые конкуренты уже не должны обычным образом вклиниваться.</p>
 <p>Идея:</p>
@@ -1993,50 +1993,50 @@ starvation
 </blockquote>
 <p>Конкретный порог ожидания — деталь текущей реализации, а не API.</p>
 <hr/>
-<h1 id="58-locked-0-mutex">58. Почему возможно <code>Locked = 0</code>, но mutex ещё не «свободен для всех»<a class="headerlink" href="#58-locked-0-mutex" title="Permanent link">¶</a></h1>
+<h1 id="58-locked-0">58. Почему возможно <code>Locked = 0</code>, но мьютекс ещё не «свободен для всех»<a class="headerlink" href="#58-locked-0" title="Permanent link">¶</a></h1>
 <p>Интуиция:</p>
 <div class="highlight"><pre><span></span><code>mutexLocked == 0
 → любой может забрать
 </code></pre></div>
-<p>В starvation-протоколе возможна переходная ситуация:</p>
+<p>В протоколе режима голодания возможна переходная ситуация:</p>
 <div class="highlight"><pre><span></span><code>L = 0
 S = 1
 </code></pre></div>
-<p>То есть бит <code>Locked</code> снят, но право следующего владельца фактически зарезервировано за ожидающим в handoff-протоколе.</p>
+<p>То есть бит <code>Locked</code> снят, но право следующего владельца фактически зарезервировано за ожидающей горутиной в протоколе передачи владения.</p>
 <p>Отсюда ещё раз:</p>
 <blockquote>
 <p>Нельзя интерпретировать один бит <code>state</code> отдельно от всей машины состояний.</p>
 </blockquote>
 <hr/>
-<h1 id="59-handoff">59. Handoff<a class="headerlink" href="#59-handoff" title="Permanent link">¶</a></h1>
-<p>В starvation mode смысл такой:</p>
-<div class="highlight"><pre><span></span><code>текущий владелец освобождает mutex
+<h1 id="59">59. Передача владения<a class="headerlink" href="#59" title="Permanent link">¶</a></h1>
+<p>В режиме голодания смысл такой:</p>
+<div class="highlight"><pre><span></span><code>текущий владелец освобождает мьютекс
 ↓
-предпочтение старому waiter
+предпочтение давно ожидающей горутине
 ↓
-новые конкуренты не должны steal ownership
+новые конкуренты не должны перехватывать владение
 ↓
-старый waiter получает прогресс
+давно ожидающая горутина получает прогресс
 </code></pre></div>
 <p>Это не означает:</p>
 <blockquote>
 <p><code>Unlock</code> напрямую начинает выполнять пользовательский код следующей G.</p>
 </blockquote>
 <p>Планировщик всё равно существует.</p>
-<p>Handoff — это приоритет в протоколе владения.</p>
+<p>Передача владения — это приоритет в протоколе владения.</p>
 <hr/>
-<h1 id="60-starvation-mode">60. Почему starvation mode временный<a class="headerlink" href="#60-starvation-mode" title="Permanent link">¶</a></h1>
+<h1 id="60">60. Почему режим голодания временный<a class="headerlink" href="#60" title="Permanent link">¶</a></h1>
 <p>Строгая справедливость стоит денег.</p>
-<p>Если очередь нормализовалась, оставаться в starvation mode невыгодно.</p>
-<p>Поэтому mutex адаптируется:</p>
+<p>Если очередь нормализовалась, оставаться в режиме голодания невыгодно.</p>
+<p>Поэтому мьютекс адаптируется:</p>
 <div class="highlight"><pre><span></span><code>низкая / умеренная конкуренция
-→ normal mode
+→ обычный режим
 
 патологическая несправедливость
-→ starvation mode
+→ режим голодания
 
 очередь нормализовалась
-→ normal mode
+→ обычный режим
 </code></pre></div>
 <p>Это адаптивная стратегия.</p>
 <p>Не один жёсткий алгоритм на все случаи.</p>
@@ -2051,11 +2051,11 @@ S = 1
 <ul>
 <li>ожидающие;</li>
 <li><code>mutexWoken</code>;</li>
-<li>starvation;</li>
+<li>голодание;</li>
 </ul>
 <p>нужен медленный путь.</p>
 <p>В обычном режиме задача примерно такая:</p>
-<div class="highlight"><pre><span></span><code>есть waiters?
+<div class="highlight"><pre><span></span><code>есть ожидающие?
 ↓
 одного уже разбудили?
 ↓
@@ -2063,38 +2063,38 @@ S = 1
 ↓
 уменьшить счётчик ожидающих
 +
-установить Woken
+установить `mutexWoken`
 ↓
 реально разбудить одного
 </code></pre></div>
 <p>И снова:</p>
 <blockquote>
-<p>Сначала согласованно меняем состояние протокола, потом выполняем физическое wakeup.</p>
+<p>Сначала согласованно меняем состояние протокола, потом выполняем физическое пробуждение.</p>
 </blockquote>
 <hr/>
-<h1 id="62-waiters">62. Счётчик waiters — не фотография очереди<a class="headerlink" href="#62-waiters" title="Permanent link">¶</a></h1>
+<h1 id="62">62. Счётчик ожидающие — не фотография очереди<a class="headerlink" href="#62" title="Permanent link">¶</a></h1>
 <p>Очень легко прочитать старшие биты и подумать:</p>
 <blockquote>
 <p>Там всегда точное физическое число <code>sudog</code>, которые прямо сейчас сидят в очереди.</p>
 </blockquote>
 <p>Слишком просто.</p>
 <p>Во время протокола можно сначала:</p>
-<div class="highlight"><pre><span></span><code>waiters--
-Woken = 1
+<div class="highlight"><pre><span></span><code>ожидающие--
+`mutexWoken = 1`
 </code></pre></div>
 <p>а затем уже фактически разбудить G.</p>
 <p>Значение <code>state</code> описывает логическое состояние протокола.</p>
 <p>Не мгновенную фотографию всех внутренних структур.</p>
 <hr/>
-<h1 id="63-waiter">63. Почему повторно заснувшего waiter можно поставить ближе к началу<a class="headerlink" href="#63-waiter" title="Permanent link">¶</a></h1>
+<h1 id="63">63. Почему повторно заснувшего ожидающая горутина можно поставить ближе к началу<a class="headerlink" href="#63" title="Permanent link">¶</a></h1>
 <p>Старая G уже:</p>
-<div class="highlight"><pre><span></span><code>park
+<div class="highlight"><pre><span></span><code>парковка
 ↓
-wake
+пробуждение
 ↓
-ждала scheduler
+ждала планировщик
 ↓
-проиграла barging
+проиграла вклинивание
 </code></pre></div>
 <p>Если теперь отправить её строго в хвост, она снова становится «самой молодой».</p>
 <p>Можно систематически продлевать её ожидание.</p>
@@ -2102,32 +2102,32 @@ wake
 <p>Это не публичная гарантия FIFO или LIFO.</p>
 <p>Это эвристика справедливости.</p>
 <hr/>
-<h1 id="64-trylock-spinlock">64. <code>TryLock</code> легко превратить в плохой spinlock<a class="headerlink" href="#64-trylock-spinlock" title="Permanent link">¶</a></h1>
+<h1 id="64-trylock">64. <code>TryLock</code> легко превратить в плохой спинлок<a class="headerlink" href="#64-trylock" title="Permanent link">¶</a></h1>
 <p>Пишем:</p>
 <div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="o">!</span><span class="nx">mu</span><span class="p">.</span><span class="nx">TryLock</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>Что сделали?</p>
 <p>Фактически:</p>
-<div class="highlight"><pre><span></span><code>неограниченный активный spin
+<div class="highlight"><pre><span></span><code>неограниченный активный активное ожидание
 </code></pre></div>
 <p>Цена:</p>
 <ul>
 <li>CPU горит;</li>
-<li>кеш-линия mutex постоянно читается;</li>
+<li>кеш-линия мьютекс постоянно читается;</li>
 <li>нет дружелюбной к планировщику парковки;</li>
 <li>владелец может получать меньше CPU.</li>
 </ul>
 <p><code>TryLock</code> имеет свои алгоритмические применения.</p>
-<p>Но постоянный polling обычно хуже обычного <code>Lock</code>, который умеет адаптироваться:</p>
+<p>Но постоянный активный опрос обычно хуже обычного <code>Lock</code>, который умеет адаптироваться:</p>
 <div class="highlight"><pre><span></span><code>CAS
 ↓
-короткий spin
+короткий активное ожидание
 ↓
-park
+парковка
 </code></pre></div>
 <hr/>
-<h1 id="65-mutex">65. Реальная пропускная способность mutex определяется критической секцией<a class="headerlink" href="#65-mutex" title="Permanent link">¶</a></h1>
+<h1 id="65">65. Реальная пропускная способность мьютекс определяется критической секцией<a class="headerlink" href="#65" title="Permanent link">¶</a></h1>
 <p>Пусть защищённая операция занимает:</p>
 <div class="highlight"><pre><span></span><code>10 мкс
 </code></pre></div>
@@ -2148,7 +2148,7 @@ park
 <p>Под локом держат инвариант и минимально необходимую работу, а не всю бизнес-операцию.</p>
 </blockquote>
 <hr/>
-<h1 id="66-mutex">66. Mutex как очередь<a class="headerlink" href="#66-mutex" title="Permanent link">¶</a></h1>
+<h1 id="66">66. Мьютекс как очередь<a class="headerlink" href="#66" title="Permanent link">¶</a></h1>
 <p>Пусть критическая секция может обслуживать:</p>
 <div class="highlight"><pre><span></span><code>μ операций/с
 </code></pre></div>
@@ -2163,8 +2163,8 @@ park
 <div class="highlight"><pre><span></span><code>λ &gt; μ
 </code></pre></div>
 <p>очередь уже не может оставаться стабильной.</p>
-<p>Waiters накапливаются.</p>
-<p>Mutex не создаёт узкое место.</p>
+<p>Ожидающие горутины накапливаются.</p>
+<p>Мьютекс не создает узкое место.</p>
 <p>Он делает существующую сериализацию видимой.</p>
 <p>Варианты исправления:</p>
 <ul>
@@ -2178,17 +2178,17 @@ park
 <ol>
 <li>Быстрый путь — CAS по компактному <code>state</code>.</li>
 <li>Медленный путь — адаптивная машина состояний.</li>
-<li>Короткий spin выгоден только когда ожидаем скорое освобождение.</li>
+<li>Короткий активное ожидание выгоден только когда ожидаем скорое освобождение.</li>
 <li>Долгое ожидание переводится в парковку через семафор рантайма.</li>
 <li><code>mutexWoken</code> подавляет лишние пробуждения.</li>
-<li>В обычном режиме wake не гарантирует владение.</li>
-<li>Barging улучшает пропускную способность ценой справедливости.</li>
-<li>Starvation mode усиливает прогресс старых ожидающих.</li>
+<li>В обычном режиме пробуждение не гарантирует владение.</li>
+<li>Вклинивание улучшает пропускную способность ценой справедливости.</li>
+<li>Режим голодания усиливает прогресс старых ожидающих.</li>
 <li>Конкретные биты и пороги — детали реализации.</li>
 <li>Главный предел производительности часто задаёт сама критическая секция.</li>
 </ol>
 <hr/>
-<h1 id="68-mutex-cpu">68. Теперь спускаемся от Mutex к CPU<a class="headerlink" href="#68-mutex-cpu" title="Permanent link">¶</a></h1>
+<h1 id="68-cpu">68. Теперь спускаемся от мьютекса к CPU<a class="headerlink" href="#68-cpu" title="Permanent link">¶</a></h1>
 <p>В предыдущем дополнительном блоке мы уже получили модель:</p>
 <div class="highlight"><pre><span></span><code>ядро
 ↓
@@ -2254,11 +2254,11 @@ DRAM
 <h1 id="71">71. Буфер записей<a class="headerlink" href="#71" title="Permanent link">¶</a></h1>
 <p>Ядро выполняет запись.</p>
 <p>Было бы дорого каждый раз ждать, пока весь остальной мир подтвердит её распространение.</p>
-<p>Поэтому процессор может сначала поместить запись в <strong>store buffer</strong> и продолжить работу.</p>
+<p>Поэтому процессор может сначала поместить запись в <strong>буфер записей</strong> и продолжить работу.</p>
 <p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>store
+<div class="highlight"><pre><span></span><code>запись
 ↓
-store buffer
+буфер записей
 ↓
 ядро продолжает выполнять инструкции
 ↓
@@ -2270,29 +2270,29 @@ store buffer
 момент наблюдения другой стороной
 </code></pre></div>
 <hr/>
-<h1 id="72-memory-barrier-ram">72. Memory barrier — не «сброс кеша в RAM»<a class="headerlink" href="#72-memory-barrier-ram" title="Permanent link">¶</a></h1>
+<h1 id="72-ram">72. Барьер памяти — не «сброс кеша в RAM»<a class="headerlink" href="#72-ram" title="Permanent link">¶</a></h1>
 <p>Очень вредная модель:</p>
-<div class="highlight"><pre><span></span><code>memory barrier
+<div class="highlight"><pre><span></span><code>барьер памяти
 =
-flush всех кешей в DRAM
+сброс всех кешей в DRAM
 </code></pre></div>
 <p>Нет.</p>
 <p>Барьер прежде всего ограничивает допустимый порядок операций памяти.</p>
 <p>Когерентность продолжает отдельно согласовывать копии кеш-линий.</p>
 <p>Причём актуальные данные между ядрами могут передаваться через когерентную подсистему без обязательного путешествия через DRAM на каждом шаге.</p>
 <p>Полезная модель:</p>
-<div class="highlight"><pre><span></span><code>barrier / fence
+<div class="highlight"><pre><span></span><code>барьер / инструкция упорядочивания
 ↓
 ограничение порядка наблюдения операций
 </code></pre></div>
 <hr/>
-<h1 id="73-acquire-release">73. Acquire / Release как ментальная модель<a class="headerlink" href="#73-acquire-release" title="Permanent link">¶</a></h1>
-<p><strong>Release</strong>:</p>
+<h1 id="73-acquire-release">73. Получение (acquire) и освобождение (release) как ментальная модель<a class="headerlink" href="#73-acquire-release" title="Permanent link">¶</a></h1>
+<p><strong>освобождение (release)</strong>:</p>
 <div class="highlight"><pre><span></span><code>предыдущие записи
 ↓
 публикация синхронизационного события
 </code></pre></div>
-<p><strong>Acquire</strong>:</p>
+<p><strong>получение (acquire)</strong>:</p>
 <div class="highlight"><pre><span></span><code>наблюдение синхронизационного события
 ↓
 последующие чтения получают соответствующее состояние
@@ -2300,7 +2300,7 @@ flush всех кешей в DRAM
 <p>На уровне Go программист обычно не пишет аппаратные барьеры напрямую.</p>
 <p>Он использует:</p>
 <ul>
-<li><code>Mutex</code>;</li>
+<li><code>мьютекс</code>;</li>
 <li>канал;</li>
 <li>атомики;</li>
 <li>другие синхронизационные примитивы.</li>
@@ -2325,16 +2325,16 @@ flush всех кешей в DRAM
 <span class="nx">shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
 <span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
 </code></pre></div>
-<p>и затем в другой goroutine:</p>
+<p>и затем в другой горутине:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
 <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">shared</span><span class="p">)</span>
 <span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
 </code></pre></div>
-<p>Программист опирается на гарантию <code>Mutex</code>.</p>
+<p>Программист опирается на гарантию <code>мьютекс</code>.</p>
 <p>Ему не нужно вручную выбирать:</p>
-<div class="highlight"><pre><span></span><code>x86 fence
-ARM barrier
-RISC-V fence
+<div class="highlight"><pre><span></span><code>x86 инструкция упорядочивания
+ARM барьер
+RISC-V инструкция упорядочивания
 </code></pre></div>
 <hr/>
 <h1 id="75-x86-go">75. Почему x86 не позволяет игнорировать модель памяти Go<a class="headerlink" href="#75-x86-go" title="Permanent link">¶</a></h1>
@@ -2362,30 +2362,30 @@ STLR
 </code></pre></div>
 <p>Это задача компилятора и рантайма.</p>
 <p>Программист выбирает:</p>
-<div class="highlight"><pre><span></span><code>Mutex
+<div class="highlight"><pre><span></span><code>мьютекс
 channel
-atomic
+атомик
 </code></pre></div>
 <p>и получает семантику Go.</p>
 <hr/>
 <h1 id="77-cas">77. CAS<a class="headerlink" href="#77-cas" title="Permanent link">¶</a></h1>
 <p>На логическом уровне:</p>
-<div class="highlight"><pre><span></span><code>if memory == old {
-    memory = new
-    return true
+<div class="highlight"><pre><span></span><code>если значение памяти == старое состояние {
+    значение памяти = новое состояние
+    вернуть true
 }
-return false
+вернуть false
 </code></pre></div>
 <p>Но операция должна быть атомарной относительно других участников.</p>
 <p>CAS используется:</p>
 <ul>
-<li>в <code>Mutex.state</code>;</li>
+<li>в <code>мьютекс.state</code>;</li>
 <li>внутри планировщика;</li>
 <li>в безлоковых структурах;</li>
 <li>в пользовательских атомарных машинах состояний.</li>
 </ul>
 <hr/>
-<h1 id="78-cas-loop">78. CAS-loop<a class="headerlink" href="#78-cas-loop" title="Permanent link">¶</a></h1>
+<h1 id="78-cas">78. Цикл CAS<a class="headerlink" href="#78-cas" title="Permanent link">¶</a></h1>
 <p>Типичный шаблон:</p>
 <div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">old</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">Load</span><span class="p">()</span>
@@ -2397,7 +2397,7 @@ return false
 <span class="p">}</span>
 </code></pre></div>
 <p>Проигранный CAS означает:</p>
-<div class="highlight"><pre><span></span><code>прочитали old
+<div class="highlight"><pre><span></span><code>прочитали старое состояние
 ↓
 между чтением и записью другой участник изменил state
 ↓
@@ -2421,18 +2421,18 @@ return false
 ↓
 согласовать чужие копии
 ↓
-выполнить атомарное read-modify-write
+выполнить атомарное чтение-изменение-запись
 </code></pre></div>
 <p>Если линия уже локально у ядра — дешевле.</p>
 <p>Если прыгает между ядрами или сокетами — дороже.</p>
 <hr/>
 <h1 id="80-arm64-go">80. ARM64: другой механизм, тот же контракт Go<a class="headerlink" href="#80-arm64-go" title="Permanent link">¶</a></h1>
 <p>Классическая ARM-модель атомарного обновления:</p>
-<div class="highlight"><pre><span></span><code>load-exclusive
+<div class="highlight"><pre><span></span><code>эксклюзивная загрузка (load-exclusive)
 ↓
-вычислить new
+вычислить новое состояние
 ↓
-store-exclusive
+эксклюзивная запись (store-exclusive)
 ↓
 успех?
 ├── да
@@ -2461,12 +2461,12 @@ store-exclusive
 <p>Чем больше ядер одновременно спорят за одно слово, тем сильнее цена.</p>
 <p>Поэтому:</p>
 <blockquote>
-<p>Безлоковый алгоритм может быть без mutex, но не без координации железа.</p>
+<p>Алгоритм без блокировок может обходиться без мьютекса, но не без координации железа.</p>
 </blockquote>
 <hr/>
-<h1 id="82-mutex">82. Почему атомики часто быстрее Mutex при низкой конкуренции<a class="headerlink" href="#82-mutex" title="Permanent link">¶</a></h1>
+<h1 id="82">82. Почему атомики часто быстрее мьютекса при низкой конкуренции<a class="headerlink" href="#82" title="Permanent link">¶</a></h1>
 <p>Низкая конкуренция:</p>
-<div class="highlight"><pre><span></span><code>load / CAS
+<div class="highlight"><pre><span></span><code>загрузка / CAS
 ↓
 успех
 </code></pre></div>
@@ -2481,20 +2481,20 @@ store-exclusive
 <p>Теперь добавим 64 конкурента.</p>
 <div class="highlight"><pre><span></span><code>CAS
 ↓
-fail
+неуспех
 ↓
-reload
+перечитать
 ↓
-retry
+повторить
 ↓
-line moved
+линия переместилась
 ↓
-fail
+неуспех
 </code></pre></div>
 <p>Преимущество начинает исчезать.</p>
 <p>Универсального правила:</p>
 <blockquote>
-<p>atomic всегда быстрее mutex</p>
+<p>атомик всегда быстрее мьютекса</p>
 </blockquote>
 <p>не существует.</p>
 <hr/>
@@ -2511,14 +2511,14 @@ fail
 version
 status
 </code></pre></div>
-<p>изменять как одну логическую транзакцию, другая goroutine всё ещё может увидеть смешанное состояние.</p>
+<p>изменять как одну логическую транзакцию, другая горутина всё ещё может увидеть смешанное состояние.</p>
 <p>Например:</p>
 <div class="highlight"><pre><span></span><code>новый balance
 старая version
 старый status
 </code></pre></div>
 <p>Атомики полезны, когда инвариант помещается в небольшое атомарное состояние.</p>
-<p>Для составных инвариантов Mutex часто проще и надёжнее.</p>
+<p>Для составных инвариантов мьютекс часто проще и надёжнее.</p>
 <hr/>
 <h1 id="84-">84. Пинг-понг кеш-линии<a class="headerlink" href="#84-" title="Permanent link">¶</a></h1>
 <p>Возьмём:</p>
@@ -2529,17 +2529,17 @@ status
 </code></pre></div>
 <p>На одном ядре всё прекрасно.</p>
 <p>На 32 ядрах:</p>
-<div class="highlight"><pre><span></span><code>Core 0 хочет write
+<div class="highlight"><pre><span></span><code>ядро 0 хочет записать
 ↓
 получает линию
 
-Core 7 хочет write
+ядро 7 хочет записать
 ↓
-линия переходит к Core 7
+линия переходит к ядро 7
 
-Core 3 хочет write
+ядро 3 хочет записать
 ↓
-линия переходит к Core 3
+линия переходит к ядро 3
 </code></pre></div>
 <p>Логическая операция:</p>
 <div class="highlight"><pre><span></span><code>+1
@@ -2547,10 +2547,10 @@ Core 3 хочет write
 <p>становится почти неинтересной.</p>
 <p>Главная работа — перемещение права записи на кеш-линию.</p>
 <hr/>
-<h1 id="85-lock-free-scalable">85. Lock-free не означает scalable<a class="headerlink" href="#85-lock-free-scalable" title="Permanent link">¶</a></h1>
+<h1 id="85">85. Без блокировок не означает хорошее масштабирование<a class="headerlink" href="#85" title="Permanent link">¶</a></h1>
 <p>Плохое упрощение:</p>
 <blockquote>
-<p>Mutex медленный. Atomic lock-free. Значит atomic масштабируется линейно.</p>
+<p>мьютекс медленный. Атомик без блокировок. Значит атомик масштабируется линейно.</p>
 </blockquote>
 <p>Нет.</p>
 <p>Можно убрать:</p>
@@ -2576,17 +2576,17 @@ Core 3 хочет write
 19 проигравших
 </code></pre></div>
 <p>Проигравшие делают:</p>
-<div class="highlight"><pre><span></span><code>reload
+<div class="highlight"><pre><span></span><code>перечитать
 ↓
-recompute
+пересчитать
 ↓
-retry
+повторить
 </code></pre></div>
 <p>И всё это сопровождается трафиком когерентности.</p>
 <p>Поэтому под высокой конкуренцией безлоковый алгоритм может тратить много CPU на работу, которая никогда не стала полезным изменением состояния.</p>
 <hr/>
-<h1 id="87-mutex">87. Почему парковка Mutex может даже помочь железу<a class="headerlink" href="#87-mutex" title="Permanent link">¶</a></h1>
-<p>Пусть 100 goroutine спорят за mutex.</p>
+<h1 id="87">87. Почему парковка мьютекс может даже помочь железу<a class="headerlink" href="#87" title="Permanent link">¶</a></h1>
+<p>Пусть 100 горутин спорят за мьютекс.</p>
 <p>Если все активно делают CAS:</p>
 <div class="highlight"><pre><span></span><code>100 активных конкурентов
 ↓
@@ -2594,25 +2594,25 @@ retry
 ↓
 много проигранных CAS
 ↓
-много coherence traffic
+много трафик когерентности
 </code></pre></div>
-<p>Mutex постепенно паркует лишних:</p>
-<div class="highlight"><pre><span></span><code>100 contenders
+<p>мьютекс постепенно паркует лишних:</p>
+<div class="highlight"><pre><span></span><code>100 конкуренты
 ↓
 несколько активных
 +
-большинство WAITING
+большинство ЖДЕТ
 </code></pre></div>
 <p>Это снижает:</p>
 <ul>
-<li>CPU burn;</li>
+<li>бесполезный расход CPU;</li>
 <li>число проигранных CAS;</li>
 <li>пинг-понг линии.</li>
 </ul>
 <p>То есть парковка полезна не только планировщику.</p>
 <p>Она ещё и уменьшает активную аппаратную конкуренцию.</p>
 <hr/>
-<h1 id="88-false-sharing">88. False sharing<a class="headerlink" href="#88-false-sharing" title="Permanent link">¶</a></h1>
+<h1 id="88-false-sharing">88. Ложное совместное использование (false sharing)<a class="headerlink" href="#88-false-sharing" title="Permanent link">¶</a></h1>
 <p>Пусть:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Stats</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">requests</span><span class="w"> </span><span class="kt">uint64</span>
@@ -2631,13 +2631,13 @@ retry
 </code></pre></div>
 <p>Когерентность работает на уровне линии.</p>
 <p>Поэтому ядра всё равно конфликтуют.</p>
-<p>Это <strong>false sharing</strong>.</p>
+<p>Это <strong>ложное совместное использование</strong>.</p>
 <hr/>
-<h1 id="89-sharing-false">89. Почему sharing называется false<a class="headerlink" href="#89-sharing-false" title="Permanent link">¶</a></h1>
-<p><strong>True sharing</strong>:</p>
+<h1 id="89">89. Почему оно называется «ложным»<a class="headerlink" href="#89" title="Permanent link">¶</a></h1>
+<p><strong>Истинное совместное использование</strong>:</p>
 <div class="highlight"><pre><span></span><code>оба ядра реально меняют одну переменную
 </code></pre></div>
-<p><strong>False sharing</strong>:</p>
+<p><strong>Ложное совместное использование</strong>:</p>
 <div class="highlight"><pre><span></span><code>переменные разные
 ↓
 но лежат в одной единице когерентности
@@ -2645,7 +2645,7 @@ retry
 <p>Для бизнес-логики общего состояния нет.</p>
 <p>Для железа — есть.</p>
 <hr/>
-<h1 id="90-padding">90. Padding<a class="headerlink" href="#90-padding" title="Permanent link">¶</a></h1>
+<h1 id="90-">90. Разнесение горячих полей по кеш-линиям<a class="headerlink" href="#90-" title="Permanent link">¶</a></h1>
 <p>Один способ — физически разнести горячие поля.</p>
 <p>Например концептуально:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Counter</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
@@ -2655,7 +2655,7 @@ retry
 </code></pre></div>
 <p>Но это не рецепт:</p>
 <blockquote>
-<p>Добавить padding в каждую структуру.</p>
+<p>Добавлять выравнивающие поля в каждую структуру.</p>
 </blockquote>
 <p>Цена:</p>
 <div class="highlight"><pre><span></span><code>память объекта ↑
@@ -2663,13 +2663,13 @@ retry
 плотность данных в кеше ↓
 </code></pre></div>
 <p>На миллионе объектов лишние десятки байт превращаются в десятки MiB.</p>
-<p>Padding оправдан только после измерений.</p>
+<p>Такое разнесение оправдано только после измерений.</p>
 <hr/>
-<h1 id="91">91. Шардирование<a class="headerlink" href="#91" title="Permanent link">¶</a></h1>
+<h1 id="91">91. Сегментирование<a class="headerlink" href="#91" title="Permanent link">¶</a></h1>
 <p>Было:</p>
 <div class="highlight"><pre><span></span><code>32 ядра
 ↓
-1 atomic counter
+1 атомик counter
 </code></pre></div>
 <p>Стало:</p>
 <div class="highlight"><pre><span></span><code>группа 0 → counter0
@@ -2693,32 +2693,32 @@ retry
 <li>итог читается редко.</li>
 </ul>
 <hr/>
-<h1 id="92-map-mutex">92. Шардированный map + Mutex<a class="headerlink" href="#92-map-mutex" title="Permanent link">¶</a></h1>
+<h1 id="92-map">92. Сегментированный <code>map</code> + мьютекс<a class="headerlink" href="#92-map" title="Permanent link">¶</a></h1>
 <p>Было:</p>
-<div class="highlight"><pre><span></span><code>одна map
+<div class="highlight"><pre><span></span><code>одна `map`
 +
-один mutex
+один мьютекс
 </code></pre></div>
 <p>Любые ключи проходят через один лок.</p>
 <p>После шардирования:</p>
 <div class="highlight"><pre><span></span><code>hash(key) % N
 ↓
-shard
-├── своя map
-└── свой mutex
+сегмент
+├── своя `map`
+└── свой мьютекс
 </code></pre></div>
 <p>Независимые ключи чаще попадают в независимые критические секции.</p>
 <p>Мы уменьшаем сразу два вида конкуренции:</p>
 <div class="highlight"><pre><span></span><code>логическую
 +
-аппаратную вокруг одного Mutex.state
+аппаратную вокруг одного мьютекс.state
 </code></pre></div>
 <hr/>
-<h1 id="93">93. Когда шардирование не помогает<a class="headerlink" href="#93" title="Permanent link">¶</a></h1>
+<h1 id="93">93. Когда сегментирование не помогает<a class="headerlink" href="#93" title="Permanent link">¶</a></h1>
 <p>Если:</p>
-<div class="highlight"><pre><span></span><code>90% запросов → один hot key
+<div class="highlight"><pre><span></span><code>90% запросов → один горячий ключ
 </code></pre></div>
-<p>все всё равно попадут в один shard.</p>
+<p>все всё равно попадут в один сегмент.</p>
 <p>Также нельзя бездумно шардировать инвариант, который действительно глобальный:</p>
 <ul>
 <li>строгий общий порядок;</li>
@@ -2731,55 +2731,55 @@ shard
 <p>В предыдущей дополнительной лекции мы разобрали NUMA.</p>
 <p>Теперь применим модель к синхронизации.</p>
 <p>На двухсокетной машине:</p>
-<div class="highlight"><pre><span></span><code>Socket 0
+<div class="highlight"><pre><span></span><code>сокет 0
 ↕
 общая кеш-линия
 ↕
-Socket 1
+сокет 1
 </code></pre></div>
-<p>Если горячий mutex или atomic используется ядрами разных сокетов, передача владения может проходить через межсокетное соединение.</p>
+<p>Если горячий мьютекс или атомик используется ядрами разных сокетов, передача владения может проходить через межсокетное соединение.</p>
 <p>Поэтому:</p>
-<div class="highlight"><pre><span></span><code>один global atomic
+<div class="highlight"><pre><span></span><code>один глобальный атомик
 </code></pre></div>
 <p>который выглядит терпимо на ноутбуке с 8 ядрами, может намного хуже масштабироваться на:</p>
 <div class="highlight"><pre><span></span><code>96 ядер
 2 сокета
 </code></pre></div>
 <hr/>
-<h1 id="95-goroutine">95. Миграция goroutine тоже имеет цену локальности<a class="headerlink" href="#95-goroutine" title="Permanent link">¶</a></h1>
+<h1 id="95">95. Миграция горутина тоже имеет цену локальности<a class="headerlink" href="#95" title="Permanent link">¶</a></h1>
 <p>G долго работала на одном ядре.</p>
 <p>Её рабочий набор горячий в локальных кешах.</p>
-<p>После stealing:</p>
-<div class="highlight"><pre><span></span><code>Core 0
+<p>После кража работы:</p>
+<div class="highlight"><pre><span></span><code>ядро 0
 ↓
-Core 7
+ядро 7
 </code></pre></div>
 <p>новому ядру может понадобиться подтянуть данные заново.</p>
 <p>Это цена балансировки.</p>
 <p>Поэтому планировщик не пытается бесконечно перемешивать G ради идеально одинаковой длины очередей.</p>
 <p>Он постоянно торгуется:</p>
 <div class="highlight"><pre><span></span><code>балансировка
-vs
-локальность
+против
+локальности
 </code></pre></div>
 <hr/>
-<h1 id="96-mutex">96. Сквозная цепочка горячего Mutex<a class="headerlink" href="#96-mutex" title="Permanent link">¶</a></h1>
+<h1 id="96">96. Сквозная цепочка горячего мьютекса<a class="headerlink" href="#96" title="Permanent link">¶</a></h1>
 <p>Теперь вся лекция собирается:</p>
-<div class="highlight"><pre><span></span><code>много goroutine вызывают Lock
+<div class="highlight"><pre><span></span><code>много горутин вызывают `Lock`
 ↓
 быстрый CAS проигрывается
 ↓
-часть конкурентов spin
+часть конкурентов находится в активном ожидании
 ↓
-Mutex.state становится горячей кеш-линией
+`мьютекс.state` становится горячей кеш-линией
 ↓
-coherence traffic растёт
+трафик когерентности растёт
 ↓
-рантайм начинает парковать waiters
+рантайм начинает парковать ожидающие горутины
 ↓
 активных конкурентов становится меньше
 ↓
-появляется цена semaphore/sudog/scheduler
+появляется цена семафора, `sudog` и работы планировщика
 ↓
 пропускная способность определяется критической секцией
 </code></pre></div>
@@ -2793,21 +2793,21 @@ coherence traffic растёт
 <p>Вот зачем вообще изучать весь стек вместе.</p>
 <hr/>
 <h1 id="97">97. Сквозная цепочка горячего атомика<a class="headerlink" href="#97" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>много goroutine
+<div class="highlight"><pre><span></span><code>много горутин
 ↓
 одно атомарное слово
 ↓
-atomic RMW
+атомик RMW
 ↓
 исключительное владение кеш-линией
 ↓
 линия перемещается между ядрами
 ↓
-сериализация / retry
+сериализация / повторить
 ↓
-масштабирование throughput выравнивается
+масштабирование пропускная способность выравнивается
 </code></pre></div>
-<p>Нет Mutex.</p>
+<p>Нет мьютекса.</p>
 <p>Нет <code>gopark</code>.</p>
 <p>Но конкуренция никуда не исчезла.</p>
 <p>Она живёт на аппаратном уровне.</p>
@@ -2823,28 +2823,28 @@ atomic RMW
 ↓
 логи
 ↓
-trace
+трассировка
 ↓
 pprof
 ↓
 диагностика БД / сети
 ↓
-mutex / block profile
+профиль мьютексов / блокировок
 ↓
 планировочная очередь
 ↓
-hardware counters
+аппаратные счетчики
 ↓
-cache / NUMA
+кеш / NUMA
 </code></pre></div>
 <p>Аппаратный слой нужен, когда обычные профили уже показывают:</p>
 <div class="highlight"><pre><span></span><code>горячую синхронизацию
 CPU-анomaly
-atomic hotspot
+горячая точка атомиков
 плохое масштабирование по ядрам
 </code></pre></div>
 <hr/>
-<h1 id="99-atomic">99. Эксперимент: глобальный atomic<a class="headerlink" href="#99-atomic" title="Permanent link">¶</a></h1>
+<h1 id="99">99. Эксперимент: глобальный атомик<a class="headerlink" href="#99" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">BenchmarkGlobalAtomic</span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">B</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Uint64</span>
 
@@ -2862,20 +2862,20 @@ atomic hotspot
 <p>Нужна <strong>кривая масштабирования</strong>.</p>
 <p>Идеал:</p>
 <div class="highlight"><pre><span></span><code>CPU ×2
-→ throughput ×2
+→ пропускная способность ×2
 </code></pre></div>
 <p>Для одной горячей атомарной переменной эта линейность обычно быстро заканчивается.</p>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть конкуренцию, хотя никакого <code>Mutex</code> в коде нет.</p>
+<p>Увидеть конкуренцию, хотя никакого <code>мьютекс</code> в коде нет.</p>
 </blockquote>
 <hr/>
-<h1 id="100">100. Эксперимент: шардированный счётчик<a class="headerlink" href="#100" title="Permanent link">¶</a></h1>
+<h1 id="100">100. Эксперимент: сегментированный счётчик<a class="headerlink" href="#100" title="Permanent link">¶</a></h1>
 <p>Сравнить:</p>
-<div class="highlight"><pre><span></span><code>один atomic
+<div class="highlight"><pre><span></span><code>один атомик
 </code></pre></div>
 <p>с:</p>
-<div class="highlight"><pre><span></span><code>N независимых atomic
+<div class="highlight"><pre><span></span><code>N независимых атомик
 </code></pre></div>
 <p>Работники распределяются по разным счётчикам.</p>
 <p>Отдельно измерить:</p>
@@ -2884,15 +2884,15 @@ atomic hotspot
 <li>стоимость агрегации итогового значения.</li>
 </ul>
 <p>Цель:</p>
-<div class="highlight"><pre><span></span><code>уменьшили sharing
+<div class="highlight"><pre><span></span><code>уменьшили совместное использование
 ↓
-write scalability выросла
+масштабируемость записи выросла
 ↓
 чтение стало дороже
 </code></pre></div>
 <p>Это реальный компромисс.</p>
 <hr/>
-<h1 id="101-false-sharing">101. Эксперимент: false sharing<a class="headerlink" href="#101-false-sharing" title="Permanent link">¶</a></h1>
+<h1 id="101">101. Эксперимент: ложное совместное использование<a class="headerlink" href="#101" title="Permanent link">¶</a></h1>
 <p>Две горячие переменные рядом:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Stats</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">a</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Uint64</span>
@@ -2914,7 +2914,7 @@ write scalability выросла
 <p>Поэтому эксперимент аппаратно чувствителен.</p>
 <p>Это демонстрация механизма, а не тест с гарантированной цифрой.</p>
 <hr/>
-<h1 id="102-mutex">102. Эксперимент: горячий Mutex<a class="headerlink" href="#102-mutex" title="Permanent link">¶</a></h1>
+<h1 id="102">102. Эксперимент: горячий мьютекс<a class="headerlink" href="#102" title="Permanent link">¶</a></h1>
 <p>Сначала очень короткая секция:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
 <span class="nx">counter</span><span class="o">++</span>
@@ -2925,35 +2925,35 @@ write scalability выросла
 </code></pre></div>
 <p>или медленную имитацию внешней операции.</p>
 <p>Снять:</p>
-<div class="highlight"><pre><span></span><code>mutex profile
-block profile
-trace
+<div class="highlight"><pre><span></span><code>профиль мьютексов
+профиль блокировок
+трассировка
 </code></pre></div>
 <p>Сравнить:</p>
 <div class="highlight"><pre><span></span><code>CPU
-throughput
+пропускная способность
 p95/p99
-число WAITING goroutine
+число ЖДЕТ горутина
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть, что пропускная способность mutex определяется критической секцией, а низкий CPU не означает отсутствие узкого места.</p>
+<p>Увидеть, что пропускная способность мьютекс определяется критической секцией, а низкий CPU не означает отсутствие узкого места.</p>
 </blockquote>
 <hr/>
-<h1 id="103-runnable-backlog">103. Эксперимент: RUNNABLE backlog<a class="headerlink" href="#103-runnable-backlog" title="Permanent link">¶</a></h1>
+<h1 id="103">103. Эксперимент: ГОТОВА К ВЫПОЛНЕНИЮ очередь<a class="headerlink" href="#103" title="Permanent link">¶</a></h1>
 <p>Создать контролируемую CPU-нагрузку.</p>
 <p>Менять:</p>
 <div class="highlight"><pre><span></span><code>GOMAXPROCS
-число goroutine
+число горутин
 размер работы
 </code></pre></div>
-<p>Смотреть <code>go tool trace</code>.</p>
+<p>Смотреть <code>go tool трассировка</code>.</p>
 <p>Нас интересует:</p>
-<div class="highlight"><pre><span></span><code>RUNNABLE
+<div class="highlight"><pre><span></span><code>ГОТОВА К ВЫПОЛНЕНИЮ
 ↓
 ожидание CPU
 ↓
-RUNNING
+ВЫПОЛНЯЕТСЯ
 </code></pre></div>
 <p>Цель:</p>
 <blockquote>
@@ -2963,7 +2963,7 @@ RUNNING
 <h1 id="104">104. Что является публичной гарантией<a class="headerlink" href="#104" title="Permanent link">¶</a></h1>
 <p>На уровне прикладного Go можно рассчитывать на:</p>
 <ul>
-<li>семантику goroutine;</li>
+<li>семантику горутин;</li>
 <li>семантику каналов;</li>
 <li><code>sync.Mutex</code>;</li>
 <li><code>sync/atomic</code>;</li>
@@ -2982,62 +2982,62 @@ RUNNING
 <li><code>g0</code>;</li>
 <li><code>sudog</code>;</li>
 <li><code>semaRoot</code>;</li>
-<li>биты <code>Mutex.state</code>;</li>
-<li>starvation mode;</li>
-<li>эвристики спина и stealing.</li>
+<li>биты <code>мьютекс.state</code>;</li>
+<li>режим голодания;</li>
+<li>эвристики спина и кража работы.</li>
 </ul>
 <p>Но эти детали могут измениться.</p>
 <p>Поэтому прикладной код не должен зависеть от утверждений вроде:</p>
-<div class="highlight"><pre><span></span><code>runnext всегда означает немедленный следующий запуск
+<div class="highlight"><pre><span></span><code>`runnext` всегда означает немедленный следующий запуск
 </code></pre></div>
 <p>или:</p>
-<div class="highlight"><pre><span></span><code>Mutex гарантированно перейдёт в starvation через точно N миллисекунд
+<div class="highlight"><pre><span></span><code>мьютекс гарантированно перейдёт в голодание через точно N миллисекунд
 </code></pre></div>
 <p>Это не API.</p>
 <hr/>
 <h1 id="_4">Что важно запомнить<a class="headerlink" href="#_4" title="Permanent link">¶</a></h1>
 <h2 id="_5">Планировщик<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
 <ol>
-<li><code>newproc → RUNNABLE → queue → execute</code> — путь новой G.</li>
-<li><code>gopark → WAITING</code> — путь блокировки.</li>
-<li><code>goready → RUNNABLE</code> ещё не означает немедленный CPU.</li>
+<li><code>newproc → ГОТОВА К ВЫПОЛНЕНИЮ → queue → execute</code> — путь новой G.</li>
+<li><code>gopark → ЖДЕТ</code> — путь блокировки.</li>
+<li><code>`goready</code> → ГОТОВА К ВЫПОЛНЕНИЮ` ещё не означает немедленный CPU.</li>
 <li><code>g0</code> нужен рантайму для служебных переключений.</li>
 <li><code>runnext</code> оптимизирует задержку и локальность.</li>
 <li>Спинящиеся M уменьшают задержку пробуждения ценой CPU.</li>
-<li>Stealing балансирует очереди ценой координации и возможной потери локальности.</li>
-<li>Большой RUNNABLE backlog — очередь CPU-работы.</li>
+<li>Кража работы балансирует очереди ценой координации и возможной потери локальности.</li>
+<li>Большой ГОТОВА К ВЫПОЛНЕНИЮ очередь — очередь CPU-работы.</li>
 </ol>
 <h2 id="sudog"><code>sudog</code> и семафоры<a class="headerlink" href="#sudog" title="Permanent link">¶</a></h2>
 <ol>
 <li><code>sudog</code> представляет G в конкретном протоколе ожидания.</li>
 <li>Одна G может иметь несколько <code>sudog</code>, например в <code>select</code>.</li>
 <li><code>sudog</code> переиспользуются, чтобы не создавать лишний поток аллокаций.</li>
-<li>Mutex остаётся маленьким, потому что тяжёлые очереди вынесены в рантайм.</li>
-<li>Повторная проверка перед парковкой нужна, чтобы не потерять wakeup.</li>
+<li>мьютекс остаётся маленьким, потому что тяжёлые очереди вынесены в рантайм.</li>
+<li>Повторная проверка перед парковкой нужна, чтобы не потерять пробуждение.</li>
 </ol>
-<h2 id="mutex">Mutex<a class="headerlink" href="#mutex" title="Permanent link">¶</a></h2>
+<h2 id="_6">мьютекс<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
 <ol>
 <li><code>state</code> — компактная атомарная машина состояний.</li>
 <li>Быстрый путь — CAS.</li>
 <li>Короткая конкуренция может обслуживаться спином.</li>
 <li>Долгая — парковкой.</li>
 <li><code>mutexWoken</code> ограничивает лишние пробуждения.</li>
-<li>Barging улучшает throughput ценой fairness.</li>
-<li>Starvation mode усиливает прогресс старых waiters.</li>
-<li>Реальная capacity определяется критической секцией.</li>
+<li>Вклинивание улучшает пропускная способность ценой справедливость.</li>
+<li>Режим голодания усиливает прогресс давно ожидающих горутин.</li>
+<li>Реальная пропускная способность определяется критической секцией.</li>
 </ol>
 <h2 id="cpu">CPU и память<a class="headerlink" href="#cpu" title="Permanent link">¶</a></h2>
 <ol>
 <li>Когерентность и порядок памяти — разные задачи.</li>
 <li>CAS требует физической координации за кеш-линию.</li>
-<li>Atomic может быть lock-free и при этом плохо масштабироваться.</li>
-<li>False sharing создаёт конкуренцию между логически независимыми полями.</li>
-<li>Шардирование уменьшает sharing ценой памяти и агрегации.</li>
+<li>Атомик может быть без блокировок и при этом плохо масштабироваться.</li>
+<li>Ложное совместное использование создаёт конкуренцию между логически независимыми полями.</li>
+<li>Сегментирование уменьшает совместное использование ценой памяти и агрегации.</li>
 <li>NUMA делает горячее глобальное состояние ещё дороже на больших машинах.</li>
 <li>Модель памяти Go скрывает различия x86-64, ARM64 и других ISA за единым языковым контрактом.</li>
 </ol>
 <hr/>
-<h1 id="_6">Финальная инженерная модель<a class="headerlink" href="#_6" title="Permanent link">¶</a></h1>
+<h1 id="_7">Финальная инженерная модель<a class="headerlink" href="#_7" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>Go-код
 ↓
 публичные примитивы синхронизации
@@ -3046,7 +3046,7 @@ RUNNING
 ↓
 G / M / P
 ↓
-очереди / parking / wakeup
+очереди / парковка / пробуждение
 ↓
 атомики
 ↓
@@ -3058,33 +3058,33 @@ G / M / P
 </code></pre></div>
 <p>При низкой нагрузке верхние абстракции хорошо скрывают нижние слои.</p>
 <p>Под конкуренцией они начинают протекать:</p>
-<div class="highlight"><pre><span></span><code>Mutex
+<div class="highlight"><pre><span></span><code>мьютекс
 ↓
-lockSlow
+`lockSlow`
 ↓
-semaphore
+семафор
 ↓
 sudog
 ↓
-parking
+парковка
 
-Atomic
+Атомик
 ↓
-cache-line ownership
+владение кеш-линией
 ↓
-ping-pong
+пинг-понг
 
-Scheduler
+Планировщик
 ↓
-stealing
+кража работы
 ↓
-migration
+миграция
 ↓
-locality cost
+цена потери локальности
 </code></pre></div>
 <p>Главный инженерный вывод:</p>
 <blockquote>
-<p>Знание внутренностей рантайма нужно не для того, чтобы вручную вызывать <code>gopark</code> или проектировать код под конкретный бит <code>Mutex.state</code>. Оно нужно, чтобы по симптомам восстановить причинную цепочку: где G ждёт событие, где она уже готова и ждёт CPU, где лок сериализует систему, а где «безлоковый» атомик упёрся в физику кеш-линии.</p>
+<p>Знание внутренностей рантайма нужно не для того, чтобы вручную вызывать <code>gopark</code> или проектировать код под конкретный бит <code>мьютекс.state</code>. Оно нужно, чтобы по симптомам восстановить причинную цепочку: где G ждёт событие, где она уже готова и ждёт CPU, где блокировка сериализует систему, а где «безлоковый» атомик упёрся в физику кеш-линии.</p>
 </blockquote>
 </article>
 </div>

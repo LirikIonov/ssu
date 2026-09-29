@@ -538,7 +538,7 @@
 <article class="md-content__inner md-typeset">
 <h1 id="1-numa">1. Архитектура процессора, память и NUMA<a class="headerlink" href="#1-numa" title="Permanent link">¶</a></h1>
 <h2 id="go">Зачем вообще лезть ниже Go<a class="headerlink" href="#go" title="Permanent link">¶</a></h2>
-<p>В Go можно годами писать нормальный backend, почти не думая о том, что находится под строкой:</p>
+<p>В Go можно годами писать нормальный бэкенд, почти не думая о том, что находится под строкой:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">atomic</span><span class="p">.</span><span class="nx">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">counter</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
 </code></pre></div>
 <p>Пока нагрузка небольшая, это работает.</p>
@@ -552,7 +552,7 @@
 <li>почему <code>sync.Mutex</code> не сводится к бесконечному CAS;</li>
 <li>почему два независимых поля могут тормозить друг друга;</li>
 <li>почему последовательный проход по массиву быстрее случайного;</li>
-<li>почему одна и та же программа ведёт себя по-разному на одном и на двух сокетах;</li>
+<li>почему одна и та же программа ведёт себя по-разному на одном и на двух процессорных сокетах;</li>
 <li>почему x86-64 и ARM64 дают Go одну модель языка, хотя машинные инструкции и правила порядка памяти у них различаются.</li>
 </ul>
 <p>Чтобы ответить на это, нужно спуститься на несколько этажей ниже языка.</p>
@@ -581,7 +581,7 @@ MESI
 ↓
 CAS и атомики
 </code></pre></div>
-<p>Это фундамент перед более глубоким разбором атомиков, порядка памяти, MESI, false sharing и <code>sync.Mutex</code>. fileciteturn10file0L3-L13</p>
+<p>Это фундамент перед более глубоким разбором атомиков, порядка памяти, MESI, ложное совместное использование и <code>sync.Mutex</code>.</p>
 <hr/>
 <h1 id="1-cpu-dram">1. CPU не читает DRAM на каждой инструкции<a class="headerlink" href="#1-cpu-dram" title="Permanent link">¶</a></h1>
 <p>Возьмём:</p>
@@ -591,12 +591,12 @@ CAS и атомики
 <div class="highlight"><pre><span></span><code>CPU читает a из RAM
 CPU читает b из RAM
 CPU складывает
-CPU пишет c в RAM
+процессор пишет c в RAM
 </code></pre></div>
 <p>Если бы процессор действительно постоянно работал так, он большую часть времени ждал бы память.</p>
 <p>Почему?</p>
 <p>Потому что процессор и DRAM живут в разных временных масштабах.</p>
-<p>Пусть CPU работает примерно на 4 ГГц.</p>
+<p>Пусть Процессор работает примерно на 4 ГГц.</p>
 <p>Один такт:</p>
 <div class="highlight"><pre><span></span><code>1 / 4 000 000 000
 ≈ 0.25 нс
@@ -707,7 +707,7 @@ R8–R15
 ↓
 физический регистр 73
 </code></pre></div>
-<p>Этот механизм называется <strong>переименование регистров (register renaming)</strong>.</p>
+<p>Этот механизм называется <strong>переименованием регистров (register renaming)</strong>.</p>
 <p>Он помогает убрать ложные зависимости между инструкциями и выполнять больше независимой работы параллельно.</p>
 <p>Здесь появляется первое важное разделение:</p>
 <div class="highlight"><pre><span></span><code>система команд
@@ -754,7 +754,7 @@ RAM
 <hr/>
 <h1 id="5">5. Зачем вообще нужен кеш<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
 <p>У нас уже есть проблема:</p>
-<div class="highlight"><pre><span></span><code>CPU быстрый
+<div class="highlight"><pre><span></span><code>процессор быстрый
 DRAM медленная
 </code></pre></div>
 <p>Если каждое чтение требует похода в DRAM, процессор простаивает сотни тактов.</p>
@@ -890,7 +890,7 @@ L1D — кеш данных
 </ul>
 <p>Но фраза:</p>
 <blockquote>
-<p>L3 — один монолитный общий кусок памяти.</p>
+<p>L3 — один монолитный общий блок памяти.</p>
 </blockquote>
 <p>слишком простая.</p>
 <p>Реальные CPU могут иметь:</p>
@@ -932,7 +932,7 @@ DRAM — намного больше и намного медленнее
 <p>То есть 3D-кеш — ещё одна инженерная попытка реже ходить в медленную память.</p>
 <hr/>
 <h1 id="11-">11. Самая важная единица кеша — кеш-линия<a class="headerlink" href="#11-" title="Permanent link">¶</a></h1>
-<p>Вот здесь начинается фундамент для false sharing и MESI.</p>
+<p>Вот здесь начинается фундамент для ложного совместного использования (false sharing) и MESI.</p>
 <p>Кеш обычно работает не с отдельными Go-переменными.</p>
 <p>Он перемещает данные блоками.</p>
 <p>Такой блок называют <strong>кеш-линией (cache line)</strong>.</p>
@@ -961,7 +961,7 @@ DRAM — намного больше и намного медленнее
 <blockquote>
 <p>Единица когерентности и конкуренции между ядрами обычно крупнее отдельной переменной.</p>
 </blockquote>
-<p>Именно отсюда позже вырастет false sharing.</p>
+<p>Именно отсюда позже вырастет ложное совместное использование.</p>
 <hr/>
 <h1 id="12">12. Почему память кешируется блоками<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
 <p>Потому что программы обычно обладают локальностью.</p>
@@ -1014,7 +1014,7 @@ DRAM — намного больше и намного медленнее
 <p>Вот здесь Big O перестаёт быть достаточной моделью производительности.</p>
 <hr/>
 <h1 id="14">14. Попадание и промах кеша<a class="headerlink" href="#14" title="Permanent link">¶</a></h1>
-<p>CPU хочет прочитать значение.</p>
+<p>Процессор хочет прочитать значение.</p>
 <p>Проверяется ближайший уровень.</p>
 <div class="highlight"><pre><span></span><code>L1
 ├── нашли → попадание L1
@@ -1052,16 +1052,16 @@ DRAM — намного больше и намного медленнее
 </code></pre></div>
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>┌─────────────────────────────────┐
-│ TAG │ STATE │    64 B DATA      │
+│ ТЕГ │ СОСТОЯНИЕ │ ДАННЫЕ 64 Б      │
 └─────────────────────────────────┘
 </code></pre></div>
-<p><code>TAG</code> помогает определить адрес.</p>
-<p><code>STATE</code> позже понадобится для когерентности.</p>
+<p><code>ТЕГ</code> помогает определить адрес.</p>
+<p><code>СОСТОЯНИЕ</code> позже понадобится для когерентности.</p>
 <p>Например учебные состояния MESI:</p>
-<div class="highlight"><pre><span></span><code>Modified
-Exclusive
-Shared
-Invalid
+<div class="highlight"><pre><span></span><code>Изменена
+Эксклюзивна
+Разделяемая
+Недействительна
 </code></pre></div>
 <p>MESI не появляется магически поверх кеша.</p>
 <p>Кеш всё равно должен хранить метаданные линии.</p>
@@ -1104,7 +1104,7 @@ Invalid
 <p>Нужно ли сразу же обновлять DRAM?</p>
 </blockquote>
 <p>Обычно нет.</p>
-<p>Распространённая модель — <strong>write-back</strong>.</p>
+<p>Распространённая модель — <strong>обратная запись (запись-back)</strong>.</p>
 <p>Ядро изменяет линию локально.</p>
 <p>Линия становится изменённой.</p>
 <div class="highlight"><pre><span></span><code>кеш = новое значение
@@ -1113,7 +1113,7 @@ DRAM = старое значение
 <p>Некоторое время это нормально.</p>
 <p>Позже данные будут записаны дальше.</p>
 <p>Именно отсюда естественно появляется состояние:</p>
-<div class="highlight"><pre><span></span><code>M — Modified
+<div class="highlight"><pre><span></span><code>M — Modified (изменена)
 </code></pre></div>
 <p>в MESI.</p>
 <hr/>
@@ -1128,10 +1128,10 @@ DRAM = старое значение
 <p>Очень грубо один бит DRAM хранится через конденсатор и транзистор.</p>
 <p>Заряд со временем утекает.</p>
 <p>Поэтому память нужно периодически обновлять.</p>
-<div class="highlight"><pre><span></span><code>refresh
+<div class="highlight"><pre><span></span><code>обновление заряда
 </code></pre></div>
 <p>Отсюда:</p>
-<div class="highlight"><pre><span></span><code>Dynamic RAM
+<div class="highlight"><pre><span></span><code>динамическая оперативная память
 </code></pre></div>
 <p>Преимущество DRAM:</p>
 <ul>
@@ -1144,7 +1144,7 @@ DRAM = старое значение
 </blockquote>
 <hr/>
 <h1 id="19">19. Контроллер памяти<a class="headerlink" href="#19" title="Permanent link">¶</a></h1>
-<p>CPU не взаимодействует с DRAM как с магическим плоским массивом.</p>
+<p>Процессор не взаимодействует с DRAM как с магическим плоским массивом.</p>
 <p>Между ядрами и памятью находится <strong>контроллер памяти</strong>.</p>
 <p>Упрощённо:</p>
 <div class="highlight"><pre><span></span><code>ядра
@@ -1172,20 +1172,20 @@ DRAM = старое значение
 ↓
 DIMM
 ↓
-rank
+ранг
 ↓
-bank
+банк
 ↓
-row
+строка
 ↓
-column
+столбец
 </code></pre></div>
 <p>Например, если нужная строка уже открыта:</p>
-<div class="highlight"><pre><span></span><code>row hit
+<div class="highlight"><pre><span></span><code>попадание по открытой строке
 </code></pre></div>
 <p>доступ дешевле.</p>
 <p>Если нужно переключить строку:</p>
-<div class="highlight"><pre><span></span><code>row miss
+<div class="highlight"><pre><span></span><code>промах по строке
 </code></pre></div>
 <p>дороже.</p>
 <p>Для текущей темы глубже уходить не нужно.</p>
@@ -1211,7 +1211,7 @@ column
 <p>Для кешей, атомиков и синхронизации нас особенно интересует именно задержка отдельного доступа.</p>
 <hr/>
 <h1 id="22">22. Порядки величин<a class="headerlink" href="#22" title="Permanent link">¶</a></h1>
-<p>Возьмём CPU около 4 ГГц.</p>
+<p>Возьмём процессор около 4 ГГц.</p>
 <p>Один такт:</p>
 <div class="highlight"><pre><span></span><code>≈ 0.25 нс
 </code></pre></div>
@@ -1265,7 +1265,7 @@ column
 <td style="text-align: right;">~0.1–1 мс</td>
 </tr>
 <tr>
-<td>Internet RTT</td>
+<td>RTT через Интернет</td>
 <td style="text-align: right;">~5–200+ мс</td>
 </tr>
 </tbody>
@@ -1312,7 +1312,7 @@ HDD
 </code></pre></div>
 <p>Это не измерительная таблица.</p>
 <p>Это способ почувствовать разницу порядков.</p>
-<p>Для CPU даже DRAM уже медленная.</p>
+<p>Для процессора даже DRAM уже медленная.</p>
 <p>SSD и сеть находятся почти в другой временной вселенной.</p>
 <hr/>
 <h1 id="24-ssd-hdd-cpu">24. SSD, HDD и сеть — это уже не продолжение кешей CPU<a class="headerlink" href="#24-ssd-hdd-cpu" title="Permanent link">¶</a></h1>
@@ -1351,7 +1351,7 @@ DRAM / page cache
 ↓
 ядро ОС
 ↓
-socket
+сокет
 ↓
 NIC
 ↓
@@ -1378,12 +1378,12 @@ NIC
 <li>несколько исполнительных блоков;</li>
 <li>много физических регистров.</li>
 </ul>
-<p>Одна из центральных задач современного CPU:</p>
+<p>Одна из центральных задач современного процессора:</p>
 <blockquote>
 <p>Не простаивать, пока нужные данные едут из памяти.</p>
 </blockquote>
 <p>Допустим инструкция ждёт данные:</p>
-<div class="highlight"><pre><span></span><code>load A
+<div class="highlight"><pre><span></span><code>загрузка A
 </code></pre></div>
 <p>Если есть независимые операции:</p>
 <div class="highlight"><pre><span></span><code>B = x + y
@@ -1411,7 +1411,7 @@ C = q * r
 2
 </code></pre></div>
 <p>если это не меняет архитектурно наблюдаемый результат.</p>
-<p>Это называется <strong>внеочередное выполнение (out-of-order execution)</strong>.</p>
+<p>Это называется <strong>внеочередным выполнением (out-of-order execution)</strong>.</p>
 <p>Зачем?</p>
 <p>Чтобы скрывать задержки:</p>
 <div class="highlight"><pre><span></span><code>одна операция ждёт память
@@ -1442,7 +1442,7 @@ C = q * r
 <p>Не угадали — часть сделанной работы придётся отбросить.</p>
 <p>Для нас здесь важен общий принцип:</p>
 <blockquote>
-<p>Современный CPU постоянно пытается заранее угадать, какие данные и инструкции понадобятся дальше.</p>
+<p>Современный процессор постоянно пытается заранее угадать, какие данные и инструкции понадобятся дальше.</p>
 </blockquote>
 <hr/>
 <h1 id="28">28. Аппаратная предвыборка<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
@@ -1461,7 +1461,7 @@ A[3]
 <hr/>
 <h1 id="29">29. Система команд и микроархитектура<a class="headerlink" href="#29" title="Permanent link">¶</a></h1>
 <p>Теперь можно нормально поговорить про x86-64, ARM64 и RISC-V.</p>
-<p><strong>Система команд (ISA)</strong> — программно видимый контракт процессора.</p>
+<p><strong>Система команд (instruction set architecture, ISA)</strong> — программно видимый контракт процессора.</p>
 <p>Она задаёт:</p>
 <ul>
 <li>инструкции;</li>
@@ -1514,16 +1514,16 @@ RISC
 <li>арифметике преимущественно над регистрами.</li>
 </ul>
 <p>Условная модель:</p>
-<div class="highlight"><pre><span></span><code>LOAD
+<div class="highlight"><pre><span></span><code>ЗАГРУЗКА
 ↓
 ADD
 ↓
-STORE
+ЗАПИСЬ
 </code></pre></div>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code><span class="nf">load</span><span class="w">  </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">address</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="err">загрузка</span><span class="w">  </span><span class="nf">r1</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="no">address</span><span class="p">]</span>
 <span class="nf">add</span><span class="w">   </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="no">r1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span>
-<span class="nf">store</span><span class="w"> </span><span class="p">[</span><span class="no">address</span><span class="p">],</span><span class="w"> </span><span class="no">r1</span>
+<span class="err">запись</span><span class="w"> </span><span class="err">[</span><span class="nf">address</span><span class="p">],</span><span class="w"> </span><span class="no">r1</span>
 </code></pre></div>
 <p>Но сейчас специально ломаем ещё одно упрощение.</p>
 <hr/>
@@ -1539,10 +1539,10 @@ STORE
 <li>аппаратную предвыборку.</li>
 </ul>
 <p>То есть:</p>
-<div class="highlight"><pre><span></span><code>RISC ISA
+<div class="highlight"><pre><span></span><code>ISA семейства RISC
 </code></pre></div>
 <p>не означает:</p>
-<div class="highlight"><pre><span></span><code>простой CPU
+<div class="highlight"><pre><span></span><code>простой процессор
 </code></pre></div>
 <p>RISC/CISC описывают архитектурные идеи и свойства ISA.</p>
 <p>Не уровень внутренней сложности современного кристалла.</p>
@@ -1564,8 +1564,8 @@ STORE
 исполнительные блоки
 </code></pre></div>
 <p>Поэтому старая картинка:</p>
-<div class="highlight"><pre><span></span><code>CISC = сложный CPU
-RISC = простой CPU
+<div class="highlight"><pre><span></span><code>CISC = сложный процессор
+RISC = простой процессор
 </code></pre></div>
 <p>для современных процессоров почти бесполезна.</p>
 <p>Гораздо важнее разделять:</p>
@@ -1644,12 +1644,12 @@ x86-64
 <p>и расширения:</p>
 <div class="highlight"><pre><span></span><code>M — умножение/деление
 A — атомики
-F — floating point
-D — double precision
+F — операции с плавающей точкой
+D — двойная точность
 V — векторы
 </code></pre></div>
 <p>Для нашего курса особенно важна:</p>
-<div class="highlight"><pre><span></span><code>A — Atomics
+<div class="highlight"><pre><span></span><code>A — атомарные операции
 </code></pre></div>
 <p>Потому что позже можно сравнить:</p>
 <div class="highlight"><pre><span></span><code>Go atomic
@@ -1662,11 +1662,11 @@ x86-64 / ARM64 / RISC-V
 <h1 id="37-mips">37. MIPS<a class="headerlink" href="#37-mips" title="Permanent link">¶</a></h1>
 <p>MIPS — классическая RISC-архитектура.</p>
 <p>Для обучения она полезна своей наглядной моделью:</p>
-<div class="highlight"><pre><span></span><code>load
+<div class="highlight"><pre><span></span><code>загрузка
 ↓
-compute
+вычисление
 ↓
-store
+запись
 </code></pre></div>
 <p>Например:</p>
 <div class="highlight"><pre><span></span><code><span class="nf">lw</span><span class="w">   </span><span class="no">$t0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">(</span><span class="no">$t1</span><span class="p">)</span>
@@ -1820,7 +1820,7 @@ EPIC
          межсоединение
                │
           ┌────▼────┐
-          │ I/O Die │
+          │ кристалл ввода-вывода │
           │ IMC     │
           │ PCIe    │
           └────┬────┘
@@ -1860,19 +1860,19 @@ EPIC
 <hr/>
 <h1 id="45-numa">45. NUMA появляется естественно<a class="headerlink" href="#45-numa" title="Permanent link">¶</a></h1>
 <p>Теперь представим многосокетную машину.</p>
-<div class="highlight"><pre><span></span><code>NUMA node 0                     NUMA node 1
+<div class="highlight"><pre><span></span><code>NUMA-узел 0                     NUMA-узел 1
 
 ┌───────────────┐               ┌───────────────┐
-│ CPU cores     │               │ CPU cores     │
+│ CPU ядра     │               │ CPU ядра     │
 │               │               │               │
-│ Memory Ctrl   │               │ Memory Ctrl   │
+│ контроллер памяти   │               │ контроллер памяти   │
 └───────┬───────┘               └───────┬───────┘
         │                               │
       DRAM 0                          DRAM 1
         │                               │
-        └──────── interconnect ─────────┘
+        └──────── межсоединение ─────────┘
 </code></pre></div>
-<p>Для CPU на узле 0:</p>
+<p>Для процессора на узле 0:</p>
 <div class="highlight"><pre><span></span><code>DRAM 0
 </code></pre></div>
 <p>локальная.</p>
@@ -1935,14 +1935,14 @@ EPIC
 <h1 id="48">48. Почему контроллер памяти здесь принципиален<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
 <p>Память физически подключена к конкретному контроллеру.</p>
 <p>Условно:</p>
-<div class="highlight"><pre><span></span><code>Socket 0
+<div class="highlight"><pre><span></span><code>Сокет 0
 ↓
 IMC 0
 ↓
 RAM 0
 </code></pre></div>
 <p>и:</p>
-<div class="highlight"><pre><span></span><code>Socket 1
+<div class="highlight"><pre><span></span><code>Сокет 1
 ↓
 IMC 1
 ↓
@@ -1976,7 +1976,7 @@ DRAM
 <h1 id="50-intel-numa">50. Intel и NUMA<a class="headerlink" href="#50-intel-numa" title="Permanent link">¶</a></h1>
 <p>У Intel фундаментальная проблема та же.</p>
 <p>Условная двухсокетная система:</p>
-<div class="highlight"><pre><span></span><code>Socket 0                      Socket 1
+<div class="highlight"><pre><span></span><code>Сокет 0                      Сокет 1
    │                             │
   IMC                           IMC
    │                             │
@@ -2008,7 +2008,7 @@ DRAM
 </code></pre></div>
 <p>Они связаны.</p>
 <p>Но:</p>
-<div class="highlight"><pre><span></span><code>чиплет != NUMA node
+<div class="highlight"><pre><span></span><code>чиплет != NUMA-узел
 </code></pre></div>
 <p>ОС не обязана показывать каждый чиплет как отдельный NUMA-узел.</p>
 <p>Физическая топология может быть сложнее логической топологии, которую видит приложение.</p>
@@ -2016,14 +2016,14 @@ DRAM
 <h1 id="52-numa">52. Зачем ОС вообще знать про NUMA<a class="headerlink" href="#52-numa" title="Permanent link">¶</a></h1>
 <p>Если ОС знает топологию, она может пытаться держать вычисление и память рядом.</p>
 <p>Идеально:</p>
-<div class="highlight"><pre><span></span><code>CPU node 0
+<div class="highlight"><pre><span></span><code>CPU на узле 0
 ↓
 поток
 ↓
 память node 0
 </code></pre></div>
 <p>Хуже:</p>
-<div class="highlight"><pre><span></span><code>CPU node 0
+<div class="highlight"><pre><span></span><code>CPU на узле 0
 ↓
 поток
 ↓
@@ -2039,10 +2039,10 @@ DRAM
 <hr/>
 <h1 id="53-numa-go">53. Что NUMA означает для Go<a class="headerlink" href="#53-numa-go" title="Permanent link">¶</a></h1>
 <p>На уровне языка:</p>
-<div class="highlight"><pre><span></span><code>goroutine
-heap
+<div class="highlight"><pre><span></span><code>горутина
+хип
 GC
-scheduler
+планировщик
 </code></pre></div>
 <p>На уровне железа:</p>
 <div class="highlight"><pre><span></span><code>потоки ОС
@@ -2053,9 +2053,9 @@ NUMA-узлы
 ↓
 физические страницы памяти
 </code></pre></div>
-<p>Goroutine может мигрировать между потоками ОС и ядрами.</p>
+<p>Горутина может мигрировать между потоками ОС и ядрами.</p>
 <p>Хип процесса может состоять из страниц, физически расположенных на разных NUMA-узлах.</p>
-<p>На обычном backend-сервисе это часто не первое ограничение.</p>
+<p>На обычном бэкенд-сервисе это часто не первое ограничение.</p>
 <p>Но на машине с:</p>
 <ul>
 <li>десятками или сотнями ядер;</li>
@@ -2067,7 +2067,7 @@ NUMA-узлы
 <p>топология железа начинает проявляться.</p>
 <p>И здесь важно не сделать слишком сильный вывод:</p>
 <blockquote>
-<p>Каждая миграция goroutine автоматически создаёт удалённый NUMA-доступ.</p>
+<p>Каждая миграция горутина автоматически создаёт удалённый NUMA-доступ.</p>
 </blockquote>
 <p>Нет.</p>
 <p>Но физическая локальность действительно становится одним из факторов производительности.</p>
@@ -2112,20 +2112,20 @@ counter = 100
 <h1 id="56-mesi">56. MESI как учебная модель когерентности<a class="headerlink" href="#56-mesi" title="Permanent link">¶</a></h1>
 <p>Классическая модель — MESI.</p>
 <p>Состояния кеш-линии:</p>
-<div class="highlight"><pre><span></span><code>M — Modified
-E — Exclusive
-S — Shared
-I — Invalid
+<div class="highlight"><pre><span></span><code>M — Modified (изменена)
+E — Exclusive (эксклюзивна)
+S — Shared (разделяемая)
+I — Invalid (недействительна)
 </code></pre></div>
-<h2 id="modified">Modified<a class="headerlink" href="#modified" title="Permanent link">¶</a></h2>
+<h2 id="_3">Изменена<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
 <p>У этого кеша актуальная изменённая копия.</p>
 <p>Она отличается от памяти.</p>
-<h2 id="exclusive">Exclusive<a class="headerlink" href="#exclusive" title="Permanent link">¶</a></h2>
+<h2 id="_4">Эксклюзивна<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
 <p>Линия есть только здесь и совпадает с памятью.</p>
-<h2 id="shared">Shared<a class="headerlink" href="#shared" title="Permanent link">¶</a></h2>
+<h2 id="_5">Разделяемая<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
 <p>Линия может находиться в кешах нескольких ядер.</p>
 <p>Пока она только читается, это нормально.</p>
-<h2 id="invalid">Invalid<a class="headerlink" href="#invalid" title="Permanent link">¶</a></h2>
+<h2 id="_6">Недействительна<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
 <p>Эту копию нельзя использовать.</p>
 <hr/>
 <h1 id="57">57. Два ядра читают одну линию<a class="headerlink" href="#57" title="Permanent link">¶</a></h1>
@@ -2140,7 +2140,7 @@ I — Invalid
 ↓
 тоже читает X
 </code></pre></div>
-<p>Теперь линия может оказаться в состоянии <code>Shared</code> у обоих.</p>
+<p>Теперь линия может оказаться в состоянии <code>Разделяемая</code> у обоих.</p>
 <div class="highlight"><pre><span></span><code>ядро 0: S
 ядро 1: S
 </code></pre></div>
@@ -2213,7 +2213,7 @@ I — Invalid
 ↓
 инвалидация чужих копий
 ↓
-атомарное read-modify-write
+атомарное чтение-изменение-запись
 </code></pre></div>
 <p>Если линия уже локально у одного ядра и конкурентов нет — относительно дёшево.</p>
 <p>Если 32 ядра одновременно обновляют одну линию:</p>
@@ -2227,8 +2227,8 @@ I — Invalid
 <hr/>
 <h1 id="61-syncmutex-cas">61. Почему <code>sync.Mutex</code> не может быть просто бесконечным CAS<a class="headerlink" href="#61-syncmutex-cas" title="Permanent link">¶</a></h1>
 <p>Представим реализацию:</p>
-<div class="highlight"><pre><span></span><code>while CAS(lock, 0, 1) fails {
-    retry
+<div class="highlight"><pre><span></span><code>пока CAS(lock, 0, 1) неуспешен {
+    повтор
 }
 </code></pre></div>
 <p>Под низкой конкуренцией нормально.</p>
@@ -2254,20 +2254,20 @@ CAS
 ↓
 короткое активное ожидание
 ↓
-парковка goroutine
+парковка горутины
 ↓
 пробуждение
 </code></pre></div>
 <p>Теперь становится понятно, зачем ему вообще нужен медленный путь.</p>
 <hr/>
-<h1 id="62-false-sharing-">62. False sharing уже виден из модели кеш-линии<a class="headerlink" href="#62-false-sharing-" title="Permanent link">¶</a></h1>
+<h1 id="62-">62. Ложное совместное использование уже виден из модели кеш-линии<a class="headerlink" href="#62-" title="Permanent link">¶</a></h1>
 <p>Пусть есть:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Counters</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">a</span><span class="w"> </span><span class="kt">int64</span>
 <span class="w">    </span><span class="nx">b</span><span class="w"> </span><span class="kt">int64</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Две независимые goroutine:</p>
+<p>Две независимые горутина:</p>
 <div class="highlight"><pre><span></span><code>G1 постоянно пишет a
 G2 постоянно пишет b
 </code></pre></div>
@@ -2284,12 +2284,12 @@ G2 постоянно пишет b
 <blockquote>
 <p>Логически независимые данные создают физическую конкуренцию.</p>
 </blockquote>
-<p>Это и есть false sharing.</p>
+<p>Это и есть ложное совместное использование.</p>
 <p>Подробно разбирать его будем уже в следующем дополнительном слое.</p>
 <hr/>
 <h1 id="63">63. Что происходит под нагрузкой<a class="headerlink" href="#63" title="Permanent link">¶</a></h1>
 <p>Теперь соберём несколько режимов.</p>
-<h2 id="_3">Последовательное чтение большого массива<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<h2 id="_7">Последовательное чтение большого массива<a class="headerlink" href="#_7" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code>хорошая локальность
 ↓
 предвыборка работает
@@ -2298,7 +2298,7 @@ G2 постоянно пишет b
 ↓
 высокая пропускная способность памяти
 </code></pre></div>
-<h2 id="_4">Случайное чтение большого графа объектов<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<h2 id="_8">Случайное чтение большого графа объектов<a class="headerlink" href="#_8" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code>переходы по указателям
 ↓
 локальность хуже
@@ -2307,12 +2307,12 @@ G2 постоянно пишет b
 ↓
 ядро чаще ждёт память
 </code></pre></div>
-<h2 id="_5">Много ядер читают одну линию<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code>Shared
+<h2 id="_9">Много ядер читают одну линию<a class="headerlink" href="#_9" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>Разделяемая
 ↓
 обычно масштабируется хорошо
 </code></pre></div>
-<h2 id="_6">Много ядер пишут одну линию<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
+<h2 id="_10">Много ядер пишут одну линию<a class="headerlink" href="#_10" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code>постоянная смена владельца
 ↓
 инвалидации
@@ -2333,7 +2333,7 @@ G2 постоянно пишет b
 <hr/>
 <h1 id="64">64. Как выглядит проблема на графиках<a class="headerlink" href="#64" title="Permanent link">¶</a></h1>
 <p>Самая неприятная часть:</p>
-<p>CPU может быть высоким, а полезная работа расти слабо.</p>
+<p>Процессор может быть высоким, а полезная работа расти слабо.</p>
 <p>Например:</p>
 <div class="highlight"><pre><span></span><code>1 поток  → 10 млн операций/с
 2 потока → 18 млн
@@ -2344,7 +2344,7 @@ G2 постоянно пишет b
 </code></pre></div>
 <p>Интуиция:</p>
 <blockquote>
-<p>Добавили CPU — должно стать быстрее.</p>
+<p>Добавили ядра — должно стать быстрее.</p>
 </blockquote>
 <p>Реальность:</p>
 <div class="highlight"><pre><span></span><code>ядра
@@ -2358,7 +2358,7 @@ G2 постоянно пишет b
 масштабирование закончилось
 </code></pre></div>
 <p>Это уже не проблема планировщика Go.</p>
-<p>И не проблема количества goroutine.</p>
+<p>И не проблема количества горутина.</p>
 <p>Предел находится в подсистеме памяти.</p>
 <hr/>
 <h1 id="65-linux">65. Диагностика кешей на Linux<a class="headerlink" href="#65-linux" title="Permanent link">¶</a></h1>
@@ -2368,8 +2368,8 @@ G2 постоянно пишет b
 <p>Полезно смотреть счётчики вроде:</p>
 <div class="highlight"><pre><span></span><code>cycles
 instructions
-cache-references
-cache-misses
+обращения к кешу
+промахи кеша
 branches
 branch-misses
 </code></pre></div>
@@ -2407,9 +2407,9 @@ branch-misses
 </code></pre></div>
 <p>показывает NUMA-топологию.</p>
 <p>Например:</p>
-<div class="highlight"><pre><span></span><code>NUMA node(s): 2
-NUMA node0 CPU(s): ...
-NUMA node1 CPU(s): ...
+<div class="highlight"><pre><span></span><code>NUMA-узел(s): 2
+NUMA-узел0 CPU(s): ...
+NUMA-узел1 CPU(s): ...
 </code></pre></div>
 <p>Дополнительно:</p>
 <div class="highlight"><pre><span></span><code>numactl<span class="w"> </span>--hardware
@@ -2420,7 +2420,7 @@ NUMA node1 CPU(s): ...
 <p>помогает увидеть локальные и удалённые обращения на уровне NUMA-статистики.</p>
 <p>Если проблема проявляется только на большой многосокетной машине, NUMA уже становится разумной гипотезой.</p>
 <hr/>
-<h1 id="68-backend-numa">68. Не надо начинать оптимизацию backend с NUMA<a class="headerlink" href="#68-backend-numa" title="Permanent link">¶</a></h1>
+<h1 id="68-numa">68. Не надо начинать оптимизацию бэкенд с NUMA<a class="headerlink" href="#68-numa" title="Permanent link">¶</a></h1>
 <p>Допустим HTTP-сервис имеет:</p>
 <div class="highlight"><pre><span></span><code>p99 = 2 с
 </code></pre></div>
@@ -2428,7 +2428,7 @@ NUMA node1 CPU(s): ...
 <p>Идти сразу в:</p>
 <div class="highlight"><pre><span></span><code>NUMA
 MESI
-L3 misses
+промахи L3
 </code></pre></div>
 <p>бессмысленно.</p>
 <p>Сначала ищем доминирующую стоимость.</p>
@@ -2472,7 +2472,7 @@ L3 misses
 </code></pre></div>
 <p>Смотреть:</p>
 <div class="highlight"><pre><span></span><code>время
-cache-misses
+промахи кеша
 instructions
 cycles
 </code></pre></div>
@@ -2485,7 +2485,7 @@ cycles
 <p>Сначала один счётчик:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">counter</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Int64</span>
 </code></pre></div>
-<p>N goroutine одновременно делают:</p>
+<p>N горутин одновременно делают:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">counter</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 </code></pre></div>
 <p>Запустить:</p>
@@ -2532,11 +2532,11 @@ cycles
 </ul>
 <p>Цель:</p>
 <blockquote>
-<p>Увидеть, что «RAM» физически не обязана иметь одинаковую стоимость для всех CPU.</p>
+<p>Увидеть, что «RAM» физически не обязана иметь одинаковую стоимость для всех процессоров.</p>
 </blockquote>
 <hr/>
 <h1 id="72">72. Что является гарантией, а что учебной моделью<a class="headerlink" href="#72" title="Permanent link">¶</a></h1>
-<h2 id="_7">Архитектурный контракт<a class="headerlink" href="#_7" title="Permanent link">¶</a></h2>
+<h2 id="_11">Архитектурный контракт<a class="headerlink" href="#_11" title="Permanent link">¶</a></h2>
 <p>ISA определяет:</p>
 <ul>
 <li>доступные инструкции;</li>
@@ -2544,7 +2544,7 @@ cycles
 <li>атомарные примитивы;</li>
 <li>правила порядка памяти.</li>
 </ul>
-<h2 id="_8">Микроархитектура<a class="headerlink" href="#_8" title="Permanent link">¶</a></h2>
+<h2 id="_12">Микроархитектура<a class="headerlink" href="#_12" title="Permanent link">¶</a></h2>
 <p>Конкретный CPU решает:</p>
 <ul>
 <li>сколько физических регистров;</li>
@@ -2554,7 +2554,7 @@ cycles
 <li>какие внутренние очереди;</li>
 <li>как реализована когерентность.</li>
 </ul>
-<h2 id="_9">Учебная модель<a class="headerlink" href="#_9" title="Permanent link">¶</a></h2>
+<h2 id="_13">Учебная модель<a class="headerlink" href="#_13" title="Permanent link">¶</a></h2>
 <p>Мы используем:</p>
 <div class="highlight"><pre><span></span><code>L1 → L2 → L3 → DRAM
 </code></pre></div>
@@ -2597,7 +2597,7 @@ L3 / LLC
 ↓
 DRAM
 </code></pre></div>
-<p>Современный CPU добавляет:</p>
+<p>Современный Процессор добавляет:</p>
 <div class="highlight"><pre><span></span><code>чиплеты
 +
 межсоединения
@@ -2631,10 +2631,10 @@ MESI
 ↓
 Mutex
 ↓
-парковка goroutine
+парковка горутины
 </code></pre></div>
 <hr/>
-<h1 id="_10">Что важно запомнить<a class="headerlink" href="#_10" title="Permanent link">¶</a></h1>
+<h1 id="_14">Что важно запомнить<a class="headerlink" href="#_14" title="Permanent link">¶</a></h1>
 <ol>
 <li>CPU не ходит в DRAM за каждым значением: между вычислительными блоками и памятью находится иерархия кешей.</li>
 <li>Регистры, L1/L2/L3 и DRAM относятся к аппаратной иерархии; стек и хип — к организации памяти программы.</li>
@@ -2643,7 +2643,7 @@ Mutex
 <li>Попадание в L1 и обращение к DRAM различаются по стоимости на порядки тактов CPU.</li>
 <li>ISA определяет программный контракт процессора; микроархитектура определяет, как этот контракт реализован физически.</li>
 <li>RISC/CISC не описывают реальную сложность современного ядра.</li>
-<li>Современный CPU может состоять из чиплетов, связанных внутренними межсоединениями.</li>
+<li>Современный Процессор может состоять из чиплетов, связанных внутренними межсоединениями.</li>
 <li>NUMA означает, что стоимость доступа к RAM зависит от физического расположения CPU и памяти.</li>
 <li>Когерентность кешей нужна потому, что разные ядра могут хранить копии одной кеш-линии.</li>
 <li>MESI — полезная учебная модель состояний линии при совместном чтении и записи.</li>
