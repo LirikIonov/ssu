@@ -1,0 +1,3841 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/" rel="canonical"/>
+<link href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/" rel="prev"/>
+<link href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#43-go-ir-ssa-lowering">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="43-go-ir-ssa-lowering">4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код<a class="headerlink" href="#43-go-ir-ssa-lowering" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на Go 1.27.x.</p>
+<p>Это завершение блока <code>Go under the hood</code>.</p>
+<p>В <code>4.1</code> мы открыли алгоритмы структур данных.</p>
+<p>В <code>4.2</code> — конкретные пути каналов, <code>select</code> и <code>context</code>.</p>
+<p>Теперь вопрос другой:</p>
+<blockquote>
+<p>Кто вообще решил, что строка Go-кода должна превратиться именно в этот вызов рантайма, эту ветку, эту проверку и эти машинные инструкции?</p>
+</blockquote>
+</blockquote>
+<hr/>
+<h1 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>До сих пор мы рассуждали так:</p>
+<div class="highlight"><pre><span></span><code>append
+→ growslice
+
+m[key]
+→ Swiss Table
+
+w.Write(buf)
+→ ITab / динамический вызов
+
+ch &lt;- v
+→ chansend
+
+select
+→ selectgo
+</code></pre></div>
+<p>Это правильные рантайм-модели.</p>
+<p>Но в исходнике мы не пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">growslice</span><span class="p">(...)</span>
+<span class="nx">runtime</span><span class="p">.</span><span class="nx">chansend</span><span class="p">(...)</span>
+<span class="nx">runtime</span><span class="p">.</span><span class="nx">selectgo</span><span class="p">(...)</span>
+</code></pre></div>
+<p>И тем более не пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">CMP</span>
+<span class="nf">JLS</span>
+<span class="nf">CALL</span>
+<span class="nf">MOVQ</span>
+</code></pre></div>
+<p>Значит между:</p>
+<div class="highlight"><pre><span></span><code>Go исходник
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>рантайм / CPU
+</code></pre></div>
+<p>есть еще один большой слой.</p>
+<div class="highlight"><pre><span></span><code>исходный код
+↓
+компилятор
+↓
+внутренние представления
+↓
+доказательства и оптимизации
+↓
+упрощение конструкций
+↓
+SSA
+↓
+привязка к архитектуре
+↓
+регистры / стек
+↓
+машинный код
+</code></pre></div>
+<p>Эта лекция именно про него.</p>
+<hr/>
+<h1 id="0">0. Сразу проведем границу<a class="headerlink" href="#0" title="Permanent link">¶</a></h1>
+<p>Мы <strong>не делаем курс по теории компиляторов</strong>.</p>
+<p>Не будем глубоко разбирать:</p>
+<ul>
+<li>грамматики;</li>
+<li>построение парсеров;</li>
+<li>теорию доминаторов;</li>
+<li>алгоритмы построения SSA;</li>
+<li>graph coloring register аллокация;</li>
+<li>linker internals;</li>
+<li>ELF / Mach-O;</li>
+<li>generics dictionaries;</li>
+<li>полный Go ABI.</li>
+</ul>
+<p>Нам нужен прикладной вопрос:</p>
+<blockquote>
+<p>Что из моего Go-кода реально осталось после компилятора и почему?</p>
+</blockquote>
+<p>Главная цепочка:</p>
+<div class="highlight"><pre><span></span><code>написали конструкцию
+↓
+выдвинули гипотезу о ее цене
+↓
+посмотрели решение компилятора
+↓
+посмотрели SSA
+↓
+посмотрели ассемблер
+↓
+измерили benchmark
+↓
+сверили модель с реальностью
+</code></pre></div>
+<hr/>
+<h1 id="1-go">1. Первая плохая модель: «компилятор переводит строки Go прямо в ассемблер»<a class="headerlink" href="#1-go" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+</code></pre></div>
+<p>Можно представить:</p>
+<div class="highlight"><pre><span></span><code>строка Go
+↓
+ADD
+</code></pre></div>
+<p>На маленьком примере это иногда почти выглядит правдой.</p>
+<p>Но теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Какая одна инструкция соответствует <code>append</code>?</p>
+<p>Никакая.</p>
+<p>Или:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>Какая одна инструкция означает:</p>
+<div class="highlight"><pre><span></span><code>вычислить хеш
+→ выбрать таблицу
+→ пробировать Swiss Table
+→ сравнить ключ
+</code></pre></div>
+<p>?</p>
+<p>Такой инструкции нет.</p>
+<p>Нужны промежуточные представления.</p>
+<hr/>
+<h1 id="2-go">2. Полная карта компилятора Go<a class="headerlink" href="#2-go" title="Permanent link">¶</a></h1>
+<p>Для курса полезна такая модель:</p>
+<div class="highlight"><pre><span></span><code>.go исходник
+↓
+лексический анализ + parser
+↓
+syntax tree
+↓
+type checking
+↓
+компилятор IR
+↓
+middle end
+├── мертвый код
+├── девиртуализация
+├── инлайнинг
+└── escape analysis
+↓
+walk
+├── порядок вычислений
+└── desugaring
+↓
+общий SSA
+├── prove
+├── BCE
+├── проверка `nil` elimination
+├── мертвый код elimination
+└── rewrite rules
+↓
+lower
+↓
+architecture-specific SSA
+├── amd64
+├── arm64
+└── ...
+↓
+late optimizations
+↓
+register аллокация
+↓
+стековый кадр layout
+↓
+pointer liveness
+↓
+obj.Prog
+↓
+assembler
+↓
+машинный код
+</code></pre></div>
+<p>Сейчас эта схема выглядит как каталог терминов.</p>
+<p>Наша задача — сделать из нее причинную модель.</p>
+<hr/>
+<h1 id="3">3. Разбор исходника: компилятору сначала нужно понять структуру<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span><span class="o">*</span><span class="nx">c</span>
+</code></pre></div>
+<p>Компилятору недостаточно строки:</p>
+<div class="highlight"><pre><span></span><code>result := a + b*c
+</code></pre></div>
+<p>Нужно понять:</p>
+<div class="highlight"><pre><span></span><code>assignment
+└── add
+    ├── a
+    └── multiply
+        ├── b
+        └── c
+</code></pre></div>
+<p>Иначе нельзя даже корректно применить приоритет операторов.</p>
+<hr/>
+<h1 id="4">4. Синтаксическое дерево еще почти повторяет исходник<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
+<p>На этом уровне узлы соответствуют знакомым конструкциям:</p>
+<div class="highlight"><pre><span></span><code>declaration
+assignment
+call
+if
+for
+return
+binary expression
+</code></pre></div>
+<p>Это еще очень высокий уровень.</p>
+<p>Про <code>mapaccess</code>, <code>growslice</code> и регистры речи нет.</p>
+<hr/>
+<h1 id="5">5. Проверка типов: одного синтаксиса уже недостаточно<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
+<p>Возьмем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">y</span>
+</code></pre></div>
+<p>Это что?</p>
+<div class="highlight"><pre><span></span><code>int + int?
+float64 + float64?
+string + string?
+generic operation?
+</code></pre></div>
+<p>Оператор один.</p>
+<p>Механика совершенно разная.</p>
+<p>Поэтому следующий слой:</p>
+<div class="highlight"><pre><span></span><code>syntax
++
+types
+</code></pre></div>
+<hr/>
+<h1 id="6">6. Тип — это уже информация для будущего машинного кода<a class="headerlink" href="#6" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="kt">int32</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">int64</span>
+</code></pre></div>
+<p>Компилятор знает:</p>
+<div class="highlight"><pre><span></span><code>размер
+signedness
+alignment
+operations
+representation
+</code></pre></div>
+<p>То есть тип в Go — не только проверка API.</p>
+<p>Он влияет на то, какие низкоуровневые операции вообще допустимы.</p>
+<hr/>
+<h1 id="7">7. Но синтаксическое дерево неудобно для всего компилятора<a class="headerlink" href="#7" title="Permanent link">¶</a></h1>
+<p>Исторически и архитектурно текущий <code>cmd/compile</code> имеет собственные:</p>
+<div class="highlight"><pre><span></span><code>компилятор types
+компилятор IR
+</code></pre></div>
+<p>После type checking выполняется переход к внутреннему представлению компилятора.</p>
+<p>Этот этап традиционно называется:</p>
+<div class="highlight"><pre><span></span><code>noding
+</code></pre></div>
+<p>В текущей архитектуре здесь участвует Unified IR.</p>
+<hr/>
+<h1 id="8-ir-ast">8. Зачем еще одно IR, если AST уже есть<a class="headerlink" href="#8-ir-ast" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>AST уже описывает программу. Зачем еще одна структура?</p>
+</blockquote>
+<p>Потому что задачи разные.</p>
+<p>Синтаксическое дерево удобно для:</p>
+<div class="highlight"><pre><span></span><code>что написал программист?
+</code></pre></div>
+<p>Middle end нужен для:</p>
+<div class="highlight"><pre><span></span><code>что компилятор уже доказал?
+что можно переписать?
+что можно удалить?
+какая функция вызывается?
+какие значения уходят за пределы текущего кадра?
+</code></pre></div>
+<p>И представление начинает отходить от исходного текста.</p>
+<hr/>
+<h1 id="9">9. После этого переменная из исходника уже не священна<a class="headerlink" href="#9" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">f</span><span class="p">()</span>
+<span class="nx">y</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="k">return</span><span class="w"> </span><span class="nx">y</span>
+</code></pre></div>
+<p>После оптимизаций может не остаться отдельных сущностей:</p>
+<div class="highlight"><pre><span></span><code>x
+y
+</code></pre></div>
+<p>как мы их видим в исходнике.</p>
+<p>Компилятору важна семантика.</p>
+<p>Не имена локальных переменных.</p>
+<hr/>
+<h1 id="10-middle-end">10. Middle end: вот здесь компилятор начинает доказывать свойства программы<a class="headerlink" href="#10-middle-end" title="Permanent link">¶</a></h1>
+<p>До этого в основном отвечали:</p>
+<div class="highlight"><pre><span></span><code>что написано?
+какие типы?
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>что можно доказать?
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>этот код никогда не выполнится
+эта функция достаточно мала для инлайнинга
+у этого интерфейсного receiver известен конкретный тип
+этот объект не переживает frame
+</code></pre></div>
+<p>То есть middle end — слой доказательств о программе.</p>
+<hr/>
+<h1 id="11">11. Раннее удаление мертвого кода<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">expensive</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Язык позволяет описать ветку.</p>
+<p>Но компилятор уже знает:</p>
+<div class="highlight"><pre><span></span><code>condition = false
+</code></pre></div>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>ветка недостижима
+↓
+ее можно удалить
+</code></pre></div>
+<p>В машинный код ее вообще не обязано существовать.</p>
+<hr/>
+<h1 id="12">12. Это первая важная мысль всей лекции<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>исходный код
+≠
+набор операций CPU
+</code></pre></div>
+<p>Некоторый исходный код может:</p>
+<div class="highlight"><pre><span></span><code>исчезнуть полностью
+</code></pre></div>
+<p>Другой:</p>
+<div class="highlight"><pre><span></span><code>развернуться в десятки операций
+</code></pre></div>
+<p>Третий:</p>
+<div class="highlight"><pre><span></span><code>превратиться в вызов рантайма
+</code></pre></div>
+<hr/>
+<h1 id="13-ssa">13. Девиртуализация появляется еще до SSA<a class="headerlink" href="#13-ssa" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">use</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Обычно:</p>
+<div class="highlight"><pre><span></span><code>конкретный тип receiver неизвестен
+→ динамический вызов
+</code></pre></div>
+<p>Но в конкретном месте компилятор может знать:</p>
+<div class="highlight"><pre><span></span><code>w = *bytes.Buffer
+</code></pre></div>
+<p>Тогда вызов через интерфейс можно переписать на конкретный method call.</p>
+<p>Это девиртуализация.</p>
+<p>Подробно к ней вернемся после SSA.</p>
+<hr/>
+<h1 id="14">14. Инлайнинг: вызов функции может исчезнуть<a class="headerlink" href="#14" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">()</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Наивная модель:</p>
+<div class="highlight"><pre><span></span><code>f
+↓
+CALL add
+↓
+RET
+</code></pre></div>
+<p>Но зачем?</p>
+<p>Компилятор может подставить тело:</p>
+<div class="highlight"><pre><span></span><code>10 + 20
+</code></pre></div>
+<p>А затем вообще вычислить:</p>
+<div class="highlight"><pre><span></span><code>30
+</code></pre></div>
+<hr/>
+<h1 id="15-call">15. Инлайнинг важен не только из-за цены <code>CALL</code><a class="headerlink" href="#15-call" title="Permanent link">¶</a></h1>
+<p>Экономия:</p>
+<div class="highlight"><pre><span></span><code>CALL / RET
+</code></pre></div>
+<p>часто вообще не главный выигрыш.</p>
+<p>Главное:</p>
+<div class="highlight"><pre><span></span><code>граница функции исчезла
+↓
+вызывающая функция видит тело вызываемая функция
+↓
+появились новые факты
+↓
+следующие оптимизации могут доказать больше
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>девиртуализация
+→ инлайнинг
+→ распространение констант
+→ мертвый код elimination
+</code></pre></div>
+<hr/>
+<h1 id="16-">16. Эскейп-анализ тоже зависит от решений компилятора<a class="headerlink" href="#16-" title="Permanent link">¶</a></h1>
+<p>Сам механизм stack/heap уже разобран в лекции по памяти.</p>
+<p>Здесь новый вопрос:</p>
+<blockquote>
+<p>Почему изменение оптимизаций компилятора способно изменить результат эскейп-анализа?</p>
+</blockquote>
+<p>Потому что компилятор reasoning зависит от того, какую программу он видит после преобразований.</p>
+<hr/>
+<h1 id="17">17. Инлайнинг способен сделать время жизни значения понятнее<a class="headerlink" href="#17" title="Permanent link">¶</a></h1>
+<p>Без инлайнинга:</p>
+<div class="highlight"><pre><span></span><code>вызывающая функция
+↓
+call вспомогательная функция
+↓
+граница анализа
+</code></pre></div>
+<p>После инлайнинга:</p>
+<div class="highlight"><pre><span></span><code>тело вспомогательная функция
+прямо здесь
+↓
+видно, куда реально уходит указатель
+</code></pre></div>
+<p>Некоторые значения после этого могут перестать уходить в хип.</p>
+<hr/>
+<h1 id="18">18. Поэтому аллокация — не всегда свойство одной строки<a class="headerlink" href="#18" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">T</span><span class="p">{}</span>
+</code></pre></div>
+<p>Физический результат может зависеть от:</p>
+<div class="highlight"><pre><span></span><code>место вызова
+решения по инлайнингу
+компилятор version
+контекста использования
+</code></pre></div>
+<p>Отсюда инженерное правило:</p>
+<blockquote>
+<p>Проверяем конкретный сборка, а не вспоминаем универсальное правило про синтаксис.</p>
+</blockquote>
+<hr/>
+<h1 id="19-middle-end-walk">19. После middle end приходит <code>walk</code><a class="headerlink" href="#19-middle-end-walk" title="Permanent link">¶</a></h1>
+<p>Вот здесь начинается особенно интересное.</p>
+<p>До <code>walk</code> программа все еще содержит много высокоуровневых Go-конструкций.</p>
+<p>Задача:</p>
+<div class="highlight"><pre><span></span><code>сделать их проще
+</code></pre></div>
+<p>чтобы следующие стадии работали уже не с каждой особенностью языка отдельно.</p>
+<hr/>
+<h1 id="20-walk">20. У <code>walk</code> две большие задачи<a class="headerlink" href="#20-walk" title="Permanent link">¶</a></h1>
+<p>Первая:</p>
+<div class="highlight"><pre><span></span><code>зафиксировать порядок вычислений
+</code></pre></div>
+<p>Вторая:</p>
+<div class="highlight"><pre><span></span><code>desugaring
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>сложная конструкция языка
+↓
+набор более примитивных операций
+</code></pre></div>
+<hr/>
+<h1 id="21">21. Почему порядок вычислений вообще нужно фиксировать<a class="headerlink" href="#21" title="Permanent link">¶</a></h1>
+<p>Возьмем условный код:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">dst</span><span class="p">[</span><span class="nx">f</span><span class="p">()]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">g</span><span class="p">()</span>
+</code></pre></div>
+<p>Здесь:</p>
+<div class="highlight"><pre><span></span><code>f()
+g()
+</code></pre></div>
+<p>могут иметь side effects.</p>
+<p>Компилятор не имеет права переставить observable behavior так, как ему случайно удобно.</p>
+<p>Поэтому он вводит temporaries и упрощает выражение, сохраняя семантику.</p>
+<hr/>
+<h1 id="22-walk">22. После <code>walk</code> код становится уродливее, но удобнее компилятору<a class="headerlink" href="#22-walk" title="Permanent link">¶</a></h1>
+<p>Программист любит:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>Компилятору удобнее:</p>
+<div class="highlight"><pre><span></span><code>вычислить map
+вычислить key
+подготовить тип
+вызвать конкретный вспомогательная функция
+загрузить результат
+</code></pre></div>
+<p>Чем меньше высокоуровневой магии осталось, тем проще следующие фазы.</p>
+<hr/>
+<h1 id="23-desugaring">23. Desugaring: как синтаксический сахар превращается в более примитивные операции<a class="headerlink" href="#23-desugaring" title="Permanent link">¶</a></h1>
+<p>Операции вроде:</p>
+<div class="highlight"><pre><span></span><code>map
+channel
+select
+</code></pre></div>
+<p>не обязаны оставаться самостоятельными конструкциями до машинный код.</p>
+<p>Компилятор заменяет их более примитивными операциями и вызовами рантайма.</p>
+<p>Вот здесь появляется стрелка:</p>
+<div class="highlight"><pre><span></span><code>Go syntax
+↓
+рантайм вспомогательная функция
+</code></pre></div>
+<p>которую мы до сих пор пропускали.</p>
+<hr/>
+<h1 id="24-append-lowering-call">24. Но <code>append</code> показывает, что lowering не обязательно равен одному <code>CALL</code><a class="headerlink" href="#24-append-lowering-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Можно было бы сделать:</p>
+<div class="highlight"><pre><span></span><code>CALL runtime.append
+</code></pre></div>
+<p>каждый раз.</p>
+<p>Но это было бы глупо.</p>
+<p>Частый случай:</p>
+<div class="highlight"><pre><span></span><code>cap хватает
+</code></pre></div>
+<p>можно выполнить прямо в сгенерированном коде.</p>
+<hr/>
+<h1 id="25">25. Поэтому уже сейчас фиксируем важную модель<a class="headerlink" href="#25" title="Permanent link">¶</a></h1>
+<p>Высокоуровневая операция может стать:</p>
+<div class="highlight"><pre><span></span><code>встроенный быстрый путь
++
+рантайм медленный путь
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>append
+├── емкости enough → local code
+└── емкости не хватает → runtime.growslice
+</code></pre></div>
+<p>Этот паттерн будет повторяться.</p>
+<hr/>
+<h1 id="26-ssa">26. Теперь появляется SSA<a class="headerlink" href="#26-ssa" title="Permanent link">¶</a></h1>
+<p>После <code>walk</code> программа уже достаточно упрощена.</p>
+<p>Но обычное дерево все еще не идеально для агрессивных оптимизаций.</p>
+<p>Нужна форма, в которой:</p>
+<div class="highlight"><pre><span></span><code>зависимости между вычислениями
+и control flow
+</code></pre></div>
+<p>видны максимально явно.</p>
+<p>Это SSA.</p>
+<hr/>
+<h1 id="27-ssa-static-single-assignment">27. SSA — Static Single Assignment<a class="headerlink" href="#27-ssa-static-single-assignment" title="Permanent link">¶</a></h1>
+<p>Название можно перевести слишком буквально и ничего не понять.</p>
+<p>Главный смысл:</p>
+<blockquote>
+<p>Каждое SSA-значение определяется ровно один раз.</p>
+</blockquote>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">1</span>
+<span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span>
+<span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">10</span>
+</code></pre></div>
+<p>Учебно SSA:</p>
+<div class="highlight"><pre><span></span><code>x1 = 1
+x2 = x1 + 2
+x3 = x2 * 10
+</code></pre></div>
+<hr/>
+<h1 id="28-ssa-">28. Зачем запрещать переопределение одного SSA-значения<a class="headerlink" href="#28-ssa-" title="Permanent link">¶</a></h1>
+<p>Обычная переменная:</p>
+<div class="highlight"><pre><span></span><code>x
+</code></pre></div>
+<p>в разные моменты означает разные значения.</p>
+<p>Чтобы понять:</p>
+<div class="highlight"><pre><span></span><code>какой x используется здесь?
+</code></pre></div>
+<p>нужно анализировать историю присваиваний.</p>
+<p>SSA превращает зависимости в явные ребра:</p>
+<div class="highlight"><pre><span></span><code>x1
+↓
+x2
+↓
+x3
+</code></pre></div>
+<p>Оптимизатору намного проще рассуждать.</p>
+<hr/>
+<h1 id="29-ssa">29. В SSA вообще нет обычного понятия локальной переменной<a class="headerlink" href="#29-ssa" title="Permanent link">¶</a></h1>
+<p>Это важно.</p>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>SSA = Go-код, только x переименовали в x1, x2
+</code></pre></div>
+<p>Нет.</p>
+<p>После преобразований:</p>
+<ul>
+<li>исходные переменные могут исчезнуть;</li>
+<li>одно выражение может стать несколькими SSA-значения;</li>
+<li>несколько исходных сущностей могут схлопнуться;</li>
+<li>часть значений вообще существует только как служебные состояния.</li>
+</ul>
+<p>SSA описывает вычисления.</p>
+<p>Не текст программы.</p>
+<hr/>
+<h1 id="30-ssa">30. Главные сущности SSA<a class="headerlink" href="#30-ssa" title="Permanent link">¶</a></h1>
+<p>Для этой лекции достаточно трех:</p>
+<div class="highlight"><pre><span></span><code>Value
+Block
+Memory
+</code></pre></div>
+<p>Плюс:</p>
+<div class="highlight"><pre><span></span><code>Phi
+</code></pre></div>
+<p>для слияния control flow.</p>
+<hr/>
+<h1 id="31-ssa-value">31. SSA <code>Value</code><a class="headerlink" href="#31-ssa-value" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>v4 = Add64 &lt;int&gt; v2 v3
+</code></pre></div>
+<p>Смысл:</p>
+<div class="highlight"><pre><span></span><code>взять v2
+взять v3
+сложить
+получить новое immutable value v4
+</code></pre></div>
+<p><code>v4</code> потом может использоваться сколько угодно.</p>
+<p>Но определится только один раз.</p>
+<hr/>
+<h1 id="32-ssa-">32. SSA-значение знает операцию и тип<a class="headerlink" href="#32-ssa-" title="Permanent link">¶</a></h1>
+<p>Условно:</p>
+<div class="highlight"><pre><span></span><code>OpAdd64
+&lt;int&gt;
+args: v2, v3
+</code></pre></div>
+<p>То есть компилятор уже находится намного ниже:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+</code></pre></div>
+<p>но еще выше конкретного:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">ADDQ</span><span class="w"> </span><span class="no">BX</span><span class="p">,</span><span class="w"> </span><span class="no">AX</span>
+</code></pre></div>
+<hr/>
+<h1 id="33-block">33. <code>Block</code><a class="headerlink" href="#33-block" title="Permanent link">¶</a></h1>
+<p>Функция — не просто список операций.</p>
+<p>Есть control flow.</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">f</span><span class="p">()</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">g</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>        block 1
+        x &gt; 0
+        /   \
+       /     \
+ block 2   block 3
+    f          g
+       \     /
+        \   /
+        block 4
+</code></pre></div>
+<p>Это control-flow graph.</p>
+<hr/>
+<h1 id="34">34. Базовый блок<a class="headerlink" href="#34" title="Permanent link">¶</a></h1>
+<p>Внутри basic block:</p>
+<div class="highlight"><pre><span></span><code>управление входит
+↓
+операции идут последовательно
+↓
+управление выходит по известному набору ребер
+</code></pre></div>
+<p>Нет произвольного прыжка в середину блока.</p>
+<p>Это удобная единица анализа.</p>
+<hr/>
+<h1 id="35-if-ssa">35. <code>if</code> в SSA<a class="headerlink" href="#35-if-ssa" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">choose</span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">10</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">20</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>b1:
+    vCond = Arg b
+    If vCond → b2 b3
+
+b2:
+    return 10
+
+b3:
+    return 20
+</code></pre></div>
+<p>Здесь уже почти нет исходного синтаксиса <code>if</code>.</p>
+<p>Есть control-flow graph.</p>
+<hr/>
+<h1 id="36">36. А что если обе ветки присваивают значение и потом сходятся<a class="headerlink" href="#36" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span>
+
+<span class="k">if</span><span class="w"> </span><span class="nx">cond</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span>
+<span class="p">}</span>
+
+<span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>SSA не может сделать:</p>
+<div class="highlight"><pre><span></span><code>x = 10
+x = 20
+</code></pre></div>
+<p>Один SSA-value нельзя переопределить.</p>
+<hr/>
+<h1 id="37-phi">37. Появляется <code>Phi</code><a class="headerlink" href="#37-phi" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>        cond
+       /    \
+    x1=10  x2=20
+       \    /
+        \  /
+      x3 = Phi(x1, x2)
+           │
+           ▼
+        x3 + 1
+</code></pre></div>
+<p><code>Phi</code> означает:</p>
+<blockquote>
+<p>Если пришли из левой ветки — возьми <code>x1</code>. Если из правой — <code>x2</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="38-phi-cpu">38. <code>Phi</code> — не инструкция CPU<a class="headerlink" href="#38-phi-cpu" title="Permanent link">¶</a></h1>
+<p>Нельзя открыть ассемблер и обязательно найти:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">PHI</span>
+</code></pre></div>
+<p>Такой инструкции нет.</p>
+<p>Это сущность промежуточного представления.</p>
+<p>Позже компилятор преобразует ее в нужное размещение values и control flow.</p>
+<hr/>
+<h1 id="39-ssa">39. Первый сильный плюс SSA: распространение констант<a class="headerlink" href="#39-ssa" title="Permanent link">¶</a></h1>
+<p>Пусть после других преобразований стало известно:</p>
+<div class="highlight"><pre><span></span><code>v2 = Const64 10
+v3 = Const64 20
+v4 = Add64 v2 v3
+</code></pre></div>
+<p>Компилятор может получить:</p>
+<div class="highlight"><pre><span></span><code>v4 = Const64 30
+</code></pre></div>
+<p>Операция сложения исчезла.</p>
+<hr/>
+<h1 id="40">40. Второй плюс: неиспользуемое значение видно явно<a class="headerlink" href="#40" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>v7
+</code></pre></div>
+<p>больше никто не использует и operation не имеет side effects:</p>
+<div class="highlight"><pre><span></span><code>v7 можно удалить
+</code></pre></div>
+<p>SSA dependency graph делает это намного проще.</p>
+<hr/>
+<h1 id="41">41. Но тут возникает неприятный вопрос<a class="headerlink" href="#41" title="Permanent link">¶</a></h1>
+<p>Если SSA-value определяется один раз:</p>
+<div class="highlight"><pre><span></span><code>как описать память?
+</code></pre></div>
+<p>Ведь:</p>
+<div class="highlight"><pre><span></span><code><span class="o">*</span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
+<span class="o">*</span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span>
+</code></pre></div>
+<p>меняет одну и ту же память.</p>
+<p>Значит обычных immutable values недостаточно.</p>
+<hr/>
+<h1 id="42-memory-ssa">42. <code>Memory</code> — специальный тип SSA<a class="headerlink" href="#42-memory-ssa" title="Permanent link">¶</a></h1>
+<p>У Go SSA есть служебный тип:</p>
+<div class="highlight"><pre><span></span><code>mem
+</code></pre></div>
+<p>Он означает:</p>
+<blockquote>
+<p>Состояние глобально наблюдаемой памяти после определенной последовательности side effects.</p>
+</blockquote>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>mem0
+↓
+Store(p, 10, mem0)
+↓
+mem1
+↓
+Store(p, 20, mem1)
+↓
+mem2
+</code></pre></div>
+<hr/>
+<h1 id="43-store-mem1">43. Почему второй <code>Store</code> зависит от <code>mem1</code><a class="headerlink" href="#43-store-mem1" title="Permanent link">¶</a></h1>
+<p>Если написать:</p>
+<div class="highlight"><pre><span></span><code>Store(p, 20, mem0)
+</code></pre></div>
+<p>то компилятор логически разрешил бы считать две записи независимыми.</p>
+<p>Но они не независимы.</p>
+<p>Вторая должна видеть состояние после первой.</p>
+<p>Цепочка <code>mem</code> запрещает незаконное переупорядочивание.</p>
+<hr/>
+<h1 id="44-load-memory">44. <code>Load</code> тоже зависит от Memory<a class="headerlink" href="#44-load-memory" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="o">*</span><span class="nx">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span>
+<span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">*</span><span class="nx">p</span>
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>mem0
+↓
+Store(p, 10) → mem1
+↓
+Load(p, mem1) → x
+</code></pre></div>
+<p>Если load зависел бы от старого <code>mem0</code>, можно было бы прочитать старое значение.</p>
+<hr/>
+<h1 id="45">45. Вызов функции тоже участвует в цепочке состояния памяти<a class="headerlink" href="#45" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">f</span><span class="p">()</span>
+</code></pre></div>
+<p>Если компилятор не доказал обратное, функция потенциально может:</p>
+<ul>
+<li>менять память;</li>
+<li>читать память;</li>
+<li>вызывать рантайм;</li>
+<li>паниковать.</li>
+</ul>
+<p>Поэтому call обычно производит новое состояние memory.</p>
+<hr/>
+<h1 id="46-ssa-backend-">46. Зачем модель памяти SSA нужна backend-разработчику<a class="headerlink" href="#46-ssa-backend-" title="Permanent link">¶</a></h1>
+<p>Оно объясняет:</p>
+<blockquote>
+<p>Почему компилятор не может просто переставлять любые операции ради красивого pipeline CPU.</p>
+</blockquote>
+<p>Оптимизация ограничена observable semantics.</p>
+<div class="highlight"><pre><span></span><code>dependency доказана?
+├── да → можно двигать
+└── нет → порядок нужно сохранить
+</code></pre></div>
+<hr/>
+<h1 id="47-ssa">47. После построения SSA начинается серия проходов<a class="headerlink" href="#47-ssa" title="Permanent link">¶</a></h1>
+<p>Теперь компилятор видит:</p>
+<div class="highlight"><pre><span></span><code>control flow
+data dependencies
+memory dependencies
+types
+константы
+</code></pre></div>
+<p>И может запускать анализы и переписывания.</p>
+<p>Нас интересуют не все passes.</p>
+<p>Только те, которые реально меняют модель стоимости backend-кода.</p>
+<hr/>
+<h1 id="48">48. Удаление мертвого кода<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
+<p>Если block недостижим:</p>
+<div class="highlight"><pre><span></span><code>удалить
+</code></pre></div>
+<p>Если value не используется и не имеет side effects:</p>
+<div class="highlight"><pre><span></span><code>удалить
+</code></pre></div>
+<p>Это значит:</p>
+<blockquote>
+<p>Большой кусок исходника может не попасть в binary path вообще.</p>
+</blockquote>
+<hr/>
+<h1 id="49">49. Вычисление констант на этапе компиляции<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">200</span>
+</code></pre></div>
+<p>Не нужен рантайм multiplication.</p>
+<p>Но важнее, что константы могут появиться <strong>после инлайнинга и других переписываний</strong>.</p>
+<p>Тогда folding срабатывает уже на коде, который в исходнике не выглядел константным.</p>
+<hr/>
+<h1 id="50-nil">50. Удаление лишних проверок <code>nil</code><a class="headerlink" href="#50-nil" title="Permanent link">¶</a></h1>
+<p>Язык требует корректного panic при недопустимом dereference.</p>
+<p>Он не требует:</p>
+<div class="highlight"><pre><span></span><code>перед каждым dereference
+→ отдельный CMP pointer, 0
+</code></pre></div>
+<p>Если компилятор уже доказал, что pointer non-nil, проверка лишняя.</p>
+<hr/>
+<h1 id="51-fault-cpu">51. Или fault CPU уже дает нужную семантику<a class="headerlink" href="#51-fault-cpu" title="Permanent link">¶</a></h1>
+<p>В некоторых случаях отдельная явная проверка <code>nil</code> тоже не нужна, если безопасный обращение к памяти сам гарантированно вызовет fault при nil так, как нужно рантайму.</p>
+<p>Конкретные формы — детали компилятора и архитектуры.</p>
+<p>Главная идея:</p>
+<div class="highlight"><pre><span></span><code>гарантия языка
+≠
+обязательная отдельная инструкция проверки
+</code></pre></div>
+<hr/>
+<h1 id="52">52. Проверки границ: один из лучших примеров доказательств компилятора<a class="headerlink" href="#52" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">sum</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">total</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">s</span><span class="p">);</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">s</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">total</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Семантически каждый:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span>
+</code></pre></div>
+<p>обязан паниковать, если:</p>
+<div class="highlight"><pre><span></span><code>i &lt; 0
+или
+i &gt;= len(s)
+</code></pre></div>
+<hr/>
+<h1 id="53">53. Наивный машинный код<a class="headerlink" href="#53" title="Permanent link">¶</a></h1>
+<p>В каждой итерации:</p>
+<div class="highlight"><pre><span></span><code>CMP i, len
+JAE panic
+LOAD s[i]
+</code></pre></div>
+<p>Но условие цикла уже говорит:</p>
+<div class="highlight"><pre><span></span><code>i &lt; len(s)
+</code></pre></div>
+<p>Зачем доказывать это снова?</p>
+<hr/>
+<h1 id="54">54. Удаление проверок границ<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
+<p>Компилятор может связать:</p>
+<div class="highlight"><pre><span></span><code>loop condition
+</code></pre></div>
+<p>с:</p>
+<div class="highlight"><pre><span></span><code>index expression
+</code></pre></div>
+<p>и доказать:</p>
+<div class="highlight"><pre><span></span><code>индекс всегда допустим
+</code></pre></div>
+<p>Тогда отдельный bounds-check исчезает.</p>
+<hr/>
+<h1 id="55">55. Семантика сохранилась, а инструкция исчезла<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
+<p>Это очень важный шаблон:</p>
+<div class="highlight"><pre><span></span><code>язык требует поведение
+↓
+компилятор доказал условие заранее
+↓
+рантайм check не нужен
+</code></pre></div>
+<p>То же мышление будет работать и для:</p>
+<ul>
+<li>проверка <code>nil</code>;</li>
+<li>type dispatch;</li>
+<li>ветка;</li>
+<li>аллокация;</li>
+<li>рантайм вспомогательная функция.</li>
+</ul>
+<hr/>
+<h1 id="56-bce">56. Где BCE ломается<a class="headerlink" href="#56-bce" title="Permanent link">¶</a></h1>
+<p>Например компилятор не смог связать сложное выражение:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">j</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">transform</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span>
+<span class="nx">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">s</span><span class="p">[</span><span class="nx">j</span><span class="p">]</span>
+</code></pre></div>
+<p>Если <code>transform</code> непрозрачна:</p>
+<div class="highlight"><pre><span></span><code>j &lt; len(s)?
+</code></pre></div>
+<p>не доказано.</p>
+<p>Проверка остается.</p>
+<hr/>
+<h1 id="57">57. Компилятор не обязан видеть «очевидное» так же, как человек<a class="headerlink" href="#57" title="Permanent link">¶</a></h1>
+<p>Разработчик смотрит и говорит:</p>
+<blockquote>
+<p>Ну очевидно же, что индекс безопасен.</p>
+</blockquote>
+<p>Компилятор отвечает:</p>
+<div class="highlight"><pre><span></span><code>покажи доказательство,
+которое поддерживает мой анализ
+</code></pre></div>
+<p>Если форма кода мешает proof:</p>
+<div class="highlight"><pre><span></span><code>проверка останется
+</code></pre></div>
+<p>Это не баг автоматически.</p>
+<hr/>
+<h1 id="58-bce">58. Как увидеть BCE<a class="headerlink" href="#58-bce" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-d=ssa/check_bce/debug=1'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Вывод показывает места, где компилятор оставил проверка границs.</p>
+<p>Не нужно гадать по исходнику.</p>
+<hr/>
+<h1 id="59-gossafunc">59. <code>GOSSAFUNC</code>: главный микроскоп лекции<a class="headerlink" href="#59-gossafunc" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nv">GOSSAFUNC</span><span class="o">=</span>sum<span class="w"> </span>go<span class="w"> </span>сборка
+</code></pre></div>
+<p>Компилятор генерирует:</p>
+<div class="highlight"><pre><span></span><code>ssa.html
+</code></pre></div>
+<p>Там можно смотреть функцию через стадии SSA.</p>
+<hr/>
+<h1 id="60-ssahtml">60. Почему <code>ssa.html</code> важнее огромного дампа ассемблера<a class="headerlink" href="#60-ssahtml" title="Permanent link">¶</a></h1>
+<p>Assembly показывает:</p>
+<div class="highlight"><pre><span></span><code>что получилось в конце
+</code></pre></div>
+<p>SSA помогает понять:</p>
+<div class="highlight"><pre><span></span><code>почему получилось именно так
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>ранняя проверка существовала
+↓
+prove получил факт
+↓
+после прохода проверка исчезла
+</code></pre></div>
+<p>Это гораздо полезнее, чем просто заметить отсутствие <code>CMP</code>.</p>
+<hr/>
+<h1 id="61-append">61. Теперь возвращаемся к <code>append</code><a class="headerlink" href="#61-append" title="Permanent link">¶</a></h1>
+<p>Это первый сквозной пример.</p>
+<p>В <code>4.1</code> мы начинали с:</p>
+<div class="highlight"><pre><span></span><code>cap закончился
+↓
+runtime.growslice
+</code></pre></div>
+<p>Но теперь спрашиваем:</p>
+<blockquote>
+<p>Кто проверил <code>cap</code> и кто решил, что <code>growslice</code> вообще нужен?</p>
+</blockquote>
+<p>Компилятор.</p>
+<hr/>
+<h1 id="62-append-call">62. <code>append</code> не превращается просто в <code>CALL</code><a class="headerlink" href="#62-append-call" title="Permanent link">¶</a></h1>
+<p>Для fixed-count <code>append</code> текущий SSA-generation path концептуально строит:</p>
+<div class="highlight"><pre><span></span><code>ptr, oldLen, cap := s
+newLen := oldLen + num
+
+if uint(newLen) &gt; uint(cap) {
+    ptr, newLen, cap =
+        runtime.growslice(ptr, newLen, cap, num, T)
+}
+
+записать новые элементы
+↓
+собрать новый slice descriptor
+</code></pre></div>
+<p>То есть рантайм нужен только на медленном пути.</p>
+<hr/>
+<h1 id="63-append">63. Быстрый путь <code>append</code><a class="headerlink" href="#63-append" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>newLen &lt;= cap
+</code></pre></div>
+<p>тогда:</p>
+<div class="highlight"><pre><span></span><code>никакой новой аллокации
+никакого growslice
+никакого копирования старого базового массива
+</code></pre></div>
+<p>Нужно только:</p>
+<div class="highlight"><pre><span></span><code>вычислить адрес
+↓
+записать новый элемент
+↓
+обновить len
+</code></pre></div>
+<hr/>
+<h1 id="64-cpu">64. Почему это меняет чтение профиля CPU<a class="headerlink" href="#64-cpu" title="Permanent link">¶</a></h1>
+<p>Если вы видите:</p>
+<div class="highlight"><pre><span></span><code>runtime.growslice
+</code></pre></div>
+<p>это не цена всех <code>append</code>.</p>
+<p>Это цена только тех:</p>
+<div class="highlight"><pre><span></span><code>append,
+которые перешли границу cap
+</code></pre></div>
+<p>Миллионы успешных fast-path <code>append</code> могут вообще не попадать в этот стек.</p>
+<hr/>
+<h1 id="65-append">65. Модель машинного кода для <code>append</code><a class="headerlink" href="#65-append" title="Permanent link">¶</a></h1>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>newLen = len + 1
+↓
+CMP newLen, cap
+↓
+JBE fast
+
+slow:
+CALL runtime.growslice
+
+fast:
+address = ptr + oldLen*sizeof(T)
+STORE x
+</code></pre></div>
+<p>Точные инструкции зависят от архитектуры.</p>
+<p>Но control flow по смыслу именно такой.</p>
+<hr/>
+<h1 id="66">66. Почему используется беззнаковое сравнение<a class="headerlink" href="#66" title="Permanent link">¶</a></h1>
+<p>Кроме обычной проверки емкости компилятор path должен корректно учитывать переполнение.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>newLen
+↓
+convert to unsigned for comparison
+↓
+compare with cap
+</code></pre></div>
+<p>Беззнаковое сравнение помогает объединить часть проверок.</p>
+<p>Мы не уходим в конкретный asm trick.</p>
+<p>Важно:</p>
+<blockquote>
+<p>Даже одна проверка <code>append</code> уже является результатом специально спроектированного lowering.</p>
+</blockquote>
+<hr/>
+<h1 id="67-appenddst-src">67. <code>append(dst, src...)</code> может идти другим путем подготовки<a class="headerlink" href="#67-appenddst-src" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">dst</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">dst</span><span class="p">,</span><span class="w"> </span><span class="nx">src</span><span class="p">...)</span>
+</code></pre></div>
+<p>Не обязан попадать в ровно тот же SSA generation path, что:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">e1</span><span class="p">,</span><span class="w"> </span><span class="nx">e2</span><span class="p">,</span><span class="w"> </span><span class="nx">e3</span><span class="p">)</span>
+</code></pre></div>
+<p>Часть таких форм переписывается раньше.</p>
+<p>Еще один урок:</p>
+<div class="highlight"><pre><span></span><code>одно имя builtin
+≠
+один компилятор path
+</code></pre></div>
+<hr/>
+<h1 id="68-go-127">68. Go 1.27 умеет сильнее оптимизировать базовый массив растущего среза<a class="headerlink" href="#68-go-127" title="Permanent link">¶</a></h1>
+<p>В текущем компиляторе есть отдельная оптимизация для некоторых срезов, у которых базовый массив:</p>
+<div class="highlight"><pre><span></span><code>растет через несколько append
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>выход за пределы функции происходит только в финальной точке
+</code></pre></div>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>промежуточные backing stores
+→ держать на стеке
+
+финальный результат
+→ move2heap
+</code></pre></div>
+<hr/>
+<h1 id="69">69. Зачем это нужно<a class="headerlink" href="#69" title="Permanent link">¶</a></h1>
+<p>Без оптимизации:</p>
+<div class="highlight"><pre><span></span><code>append
+→ growslice аллокация 1
+→ garbage
+
+append
+→ growslice аллокация 2
+→ garbage
+
+append
+→ growslice аллокация 3
+→ финальный срез уходит наружу
+</code></pre></div>
+<p>Можно сократить часть промежуточных аллокаций в хипе.</p>
+<hr/>
+<h1 id="70">70. Это хороший предел глубины<a class="headerlink" href="#70" title="Permanent link">¶</a></h1>
+<p>Мы <strong>не разбираем алгоритм этой оптимизации построчно</strong>.</p>
+<p>Нам важен вывод:</p>
+<blockquote>
+<p>Даже уже глубокая рантайм-модель <code>growslice → heap аллокация</code> может не описывать фактическую стратегию конкретной скомпилированной функции.</p>
+</blockquote>
+<p>Компилятор способен изменить placement до входа в рантайм.</p>
+<hr/>
+<h1 id="71-map">71. Теперь <code>map</code><a class="headerlink" href="#71-map" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>Из <code>4.1</code> мы знаем, что глубже:</p>
+<div class="highlight"><pre><span></span><code>hash
+↓
+Swiss Table
+↓
+matchH2
+↓
+probing
+</code></pre></div>
+<p>Но кто вызвал нужный map path?</p>
+<p>Компилятор.</p>
+<hr/>
+<h1 id="72-walk-map">72. <code>walk</code> превращает операцию <code>map</code> во вспомогательный вызов рантайма<a class="headerlink" href="#72-walk-map" title="Permanent link">¶</a></h1>
+<p>Высокоуровневое:</p>
+<div class="highlight"><pre><span></span><code>m[key]
+</code></pre></div>
+<p>после lowering компилятора превращается в вызов семейства вспомогательных функций <code>map</code>.</p>
+<p>Для формы:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+</code></pre></div>
+<p>нужен путь, возвращающий:</p>
+<div class="highlight"><pre><span></span><code>value
++
+found
+</code></pre></div>
+<hr/>
+<h1 id="73-map">73. Вспомогательная функция <code>map</code> зависит от операции<a class="headerlink" href="#73-map" title="Permanent link">¶</a></h1>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>lookup
+→ mapaccess*
+
+assignment
+→ mapassign*
+
+delete
+→ mapdelete*
+</code></pre></div>
+<p>То есть <code>map</code> не исполняется одной универсальной функцией на все случаи.</p>
+<hr/>
+<h1 id="74">74. Вспомогательная функция может специализироваться по типу ключа<a class="headerlink" href="#74" title="Permanent link">¶</a></h1>
+<p>Компилятор знает статический тип:</p>
+<div class="highlight"><pre><span></span><code>K
+</code></pre></div>
+<p>Для некоторых распространенных ключей можно выбрать специализированный вспомогательная функция.</p>
+<p>Например отдельные быстрые семейства существуют для:</p>
+<div class="highlight"><pre><span></span><code>32-bit keys
+64-bit keys
+string keys
+</code></pre></div>
+<p>Почему это выгодно?</p>
+<hr/>
+<h1 id="75">75. Зачем снова определять тип в рантайме, если компилятор уже его знает<a class="headerlink" href="#75" title="Permanent link">¶</a></h1>
+<p>Плохой дизайн:</p>
+<div class="highlight"><pre><span></span><code>m[key]
+↓
+generic рантайм
+↓
+снова понять тип key
+↓
+снова выбрать hashing path
+</code></pre></div>
+<p>Но тип уже известен при компиляции.</p>
+<p>Поэтому часть dispatch можно сделать раньше.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>compile-time specialization
++
+рантайм data structure
+</code></pre></div>
+<hr/>
+<h1 id="76-swiss-table">76. Это не отменяет алгоритм Swiss Table<a class="headerlink" href="#76-swiss-table" title="Permanent link">¶</a></h1>
+<p>Выбор вспомогательной функции компилятором отвечает на вопрос:</p>
+<div class="highlight"><pre><span></span><code>какой рантайм entry point использовать?
+</code></pre></div>
+<p>А <code>4.1</code> отвечает:</p>
+<div class="highlight"><pre><span></span><code>что этот рантайм path делает внутри map?
+</code></pre></div>
+<p>Два слоя складываются:</p>
+<div class="highlight"><pre><span></span><code>исходник m[key]
+↓
+компилятор вспомогательная функция selection
+↓
+рантайм map access
+↓
+Swiss Table
+↓
+CPU / memory
+</code></pre></div>
+<hr/>
+<h1 id="77-map-assignment">77. Map assignment<a class="headerlink" href="#77-map-assignment" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Компилятор должен получить место для значения.</p>
+<p>Путь рантайма:</p>
+<div class="highlight"><pre><span></span><code>найти существующий key
+или
+вставить новый
+↓
+вернуть адрес storage для value
+</code></pre></div>
+<p>А сгенерированный код затем записывает туда <code>value</code>.</p>
+<p>Если значение содержит указатели, дополнительно появляется связь с write barrier.</p>
+<hr/>
+<h1 id="78-delete">78. <code>delete</code><a class="headerlink" href="#78-delete" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nb">delete</span><span class="p">(</span><span class="nx">m</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">)</span>
+</code></pre></div>
+<p>Компилятор знает:</p>
+<div class="highlight"><pre><span></span><code>тип map
+тип key
+</code></pre></div>
+<p>и выбирает соответствующий рантайм deletion path.</p>
+<p>Внутри уже:</p>
+<div class="highlight"><pre><span></span><code>найти key
+↓
+управляющие метаданные
+↓
+empty/deleted decision
+</code></pre></div>
+<p>из <code>4.1</code>.</p>
+<hr/>
+<h1 id="79">79. Теперь интерфейсы<a class="headerlink" href="#79" title="Permanent link">¶</a></h1>
+<p>В <code>4.1</code> мы разобрали ABI:</p>
+<div class="highlight"><pre><span></span><code>empty interface
+→ Type + Data
+
+non-empty interface
+→ ITab + Data
+</code></pre></div>
+<p>Теперь вопрос:</p>
+<blockquote>
+<p>Кто собрал эти два слова?</p>
+</blockquote>
+<p>Компилятор.</p>
+<hr/>
+<h1 id="80">80. Конкретный тип → интерфейс<a class="headerlink" href="#80" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">v</span>
+</code></pre></div>
+<p>Компилятор знает:</p>
+<div class="highlight"><pre><span></span><code>конкретный тип T
+</code></pre></div>
+<p>Нужно сформировать:</p>
+<div class="highlight"><pre><span></span><code>type word
++
+data word
+</code></pre></div>
+<p>Текущий <code>walkConvInterface</code> буквально строит внутреннюю операцию:</p>
+<div class="highlight"><pre><span></span><code>OMAKEFACE
+</code></pre></div>
+<p>из этих двух частей.</p>
+<hr/>
+<h1 id="81-abi-41">81. ABI из <code>4.1</code> теперь перестает быть картинкой<a class="headerlink" href="#81-abi-41" title="Permanent link">¶</a></h1>
+<p>В <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>Type / ITab
++
+Data
+</code></pre></div>
+<p>В <code>4.3</code>:</p>
+<div class="highlight"><pre><span></span><code>lowering компилятора
+↓
+создать именно эти слова
+</code></pre></div>
+<p>То есть representation — договор между:</p>
+<div class="highlight"><pre><span></span><code>компилятор
+↔
+рантайм
+</code></pre></div>
+<hr/>
+<h1 id="82-data-t">82. Слово <code>Data</code> зависит от конкретного <code>T</code><a class="headerlink" href="#82-data-t" title="Permanent link">¶</a></h1>
+<p>Если значение удобно представить непосредственно:</p>
+<div class="highlight"><pre><span></span><code>один путь
+</code></pre></div>
+<p>Если нужна косвенная память:</p>
+<div class="highlight"><pre><span></span><code>другой путь
+</code></pre></div>
+<p>Для некоторых скалярных случаев компилятор/рантайм имеют специализированные вспомогательные функции преобразования.</p>
+<p>Поэтому одна запись:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">any</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+</code></pre></div>
+<p>не задает единую физическую стоимость.</p>
+<hr/>
+<h1 id="83">83. Преобразование к интерфейсу не доказывает аллокацию<a class="headerlink" href="#83" title="Permanent link">¶</a></h1>
+<p>Нужно спрашивать:</p>
+<div class="highlight"><pre><span></span><code>какой T?
+↓
+direct/indirect representation?
+↓
+escape?
+↓
+контекст инлайнинга?
+↓
+вспомогательная функция?
+↓
+stack или heap storage?
+</code></pre></div>
+<p>Только потом:</p>
+<div class="highlight"><pre><span></span><code>аллокация?
+</code></pre></div>
+<hr/>
+<h1 id="84-m2">84. И вот здесь нужен <code>-m=2</code><a class="headerlink" href="#84-m2" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-m=2'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>что инлайнится?
+что не инлайнится?
+что уходит в хип?
+почему уходит в хип?
+</code></pre></div>
+<p>Не пытаемся угадывать аллокация из syntax.</p>
+<hr/>
+<h1 id="85">85. Вызов метода через интерфейс<a class="headerlink" href="#85" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+</code></pre></div>
+<p>Если компилятор оставляет динамический вызов:</p>
+<div class="highlight"><pre><span></span><code>interface value
+↓
+ITab
+↓
+Fun slot
+↓
+косвенный вызов
+</code></pre></div>
+<p>Это уже знакомо.</p>
+<p>Но теперь начинается самое интересное.</p>
+<hr/>
+<h1 id="86-receiver">86. Что если конкретный тип receiver известен<a class="headerlink" href="#86-receiver" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>после предыдущих преобразований
+компилятор доказал:
+w всегда *bytes.Buffer
+</code></pre></div>
+<p>Тогда indirect dispatch лишний.</p>
+<p>Можно переписать:</p>
+<div class="highlight"><pre><span></span><code>w.Write(buf)
+</code></pre></div>
+<p>на:</p>
+<div class="highlight"><pre><span></span><code>(*bytes.Buffer).Write(...)
+</code></pre></div>
+<hr/>
+<h1 id="87">87. Статическая девиртуализация<a class="headerlink" href="#87" title="Permanent link">¶</a></h1>
+<p>Текущий компилятор имеет отдельный pass:</p>
+<div class="highlight"><pre><span></span><code>static девиртуализация
+</code></pre></div>
+<p>Смысл:</p>
+<div class="highlight"><pre><span></span><code>вызов через интерфейс
+↓
+конкретная вызываемая функция известна статически
+↓
+заменить на прямой вызов
+</code></pre></div>
+<p>Это уже не рантайм optimization.</p>
+<p>Механика интерфейсов рантайма просто не понадобится в этом месте.</p>
+<hr/>
+<h1 id="88">88. Самый важный эффект девиртуализации — не одна ветка<a class="headerlink" href="#88" title="Permanent link">¶</a></h1>
+<p>Можно подумать:</p>
+<div class="highlight"><pre><span></span><code>косвенный вызов
+→ прямой вызов
+</code></pre></div>
+<p>экономит только один косвенный переход.</p>
+<p>Но настоящий выигрыш часто:</p>
+<div class="highlight"><pre><span></span><code>прямой вызов
+↓
+инлайнер видит конкретную функцию
+↓
+возможен инлайнинг
+↓
+в вызывающая функция попадает тело
+↓
+следующие оптимизации видят больше
+</code></pre></div>
+<hr/>
+<h1 id="89">89. Цепочка усиления оптимизаций<a class="headerlink" href="#89" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>девиртуализация
+↓
+инлайнинг
+↓
+распространяются константы
+↓
+ветки схлопываются
+↓
+эскейп-анализ получает больше фактов
+↓
+проверка границs disappear
+↓
+мертвый код disappears
+</code></pre></div>
+<p>Это ключевая компилятор-модель.</p>
+<p>Оптимизации взаимодействуют.</p>
+<hr/>
+<h1 id="90">90. Нельзя оценивать проход оптимизации только локально<a class="headerlink" href="#90" title="Permanent link">¶</a></h1>
+<p>Например прямой вызов сам по себе дал маленький выигрыш.</p>
+<p>Но после инлайнинга внезапно исчезли:</p>
+<div class="highlight"><pre><span></span><code>аллокация
+преобразование к интерфейсу
+проверка границ
+</code></pre></div>
+<p>И общий эффект стал намного больше.</p>
+<hr/>
+<h1 id="91">91. А если конкретный тип статически неизвестен<a class="headerlink" href="#91" title="Permanent link">¶</a></h1>
+<p>Пусть интерфейс реально полиморфный.</p>
+<p>Но профиль production-нагрузки показывает:</p>
+<div class="highlight"><pre><span></span><code>Foo = 99%
+Bar = 0.7%
+Baz = 0.3%
+</code></pre></div>
+<p>Можно использовать профиль.</p>
+<hr/>
+<h1 id="92-pgo-">92. PGO-девиртуализация<a class="headerlink" href="#92-pgo-" title="Permanent link">¶</a></h1>
+<p>Текущий компилятор умеет девиртуализацию на основе профиля.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>тип receiver == Foo?
+├── да → direct Foo.Method
+└── нет → original indirect вызов через интерфейс
+</code></pre></div>
+<p>То есть generic path сохраняется.</p>
+<p>Но горячий случай получает прямой вызов.</p>
+<hr/>
+<h1 id="93-pgo">93. PGO добавляет работу, чтобы потом убрать больше работы<a class="headerlink" href="#93-pgo" title="Permanent link">¶</a></h1>
+<p>Добавилось:</p>
+<div class="highlight"><pre><span></span><code>type/вызываемая функция check
++
+ветка
+</code></pre></div>
+<p>Зато горячий путь получил:</p>
+<div class="highlight"><pre><span></span><code>прямой вызов
+→ возможно инлайн
+</code></pre></div>
+<p>Оптимизация тоже имеет цену.</p>
+<p>Она оправдана статистикой профиля.</p>
+<hr/>
+<h1 id="94-pgo-">94. Почему устаревший PGO-профиль может вредить<a class="headerlink" href="#94-pgo-" title="Permanent link">¶</a></h1>
+<p>Если нагрузка изменился:</p>
+<div class="highlight"><pre><span></span><code>раньше Foo 99%
+теперь Foo 20%
+</code></pre></div>
+<p>Компилятор все еще может строить быстрый путь под старую горячую цель вызова.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>лишняя проверка
++
+частый резервный путь
+</code></pre></div>
+<p>Поэтому PGO — не магическая кнопка.</p>
+<p>Профиль должен соответствовать реальной нагрузке.</p>
+<hr/>
+<h1 id="95">95. Утверждение типа к конкретному типу<a class="headerlink" href="#95" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">User</span><span class="p">)</span>
+</code></pre></div>
+<p>В <code>4.1</code> модель:</p>
+<div class="highlight"><pre><span></span><code>dynamic type
+==
+User?
+</code></pre></div>
+<p>Компилятор может реализовать горячий путь близко к:</p>
+<div class="highlight"><pre><span></span><code>load type word
+сравнить с целевым типом
+ветка
+</code></pre></div>
+<p>Без полной общей механики проверки совместимости интерфейсов.</p>
+<hr/>
+<h1 id="96">96. Утверждение типа к интерфейсу<a class="headerlink" href="#96" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span>
+</code></pre></div>
+<p>Здесь вопрос сложнее:</p>
+<div class="highlight"><pre><span></span><code>dynamic конкретный тип
+реализует целевой интерфейс?
+</code></pre></div>
+<p>Нужен <code>ITab</code>/assertion-cache path.</p>
+<p>Но компилятор все равно может сгенерировать быстрый путь перед общим вспомогательная функция.</p>
+<hr/>
+<h1 id="97-xt">97. Поэтому <code>x.(T)</code> — не одна универсальная операция<a class="headerlink" href="#97-xt" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>T concrete
+→ одна задача
+
+T interface
+→ другая задача
+</code></pre></div>
+<p>А после компилятор optimization конкретный путь может быть еще уже.</p>
+<hr/>
+<h1 id="98-42">98. Теперь каналы: замыкаем <code>4.2</code><a class="headerlink" href="#98-42" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">v</span>
+</code></pre></div>
+<p>В <code>4.2</code> стартовали сразу:</p>
+<div class="highlight"><pre><span></span><code>chansend
+</code></pre></div>
+<p>Теперь предыдущая стрелка:</p>
+<div class="highlight"><pre><span></span><code>send syntax
+↓
+walk / lowering
+↓
+runtime.chansend*
+</code></pre></div>
+<hr/>
+<h1 id="99">99. Почему операция с каналом уходит в рантайм<a class="headerlink" href="#99" title="Permanent link">¶</a></h1>
+<p>Общая операция должна учитывать:</p>
+<ul>
+<li>nil channel;</li>
+<li>closed state;</li>
+<li>waiting side;</li>
+<li>buffer;</li>
+<li>wait queues;</li>
+<li>park/wakeup;</li>
+<li>race synchronization;</li>
+<li>profiling;</li>
+<li>GC-aware copy.</li>
+</ul>
+<p>Слишком много динамического состояния.</p>
+<p>Большая часть протокола естественно живет в рантайме.</p>
+<hr/>
+<h1 id="100-t">100. Но компилятор все равно знает тип T<a class="headerlink" href="#100-t" title="Permanent link">¶</a></h1>
+<p>Он может заранее подготовить:</p>
+<div class="highlight"><pre><span></span><code>адрес отправляемого значения
+типизированную форму вызова
+нужные temporaries
+</code></pre></div>
+<p>А рантайм уже работает с <code>hchan</code> и конкретным адресом элемента.</p>
+<hr/>
+<h1 id="101">101. Получение из канала устроено аналогично на уровне компилятора<a class="headerlink" href="#101" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>Lowering компилятора:</p>
+<div class="highlight"><pre><span></span><code>подготовить destination
+↓
+рантайм receive вспомогательная функция
+↓
+получить selected/received state при нужной форме
+</code></pre></div>
+<p>А внутри:</p>
+<div class="highlight"><pre><span></span><code>waiting sender?
+buffer?
+closed?
+park?
+</code></pre></div>
+<p>из <code>4.2</code>.</p>
+<hr/>
+<h1 id="102">102. Почему общий вызов канала трудно полностью убрать компилятором<a class="headerlink" href="#102" title="Permanent link">¶</a></h1>
+<p>Если канал реальный и конкурентный:</p>
+<div class="highlight"><pre><span></span><code>его state меняют другие goroutines
+</code></pre></div>
+<p>Компилятор не может статически доказать:</p>
+<div class="highlight"><pre><span></span><code>получатель обязательно есть
+buffer обязательно свободен
+channel никогда не закроют
+</code></pre></div>
+<p>в общем случае.</p>
+<p>Координация через рантайм остается.</p>
+<hr/>
+<h1 id="103-select">103. Но <code>select</code> показывает, что компилятор способен убрать большую часть механики рантайма<a class="headerlink" href="#103-select" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>Обычная модель <code>selectgo</code> здесь избыточна.</p>
+<p>Cases вообще нет.</p>
+<p>Компилятор знает ответ заранее:</p>
+<div class="highlight"><pre><span></span><code>block forever
+</code></pre></div>
+<hr/>
+<h1 id="104-select-case">104. <code>select</code> без <code>case</code><a class="headerlink" href="#104-select-case" title="Permanent link">¶</a></h1>
+<p>Текущий <code>walkSelect</code> переписывает:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>в специализированный blocking path.</p>
+<p>Не нужны:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+lockOrder
+scases
+selectgo
+</code></pre></div>
+<hr/>
+<h1 id="105-select-case">105. <code>select</code> с одним <code>case</code><a class="headerlink" href="#105-select-case" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Семантически это просто:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+<span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+</code></pre></div>
+<p>Никакого выбора между несколькими operations нет.</p>
+<p>Текущий компилятор так и упрощает этот случай.</p>
+<hr/>
+<h1 id="106">106. Вот где простая ментальная модель ломается еще раз<a class="headerlink" href="#106" title="Permanent link">¶</a></h1>
+<p>Исходник содержит слово:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span>
+</code></pre></div>
+<p>Но машинный код может вообще не содержать:</p>
+<div class="highlight"><pre><span></span><code>runtime.selectgo
+</code></pre></div>
+<p>Потому что компилятор доказал более простую эквивалентную форму.</p>
+<hr/>
+<h1 id="107-case-default">107. Один коммуникационный <code>case</code> + <code>default</code><a class="headerlink" href="#107-case-default" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+<span class="k">default</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Это:</p>
+<div class="highlight"><pre><span></span><code>non-blocking receive
+</code></pre></div>
+<p>Компилятор может использовать специализированный неблокирующий channel path.</p>
+<p>Опять без общего multi-case <code>selectgo</code>.</p>
+<hr/>
+<h1 id="108-select-42">108. И только общий <code>select</code> получает всю механику <code>4.2</code><a class="headerlink" href="#108-select-42" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Нужно подготовить:</p>
+<div class="highlight"><pre><span></span><code>scases
+order arrays
+case values
+</code></pre></div>
+<p>и вызвать:</p>
+<div class="highlight"><pre><span></span><code>runtime.selectgo
+</code></pre></div>
+<p>После этого вступают:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+lockOrder
+проходы 1/2/3
+selectDone
+</code></pre></div>
+<p>из <code>4.2</code>.</p>
+<hr/>
+<h1 id="109">109. Это идеальный сквозной пример курса<a class="headerlink" href="#109" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go syntax
+↓
+компилятор classifies select
+↓
+simple?
+├── да → специализированный lowering
+└── нет
+    ↓
+    runtime.selectgo
+    ↓
+    hchan locks / sudog / scheduler
+    ↓
+    CPU
+</code></pre></div>
+<p>Одна конструкция проходит весь стек курса.</p>
+<hr/>
+<h1 id="110">110. Возвращаемся к инлайнингу глубже<a class="headerlink" href="#110" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>Inlining нужен только для маленьких getter'ов.</p>
+</blockquote>
+<p>На практике инлайнинг — способ удалить optimization boundary.</p>
+<p>После него компилятор получает возможность доказать факты между функциями.</p>
+<hr/>
+<h1 id="111">111. Пример: вспомогательная функция скрывает константу<a class="headerlink" href="#111" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">limit</span><span class="p">()</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">16</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">limit</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">s</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Без инлайнинга:</p>
+<div class="highlight"><pre><span></span><code>limit()
+→ call
+</code></pre></div>
+<p>После инлайнинга:</p>
+<div class="highlight"><pre><span></span><code>limit() → 16
+</code></pre></div>
+<p>И proof для проверка границ становится проще.</p>
+<hr/>
+<h1 id="112-">112. Инлайнинг может повлиять на эскейп-анализ<a class="headerlink" href="#112-" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">вспомогательная</span><span class="w"> </span><span class="nx">функция</span><span class="p">(</span><span class="nx">p</span><span class="w"> </span><span class="o">*</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">useLocally</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если body известен:</p>
+<div class="highlight"><pre><span></span><code>pointer не сохраняется
+</code></pre></div>
+<p>Caller analysis может быть точнее.</p>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>решение об инлайнинге
+→ аллокация decision
+</code></pre></div>
+<hr/>
+<h1 id="113">113. У инлайнинга есть бюджет<a class="headerlink" href="#113" title="Permanent link">¶</a></h1>
+<p>Почему не подставить все функции во все вызывающая функцияs?</p>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>binary code size ↑
+compile time ↑
+instruction cache pressure ↑
+</code></pre></div>
+<p>И рекурсия создает очевидные проблемы.</p>
+<p>Нужны эвристики и бюджеты.</p>
+<hr/>
+<h1 id="114">114. Конкретный бюджет инлайнинга — не контракт<a class="headerlink" href="#114" title="Permanent link">¶</a></h1>
+<p>Он меняется между версиями Go.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>эта функция инлайнится сегодня
+</code></pre></div>
+<p>не означает:</p>
+<div class="highlight"><pre><span></span><code>обязана инлайниться всегда
+</code></pre></div>
+<p>Прикладной код не должен зависеть от этого для корректности.</p>
+<hr/>
+<h1 id="115">115. Как увидеть решения по инлайнингу<a class="headerlink" href="#115" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-m=2'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Компилятор пишет:</p>
+<div class="highlight"><pre><span></span><code>can инлайн ...
+cannot инлайн ...
+инлайнинг call to ...
+</code></pre></div>
+<p>Это надежнее рассуждения:</p>
+<blockquote>
+<p>Функция маленькая, наверное инлайнится.</p>
+</blockquote>
+<hr/>
+<h1 id="116">116. Отключаем инлайнинг как эксперимент<a class="headerlink" href="#116" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-bench<span class="o">=</span>.<span class="w"> </span>-benchmem<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-l'</span>
+</code></pre></div>
+<p>Сравниваем:</p>
+<div class="highlight"><pre><span></span><code>обычный сборка
+vs
+без инлайнинг
+</code></pre></div>
+<p>Если появились аллокации или изменился CPU:</p>
+<div class="highlight"><pre><span></span><code>граница функции реально влияла на цепочку оптимизаций
+</code></pre></div>
+<hr/>
+<h1 id="117-intrinsics">117. Еще одна оптимизация компилятора: intrinsics<a class="headerlink" href="#117-intrinsics" title="Permanent link">¶</a></h1>
+<p>Некоторые функции компилятор знает специально.</p>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>в исходнике CALL foo
+→ в ассемблер CALL foo
+</code></pre></div>
+<p>Не обязательно.</p>
+<p>Компилятор может сказать:</p>
+<div class="highlight"><pre><span></span><code>я знаю семантику этой функции
+↓
+заменю ее на SSA operations
+</code></pre></div>
+<p>Это intrinsic.</p>
+<hr/>
+<h1 id="118-intrinsics">118. Зачем intrinsics<a class="headerlink" href="#118-intrinsics" title="Permanent link">¶</a></h1>
+<p>Операция может:</p>
+<ul>
+<li>иметь прямую CPU instruction;</li>
+<li>иметь эффективную SIMD-реализацию;</li>
+<li>быть удобной для дальнейших SSA rewrites;</li>
+<li>не нуждаться в полноценном вызов функции.</li>
+</ul>
+<hr/>
+<h1 id="119-matchh2-41">119. Вот теперь закрывается долг <code>matchH2</code> из <code>4.1</code><a class="headerlink" href="#119-matchh2-41" title="Permanent link">¶</a></h1>
+<p>В <code>4.1</code> мы говорили:</p>
+<div class="highlight"><pre><span></span><code>portable matchH2
+→ арифметика над uint64
+</code></pre></div>
+<p>Но на amd64 реальный машинный путь может использовать SIMD/intrinsic.</p>
+<p>Теперь цепочка понятна:</p>
+<div class="highlight"><pre><span></span><code>исходник/вспомогательная функция semantics
+↓
+компилятор recognizes intrinsic
+↓
+SSA op / rewrite
+↓
+архитектурный lowering
+↓
+SIMD instructions
+</code></pre></div>
+<hr/>
+<h1 id="120">120. Чтение исходника вспомогательной функции — не всегда чтение фактического машинного пути<a class="headerlink" href="#120" title="Permanent link">¶</a></h1>
+<p>Можно открыть Go исходник:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">F</span><span class="p">(...)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>и посчитать операции.</p>
+<p>Но компилятор:</p>
+<div class="highlight"><pre><span></span><code>инлайн
+rewrite
+intrinsic
+вычислить константу
+</code></pre></div>
+<p>может полностью изменить результат.</p>
+<p>Если производительность критична:</p>
+<div class="highlight"><pre><span></span><code>исходник
+→ SSA
+→ ассемблер
+</code></pre></div>
+<hr/>
+<h1 id="121-generic-ssa-amd64-arm64">121. Generic SSA пока не привязан к amd64 или arm64<a class="headerlink" href="#121-generic-ssa-amd64-arm64" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Add64
+Load
+Store
+Less64
+</code></pre></div>
+<p>описывают смысл операций.</p>
+<p>Но это еще не обязательно:</p>
+<div class="highlight"><pre><span></span><code><span class="nf">ADDQ</span>
+<span class="nf">LDR</span>
+<span class="nf">STR</span>
+<span class="nf">CMP</span>
+</code></pre></div>
+<p>конкретной ISA.</p>
+<hr/>
+<h1 id="122-ssa">122. Зачем разделять общий и архитектурно-зависимый SSA<a class="headerlink" href="#122-ssa" title="Permanent link">¶</a></h1>
+<p>Плохой дизайн:</p>
+<div class="highlight"><pre><span></span><code>каждую оптимизацию
+реализовать отдельно для amd64
+реализовать отдельно для arm64
+реализовать отдельно для riscv64
+...
+</code></pre></div>
+<p>Хотя большая часть математических фактов не зависит от ISA.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>x + 0 = x
+</code></pre></div>
+<p>одинаково верно на всех архитектурах.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>сначала общие доказательства
+↓
+потом физика конкретной ISA
+</code></pre></div>
+<hr/>
+<h1 id="123-lower">123. Потом приходит <code>lower</code><a class="headerlink" href="#123-lower" title="Permanent link">¶</a></h1>
+<p><code>lower</code> означает:</p>
+<div class="highlight"><pre><span></span><code>общий SSA operations
+↓
+архитектурно-зависимые операции
+</code></pre></div>
+<p>Например generic:</p>
+<div class="highlight"><pre><span></span><code>Load
+Add64
+Store
+</code></pre></div>
+<p>на конкретной архитектуре могут быть объединены или представлены иначе.</p>
+<hr/>
+<h1 id="124-amd64">124. amd64 и операнды в памяти<a class="headerlink" href="#124-amd64" title="Permanent link">¶</a></h1>
+<p>x86-64 умеет выполнять часть arithmetic operations непосредственно с операндом из памяти.</p>
+<p>Поэтому цепочка:</p>
+<div class="highlight"><pre><span></span><code>load
+↓
+add
+</code></pre></div>
+<p>иногда может схлопнуться в одну architecture-specific operation.</p>
+<p>На другой ISA такой формы может не быть.</p>
+<hr/>
+<h1 id="125-arm64">125. ARM64 имеет другую модель инструкций<a class="headerlink" href="#125-arm64" title="Permanent link">¶</a></h1>
+<p>ARM64 чаще явно разделяет:</p>
+<div class="highlight"><pre><span></span><code>load
+operation
+store
+</code></pre></div>
+<p>хотя сама ISA тоже имеет богатый набор addressing modes и специализированных инструкций.</p>
+<p>Главное не сравнивать:</p>
+<div class="highlight"><pre><span></span><code>число инструкций x86
+vs
+число инструкций ARM
+</code></pre></div>
+<p>как прямую меру скорости.</p>
+<p>Разные инструкции имеют разную семантику и стоимость.</p>
+<hr/>
+<h1 id="126-go-lowering">126. Один Go-исходник → два разных графа после lowering<a class="headerlink" href="#126-go-lowering" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go исходник
+↓
+общий SSA
+        │
+        ├── GOARCH=amd64
+        │      ↓
+        │   amd64 SSA
+        │
+        └── GOARCH=arm64
+               ↓
+            arm64 SSA
+</code></pre></div>
+<p>До развилки общая логика могла быть почти одинаковой.</p>
+<p>После нее — уже нет.</p>
+<hr/>
+<h1 id="127-cpu-architecture">127. Это прямой мост к лекции CPU architecture<a class="headerlink" href="#127-cpu-architecture" title="Permanent link">¶</a></h1>
+<p>Мы уже разбирали:</p>
+<div class="highlight"><pre><span></span><code>ISA
+microarchitecture
+cache
+memory ordering
+x86-64
+ARM64
+</code></pre></div>
+<p>Теперь видно, где ISA входит в компилятор pipeline:</p>
+<div class="highlight"><pre><span></span><code>общий SSA
+↓
+architecture-specific lowering
+↓
+машинный код
+↓
+microarchitecture
+</code></pre></div>
+<hr/>
+<h1 id="128-rewrite-rules">128. Правила переписывания (rewrite rules)<a class="headerlink" href="#128-rewrite-rules" title="Permanent link">¶</a></h1>
+<p>Много простых оптимизаций удобно задавать как:</p>
+<div class="highlight"><pre><span></span><code>pattern
+→ replacement
+</code></pre></div>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>x + 0
+→ x
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>x * 1
+→ x
+</code></pre></div>
+<hr/>
+<h1 id="129-if">129. Зачем правила переписывания вместо огромного <code>if</code><a class="headerlink" href="#129-if" title="Permanent link">¶</a></h1>
+<p>Пусть у нас тысячи локальных algebraic transformations.</p>
+<p>Если писать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">op</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nx">Add64</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">right</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">...</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>для каждой комбинации, код оптимизатора быстро превращается в нечитаемую стену.</p>
+<p>Rewrite rules позволяют описывать:</p>
+<div class="highlight"><pre><span></span><code>что ищем
+↓
+на что заменяем
+</code></pre></div>
+<p>отдельно от механики обхода SSA.</p>
+<hr/>
+<h1 id="130">130. Но правило переписывания не заменяет сложный анализ<a class="headerlink" href="#130" title="Permanent link">¶</a></h1>
+<p>Простое:</p>
+<div class="highlight"><pre><span></span><code>x &amp; 0
+→ 0
+</code></pre></div>
+<p>идеально.</p>
+<p>Но вопрос:</p>
+<div class="highlight"><pre><span></span><code>может ли i в этом цикле когда-нибудь стать &gt;= len(s)?
+</code></pre></div>
+<p>требует анализа control flow и диапазонов.</p>
+<p>Для этого нужны специализированные passes вроде <code>prove</code>.</p>
+<hr/>
+<h1 id="131">131. Почему переписывания применяются повторно<a class="headerlink" href="#131" title="Permanent link">¶</a></h1>
+<p>Одно преобразование может открыть следующее.</p>
+<div class="highlight"><pre><span></span><code>A
+↓
+rewrite
+B
+↓
+rewrite
+C
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>(x + 0) * 1
+</code></pre></div>
+<p>сначала:</p>
+<div class="highlight"><pre><span></span><code>x * 1
+</code></pre></div>
+<p>потом:</p>
+<div class="highlight"><pre><span></span><code>x
+</code></pre></div>
+<p>Поэтому <code>lower</code> применяет machine-specific rewrite rules до устойчивого состояния.</p>
+<hr/>
+<h1 id="132-lowering-ssa-cpu">132. После lowering SSA уже ближе к физическому CPU<a class="headerlink" href="#132-lowering-ssa-cpu" title="Permanent link">¶</a></h1>
+<p>Но остается новая проблема.</p>
+<p>SSA-значения:</p>
+<div class="highlight"><pre><span></span><code>десятки
+сотни
+</code></pre></div>
+<p>Физических registers:</p>
+<div class="highlight"><pre><span></span><code>намного меньше
+</code></pre></div>
+<p>Нужно распределить значения.</p>
+<hr/>
+<h1 id="133">133. Распределение регистров<a class="headerlink" href="#133" title="Permanent link">¶</a></h1>
+<p>Задача:</p>
+<div class="highlight"><pre><span></span><code>какое SSA value
+↓
+в каком физическом register
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>что делать,
+если registers закончились
+</code></pre></div>
+<hr/>
+<h1 id="134-ssa-live-range">134. Время жизни SSA-значения (live range)<a class="headerlink" href="#134-ssa-live-range" title="Permanent link">¶</a></h1>
+<p>Value может быть нужен не только в момент вычисления.</p>
+<div class="highlight"><pre><span></span><code>создали v1
+↓
+...
+↓
+использовали v1
+</code></pre></div>
+<p>Промежуток между:</p>
+<div class="highlight"><pre><span></span><code>definition
+и
+last use
+</code></pre></div>
+<p>создает live range.</p>
+<p>Чем больше live ranges пересекаются:</p>
+<div class="highlight"><pre><span></span><code>тем выше давление на регистры
+</code></pre></div>
+<hr/>
+<h1 id="135-spill">135. Spill: когда значение временно уходит в стек<a class="headerlink" href="#135-spill" title="Permanent link">¶</a></h1>
+<p>Если registers не хватает:</p>
+<div class="highlight"><pre><span></span><code>value
+↓
+запись в стековый слот
+</code></pre></div>
+<p>Позже:</p>
+<div class="highlight"><pre><span></span><code>load обратно
+↓
+register
+</code></pre></div>
+<p>Получаем дополнительный memory traffic.</p>
+<hr/>
+<h1 id="136">136. Почему переменная исходника не равна одному регистру<a class="headerlink" href="#136" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">42</span>
+</code></pre></div>
+<p>Плохая модель:</p>
+<blockquote>
+<p><code>x</code> лежит в одном register.</p>
+</blockquote>
+<p>На самом деле <code>x</code> может:</p>
+<ul>
+<li>стать константой;</li>
+<li>исчезнуть;</li>
+<li>существовать только как SSA value;</li>
+<li>находиться в register;</li>
+<li>быть временно выгруженной в стек;</li>
+<li>получить разные registers на разных участках;</li>
+<li>вообще не иметь одного физического места.</li>
+</ul>
+<hr/>
+<h1 id="137">137. Давление на регистры — реальная цена сложного кода<a class="headerlink" href="#137" title="Permanent link">¶</a></h1>
+<p>Большая функция с множеством одновременно живых intermediates:</p>
+<div class="highlight"><pre><span></span><code>live values ↑
+↓
+давление на регистры ↑
+↓
+spill-операции ↑
+↓
+load/store traffic ↑
+</code></pre></div>
+<p>Иногда decomposition функции помогает.</p>
+<p>Иногда, наоборот, мешает инлайнинг.</p>
+<p>Без измерений универсального правила нет.</p>
+<hr/>
+<h1 id="138">138. Раскладка стекового кадра<a class="headerlink" href="#138" title="Permanent link">¶</a></h1>
+<p>После register аллокация и связанных этапов компилятор строит frame.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>стековый кадр
+├── локальные slots
+├── spill-слоты
+├── служебные данные
+└── области, связанные с ABI
+</code></pre></div>
+<p>Это уже конкретная физическая раскладка функции.</p>
+<hr/>
+<h1 id="139-go">139. Локальная переменная Go и стековый слот — разные понятия<a class="headerlink" href="#139-go" title="Permanent link">¶</a></h1>
+<p>Компилятор может:</p>
+<div class="highlight"><pre><span></span><code>удалить переменную
+разбить ее на несколько values
+держать в register
+создать стековый слот только при необходимости
+</code></pre></div>
+<p>Поэтому debug view и optimized машинный код иногда выглядят неожиданно.</p>
+<hr/>
+<h1 id="140-gc">140. Теперь снова появляется GC<a class="headerlink" href="#140-gc" title="Permanent link">¶</a></h1>
+<p>В <code>GC deep</code> мы говорили:</p>
+<div class="highlight"><pre><span></span><code>GC точно знает,
+где в stack находятся pointers
+</code></pre></div>
+<p>Но откуда?</p>
+<p>CPU не хранит метку:</p>
+<div class="highlight"><pre><span></span><code>этот 64-bit word = Go pointer
+</code></pre></div>
+<p>Эту информацию производит компилятор.</p>
+<hr/>
+<h1 id="141-pointer-liveness">141. Живость указателей (pointer liveness)<a class="headerlink" href="#141-pointer-liveness" title="Permanent link">¶</a></h1>
+<p>Для GC safe points компилятор вычисляет:</p>
+<div class="highlight"><pre><span></span><code>какие стековые слоты
+прямо сейчас содержат
+живые Go pointers
+</code></pre></div>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>какие когда-либо содержали pointer
+</code></pre></div>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>какие нужны именно в этой точке
+</code></pre></div>
+<hr/>
+<h1 id="142-liveness-gc">142. Почему liveness влияет на GC<a class="headerlink" href="#142-liveness-gc" title="Permanent link">¶</a></h1>
+<p>Пусть pointer больше не нужен:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">new</span><span class="p">(</span><span class="nx">T</span><span class="p">)</span>
+<span class="nx">use</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+<span class="c1">// p дальше логически мертв</span>
+<span class="nx">longWork</span><span class="p">()</span>
+</code></pre></div>
+<p>Если компилятор понимает:</p>
+<div class="highlight"><pre><span></span><code>p dead
+</code></pre></div>
+<p>GC не обязан держать объект живым только потому, что байты старого указателя когда-то лежали в стековом слоте.</p>
+<p>Точная liveness уменьшает ложное удержание.</p>
+<hr/>
+<h1 id="143-gc">143. Компилятор и GC — одна система<a class="headerlink" href="#143-gc" title="Permanent link">¶</a></h1>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>Go types
+↓
+компилятор
+↓
+стековый кадр
++
+pointer liveness maps
+↓
+GC safe point
+↓
+рантайм stack scan
+</code></pre></div>
+<p>Точный GC Go невозможен без metadata от компилятор.</p>
+<hr/>
+<h1 id="144-ssa-objprog">144. После SSA появляются <code>obj.Prog</code><a class="headerlink" href="#144-ssa-objprog" title="Permanent link">¶</a></h1>
+<p>После архитектурно-зависимых оптимизаций компилятор формирует внутренний поток инструкций:</p>
+<div class="highlight"><pre><span></span><code>obj.Prog
+</code></pre></div>
+<p>Это уже почти assembler-level representation.</p>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>cmd/internal/obj
+↓
+assembler
+↓
+машинный код
+</code></pre></div>
+<hr/>
+<h1 id="145">145. Что студенту реально нужно уметь читать в ассемблере<a class="headerlink" href="#145" title="Permanent link">¶</a></h1>
+<p>Нам достаточно:</p>
+<div class="highlight"><pre><span></span><code>CALL
+RET
+CMP
+conditional ветка
+MOV/load/store
+LEA/address calculation
+stack pointer changes
+рантайм вспомогательная функция symbol
+direct vs косвенный вызов
+</code></pre></div>
+<p>Не нужно знать всю ISA.</p>
+<hr/>
+<h1 id="146">146. Что мы ищем в ассемблере<a class="headerlink" href="#146" title="Permanent link">¶</a></h1>
+<p>Не:</p>
+<blockquote>
+<p>Какие здесь все 37 инструкций?</p>
+</blockquote>
+<p>А конкретный вопрос:</p>
+<div class="highlight"><pre><span></span><code>остался CALL?
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>есть `runtime.growslice`?
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>осталась проверка границ?
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>вызов через интерфейс direct или indirect?
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>есть selectgo?
+</code></pre></div>
+<hr/>
+<h1 id="147">147. Поэтому ассемблер читаем от гипотезы<a class="headerlink" href="#147" title="Permanent link">¶</a></h1>
+<p>Плохой подход:</p>
+<div class="highlight"><pre><span></span><code>открыли 10 000 строк asm
+↓
+смотрим на страшные MOV
+</code></pre></div>
+<p>Правильный:</p>
+<div class="highlight"><pre><span></span><code>гипотеза:
+здесь должен исчезнуть проверка границ
+
+↓
+найти конкретную функцию
+↓
+проверить ветка / panic path
+</code></pre></div>
+<hr/>
+<h1 id="148-no1-m2">148. Основной инструмент №1: <code>-m=2</code><a class="headerlink" href="#148-no1-m2" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-m=2'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Полезен для:</p>
+<ul>
+<li>инлайнинг;</li>
+<li>эскейп-анализ;</li>
+<li>части optimization diagnostics.</li>
+</ul>
+<p>Не нужно читать весь вывод большого проекта.</p>
+<p>Берем маленький reproducer.</p>
+<hr/>
+<h1 id="149-no2-gossafunc">149. Основной инструмент №2: <code>GOSSAFUNC</code><a class="headerlink" href="#149-no2-gossafunc" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nv">GOSSAFUNC</span><span class="o">=</span>foo<span class="w"> </span>go<span class="w"> </span>сборка
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>ssa.html
+</code></pre></div>
+<p>И видим одну функцию через последовательность passes.</p>
+<hr/>
+<h1 id="150-ssahtml">150. Что смотреть в <code>ssa.html</code><a class="headerlink" href="#150-ssahtml" title="Permanent link">¶</a></h1>
+<p>Не надо читать каждый value.</p>
+<p>Ищем конкретный механизм.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>проверка границ
+</code></pre></div>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>до prove
+↓
+после prove
+</code></pre></div>
+<p>Или:</p>
+<div class="highlight"><pre><span></span><code>append
+</code></pre></div>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>ветка fast/slow
+↓
+growslice call
+</code></pre></div>
+<hr/>
+<h1 id="151-no3-s">151. Основной инструмент №3: <code>-S</code><a class="headerlink" href="#151-no3-s" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-S'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Показывает assembler listing.</p>
+<p>Полезен для маленького package/function.</p>
+<hr/>
+<h1 id="152-go-tool-compile-s">152. <code>go tool compile -S</code><a class="headerlink" href="#152-go-tool-compile-s" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>compile<span class="w"> </span>-S<span class="w"> </span>file.go
+</code></pre></div>
+<p>Удобен для автономного примера.</p>
+<p>Но это не полный <code>go сборка</code>.</p>
+<p>Например сборка system, imports и часть контекста отличаются.</p>
+<hr/>
+<h1 id="153-no4-objdump">153. Основной инструмент №4: <code>objdump</code><a class="headerlink" href="#153-no4-objdump" title="Permanent link">¶</a></h1>
+<p>После сборка:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>objdump<span class="w"> </span>-s<span class="w"> </span><span class="s1">'main.foo'</span><span class="w"> </span>./app
+</code></pre></div>
+<p>Смотрим уже готовый binary.</p>
+<p>Это полезно, если хотим проверить:</p>
+<div class="highlight"><pre><span></span><code>что реально вошло в executable
+</code></pre></div>
+<hr/>
+<h1 id="154-no5-ssacheck_bce">154. Основной инструмент №5: <code>ssa/check_bce</code><a class="headerlink" href="#154-no5-ssacheck_bce" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-d=ssa/check_bce/debug=1'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Не универсальный profiler.</p>
+<p>Он отвечает на конкретный вопрос:</p>
+<blockquote>
+<p>Где остались проверка границs?</p>
+</blockquote>
+<hr/>
+<h1 id="155-no6-go-tool-compile-d-ssahelp">155. Основной инструмент №6: <code>go tool compile -d ssa/help</code><a class="headerlink" href="#155-no6-go-tool-compile-d-ssahelp" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>compile<span class="w"> </span>-d<span class="w"> </span>ssa/help
+</code></pre></div>
+<p>Показывает debug controls SSA passes.</p>
+<p>Это уже низкий уровень.</p>
+<p>Используем, когда:</p>
+<div class="highlight"><pre><span></span><code>GOSSAFUNC недостаточно
+</code></pre></div>
+<hr/>
+<h1 id="156">156. Правильный порядок исследования<a class="headerlink" href="#156" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>симптом
+↓
+benchmark / профиль
+↓
+hot function
+↓
+маленький reproducer
+↓
+-m=2
+↓
+ssa.html
+↓
+ассемблер
+↓
+изменить код
+↓
+benchmark снова
+</code></pre></div>
+<p>Вот главный практический вывод всей лекции.</p>
+<hr/>
+<h1 id="157-append">157. Теперь соберем <code>append</code> полностью<a class="headerlink" href="#157-append" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go:
+s = append(s, x)
+↓
+IR:
+OAPPEND
+↓
+SSA generation
+↓
+newLen = len + 1
+↓
+compare newLen vs cap
+↓
+fast?
+├── да
+│   ↓
+│   адрес новой ячейки
+│   ↓
+│   store x
+│
+└── нет
+    ↓
+    CALL runtime.growslice
+    ↓
+    ptr / len / cap
+    ↓
+    store x
+↓
+architecture lower
+↓
+register аллокация
+↓
+машинный код
+</code></pre></div>
+<hr/>
+<h1 id="158-map">158. Полная цепочка поиска в <code>map</code><a class="headerlink" href="#158-map" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go:
+v := m[key]
+↓
+IR map index
+↓
+walk
+↓
+выбрать mapaccess вспомогательная функция
+↓
+generated call
+↓
+рантайм map path
+↓
+hash
+↓
+directory/table
+↓
+group
+↓
+matchH2
+↓
+probing
+↓
+key equality
+↓
+result
+</code></pre></div>
+<hr/>
+<h1 id="159">159. Полная цепочка вызова через интерфейс<a class="headerlink" href="#159" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go:
+w.Write(buf)
+↓
+IR вызов через интерфейс
+↓
+static девиртуализация?
+├── да
+│   ↓
+│   прямой вызов
+│   ↓
+│   инлайн?
+│   ├── да → body в вызывающая функция
+│   └── нет → CALL конкретного метода
+│
+└── нет
+    ↓
+    PGO девиртуализация?
+    ├── hot type → guarded прямой вызов
+    └── резервный путь → interface dispatch
+                      ↓
+                    ITab
+                      ↓
+                 косвенный вызов
+↓
+SSA
+↓
+lower
+↓
+машинный код
+</code></pre></div>
+<hr/>
+<h1 id="160-ch-v">160. Полная цепочка <code>ch &lt;- v</code><a class="headerlink" href="#160-ch-v" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go:
+ch &lt;- v
+↓
+IR send
+↓
+walk / lowering
+↓
+runtime.chansend
+↓
+hchan
+↓
+direct handoff / buffer / wait
+↓
+scheduler / GC-aware copy
+↓
+CPU
+</code></pre></div>
+<hr/>
+<h1 id="161-select">161. Полная цепочка <code>select</code><a class="headerlink" href="#161-select" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go select
+↓
+walkSelect
+↓
+число cases?
+
+0
+→ block
+
+1
+→ direct channel operation
+
+1 communication + default
+→ non-blocking specialized operation
+
+general multi-case
+↓
+подготовить scases / order storage
+↓
+runtime.selectgo
+↓
+pollOrder / lockOrder
+↓
+проходы 1 / 2 / 3
+↓
+scheduler
+</code></pre></div>
+<hr/>
+<h1 id="162-go-under-the-hood">162. Вот теперь блок <code>Go under the hood</code> действительно замкнулся<a class="headerlink" href="#162-go-under-the-hood" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>исходник
+↓
+компилятор
+↓
+рантайм
+↓
+OS / CPU
+</code></pre></div>
+<p>До <code>4.3</code> нам не хватало первой стрелки:</p>
+<div class="highlight"><pre><span></span><code>исходник → рантайм
+</code></pre></div>
+<p>Теперь она объяснена.</p>
+<hr/>
+<h1 id="163">163. Почему оценка производительности по исходнику часто ломается<a class="headerlink" href="#163" title="Permanent link">¶</a></h1>
+<p>Сравним четыре строки:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+<span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span>
+<span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+<span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">v</span>
+</code></pre></div>
+<p>Каждая выглядит коротко.</p>
+<p>Но после компилятор:</p>
+<div class="highlight"><pre><span></span><code>append
+→ ветка + maybe growslice
+
+map
+→ вспомогательная функция + hash table algorithm
+
+interface
+→ maybe прямой вызов, maybe косвенный вызов
+
+channel
+→ рантайм protocol
+</code></pre></div>
+<p>Одинаковая длина исходника ничего не говорит о физической цене.</p>
+<hr/>
+<h1 id="164">164. И наоборот: большой исходный код может исчезнуть<a class="headerlink" href="#164" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">featureDisabled</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">hugeBranch</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если condition compile-time constant:</p>
+<div class="highlight"><pre><span></span><code>hugeBranch
+→ отсутствует в горячем машинном пути
+</code></pre></div>
+<p>Считать строки исходника бессмысленно.</p>
+<hr/>
+<h1 id="165">165. Версия компилятора — часть производительности<a class="headerlink" href="#165" title="Permanent link">¶</a></h1>
+<p>Код не изменился.</p>
+<p>Обновили:</p>
+<div class="highlight"><pre><span></span><code>Go 1.26
+→ Go 1.27
+</code></pre></div>
+<p>Benchmark изменился.</p>
+<p>Это возможно из-за:</p>
+<div class="highlight"><pre><span></span><code>другой инлайнинг decision
+другой escape result
+новая optimization
+новый intrinsic
+другие rewrite rules
+новый рантайм вспомогательная функция
+изменения register аллокация
+</code></pre></div>
+<hr/>
+<h1 id="166-toolchain">166. Поэтому обновление toolchain — реальное изменение исполняемого поведения<a class="headerlink" href="#166-toolchain" title="Permanent link">¶</a></h1>
+<p>Даже если:</p>
+<div class="highlight"><pre><span></span><code>семантика языка та же
+</code></pre></div>
+<p>производительность может измениться.</p>
+<p>Production-подход:</p>
+<div class="highlight"><pre><span></span><code>обновили Go
+↓
+пересобрали
+↓
+нагрузочный benchmark
+↓
+профили
+↓
+сравнение regression / improvement
+</code></pre></div>
+<hr/>
+<h1 id="167">167. Но нельзя зависеть от конкретного ассемблера<a class="headerlink" href="#167" title="Permanent link">¶</a></h1>
+<p>Прикладной код не должен требовать:</p>
+<div class="highlight"><pre><span></span><code>ровно 6 инструкций
+</code></pre></div>
+<p>для корректности.</p>
+<p>Ассемблер — средство понять производительность.</p>
+<p>Не публичный контракт языка.</p>
+<hr/>
+<h1 id="168-1-append">168. Практика 1: <code>append</code><a class="headerlink" href="#168-1-append" title="Permanent link">¶</a></h1>
+<p>Сценарий A:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">appendNoCap</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Сценарий B:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">appendPrepared</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">cap</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">panic</span><span class="p">(</span><span class="s">"unexpected"</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Еще лучше benchmark отдельно контролирует наличие свободной емкости.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>GOSSAFUNC
+-S
+benchmark
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>емкости compare
+`runtime.growslice` на медленном пути
+</code></pre></div>
+<hr/>
+<h1 id="169-2">169. Практика 2: удаление проверок границ<a class="headerlink" href="#169-2" title="Permanent link">¶</a></h1>
+<p>Вариант A:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">sum</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">total</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">s</span><span class="p">);</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">s</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">total</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Вариант B специально усложняет индекс.</p>
+<p>Например через непрозрачный вспомогательная функция.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>ssa/check_bce
+ssa.html
+ассемблер
+</code></pre></div>
+<hr/>
+<h1 id="170-3-map">170. Практика 3: специализация вспомогательных функций <code>map</code><a class="headerlink" href="#170-3-map" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="kt">uint64</span><span class="p">]</span><span class="kt">int</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span>
+</code></pre></div>
+<p>Найти в ассемблер/рантайм calls:</p>
+<div class="highlight"><pre><span></span><code>какие map вспомогательная функция symbols используются
+</code></pre></div>
+<p>Связать:</p>
+<div class="highlight"><pre><span></span><code>тип ключа
+↓
+вспомогательная функция selection
+↓
+hash path
+</code></pre></div>
+<hr/>
+<h1 id="171-4">171. Практика 4: девиртуализация вызова через интерфейс<a class="headerlink" href="#171-4" title="Permanent link">¶</a></h1>
+<p>Вариант A:</p>
+<div class="highlight"><pre><span></span><code>компилятор знает конкретный тип receiver
+</code></pre></div>
+<p>Вариант B:</p>
+<div class="highlight"><pre><span></span><code>реально два типа могут прийти
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>-m=2
+SSA
+ассемблер
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>direct CALL?
+indirect CALL?
+инлайн?
+</code></pre></div>
+<hr/>
+<h1 id="172-5">172. Практика 5: инлайнинг меняет аллокации<a class="headerlink" href="#172-5" title="Permanent link">¶</a></h1>
+<p>Сделать маленький вспомогательная функция, который принимает/возвращает значение так, чтобы обычный сборка мог его инлайн.</p>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-bench<span class="o">=</span>.<span class="w"> </span>-benchmem
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-bench<span class="o">=</span>.<span class="w"> </span>-benchmem<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-l'</span>
+</code></pre></div>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>сборка<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-m=2'</span>
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, как граница оптимизации влияет на эскейп-анализ и аллокации.</p>
+</blockquote>
+<hr/>
+<h1 id="173-6-select">173. Практика 6: разные формы <code>select</code><a class="headerlink" href="#173-6-select" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="k">default</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">b</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>block
+direct recv
+non-blocking path
+selectgo
+</code></pre></div>
+<hr/>
+<h1 id="174-7-amd64-arm64">174. Практика 7: amd64 против arm64<a class="headerlink" href="#174-7-amd64-arm64" title="Permanent link">¶</a></h1>
+<p>Один и тот же исходник:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="p">[]</span><span class="kt">uint64</span><span class="p">)</span><span class="w"> </span><span class="kt">uint64</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">uint64</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">x</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">v</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Собрать для:</p>
+<div class="highlight"><pre><span></span><code>GOARCH=amd64
+GOARCH=arm64
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>generic смысл
+↓
+разный lowered SSA
+↓
+разный ассемблер
+</code></pre></div>
+<p>Не сравнивать только число инструкций.</p>
+<hr/>
+<h1 id="175-8-intrinsic">175. Практика 8: intrinsic<a class="headerlink" href="#175-8-intrinsic" title="Permanent link">¶</a></h1>
+<p>Найти маленькую standard/рантайм operation, которая в текущем компилятор имеет intrinsic.</p>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>исходник function
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>ассемблер
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Показать, что CALL из исходника может физически не существовать.</p>
+</blockquote>
+<p>Для конкретного примера перед практикой проверяем текущий Go 1.27, потому что список intrinsics — деталь версии.</p>
+<hr/>
+<h1 id="176-9-matchh2-41">176. Практика 9: <code>matchH2</code> из <code>4.1</code><a class="headerlink" href="#176-9-matchh2-41" title="Permanent link">¶</a></h1>
+<p>Возвращаемся к Swiss Table.</p>
+<p>В <code>4.1</code> разобрали portable bit trick.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>собрать map lookup
+↓
+посмотреть amd64 path
+↓
+найти SIMD/intrinsic path
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>алгоритмическая модель
+≠
+обязательная реализация теми же инструкциями
+</code></pre></div>
+<hr/>
+<h1 id="177-10-pgo">177. Практика 10: один горячий тип интерфейса + PGO<a class="headerlink" href="#177-10-pgo" title="Permanent link">¶</a></h1>
+<p>Сделать benchmark с вызов через интерфейс.</p>
+<p>Профиль:</p>
+<div class="highlight"><pre><span></span><code>почти всегда один конкретный тип
+</code></pre></div>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>без PGO
+с PGO
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>ассемблер
+benchmark
+инлайнинг diagnostics
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Показать guarded direct path и резервный путь.</p>
+</blockquote>
+<hr/>
+<h1 id="178-11">178. Практика 11: сравнение версий компилятора<a class="headerlink" href="#178-11" title="Permanent link">¶</a></h1>
+<p>Если доступны две версии Go:</p>
+<div class="highlight"><pre><span></span><code>Go A
+Go B
+</code></pre></div>
+<p>Один и тот же reproducer.</p>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>-m=2
+SSA
+ассемблер
+benchmark
+</code></pre></div>
+<p>И объяснить разницу только после наблюдения.</p>
+<hr/>
+<h1 id="179">179. Диагностика: неожиданная аллокация<a class="headerlink" href="#179" title="Permanent link">¶</a></h1>
+<p>Симптом:</p>
+<div class="highlight"><pre><span></span><code>allocs/op ↑
+</code></pre></div>
+<p>или профиль хипа показал новое горячее место аллокации.</p>
+<p>Алгоритм:</p>
+<div class="highlight"><pre><span></span><code>найти место в исходнике
+↓
+-m=2
+↓
+что ушло в хип?
+↓
+почему?
+↓
+была ли функция инлайн?
+↓
+какой conversion/вспомогательная функция остался?
+↓
+изменить код
+↓
+benchmem снова
+</code></pre></div>
+<hr/>
+<h1 id="180">180. Диагностика: маленькая функция неожиданно дорогая<a class="headerlink" href="#180" title="Permanent link">¶</a></h1>
+<p>Профиль CPU привел в маленькую функцию.</p>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>рантайм вспомогательная функция?
+interface косвенный вызов?
+проверка границ?
+large memmove?
+неудачный инлайн?
+</code></pre></div>
+<p>Только потом переписываем код.</p>
+<hr/>
+<h1 id="181-go-cpu">181. Диагностика: после обновления Go вырос CPU<a class="headerlink" href="#181-go-cpu" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>старый профиль
+новый профиль
+</code></pre></div>
+<p>Если hot function та же:</p>
+<div class="highlight"><pre><span></span><code>old -m=2
+new -m=2
+
+old SSA
+new SSA
+
+old ассемблер
+new ассемблер
+</code></pre></div>
+<p>Ищем конкретный механизм.</p>
+<hr/>
+<h1 id="182-go">182. Диагностика: после обновления Go уменьшились аллокации<a class="headerlink" href="#182-go" title="Permanent link">¶</a></h1>
+<p>Это тоже нужно объяснить.</p>
+<p>Возможные причины:</p>
+<div class="highlight"><pre><span></span><code>улучшенный эскейп-анализ
+новый инлайн path
+новая stack аллокация optimization
+conversion optimization
+</code></pre></div>
+<p>Не просто:</p>
+<blockquote>
+<p>Новая Go быстрее.</p>
+</blockquote>
+<hr/>
+<h1 id="183-ssa">183. Когда не нужно открывать SSA<a class="headerlink" href="#183-ssa" title="Permanent link">¶</a></h1>
+<p>Если профиль говорит:</p>
+<div class="highlight"><pre><span></span><code>90% времени ждем PostgreSQL
+</code></pre></div>
+<p>SSA обработчика не поможет.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>профиль CPU
+→ user code 0.5%
+</code></pre></div>
+<p>компилятор micro-optimization не главный вопрос.</p>
+<p>Начинаем с ограниченного ресурса.</p>
+<hr/>
+<h1 id="184-backend">184. Правильная роль внутренностей компилятора в backend<a class="headerlink" href="#184-backend" title="Permanent link">¶</a></h1>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>оптимизировать каждый MOV
+</code></pre></div>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>объяснить неожиданную физическую цену горячего кода
+</code></pre></div>
+<p>То есть компилятор — диагностический слой.</p>
+<p>Не новая религия.</p>
+<hr/>
+<h1 id="185">185. Границы гарантий: что обещает язык<a class="headerlink" href="#185" title="Permanent link">¶</a></h1>
+<p>Спецификация гарантирует:</p>
+<ul>
+<li>семантику <code>append</code>;</li>
+<li>семантику <code>map</code>;</li>
+<li>правила interfaces;</li>
+<li>panic при выходе за границы;</li>
+<li>channel semantics;</li>
+<li><code>select</code>;</li>
+<li>наблюдаемое поведение программы.</li>
+</ul>
+<p>Она не обещает конкретный машинный код.</p>
+<hr/>
+<h1 id="186">186. Что относится к текущей реализации компилятора<a class="headerlink" href="#186" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Unified IR
+конкретные IR ops
+walk implementation
+SSA passes
+prove implementation
+BCE details
+инлайнинг heuristics
+эвристики эскейп-анализа
+девиртуализация rules
+PGO девиртуализация
+intrinsics
+rewrite rules
+register allocator
+стековый кадр layout details
+</code></pre></div>
+<p>Все это может меняться.</p>
+<hr/>
+<h1 id="187">187. Даже имя вспомогательной функции рантайма — не контракт языка<a class="headerlink" href="#187" title="Permanent link">¶</a></h1>
+<p>Сегодня:</p>
+<div class="highlight"><pre><span></span><code>runtime.growslice
+runtime.chansend
+runtime.selectgo
+</code></pre></div>
+<p>полезны для понимания текущей реализации.</p>
+<p>Но пользовательский код не должен строить корректность на том, что:</p>
+<div class="highlight"><pre><span></span><code>через пять версий вспомогательная функция будет называться так же
+</code></pre></div>
+<hr/>
+<h1 id="188">188. Что является устойчивой моделью<a class="headerlink" href="#188" title="Permanent link">¶</a></h1>
+<p>Можно преподавать как долгоживущую причинность:</p>
+<div class="highlight"><pre><span></span><code>высокоуровневая конструкция
+↓
+компилятор representation
+↓
+упрощение
+↓
+доказательства
+↓
+общий быстрый путь или рантайм медленный путь
+↓
+архитектурно-зависимый lowering
+↓
+регистры / память
+↓
+машинный код
+</code></pre></div>
+<p>И:</p>
+<div class="highlight"><pre><span></span><code>семантика языка
+≠
+обязательная конкретная инструкция
+</code></pre></div>
+<hr/>
+<h1 id="189">189. Разрушаем последние плохие упрощения<a class="headerlink" href="#189" title="Permanent link">¶</a></h1>
+<h2 id="append-growslice">«<code>append</code> вызывает <code>growslice</code>»<a class="headerlink" href="#append-growslice" title="Permanent link">¶</a></h2>
+<p>Не всегда.</p>
+<div class="highlight"><pre><span></span><code>cap хватает
+→ local быстрый путь
+
+cap не хватает
+→ growslice
+</code></pre></div>
+<h2 id="map-magic">«<code>map</code> — это рантайм magic»<a class="headerlink" href="#map-magic" title="Permanent link">¶</a></h2>
+<p>Не только.</p>
+<div class="highlight"><pre><span></span><code>компилятор выбирает вспомогательная функция
+↓
+рантайм выполняет map algorithm
+</code></pre></div>
+<h2 id="interface-call">«Interface call всегда косвенный»<a class="headerlink" href="#interface-call" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<div class="highlight"><pre><span></span><code>девиртуализация
+→ прямой вызов
+→ возможно инлайн
+</code></pre></div>
+<h2 id="select-selectgo">«<code>select</code> всегда вызывает <code>selectgo</code>»<a class="headerlink" href="#select-selectgo" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Простые формы компилятор переписывает в более простые operations.</p>
+<h2 id="bounds-check-si">«Bounds check есть на каждый <code>s[i]</code>»<a class="headerlink" href="#bounds-check-si" title="Permanent link">¶</a></h2>
+<p>Не обязательно.</p>
+<p>Если компилятор доказал range:</p>
+<div class="highlight"><pre><span></span><code>check исчезает
+</code></pre></div>
+<h2 id="call">«Функция написана — значит есть CALL»<a class="headerlink" href="#call" title="Permanent link">¶</a></h2>
+<p>Не обязательно.</p>
+<p>Inlining или intrinsic может убрать вызов.</p>
+<h2 id="stack">«Локальная переменная живет в stack»<a class="headerlink" href="#stack" title="Permanent link">¶</a></h2>
+<p>Не обязательно.</p>
+<p>Она может:</p>
+<ul>
+<li>исчезнуть;</li>
+<li>быть register value;</li>
+<li>иметь стековый слот;</li>
+<li>уйти в хип.</li>
+</ul>
+<h2 id="_2">«Исходник рантайма показывает точный машинный путь»<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Не обязательно.</p>
+<p>Компилятор может заинлайнить, переписать или заменить intrinsic'ом.</p>
+<hr/>
+<h1 id="190">190. Что важно запомнить<a class="headerlink" href="#190" title="Permanent link">¶</a></h1>
+<ol>
+<li>Текущий Go компилятор проходит через синтаксическое дерево / проверку типов, собственное IR, middle end, <code>walk</code>, общий SSA и архитектурно-зависимый lowering.</li>
+<li><code>walk</code> фиксирует порядок вычислений и превращает высокоуровневые конструкции в более примитивные операции.</li>
+<li>SSA описывает вычисления через значения, basic blocks и явные зависимости, а не через исходные переменные.</li>
+<li><code>Phi</code> объединяет значения из разных control-flow paths и не является CPU-инструкцией.</li>
+<li>Специальный SSA-тип <code>mem</code> связывает side effects и не дает незаконно переставлять операции с памятью.</li>
+<li>SSA passes могут удалить мертвый код, проверка <code>nil</code>s, проверка границs и другие операции, если корректность уже доказана.</li>
+<li>Семантика языка может сохраняться даже когда соответствующая рантайм-проверка исчезла из машинный код.</li>
+<li><code>append</code> имеет сгенерированный быстрый путь и вызывает <code>runtime.growslice</code> только при нехватке емкости.</li>
+<li>В Go 1.27 часть растущих slice backing stores в подходящих случаях может быть оптимизирована через stack аллокация и финальный <code>move2heap</code>.</li>
+<li>Операции <code>map</code> опускаются к специализированным вспомогательным функциям рантайма, выбранным с учетом операции и типа ключа.</li>
+<li>Concrete-to-преобразование к интерфейсу формирует ABI-представление <code>Type/ITab + Data</code>; синтаксис преобразование к интерфейсу сам по себе не доказывает аллокация.</li>
+<li>Статическая девиртуализация заменяет вызов через интерфейс конкретным прямым вызовом, когда цель вызова можно доказать.</li>
+<li>PGO-девиртуализация может добавить проверку горячей цели вызова и оставить исходный косвенный вызов как резервный путь.</li>
+<li>Девиртуализация особенно ценна тем, что может открыть инлайнинг и последующие оптимизации.</li>
+<li>Channel operations на стадии <code>walk</code> превращаются в рантайм calls, после чего работает уже разобранный протокол <code>hchan</code>.</li>
+<li>Простые формы <code>select</code> компилятор упрощает; общий <code>selectgo</code> нужен только для достаточно сложного multi-case пути.</li>
+<li>Inlining меняет не только цену вызова, но и видимость фактов для escape analysis, BCE и других оптимизаций.</li>
+<li>Intrinsic может заменить обычный вызов функции специализированными SSA-операциями и машинными инструкциями.</li>
+<li>Generic SSA отделяет общие оптимизации от конкретной ISA; <code>lower</code> превращает его в amd64/arm64-specific operations.</li>
+<li>Распределение регистров решает, какие SSA-значения живут в регистрах, а какие временно временно выгружаются в стек.</li>
+<li>Компилятор создает раскладку стекового кадра и metadata живости указателей, без которых точный GC не смог бы корректно сканировать стеки.</li>
+<li><code>-m=2</code>, <code>GOSSAFUNC</code>, <code>ssa/check_bce</code>, <code>-S</code> и <code>objdump</code> отвечают на разные вопросы и используются после профилирования.</li>
+<li>Версия компилятора является частью профиля производительности приложения, но детали генерации кода не являются контрактом языка.</li>
+<li>Исследование компилятор internals должно начинаться с измеренного горячего пути, а не с случайного чтения ассемблер.</li>
+<li>Правильная цепочка: <code>benchmark/профиль → гипотеза → диагностика компилятора → SSA → ассемблер → изменение → повторное измерение</code>.</li>
+</ol>
+<hr/>
+<h1 id="191">191. Финальная модель<a class="headerlink" href="#191" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                         GO-КОД
+                            │
+                            ▼
+                    syntax / types2
+                            │
+                            ▼
+                       Unified IR
+                            │
+          ┌─────────────────┼─────────────────┐
+          │                 │                 │
+          ▼                 ▼                 ▼
+       инлайнинг       девиртуализация      escape
+          │                 │                 │
+          └─────────────────┴─────────────────┘
+                            │
+                            ▼
+                           walk
+                 order + desugaring
+                            │
+                            ▼
+                       общий SSA
+             ┌──────────────┼──────────────┐
+             │              │              │
+             ▼              ▼              ▼
+           prove           BCE            DCE
+             │              │              │
+             └──────────────┴──────────────┘
+                            │
+                            ▼
+                          lower
+                    ┌───────┴───────┐
+                    ▼               ▼
+                  amd64           arm64
+                    │               │
+                    └───────┬───────┘
+                            ▼
+                  register аллокация
+                            │
+                            ▼
+                    стековый кадр layout
+                            │
+                            ▼
+                    pointer liveness
+                            │
+                            ▼
+                         obj.Prog
+                            │
+                            ▼
+                         assembler
+                            │
+                            ▼
+                       машинный код
+                            │
+                            ▼
+                            CPU
+</code></pre></div>
+<p>И поверх уже изученных конструкций:</p>
+<div class="highlight"><pre><span></span><code>append
+→ быстрый путь / growslice
+
+map
+→ компилятор вспомогательная функция
+→ Swiss Table
+
+interface
+→ conversion
+→ ITab
+→ девиртуализация?
+→ direct/косвенный вызов
+
+channel
+→ chansend / chanrecv
+
+select
+→ специализированный lowering
+или
+→ selectgo
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Код Go не исполняется в той форме, в которой мы его читаем. Сначала компилятор доказывает свойства программы, удаляет часть проверок и вызовов, превращает сложные конструкции в более простые, выбирает вспомогательные функции рантайма, строит SSA, адаптирует операции к конкретной ISA и только потом формирует машинный код.</p>
+<p>Поэтому вопрос «сколько стоит эта строка Go?» почти всегда поставлен слишком рано. Правильный вопрос: <strong>какой путь для нее реально выбрал компилятор в этом сборка, какая работа осталась рантайм и что из этого стало горячим под нагрузкой?</strong></p>
+</blockquote>
+<hr/>
+<h1 id="_3">Практическое продолжение темы<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<p>Практику удобно провести как одно расследование нескольких конструкций:</p>
+<div class="highlight"><pre><span></span><code>1. append
+→ найти fast/медленный путь
+→ growslice
+
+2. проверка границ
+→ сломать proof
+→ вернуть proof
+
+3. map
+→ найти вспомогательная функция по типу key
+
+4. interface
+→ косвенный вызов
+→ devirtualized call
+→ инлайн
+
+5. select
+→ 0 cases
+→ 1 case
+→ case + default
+→ multi-case selectgo
+
+6. amd64 vs arm64
+→ один исходник
+→ разные lower/ассемблер
+
+7. benchmark
+→ SSA
+→ ассемблер
+→ изменение
+→ benchmark снова
+</code></pre></div>
+<p>Практика должна доказать главный тезис лекции:</p>
+<div class="highlight"><pre><span></span><code>исходный синтаксис
+≠
+физический путь выполнения
+</code></pre></div>
+<hr/>
+<h1 id="_4">Основные источники для деталей, зависящих от версии<a class="headerlink" href="#_4" title="Permanent link">¶</a></h1>
+<ul>
+<li>Go компилятор overview — <code>src/cmd/compile/README</code></li>
+<li>Go SSA backend — <code>src/cmd/compile/internal/ssa/README</code></li>
+<li>SSA generation — <code>src/cmd/compile/internal/ssagen/ssa.go</code></li>
+<li>архитектурный lowering — <code>src/cmd/compile/internal/ssa/lower.go</code></li>
+<li><code>select</code> lowering — <code>src/cmd/compile/internal/walk/select.go</code></li>
+<li>преобразование к интерфейсу lowering — <code>src/cmd/compile/internal/walk/convert.go</code></li>
+<li>map lowering — <code>src/cmd/compile/internal/walk</code></li>
+<li>девиртуализация — <code>src/cmd/compile/internal/devirtualize</code></li>
+<li>slice backing-store optimization — <code>src/cmd/compile/internal/slice</code></li>
+<li>Go specification</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4.2. Каналы, select и context глубже" class="md-footer__link md-footer__link--prev" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4.2. Каналы, select и context глубже
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4.4. Go ABI, generics codegen и linker" class="md-footer__link md-footer__link--next" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4.4. Go ABI, generics codegen и linker
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

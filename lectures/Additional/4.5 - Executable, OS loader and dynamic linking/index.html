@@ -1,0 +1,3237 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/" rel="canonical"/>
+<link href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/" rel="prev"/>
+<link href="../4.6%20-%20Go%20runtime%20startup%20deeper/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#45-executable-dynamic-linking">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="45-executable-dynamic-linking">4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking<a class="headerlink" href="#45-executable-dynamic-linking" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на современный Linux, macOS и Go 1.27.x.</p>
+<p>Это продолжение <code>4.4. Go ABI, generics codegen и linker</code>.</p>
+<p>В <code>4.4</code> мы закончили здесь:</p>
+<div class="highlight"><pre><span></span><code>compiler
+↓
+linker
+↓
+executable
+</code></pre></div>
+<p>Но executable пока просто лежит на диске.</p>
+<p>Новый вопрос:</p>
+<blockquote>
+<p>Что происходит между <code>./app</code> и первой исполняемой инструкцией программы?</p>
+</blockquote>
+<p>И еще точнее:</p>
+<div class="highlight"><pre><span></span><code>execve
+↓
+executable format
+↓
+loader
+↓
+virtual address space
+↓
+executable segments
+↓
+dynamic linker?
+↓
+relocations
+↓
+entry point
+↓
+Go runtime startup
+↓
+main.main
+</code></pre></div>
+</blockquote>
+<hr/>
+<h1 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>Наивная модель:</p>
+<div class="highlight"><pre><span></span><code>есть binary
+↓
+OS запускает его
+↓
+main()
+</code></pre></div>
+<p>Слишком грубо.</p>
+<p>У ядра есть файл.</p>
+<p>Внутри файла:</p>
+<div class="highlight"><pre><span></span><code>headers
+code
+data
+metadata
+</code></pre></div>
+<p>Но процессу нужны:</p>
+<div class="highlight"><pre><span></span><code>виртуальные адреса
+права доступа к памяти
+stack
+arguments
+environment
+entry point
+shared libraries
+</code></pre></div>
+<p>И если binary динамически связан:</p>
+<div class="highlight"><pre><span></span><code>часть symbols еще вообще не имеет окончательного runtime address
+</code></pre></div>
+<p>Значит между:</p>
+<div class="highlight"><pre><span></span><code>файл
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>живой процесс
+</code></pre></div>
+<p>существует отдельный загрузочный протокол.</p>
+<hr/>
+<h1 id="0">0. Граница с уже прочитанной виртуальной памятью<a class="headerlink" href="#0" title="Permanent link">¶</a></h1>
+<p>В <code>3.x</code> вопрос был:</p>
+<div class="highlight"><pre><span></span><code>виртуальный адрес
+↓
+page tables
+↓
+физическая RAM
+↓
+page fault
+↓
+residency
+</code></pre></div>
+<p>Это считаем известным.</p>
+<p>В <code>4.5</code> другой вопрос:</p>
+<blockquote>
+<p>Откуда вообще взялись виртуальные диапазоны процесса, в которых лежат код, данные и библиотеки?</p>
+</blockquote>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>ELF / Mach-O
+↓
+loader
+↓
+VM mappings
+</code></pre></div>
+<p>А потом уже знакомая система виртуальной памяти решает:</p>
+<div class="highlight"><pre><span></span><code>какие страницы реально resident
+</code></pre></div>
+<hr/>
+<h1 id="1-executable">1. Executable — не просто массив машинных инструкций<a class="headerlink" href="#1-executable" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>binary file
+=
+machine code
+</code></pre></div>
+<p>Нет.</p>
+<p>Файл должен еще описать:</p>
+<div class="highlight"><pre><span></span><code>какой это формат?
+для какой architecture?
+какая точка входа?
+что нужно отобразить в память?
+по каким виртуальным адресам?
+с какими правами?
+нужен ли dynamic linker?
+какие shared libraries нужны?
+</code></pre></div>
+<p>Иначе ядро не знает, как интерпретировать bytes.</p>
+<hr/>
+<h1 id="2-linux-elf">2. На Linux основной формат — ELF<a class="headerlink" href="#2-linux-elf" title="Permanent link">¶</a></h1>
+<p>ELF — Executable and Linkable Format.</p>
+<p>Один и тот же формат используется для:</p>
+<ul>
+<li>executable;</li>
+<li>shared objects;</li>
+<li>object files;</li>
+<li>core dumps.</li>
+</ul>
+<p>Но роли конкретных таблиц внутри файла различаются.</p>
+<hr/>
+<h1 id="3-elf-header">3. ELF начинается с header<a class="headerlink" href="#3-elf-header" title="Permanent link">¶</a></h1>
+<p>Упрощенно ELF header содержит:</p>
+<div class="highlight"><pre><span></span><code>magic
+class
+endianness
+machine architecture
+file type
+entry point
+program header location
+section header location
+</code></pre></div>
+<p>То есть первые bytes уже отвечают:</p>
+<blockquote>
+<p>Что это за файл и как его дальше разбирать?</p>
+</blockquote>
+<hr/>
+<h1 id="4-elf-magic">4. ELF magic<a class="headerlink" href="#4-elf-magic" title="Permanent link">¶</a></h1>
+<p>Первые bytes:</p>
+<div class="highlight"><pre><span></span><code>0x7f 'E' 'L' 'F'
+</code></pre></div>
+<p>позволяют распознать ELF.</p>
+<p>Если kernel binary loader не узнает формат:</p>
+<div class="highlight"><pre><span></span><code>он не может исполнять файл как ELF
+</code></pre></div>
+<p>Дальше могут включаться другие handlers, например interpreter script через <code>#!</code>.</p>
+<hr/>
+<h1 id="5-elf-e_type">5. ELF <code>e_type</code><a class="headerlink" href="#5-elf-e_type" title="Permanent link">¶</a></h1>
+<p>Полезно различать:</p>
+<div class="highlight"><pre><span></span><code>ET_EXEC
+→ традиционный executable
+
+ET_DYN
+→ shared object
+→ также используется PIE executable
+</code></pre></div>
+<p>Почему PIE выглядит как <code>ET_DYN</code>?</p>
+<p>Потому что его code должен уметь жить при изменяемой load base.</p>
+<p>К этому вернемся при ASLR.</p>
+<hr/>
+<h1 id="6-elf-e_machine">6. ELF <code>e_machine</code><a class="headerlink" href="#6-elf-e_machine" title="Permanent link">¶</a></h1>
+<p>Поле отвечает:</p>
+<div class="highlight"><pre><span></span><code>для какой ISA собран code?
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>x86-64
+AArch64
+</code></pre></div>
+<p>Ядро не может выполнить arm64 machine code на amd64 CPU без отдельного слоя эмуляции или трансляции.</p>
+<hr/>
+<h1 id="7-entry-point">7. Entry point<a class="headerlink" href="#7-entry-point" title="Permanent link">¶</a></h1>
+<p>В ELF header есть:</p>
+<div class="highlight"><pre><span></span><code>e_entry
+</code></pre></div>
+<p>Это адрес точки, с которой нужно начать user-space execution после подготовки image.</p>
+<p>Очень важное разрушение:</p>
+<blockquote>
+<p>Для Go <code>e_entry</code> не указывает прямо на <code>main.main</code>.</p>
+</blockquote>
+<p>Сначала будет startup code рантайма.</p>
+<hr/>
+<h1 id="8-sections-segments">8. Sections и segments — не одно и то же<a class="headerlink" href="#8-sections-segments" title="Permanent link">¶</a></h1>
+<p>Это один из самых частых источников путаницы.</p>
+<p>Sections:</p>
+<div class="highlight"><pre><span></span><code>.text
+.rodata
+.data
+.bss
+.symtab
+.debug_*
+...
+</code></pre></div>
+<p>удобны:</p>
+<ul>
+<li>linker;</li>
+<li>assembler;</li>
+<li>debugger;</li>
+<li>tools.</li>
+</ul>
+<p>Но kernel loader в первую очередь интересует:</p>
+<div class="highlight"><pre><span></span><code>Program Header Table
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>segments
+</code></pre></div>
+<hr/>
+<h1 id="9-loader-section">9. Почему loader не хочет грузить каждую section отдельно<a class="headerlink" href="#9-loader-section" title="Permanent link">¶</a></h1>
+<p>Представим executable:</p>
+<div class="highlight"><pre><span></span><code>.text
+.rodata
+.eh_frame
+.data
+.bss
+</code></pre></div>
+<p>Для загрузки процесса важнее:</p>
+<div class="highlight"><pre><span></span><code>эти области можно читать + исполнять
+эти только читать
+эти читать + писать
+</code></pre></div>
+<p>То есть loader хочет крупные VM regions.</p>
+<p>Sections могут быть сгруппированы в segments.</p>
+<hr/>
+<h1 id="10-program-header-table">10. Program Header Table<a class="headerlink" href="#10-program-header-table" title="Permanent link">¶</a></h1>
+<p>ELF Program Header Table описывает segments.</p>
+<p>Каждая запись отвечает примерно:</p>
+<div class="highlight"><pre><span></span><code>какой тип segment?
+какой file offset?
+какой virtual address?
+сколько bytes в file?
+сколько bytes в memory?
+какие permissions?
+какое alignment?
+</code></pre></div>
+<p>Вот это уже почти инструкция загрузчику.</p>
+<hr/>
+<h1 id="11-pt_load">11. <code>PT_LOAD</code><a class="headerlink" href="#11-pt_load" title="Permanent link">¶</a></h1>
+<p>Главный тип:</p>
+<div class="highlight"><pre><span></span><code>PT_LOAD
+</code></pre></div>
+<p>означает:</p>
+<blockquote>
+<p>Этот диапазон executable image нужно отобразить в память процесса.</p>
+</blockquote>
+<p>Типичный executable имеет несколько <code>PT_LOAD</code>.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>R--
+R-X
+R--
+RW-
+</code></pre></div>
+<p>Точная разбивка зависит от linker и platform.</p>
+<hr/>
+<h1 id="12-pt_load">12. Поля <code>PT_LOAD</code><a class="headerlink" href="#12-pt_load" title="Permanent link">¶</a></h1>
+<p>Особенно важны:</p>
+<div class="highlight"><pre><span></span><code>p_offset
+→ offset в executable file
+
+p_vaddr
+→ виртуальный адрес segment
+
+p_filesz
+→ сколько bytes реально лежит в file
+
+p_memsz
+→ сколько bytes segment должен занимать в memory
+
+p_flags
+→ R/W/X
+</code></pre></div>
+<p>Получаем почти прямой рецепт mapping.</p>
+<hr/>
+<h1 id="13">13. Файл и виртуальная память связываются здесь<a class="headerlink" href="#13" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>ELF PT_LOAD
+↓
+file offset X..Y
+↓
+virtual address A..B
+↓
+VM mapping
+</code></pre></div>
+<p>После этого CPU может выполнять instruction по virtual address.</p>
+<p>А физические pages материализуются уже по правилам VM.</p>
+<hr/>
+<h1 id="14-p_memsz-p_filesz">14. Почему <code>p_memsz</code> может быть больше <code>p_filesz</code><a class="headerlink" href="#14-p_memsz-p_filesz" title="Permanent link">¶</a></h1>
+<p>Вот прекрасный вопрос.</p>
+<div class="highlight"><pre><span></span><code>p_filesz = 100 KiB
+p_memsz  = 10 MiB
+</code></pre></div>
+<p>Откуда возьмутся остальные bytes?</p>
+<p>Обычно:</p>
+<div class="highlight"><pre><span></span><code>zero-filled memory
+</code></pre></div>
+<p>Вот здесь появляется <code>.bss</code>.</p>
+<hr/>
+<h1 id="15-bss-binary">15. <code>.bss</code>: гигантский нулевой массив не обязан занимать место в binary<a class="headerlink" href="#15-bss-binary" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">buf</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">30</span><span class="p">]</span><span class="kt">byte</span>
+</code></pre></div>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>1 GiB zero-initialized global data
+</code></pre></div>
+<p>Глупая реализация:</p>
+<div class="highlight"><pre><span></span><code>binary содержит 1 GiB нулей
+</code></pre></div>
+<p>Не нужна.</p>
+<p>В executable достаточно описать:</p>
+<div class="highlight"><pre><span></span><code>в memory segment должен быть больше,
+чем bytes, существующих в file
+</code></pre></div>
+<p>Остальная часть при загрузке имеет zero semantics.</p>
+<hr/>
+<h1 id="16-demand-paging">16. Это прямой мост к demand paging<a class="headerlink" href="#16-demand-paging" title="Permanent link">¶</a></h1>
+<p>Даже если:</p>
+<div class="highlight"><pre><span></span><code>virtual mapping для BSS = 1 GiB
+</code></pre></div>
+<p>это не означает:</p>
+<div class="highlight"><pre><span></span><code>сразу заняли 1 GiB RAM
+</code></pre></div>
+<p>Из VM-лекции:</p>
+<div class="highlight"><pre><span></span><code>virtual
+≠
+resident
+</code></pre></div>
+<p>Pages могут materialize при первом обращении.</p>
+<hr/>
+<h1 id="17-permissions-code-r-x">17. Permissions: почему code обычно <code>R-X</code><a class="headerlink" href="#17-permissions-code-r-x" title="Permanent link">¶</a></h1>
+<p>Code segment:</p>
+<div class="highlight"><pre><span></span><code>read
+execute
+not write
+</code></pre></div>
+<p>Data:</p>
+<div class="highlight"><pre><span></span><code>read
+write
+not execute
+</code></pre></div>
+<p>Это одна из базовых защит процесса.</p>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>вся память процесса — просто bytes
+</code></pre></div>
+<p>Нет.</p>
+<p>Page table permissions участвуют в security contract.</p>
+<hr/>
+<h1 id="18-wx">18. W^X<a class="headerlink" href="#18-wx" title="Permanent link">¶</a></h1>
+<p>Общая security-идея:</p>
+<div class="highlight"><pre><span></span><code>Writable
+XOR
+Executable
+</code></pre></div>
+<p>То есть memory обычно стараются не делать одновременно:</p>
+<div class="highlight"><pre><span></span><code>W + X
+</code></pre></div>
+<p>Если attacker может писать произвольные bytes в executable page:</p>
+<div class="highlight"><pre><span></span><code>code injection становится намного проще
+</code></pre></div>
+<hr/>
+<h1 id="19-loader-elf-flags-vm-protections">19. Loader превращает ELF flags в VM protections<a class="headerlink" href="#19-loader-elf-flags-vm-protections" title="Permanent link">¶</a></h1>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>PT_LOAD flags
+↓
+loader/kernel mapping
+↓
+page table permissions
+↓
+CPU MMU enforcement
+</code></pre></div>
+<p>Вот как file metadata доходит до hardware protection.</p>
+<hr/>
+<h1 id="20-elf-address-space">20. Значит ELF — это еще и описание будущего address space<a class="headerlink" href="#20-elf-address-space" title="Permanent link">¶</a></h1>
+<p>Не только:</p>
+<div class="highlight"><pre><span></span><code>какие instructions выполнить
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>какие virtual regions создать
+</code></pre></div>
+<p>Это ключевая модель.</p>
+<hr/>
+<h1 id="21-readelf-l">21. <code>readelf -l</code><a class="headerlink" href="#21-readelf-l" title="Permanent link">¶</a></h1>
+<p>Главный инструмент этой части:</p>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает:</p>
+<div class="highlight"><pre><span></span><code>Program Headers
+LOAD segments
+INTERP
+DYNAMIC
+GNU_STACK
+GNU_RELRO
+...
+</code></pre></div>
+<p>Именно <code>-l</code>, а не только section table, отвечает на вопрос:</p>
+<blockquote>
+<p>Что loader собирается отображать?</p>
+</blockquote>
+<hr/>
+<h1 id="22-readelf-s">22. <code>readelf -S</code><a class="headerlink" href="#22-readelf-s" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-S<span class="w"> </span>./app
+</code></pre></div>
+<p>показывает sections.</p>
+<p>Полезно сопоставить:</p>
+<div class="highlight"><pre><span></span><code>section
+↓
+какой segment ее содержит
+</code></pre></div>
+<p>Но не путать:</p>
+<div class="highlight"><pre><span></span><code>section view
+</code></pre></div>
+<p>с:</p>
+<div class="highlight"><pre><span></span><code>loader view
+</code></pre></div>
+<hr/>
+<h1 id="23-readelf-h">23. <code>readelf -h</code><a class="headerlink" href="#23-readelf-h" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает:</p>
+<div class="highlight"><pre><span></span><code>ELF class
+machine
+type
+entry point
+program headers
+</code></pre></div>
+<p>Практика должна начинаться именно с:</p>
+<div class="highlight"><pre><span></span><code>-h
+-l
+-S
+</code></pre></div>
+<hr/>
+<h1 id="ii-execve">Часть II. <code>execve</code><a class="headerlink" href="#ii-execve" title="Permanent link">¶</a></h1>
+<h1 id="24-executable">24. Кто начинает загрузку executable<a class="headerlink" href="#24-executable" title="Permanent link">¶</a></h1>
+<p>Shell выполняет:</p>
+<div class="highlight"><pre><span></span><code>./app
+</code></pre></div>
+<p>В конце цепочки нужен системный вызов семейства:</p>
+<div class="highlight"><pre><span></span><code>execve
+</code></pre></div>
+<hr/>
+<h1 id="25-execve">25. Плохая модель: <code>execve</code> создает новый процесс<a class="headerlink" href="#25-execve" title="Permanent link">¶</a></h1>
+<p>Нет.</p>
+<p><code>execve</code> <strong>заменяет program image текущего процесса</strong>.</p>
+<p>Если shell сначала создал child:</p>
+<div class="highlight"><pre><span></span><code>fork / clone
+</code></pre></div>
+<p>то дочерний process уже существует.</p>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>execve
+</code></pre></div>
+<p>заменяет его user-space program image.</p>
+<hr/>
+<h1 id="26-pid">26. PID сохраняется<a class="headerlink" href="#26-pid" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>до execve:
+PID = X
+работает старый program image
+
+после execve:
+PID = X
+работает новый image
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>exec
+≠
+создание нового PID
+</code></pre></div>
+<hr/>
+<h1 id="27-execve">27. Что меняется при <code>execve</code><a class="headerlink" href="#27-execve" title="Permanent link">¶</a></h1>
+<p>Очень грубо:</p>
+<div class="highlight"><pre><span></span><code>старые user-space mappings
+↓
+заменяются новым address-space image
+</code></pre></div>
+<p>Создаются:</p>
+<div class="highlight"><pre><span></span><code>новый code mapping
+новый data mapping
+новый stack
+новая startup state
+</code></pre></div>
+<p>Часть process attributes сохраняется, часть сбрасывается по правилам ОС.</p>
+<hr/>
+<h1 id="28-file-descriptors-execve">28. File descriptors могут пережить <code>execve</code><a class="headerlink" href="#28-file-descriptors-execve" title="Permanent link">¶</a></h1>
+<p>По умолчанию открытый file descriptor может остаться открытым через exec.</p>
+<p>Если установлен:</p>
+<div class="highlight"><pre><span></span><code>FD_CLOEXEC
+</code></pre></div>
+<p>kernel закрывает его при exec.</p>
+<hr/>
+<h1 id="29-cloexec">29. Почему <code>CLOEXEC</code> существует<a class="headerlink" href="#29-cloexec" title="Permanent link">¶</a></h1>
+<p>Представим server:</p>
+<div class="highlight"><pre><span></span><code>открыл secret fd
+↓
+запустил helper через exec
+</code></pre></div>
+<p>Если fd случайно наследуется:</p>
+<div class="highlight"><pre><span></span><code>новая программа получает доступ к ресурсу
+</code></pre></div>
+<p>Утечка capability.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>close-on-exec
+</code></pre></div>
+<p>— важная security/lifecycle семантика.</p>
+<hr/>
+<h1 id="30-execve-argv-envp">30. <code>execve</code> получает <code>argv</code> и <code>envp</code><a class="headerlink" href="#30-execve-argv-envp" title="Permanent link">¶</a></h1>
+<p>API концептуально:</p>
+<div class="highlight"><pre><span></span><code>path
+argv[]
+envp[]
+</code></pre></div>
+<p>После загрузки новая программа должна увидеть:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">os</span><span class="p">.</span><span class="nx">Args</span>
+</code></pre></div>
+<p>и environment.</p>
+<p>Но <code>main.main</code> вызывается намного позже.</p>
+<hr/>
+<h1 id="31-initial-user-stack">31. Initial user stack<a class="headerlink" href="#31-initial-user-stack" title="Permanent link">¶</a></h1>
+<p>Kernel формирует initial stack с данными вроде:</p>
+<div class="highlight"><pre><span></span><code>argc
+argv pointers
+envp pointers
+auxiliary vector
+strings
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>initial stack
+├── argc
+├── argv[]
+├── envp[]
+├── auxv[]
+└── raw strings
+</code></pre></div>
+<p>Точная layout зависит от ABI/platform.</p>
+<hr/>
+<h1 id="32-osargs">32. Откуда берется <code>os.Args</code><a class="headerlink" href="#32-osargs" title="Permanent link">¶</a></h1>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>execve argv
+↓
+kernel initial stack
+↓
+startup code / runtime
+↓
+Go runtime читает arguments
+↓
+os.Args
+</code></pre></div>
+<p>То есть <code>os.Args</code> — результат bootstrapping от kernel ABI.</p>
+<hr/>
+<h1 id="33-auxiliary-vector">33. Auxiliary Vector<a class="headerlink" href="#33-auxiliary-vector" title="Permanent link">¶</a></h1>
+<p>Помимо argv/env kernel передает:</p>
+<div class="highlight"><pre><span></span><code>auxv
+</code></pre></div>
+<p>Это пары:</p>
+<div class="highlight"><pre><span></span><code>type
+value
+</code></pre></div>
+<p>с дополнительной startup-информацией.</p>
+<hr/>
+<h1 id="34-auxv">34. Что может быть в auxv<a class="headerlink" href="#34-auxv" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>page size
+program header address
+random bytes
+platform data
+vDSO address
+</code></pre></div>
+<p>Набор зависит от platform/architecture.</p>
+<hr/>
+<h1 id="35-auxv">35. Зачем auxv нужен<a class="headerlink" href="#35-auxv" title="Permanent link">¶</a></h1>
+<p>Без него user-space startup пришлось бы узнавать часть platform state через дополнительные syscalls.</p>
+<p>Kernel уже знает данные при <code>execve</code>.</p>
+<p>Дешевле передать их сразу:</p>
+<div class="highlight"><pre><span></span><code>kernel
+↓
+initial stack
+↓
+runtime / dynamic loader
+</code></pre></div>
+<hr/>
+<h1 id="36-at_random">36. <code>AT_RANDOM</code><a class="headerlink" href="#36-at_random" title="Permanent link">¶</a></h1>
+<p>Интересный пример auxv.</p>
+<p>Kernel передает случайные bytes.</p>
+<p>Они могут использоваться user-space security mechanisms.</p>
+<p>Это показывает:</p>
+<div class="highlight"><pre><span></span><code>часть security startup state
+↓
+существует еще до main
+</code></pre></div>
+<hr/>
+<h1 id="37-vdso">37. vDSO<a class="headerlink" href="#37-vdso" title="Permanent link">¶</a></h1>
+<p>Linux может отобразить специальный:</p>
+<div class="highlight"><pre><span></span><code>vDSO
+</code></pre></div>
+<p>в address space процесса.</p>
+<p>Это код, предоставленный kernel для части user-space operations.</p>
+<hr/>
+<h1 id="38-vdso">38. Идея vDSO<a class="headerlink" href="#38-vdso" title="Permanent link">¶</a></h1>
+<p>Вместо полного:</p>
+<div class="highlight"><pre><span></span><code>user
+↓
+syscall transition
+↓
+kernel
+↓
+return
+</code></pre></div>
+<p>для некоторых операций можно использовать:</p>
+<div class="highlight"><pre><span></span><code>user
+↓
+mapped vDSO code
+</code></pre></div>
+<p>Конкретные functions зависят от architecture/kernel.</p>
+<hr/>
+<h1 id="39-vdso-mapping">39. vDSO тоже появляется как mapping процесса<a class="headerlink" href="#39-vdso-mapping" title="Permanent link">¶</a></h1>
+<p>В:</p>
+<div class="highlight"><pre><span></span><code>/proc/&lt;pid&gt;/maps
+</code></pre></div>
+<p>можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>[vdso]
+[vvar]
+</code></pre></div>
+<p>Это не часть Go executable.</p>
+<p>Это mappings, добавленные kernel.</p>
+<hr/>
+<h1 id="40-execve-memory-mappings">40. <code>execve</code> и memory mappings<a class="headerlink" href="#40-execve-memory-mappings" title="Permanent link">¶</a></h1>
+<p>Старые обычные program mappings не сохраняются.</p>
+<p>Новый executable получает новое address-space image.</p>
+<p>Это логично:</p>
+<div class="highlight"><pre><span></span><code>заменили программу
+↓
+заменили ее code/data mappings
+</code></pre></div>
+<hr/>
+<h1 id="41-kernel-executable">41. Kernel не обязан читать executable целиком<a class="headerlink" href="#41-kernel-executable" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>execve
+↓
+прочитать весь binary в RAM
+↓
+start
+</code></pre></div>
+<p>Нет.</p>
+<p>Loader создает file-backed mappings.</p>
+<hr/>
+<h1 id="42-code-pages">42. Code pages могут загружаться лениво<a class="headerlink" href="#42-code-pages" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>segment mapped
+↓
+code page еще не resident
+↓
+CPU впервые исполняет address
+↓
+page fault
+↓
+page cache / storage
+↓
+page resident
+</code></pre></div>
+<p>Это уже знакомый demand paging.</p>
+<hr/>
+<h1 id="43-executable-startup-io">43. Большой executable не означает большой startup I/O сразу<a class="headerlink" href="#43-executable-startup-io" title="Permanent link">¶</a></h1>
+<p>Binary:</p>
+<div class="highlight"><pre><span></span><code>100 MiB
+</code></pre></div>
+<p>Но startup может реально затронуть:</p>
+<div class="highlight"><pre><span></span><code>малую часть code pages
+</code></pre></div>
+<p>Остальные будут прочитаны только если выполнение до них дойдет.</p>
+<hr/>
+<h1 id="44-cold-start">44. Это объясняет cold start<a class="headerlink" href="#44-cold-start" title="Permanent link">¶</a></h1>
+<p>Первый запуск:</p>
+<div class="highlight"><pre><span></span><code>code pages cold
+library pages cold
+metadata cold
+↓
+page faults
+↓
+storage I/O
+↓
+startup latency ↑
+</code></pre></div>
+<p>Повторный:</p>
+<div class="highlight"><pre><span></span><code>page cache warm
+↓
+меньше дорогого I/O
+</code></pre></div>
+<hr/>
+<h1 id="45-startup-page-faults">45. Startup page faults — не обязательно проблема<a class="headerlink" href="#45-startup-page-faults" title="Permanent link">¶</a></h1>
+<p>При запуске:</p>
+<div class="highlight"><pre><span></span><code>minor faults
+</code></pre></div>
+<p>нормальны.</p>
+<p>Executable mappings, zero-filled data и libraries используют обычную VM machinery.</p>
+<p>Диагноз нужен, если faults становятся заметной частью latency.</p>
+<hr/>
+<h1 id="46-container-loader">46. Container не меняет фундаментальный loader<a class="headerlink" href="#46-container-loader" title="Permanent link">¶</a></h1>
+<p>В Linux container:</p>
+<div class="highlight"><pre><span></span><code>процесс
+↓
+тот же Linux kernel
+↓
+тот же ELF loader
+</code></pre></div>
+<p>Container меняет окружение:</p>
+<div class="highlight"><pre><span></span><code>mount namespace
+filesystem view
+cgroup
+credentials
+</code></pre></div>
+<p>Но binary загружает kernel хоста.</p>
+<hr/>
+<h1 id="47-library-container-host">47. Почему library может находиться в container, но отсутствовать на host<a class="headerlink" href="#47-library-container-host" title="Permanent link">¶</a></h1>
+<p>Dynamic loader ищет dependency внутри:</p>
+<div class="highlight"><pre><span></span><code>filesystem namespace процесса
+</code></pre></div>
+<p>Container имеет другой root filesystem.</p>
+<p>Поэтому deployment нужно диагностировать <strong>внутри того же namespace</strong>, а не только на host.</p>
+<hr/>
+<h1 id="iii-aslr-pie">Часть III. ASLR и PIE<a class="headerlink" href="#iii-aslr-pie" title="Permanent link">¶</a></h1>
+<h1 id="48">48. Плохая модель: программа всегда загружается по одним адресам<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
+<p>Предсказуемые addresses облегчают часть exploitation techniques.</p>
+<p>Поэтому современные ОС используют:</p>
+<div class="highlight"><pre><span></span><code>ASLR
+</code></pre></div>
+<p>Address Space Layout Randomization.</p>
+<hr/>
+<h1 id="49">49. Что может рандомизироваться<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
+<p>Например base addresses:</p>
+<div class="highlight"><pre><span></span><code>executable
+shared libraries
+stack
+heap
+mmap regions
+</code></pre></div>
+<p>Точная policy зависит от ОС и типа binary.</p>
+<hr/>
+<h1 id="50-traditional-et_exec">50. Traditional <code>ET_EXEC</code><a class="headerlink" href="#50-traditional-et_exec" title="Permanent link">¶</a></h1>
+<p>Классический executable может быть связан под более фиксированную virtual layout.</p>
+<p>Это ограничивает свободу сдвигать весь image.</p>
+<hr/>
+<h1 id="51-pie">51. PIE<a class="headerlink" href="#51-pie" title="Permanent link">¶</a></h1>
+<p>Position Independent Executable:</p>
+<div class="highlight"><pre><span></span><code>code должен корректно работать
+при изменяемом load base
+</code></pre></div>
+<p>На ELF PIE обычно представлен как:</p>
+<div class="highlight"><pre><span></span><code>ET_DYN
+</code></pre></div>
+<hr/>
+<h1 id="52-load-base">52. Load base<a class="headerlink" href="#52-load-base" title="Permanent link">¶</a></h1>
+<p>Вместо:</p>
+<div class="highlight"><pre><span></span><code>F всегда 0x401000
+</code></pre></div>
+<p>получаем:</p>
+<div class="highlight"><pre><span></span><code>runtime address(F)
+=
+load base
++
+relative offset(F)
+</code></pre></div>
+<p>ASLR выбирает base.</p>
+<hr/>
+<h1 id="53-position-independent-code">53. Position-independent code<a class="headerlink" href="#53-position-independent-code" title="Permanent link">¶</a></h1>
+<p>Код использует:</p>
+<div class="highlight"><pre><span></span><code>PC-relative addressing
+relative offsets
+indirection tables
+</code></pre></div>
+<p>там, где это выгодно.</p>
+<p>Это уменьшает зависимость от абсолютных адресов.</p>
+<hr/>
+<h1 id="54-pie">54. Цена PIE<a class="headerlink" href="#54-pie" title="Permanent link">¶</a></h1>
+<p>Современные ISA хорошо поддерживают position-independent code.</p>
+<p>Но физически могут появляться:</p>
+<div class="highlight"><pre><span></span><code>другие addressing modes
+indirections
+relocations
+</code></pre></div>
+<p>Взамен основной executable image нормально участвует в ASLR.</p>
+<hr/>
+<h1 id="55-pie">55. Проверяем PIE<a class="headerlink" href="#55-pie" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+</code></pre></div>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>Type
+</code></pre></div>
+<p>Запускаем несколько раз и сравниваем:</p>
+<div class="highlight"><pre><span></span><code>/proc/&lt;pid&gt;/maps
+</code></pre></div>
+<p>Ищем изменение base address.</p>
+<hr/>
+<h1 id="iv-dynamic-linking">Часть IV. Dynamic linking<a class="headerlink" href="#iv-dynamic-linking" title="Permanent link">¶</a></h1>
+<h1 id="56">56. Сначала статическая модель<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
+<p>Самый простой executable:</p>
+<div class="highlight"><pre><span></span><code>весь нужный code/data уже находится в binary
+</code></pre></div>
+<p>Kernel:</p>
+<div class="highlight"><pre><span></span><code>map PT_LOAD
+↓
+prepare stack
+↓
+jump to entry point
+</code></pre></div>
+<p>User-space dynamic linker для shared dependencies не нужен.</p>
+<hr/>
+<h1 id="57-shared-libraries">57. Зачем вообще shared libraries<a class="headerlink" href="#57-shared-libraries" title="Permanent link">¶</a></h1>
+<p>Представим много процессов, которым нужен один и тот же library code.</p>
+<p>Можно встроить его в каждый binary.</p>
+<p>Но можно:</p>
+<div class="highlight"><pre><span></span><code>один .so file
+↓
+file-backed mappings
+↓
+несколько процессов
+</code></pre></div>
+<p>Clean code pages могут физически делиться через page cache.</p>
+<hr/>
+<h1 id="58-shared-libraries">58. Но shared libraries дают не только экономию<a class="headerlink" href="#58-shared-libraries" title="Permanent link">¶</a></h1>
+<p>Плюсы:</p>
+<ul>
+<li>меньше дублирования code на диске;</li>
+<li>централизованное обновление библиотеки при совместимом ABI;</li>
+<li>переиспользование общего code.</li>
+</ul>
+<p>Цена:</p>
+<ul>
+<li>runtime dependency;</li>
+<li>loader startup;</li>
+<li>symbol resolution;</li>
+<li>compatibility;</li>
+<li>deployment complexity.</li>
+</ul>
+<hr/>
+<h1 id="59-elf-dynamic-linker">59. Как ELF сообщает, что нужен dynamic linker<a class="headerlink" href="#59-elf-dynamic-linker" title="Permanent link">¶</a></h1>
+<p>В Program Header Table может быть:</p>
+<div class="highlight"><pre><span></span><code>PT_INTERP
+</code></pre></div>
+<p>Он содержит pathname interpreter.</p>
+<p>Типичный glibc Linux:</p>
+<div class="highlight"><pre><span></span><code>/lib64/ld-linux-x86-64.so.2
+</code></pre></div>
+<p>или соответствующий путь другой architecture.</p>
+<hr/>
+<h1 id="60-interpreter">60. Кто запускает interpreter<a class="headerlink" href="#60-interpreter" title="Permanent link">¶</a></h1>
+<p>Kernel ELF loader видит:</p>
+<div class="highlight"><pre><span></span><code>PT_INTERP
+</code></pre></div>
+<p>И подготавливает:</p>
+<div class="highlight"><pre><span></span><code>main executable mappings
++
+interpreter mappings
+</code></pre></div>
+<p>Дальше user-space execution сначала попадает в dynamic linker.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>kernel
+↓
+ld-linux
+↓
+program
+</code></pre></div>
+<hr/>
+<h1 id="61-dynamic-linker-user-space">61. Dynamic linker — user-space программа<a class="headerlink" href="#61-dynamic-linker-user-space" title="Permanent link">¶</a></h1>
+<p>Это важное разрушение.</p>
+<p><code>ld-linux</code>:</p>
+<div class="highlight"><pre><span></span><code>не CPU magic
+не обычная часть вашего main
+</code></pre></div>
+<p>Это отдельный user-space runtime loader.</p>
+<p>Он:</p>
+<div class="highlight"><pre><span></span><code>читает dynamic metadata
+↓
+загружает dependencies
+↓
+разрешает symbols
+↓
+применяет relocations
+↓
+передает управление program entry
+</code></pre></div>
+<hr/>
+<h1 id="62-pt_dynamic">62. <code>PT_DYNAMIC</code><a class="headerlink" href="#62-pt_dynamic" title="Permanent link">¶</a></h1>
+<p>Динамически связанный ELF содержит dynamic information.</p>
+<p>Там встречаются entries вроде:</p>
+<div class="highlight"><pre><span></span><code>DT_NEEDED
+DT_STRTAB
+DT_SYMTAB
+DT_RELA / DT_REL
+DT_RUNPATH
+</code></pre></div>
+<p>Это входные данные dynamic linker.</p>
+<hr/>
+<h1 id="63-dt_needed">63. <code>DT_NEEDED</code><a class="headerlink" href="#63-dt_needed" title="Permanent link">¶</a></h1>
+<p>Каждая запись означает:</p>
+<div class="highlight"><pre><span></span><code>нужна shared library X
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>libc.so.6
+</code></pre></div>
+<p>Dynamic linker строит dependency graph.</p>
+<hr/>
+<h1 id="64-readelf-d">64. <code>readelf -d</code><a class="headerlink" href="#64-readelf-d" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-d<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает Dynamic Section.</p>
+<p>Главный первый вопрос:</p>
+<div class="highlight"><pre><span></span><code>есть ли NEEDED entries?
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>обычных shared-library dependencies может не быть
+</code></pre></div>
+<hr/>
+<h1 id="65-ldd">65. <code>ldd</code><a class="headerlink" href="#65-ldd" title="Permanent link">¶</a></h1>
+<p>Для доверенного executable:</p>
+<div class="highlight"><pre><span></span><code>ldd<span class="w"> </span>./app
+</code></pre></div>
+<p>помогает увидеть resolved dynamic dependencies.</p>
+<p>Но для недоверенного binary безопаснее предпочитать:</p>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-d<span class="w"> </span>./app
+</code></pre></div>
+<p>потому что конкретная реализация <code>ldd</code> исторически может взаимодействовать с loader behavior.</p>
+<hr/>
+<h1 id="66-dynamic-linker-library">66. Как dynamic linker ищет library<a class="headerlink" href="#66-dynamic-linker-library" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>DT_NEEDED name
+↓
+library search
+↓
+нашли file
+↓
+map shared object
+</code></pre></div>
+<p>Search order зависит от loader/platform metadata.</p>
+<hr/>
+<h1 id="67-search-path">67. Источники search path<a class="headerlink" href="#67-search-path" title="Permanent link">¶</a></h1>
+<p>В Linux/glibc могут участвовать:</p>
+<div class="highlight"><pre><span></span><code>DT_RPATH
+DT_RUNPATH
+LD_LIBRARY_PATH
+ld.so.cache
+default library directories
+</code></pre></div>
+<p>Точный priority зависит от конкретной комбинации.</p>
+<p>Для курса важнее понимать сам механизм поиска, а не заучивать весь порядок.</p>
+<hr/>
+<h1 id="68-runpath-deployment-concern">68. Почему <code>RUNPATH</code> — deployment concern<a class="headerlink" href="#68-runpath-deployment-concern" title="Permanent link">¶</a></h1>
+<p>На ноутбуке:</p>
+<div class="highlight"><pre><span></span><code>program starts
+</code></pre></div>
+<p>В container:</p>
+<div class="highlight"><pre><span></span><code>library not found
+</code></pre></div>
+<p>Причина может быть:</p>
+<div class="highlight"><pre><span></span><code>не найден shared object
+</code></pre></div>
+<p>а не Go-код.</p>
+<p>Deployment artifact должен включать нужные libraries и корректный loader path.</p>
+<hr/>
+<h1 id="69-shared-object-elf">69. Shared object — тоже ELF<a class="headerlink" href="#69-shared-object-elf" title="Permanent link">¶</a></h1>
+<p><code>.so</code> содержит:</p>
+<div class="highlight"><pre><span></span><code>ELF header
+PT_LOAD
+dynamic section
+symbols
+relocations
+</code></pre></div>
+<p>Dynamic linker отображает ее segments в address space процесса.</p>
+<hr/>
+<h1 id="70-shared-library">70. Где разместить shared library<a class="headerlink" href="#70-shared-library" title="Permanent link">¶</a></h1>
+<p>ASLR выбирает load region.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>preferred relative layout
++
+randomized base
+↓
+runtime addresses
+</code></pre></div>
+<p>После этого часть references нужно доразрешить.</p>
+<hr/>
+<h1 id="71-relocations-44">71. Возвращаемся к relocations из <code>4.4</code><a class="headerlink" href="#71-relocations-44" title="Permanent link">¶</a></h1>
+<p>Static linker смог разрешить:</p>
+<div class="highlight"><pre><span></span><code>внутренние symbols,
+известные final binary
+</code></pre></div>
+<p>Но external shared symbol может получить окончательный runtime address только после загрузки <code>.so</code>.</p>
+<hr/>
+<h1 id="72-dynamic-relocation">72. Dynamic relocation<a class="headerlink" href="#72-dynamic-relocation" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>relocation:
+slot X должен ссылаться на symbol F
+↓
+dynamic linker нашел F
+↓
+записал runtime address F
+</code></pre></div>
+<p>Вот что остается от линковки на startup.</p>
+<hr/>
+<h1 id="73-executable-text">73. Почему не хочется переписывать executable text<a class="headerlink" href="#73-executable-text" title="Permanent link">¶</a></h1>
+<p>Если dynamic linker постоянно patch'ит:</p>
+<div class="highlight"><pre><span></span><code>R-X code pages
+</code></pre></div>
+<p>нужно временно делать code writable.</p>
+<p>Это хуже для security и sharing.</p>
+<p>Поэтому mutable addresses часто выносятся в специальные data structures.</p>
+<hr/>
+<h1 id="74-got">74. GOT<a class="headerlink" href="#74-got" title="Permanent link">¶</a></h1>
+<p>Global Offset Table.</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>code
+↓
+GOT entry
+↓
+runtime address data/function
+</code></pre></div>
+<p>Dynamic linker может изменить GOT entry.</p>
+<p><code>.text</code> при этом остается executable/read-only.</p>
+<hr/>
+<h1 id="75-plt">75. PLT<a class="headerlink" href="#75-plt" title="Permanent link">¶</a></h1>
+<p>Procedure Linkage Table.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>CALL external F
+↓
+PLT entry
+↓
+GOT
+↓
+actual F
+</code></pre></div>
+<p>Это один из способов организовать dynamic function calls через local stub.</p>
+<p>Точная machinery зависит от ISA/toolchain.</p>
+<hr/>
+<h1 id="76-gotplt">76. Зачем GOT/PLT<a class="headerlink" href="#76-gotplt" title="Permanent link">¶</a></h1>
+<p>Они помогают совместить:</p>
+<div class="highlight"><pre><span></span><code>position-independent code
++
+dynamic addresses
++
+read-only executable code
+</code></pre></div>
+<p>То есть код не обязан содержать окончательный абсолютный адрес каждой external function.</p>
+<hr/>
+<h1 id="77-lazy-binding">77. Lazy binding<a class="headerlink" href="#77-lazy-binding" title="Permanent link">¶</a></h1>
+<p>Function symbol можно разрешить не на startup.</p>
+<p>Первый вызов:</p>
+<div class="highlight"><pre><span></span><code>CALL F@PLT
+↓
+GOT entry еще resolver
+↓
+dynamic resolver
+↓
+найти F
+↓
+переписать GOT
+↓
+вызвать F
+</code></pre></div>
+<p>Повторный:</p>
+<div class="highlight"><pre><span></span><code>PLT
+↓
+GOT
+↓
+F
+</code></pre></div>
+<hr/>
+<h1 id="78-lazy-binding">78. Зачем lazy binding<a class="headerlink" href="#78-lazy-binding" title="Permanent link">¶</a></h1>
+<p>Плюс:</p>
+<div class="highlight"><pre><span></span><code>startup work меньше
+</code></pre></div>
+<p>Если function никогда не вызовется:</p>
+<div class="highlight"><pre><span></span><code>ее binding не понадобился
+</code></pre></div>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>первый call дороже
+</code></pre></div>
+<hr/>
+<h1 id="79-eager-binding">79. Eager binding<a class="headerlink" href="#79-eager-binding" title="Permanent link">¶</a></h1>
+<p>Альтернатива:</p>
+<div class="highlight"><pre><span></span><code>resolve dynamic function symbols при startup
+</code></pre></div>
+<p>Плюсы:</p>
+<div class="highlight"><pre><span></span><code>нет first-call resolver path
+ошибки symbol resolution проявляются раньше
+</code></pre></div>
+<p>Минус:</p>
+<div class="highlight"><pre><span></span><code>startup work больше
+</code></pre></div>
+<hr/>
+<h1 id="80-ld_bind_now">80. <code>LD_BIND_NOW</code><a class="headerlink" href="#80-ld_bind_now" title="Permanent link">¶</a></h1>
+<p>Для glibc:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">LD_BIND_NOW</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>./app
+</code></pre></div>
+<p>просит eager resolution.</p>
+<p>Это хороший лабораторный эксперимент:</p>
+<div class="highlight"><pre><span></span><code>startup cost
+↔
+first-call cost
+</code></pre></div>
+<p>Если binary не использует dynamic loader, эффекта не будет.</p>
+<hr/>
+<h1 id="81-ld_debug">81. <code>LD_DEBUG</code><a class="headerlink" href="#81-ld_debug" title="Permanent link">¶</a></h1>
+<p>Полезный glibc diagnostic mechanism:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">LD_DEBUG</span><span class="o">=</span>libs,reloc,bindings<span class="w"> </span>./app
+</code></pre></div>
+<p>Можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>library search
+relocations
+symbol bindings
+</code></pre></div>
+<p>Для лаборатории отлично.</p>
+<p>Для production output слишком шумный.</p>
+<hr/>
+<h1 id="82-relro">82. RELRO<a class="headerlink" href="#82-relro" title="Permanent link">¶</a></h1>
+<p>Часть relocation-related data нужна writable только во время loader setup.</p>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>relocations применены
+</code></pre></div>
+<p>ее можно сделать:</p>
+<div class="highlight"><pre><span></span><code>read-only
+</code></pre></div>
+<p>Это идея RELRO.</p>
+<hr/>
+<h1 id="83-relro">83. Зачем RELRO<a class="headerlink" href="#83-relro" title="Permanent link">¶</a></h1>
+<p>Без защиты attacker при memory corruption может попытаться:</p>
+<div class="highlight"><pre><span></span><code>переписать function pointer / relocation slot
+</code></pre></div>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>mprotect read-only
+</code></pre></div>
+<p>атака усложняется.</p>
+<hr/>
+<h1 id="84-full-relro-eager-binding">84. Full RELRO и eager binding логически связаны<a class="headerlink" href="#84-full-relro-eager-binding" title="Permanent link">¶</a></h1>
+<p>Если GOT entry планируется менять при первом lazy call:</p>
+<div class="highlight"><pre><span></span><code>она должна оставаться writable
+</code></pre></div>
+<p>Чтобы полностью защитить такие structures:</p>
+<div class="highlight"><pre><span></span><code>resolve заранее
+↓
+сделать read-only
+</code></pre></div>
+<p>Отсюда связь:</p>
+<div class="highlight"><pre><span></span><code>eager binding
+↔
+full RELRO
+</code></pre></div>
+<hr/>
+<h1 id="85-symbol-resolution">85. Symbol resolution<a class="headerlink" href="#85-symbol-resolution" title="Permanent link">¶</a></h1>
+<p>Несколько objects могут экспортировать одинаковое имя.</p>
+<p>Dynamic linker должен решить:</p>
+<div class="highlight"><pre><span></span><code>какой definition использовать
+</code></pre></div>
+<p>В игру входят:</p>
+<div class="highlight"><pre><span></span><code>symbol visibility
+scope
+weak/strong behavior
+load order
+interposition
+</code></pre></div>
+<p>Глубоко rules здесь не разбираем.</p>
+<hr/>
+<h1 id="86-symbol-interposition">86. Symbol interposition<a class="headerlink" href="#86-symbol-interposition" title="Permanent link">¶</a></h1>
+<p>Один loaded object может предоставить symbol, который будет выбран вместо другого.</p>
+<p>Это дает:</p>
+<div class="highlight"><pre><span></span><code>instrumentation
+compatibility tricks
+LD_PRELOAD
+</code></pre></div>
+<p>И одновременно усложняет optimization и security model.</p>
+<hr/>
+<h1 id="87-ld_preload">87. <code>LD_PRELOAD</code><a class="headerlink" href="#87-ld_preload" title="Permanent link">¶</a></h1>
+<p>Dynamic linker может загрузить library раньше обычных dependencies.</p>
+<p>Ее symbols участвуют в lookup.</p>
+<p>Применения:</p>
+<div class="highlight"><pre><span></span><code>перехват malloc
+трассировка
+shim
+</code></pre></div>
+<p>Но это механизм dynamic loader.</p>
+<hr/>
+<h1 id="88-ld_preload-static-binary">88. Почему <code>LD_PRELOAD</code> не действует на обычный static binary<a class="headerlink" href="#88-ld_preload-static-binary" title="Permanent link">¶</a></h1>
+<p>Если executable:</p>
+<div class="highlight"><pre><span></span><code>не запускает dynamic linker
+</code></pre></div>
+<p>то environment variable:</p>
+<div class="highlight"><pre><span></span><code>LD_PRELOAD
+</code></pre></div>
+<p>просто некому обработать.</p>
+<p>Очень хорошая практическая граница static/dynamic linking.</p>
+<hr/>
+<h1 id="89-shared-library-code-pages">89. Shared library code pages могут быть общими<a class="headerlink" href="#89-shared-library-code-pages" title="Permanent link">¶</a></h1>
+<p>Clean R-X pages:</p>
+<div class="highlight"><pre><span></span><code>process A mapping ─┐
+process B mapping ─┼→ одинаковые file-backed physical pages
+process C mapping ─┘
+</code></pre></div>
+<p>Это нормальное file-backed sharing.</p>
+<hr/>
+<h1 id="90-writable-data-shared">90. Но writable data не shared по той же модели<a class="headerlink" href="#90-writable-data-shared" title="Permanent link">¶</a></h1>
+<p>Library globals:</p>
+<div class="highlight"><pre><span></span><code>process-specific state
+</code></pre></div>
+<p>Обычно требуют private/COW semantics.</p>
+<p>Relocation-modified pages тоже могут потерять часть физического sharing.</p>
+<hr/>
+<h1 id="91-dynamic-ram">91. Поэтому «dynamic всегда экономит RAM» слишком грубо<a class="headerlink" href="#91-dynamic-ram" title="Permanent link">¶</a></h1>
+<p>Нужно учитывать:</p>
+<div class="highlight"><pre><span></span><code>clean shared code
+private data
+relocation pages
+page cache
+number of processes
+actual residency
+</code></pre></div>
+<p>Статические binaries, запущенные из одного и того же файла, тоже могут делить clean file-backed text pages.</p>
+<hr/>
+<h1 id="v-go-dynamic-linking">Часть V. Go и dynamic linking<a class="headerlink" href="#v-go-dynamic-linking" title="Permanent link">¶</a></h1>
+<h1 id="92-pure-go-linux-binary">92. Типичный pure-Go Linux binary<a class="headerlink" href="#92-pure-go-linux-binary" title="Permanent link">¶</a></h1>
+<p>Для программы без cgo current Go toolchain обычно может построить:</p>
+<div class="highlight"><pre><span></span><code>static binary
+через internal linking
+</code></pre></div>
+<p>В таком ELF часто нет:</p>
+<div class="highlight"><pre><span></span><code>PT_INTERP
+DT_NEEDED libc
+</code></pre></div>
+<hr/>
+<h1 id="93-go-binary-static">93. Но «Go binary всегда static» — неверно<a class="headerlink" href="#93-go-binary-static" title="Permanent link">¶</a></h1>
+<p>Картина меняется при:</p>
+<div class="highlight"><pre><span></span><code>cgo
+external linking
+PIE/shared build modes
+platform dependencies
+</code></pre></div>
+<p>Поэтому проверяем actual binary:</p>
+<div class="highlight"><pre><span></span><code>file<span class="w"> </span>./app
+readelf<span class="w"> </span>-l<span class="w"> </span>./app
+readelf<span class="w"> </span>-d<span class="w"> </span>./app
+</code></pre></div>
+<hr/>
+<h1 id="94-cgo_enabled0">94. <code>CGO_ENABLED=0</code><a class="headerlink" href="#94-cgo_enabled0" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nv">CGO_ENABLED</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>go<span class="w"> </span>build
+</code></pre></div>
+<p>часто дает pure-Go path без C shared dependencies.</p>
+<p>Но package functionality должна иметь pure-Go implementation.</p>
+<hr/>
+<h1 id="95-cgo-abi-">95. <code>cgo</code> добавляет второй ABI-мир<a class="headerlink" href="#95-cgo-abi-" title="Permanent link">¶</a></h1>
+<p>Теперь есть:</p>
+<div class="highlight"><pre><span></span><code>Go ABI
+↔
+platform C ABI
+</code></pre></div>
+<p>И могут появиться:</p>
+<div class="highlight"><pre><span></span><code>external objects
+system libraries
+external linker
+dynamic loader
+</code></pre></div>
+<hr/>
+<h1 id="96-backend-">96. Почему это важно backend-разработчику<a class="headerlink" href="#96-backend-" title="Permanent link">¶</a></h1>
+<p>Например deployment:</p>
+<div class="highlight"><pre><span></span><code>binary работал на build machine
+↓
+в minimal image не запускается
+</code></pre></div>
+<p>Причина может быть:</p>
+<div class="highlight"><pre><span></span><code>glibc loader/library dependency
+</code></pre></div>
+<p>а не Go runtime.</p>
+<hr/>
+<h1 id="97-ldd-pure-go-cgo-binary">97. <code>ldd</code> pure-Go и cgo binary<a class="headerlink" href="#97-ldd-pure-go-cgo-binary" title="Permanent link">¶</a></h1>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>A: CGO_ENABLED=0
+B: реальная cgo dependency
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>file
+readelf<span class="w"> </span>-l
+readelf<span class="w"> </span>-d
+ldd
+</code></pre></div>
+<p>Разница физически видна.</p>
+<hr/>
+<h1 id="98-go-pie">98. Go PIE<a class="headerlink" href="#98-go-pie" title="Permanent link">¶</a></h1>
+<p>Можно явно собрать:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-buildmode<span class="o">=</span>pie
+</code></pre></div>
+<p>Получаем position-independent executable.</p>
+<p>Это естественно сочетается с ASLR.</p>
+<p>Exact defaults зависят от target/build context.</p>
+<hr/>
+<h1 id="99-runtime-metadata-relocationbase-slide">99. Runtime metadata тоже должна пережить relocation/base slide<a class="headerlink" href="#99-runtime-metadata-relocationbase-slide" title="Permanent link">¶</a></h1>
+<p>Если executable загружен по разному base:</p>
+<div class="highlight"><pre><span></span><code>runtime code
+pclntab
+type data
+function addresses
+</code></pre></div>
+<p>должны корректно работать с фактическими runtime addresses.</p>
+<p>Toolchain скрывает эту работу от обычного Go-кода.</p>
+<hr/>
+<h1 id="vi-loader-go-runtime">Часть VI. От loader к Go runtime<a class="headerlink" href="#vi-loader-go-runtime" title="Permanent link">¶</a></h1>
+<h1 id="100-kernel">100. Kernel закончил загрузку. Что дальше?<a class="headerlink" href="#100-kernel" title="Permanent link">¶</a></h1>
+<p>Static:</p>
+<div class="highlight"><pre><span></span><code>kernel
+↓
+entry point
+</code></pre></div>
+<p>Dynamic:</p>
+<div class="highlight"><pre><span></span><code>kernel
+↓
+dynamic linker
+↓
+program entry
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>entry point
+≠
+main.main
+</code></pre></div>
+<hr/>
+<h1 id="101-mainmain">101. Почему нельзя сразу вызвать <code>main.main</code><a class="headerlink" href="#101-mainmain" title="Permanent link">¶</a></h1>
+<p>Go runtime еще не готов.</p>
+<p>Нужно bootstrap'нуть:</p>
+<div class="highlight"><pre><span></span><code>thread/runtime state
+scheduler
+allocator
+GC
+P/G/M infrastructure
+package initialization
+</code></pre></div>
+<p>Так что <code>main.main</code> находится позже.</p>
+<hr/>
+<h1 id="102-go-startup-chain">102. Высокоуровневая Go startup chain<a class="headerlink" href="#102-go-startup-chain" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>ELF entry
+↓
+platform startup assembly
+↓
+rt0_*
+↓
+runtime bootstrap
+↓
+runtime.main
+↓
+package init
+↓
+main.main
+</code></pre></div>
+<p>Названия конкретных entry symbols — детали реализации.</p>
+<hr/>
+<h1 id="103-45">103. Где заканчивается <code>4.5</code><a class="headerlink" href="#103-45" title="Permanent link">¶</a></h1>
+<p>Мы объясняем:</p>
+<div class="highlight"><pre><span></span><code>как OS дошла до Go runtime entry
+</code></pre></div>
+<p>Но не открываем подробно:</p>
+<div class="highlight"><pre><span></span><code>m0
+g0
+TLS / g
+schedinit
+P
+runtime.main internals
+package init internals
+</code></pre></div>
+<p>Это уже отдельный следующий слой.</p>
+<hr/>
+<h1 id="104">104. Почему это не искусственное разделение<a class="headerlink" href="#104" title="Permanent link">¶</a></h1>
+<p><code>4.5</code>:</p>
+<div class="highlight"><pre><span></span><code>executable
+→ OS loader
+→ process image
+→ runtime entry
+</code></pre></div>
+<p>Следующая лекция:</p>
+<div class="highlight"><pre><span></span><code>runtime entry
+→ self-bootstrap
+→ working Go runtime
+→ main.main
+</code></pre></div>
+<p>Одна граница заканчивается там, где начинается другая.</p>
+<hr/>
+<h1 id="vii-cold-start">Часть VII. Cold start<a class="headerlink" href="#vii-cold-start" title="Permanent link">¶</a></h1>
+<h1 id="105-request">105. До первого request уже есть работа<a class="headerlink" href="#105-request" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>execve
+ELF loading
+VM mappings
+dynamic loader
+libraries
+relocations
+page faults
+Go runtime bootstrap
+package init
+</code></pre></div>
+<p>После этого еще:</p>
+<div class="highlight"><pre><span></span><code>application init
+DB pools
+listeners
+caches
+</code></pre></div>
+<p>Startup latency может появиться на любом слое.</p>
+<hr/>
+<h1 id="106-cold-executable-pages">106. Cold executable pages<a class="headerlink" href="#106-cold-executable-pages" title="Permanent link">¶</a></h1>
+<p>Первый instruction fetch в cold page:</p>
+<div class="highlight"><pre><span></span><code>page not resident
+↓
+page fault
+↓
+page cache?
+├── hit → memory
+└── miss → storage
+</code></pre></div>
+<p>То есть code тоже живет в memory hierarchy.</p>
+<hr/>
+<h1 id="107-dynamic-binary-startup-working-set">107. Dynamic binary имеет дополнительный startup working set<a class="headerlink" href="#107-dynamic-binary-startup-working-set" title="Permanent link">¶</a></h1>
+<p>Могут затрагиваться:</p>
+<div class="highlight"><pre><span></span><code>ld.so code
+libc code
+other libraries
+symbol tables
+relocation tables
+GOT/PLT pages
+</code></pre></div>
+<p>Это больше memory/code paths до main.</p>
+<hr/>
+<h1 id="108-relocations-cpu-memory-traffic">108. Relocations тоже стоят CPU и memory traffic<a class="headerlink" href="#108-relocations-cpu-memory-traffic" title="Permanent link">¶</a></h1>
+<p>Каждая relocation:</p>
+<div class="highlight"><pre><span></span><code>прочитать metadata
+↓
+найти target
+↓
+вычислить address
+↓
+записать slot
+</code></pre></div>
+<p>На больших dynamic applications startup cost может быть заметной.</p>
+<hr/>
+<h1 id="109-lazy-binding">109. Lazy binding переносит цену<a class="headerlink" href="#109-lazy-binding" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>startup дешевле
+</code></pre></div>
+<p>Но первый вызов:</p>
+<div class="highlight"><pre><span></span><code>resolver path
+</code></pre></div>
+<p>дороже.</p>
+<p>Цена не исчезла.</p>
+<p>Она сместилась во времени.</p>
+<hr/>
+<h1 id="110-container-cold-start">110. Container cold start имеет дополнительные слои<a class="headerlink" href="#110-container-cold-start" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>image available?
+filesystem layers
+namespace/cgroup
+process creation
+execve
+loader
+runtime
+application
+</code></pre></div>
+<p><code>4.5</code> отвечает только за:</p>
+<div class="highlight"><pre><span></span><code>execve → loader → runtime entry
+</code></pre></div>
+<p>Не смешиваем с Kubernetes scheduler/image pull.</p>
+<hr/>
+<h1 id="111-staticdistroless-go-artifacts">111. Почему static/distroless Go artifacts популярны<a class="headerlink" href="#111-staticdistroless-go-artifacts" title="Permanent link">¶</a></h1>
+<p>Плюсы:</p>
+<div class="highlight"><pre><span></span><code>меньше runtime filesystem dependencies
+проще deployment
+меньше libraries
+меньше attack surface
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>static
+≠
+автоматически быстрее и меньше во всем
+</code></pre></div>
+<hr/>
+<h1 id="viii-macos-mach-o">Часть VIII. macOS / Mach-O<a class="headerlink" href="#viii-macos-mach-o" title="Permanent link">¶</a></h1>
+<h1 id="112-macos">112. На macOS формат другой, физическая задача та же<a class="headerlink" href="#112-macos" title="Permanent link">¶</a></h1>
+<p>Linux:</p>
+<div class="highlight"><pre><span></span><code>ELF
+</code></pre></div>
+<p>macOS:</p>
+<div class="highlight"><pre><span></span><code>Mach-O
+</code></pre></div>
+<p>Но нужно то же:</p>
+<div class="highlight"><pre><span></span><code>architecture
+segments
+permissions
+entry
+dynamic libraries
+runtime addresses
+</code></pre></div>
+<hr/>
+<h1 id="113-mach-o-header-load-commands">113. Mach-O header + load commands<a class="headerlink" href="#113-mach-o-header-load-commands" title="Permanent link">¶</a></h1>
+<p>Mach-O использует:</p>
+<div class="highlight"><pre><span></span><code>header
+↓
+load commands
+</code></pre></div>
+<p>Load commands описывают:</p>
+<div class="highlight"><pre><span></span><code>segments
+dylibs
+entry
+code signature
+</code></pre></div>
+<hr/>
+<h1 id="114-lc_segment_64">114. <code>LC_SEGMENT_64</code><a class="headerlink" href="#114-lc_segment_64" title="Permanent link">¶</a></h1>
+<p>Для 64-bit Mach-O segment описывается:</p>
+<div class="highlight"><pre><span></span><code>LC_SEGMENT_64
+</code></pre></div>
+<p>Поля по смыслу:</p>
+<div class="highlight"><pre><span></span><code>vmaddr
+vmsize
+fileoff
+filesize
+maxprot/initprot
+</code></pre></div>
+<p>Роль похожа на ELF <code>PT_LOAD</code>.</p>
+<hr/>
+<h1 id="115-__text">115. <code>__TEXT</code><a class="headerlink" href="#115-__text" title="Permanent link">¶</a></h1>
+<p>Обычно содержит:</p>
+<div class="highlight"><pre><span></span><code>code
+read-only data
+</code></pre></div>
+<p>и загружается с executable/read permissions.</p>
+<hr/>
+<h1 id="116-data-segments">116. Data segments<a class="headerlink" href="#116-data-segments" title="Permanent link">¶</a></h1>
+<p>Writable globals и related data живут в writable segments.</p>
+<p>Современный Mach-O может дробить data на несколько сегментов ради security/sharing.</p>
+<p>Но общая модель одна:</p>
+<div class="highlight"><pre><span></span><code>load command
+↓
+VM mapping
+</code></pre></div>
+<hr/>
+<h1 id="117-aslr-slide">117. ASLR slide<a class="headerlink" href="#117-aslr-slide" title="Permanent link">¶</a></h1>
+<p>Mach-O описывает preferred virtual addresses.</p>
+<p>Kernel выбирает:</p>
+<div class="highlight"><pre><span></span><code>slide S
+</code></pre></div>
+<p>И runtime address:</p>
+<div class="highlight"><pre><span></span><code>preferred + S
+</code></pre></div>
+<hr/>
+<h1 id="118-otool-l">118. <code>otool -l</code><a class="headerlink" href="#118-otool-l" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>otool<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает load commands.</p>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>LC_SEGMENT_64
+vmaddr
+vmsize
+fileoff
+protections
+</code></pre></div>
+<hr/>
+<h1 id="119-otool-l">119. <code>otool -L</code><a class="headerlink" href="#119-otool-l" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>otool<span class="w"> </span>-L<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает dylib dependencies.</p>
+<p>Это аналог вопроса:</p>
+<div class="highlight"><pre><span></span><code>какие shared libraries нужны?
+</code></pre></div>
+<hr/>
+<h1 id="120-dyld">120. <code>dyld</code><a class="headerlink" href="#120-dyld" title="Permanent link">¶</a></h1>
+<p>Dynamic loader macOS:</p>
+<div class="highlight"><pre><span></span><code>dyld
+</code></pre></div>
+<p>Он:</p>
+<div class="highlight"><pre><span></span><code>загружает dylibs
+применяет fixups
+делает bindings
+передает управление program entry
+</code></pre></div>
+<p>По роли:</p>
+<div class="highlight"><pre><span></span><code>ld-linux ↔ dyld
+</code></pre></div>
+<hr/>
+<h1 id="121-dyld-shared-cache">121. Dyld shared cache<a class="headerlink" href="#121-dyld-shared-cache" title="Permanent link">¶</a></h1>
+<p>System libraries могут жить в:</p>
+<div class="highlight"><pre><span></span><code>dyld shared cache
+</code></pre></div>
+<p>Это оптимизированная инфраструктура Apple для common system code.</p>
+<p>Не открываем internals.</p>
+<hr/>
+<h1 id="122-code-signing">122. Code signing<a class="headerlink" href="#122-code-signing" title="Permanent link">¶</a></h1>
+<p>Mach-O ecosystem тесно связан с:</p>
+<div class="highlight"><pre><span></span><code>code signature
+</code></pre></div>
+<p>Binary может иметь:</p>
+<div class="highlight"><pre><span></span><code>LC_CODE_SIGNATURE
+</code></pre></div>
+<p>Security subsystem проверяет, разрешено ли выполнение.</p>
+<hr/>
+<h1 id="123-code-signing-loader-path">123. Почему code signing относится к loader path<a class="headerlink" href="#123-code-signing-loader-path" title="Permanent link">¶</a></h1>
+<p>До исполнения code нужно ответить:</p>
+<div class="highlight"><pre><span></span><code>доверяет ли platform этому executable?
+</code></pre></div>
+<p>То есть security policy — часть startup lifecycle.</p>
+<hr/>
+<h1 id="124-apple-silicon-universal-binaries">124. Apple Silicon и universal binaries<a class="headerlink" href="#124-apple-silicon-universal-binaries" title="Permanent link">¶</a></h1>
+<p>Artifact может содержать несколько architecture slices:</p>
+<div class="highlight"><pre><span></span><code>arm64
+x86_64
+</code></pre></div>
+<p>OS выбирает подходящий slice.</p>
+<p>Это дополнительный внешний контейнер над Mach-O image конкретной architecture.</p>
+<hr/>
+<h1 id="125-elfmach-o">125. Общая модель ELF/Mach-O<a class="headerlink" href="#125-elfmach-o" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>executable file
+↓
+header/load metadata
+↓
+segments
+↓
+VM mappings
+↓
+ASLR
+↓
+dynamic dependencies
+↓
+relocations/fixups
+↓
+entry point
+</code></pre></div>
+<p>Термины разные.</p>
+<p>Физика одна.</p>
+<hr/>
+<h1 id="ix-windows">Часть IX. Windows кратко<a class="headerlink" href="#ix-windows" title="Permanent link">¶</a></h1>
+<h1 id="126-windows-pecoff">126. Windows использует PE/COFF<a class="headerlink" href="#126-windows-pecoff" title="Permanent link">¶</a></h1>
+<p>Опять есть:</p>
+<div class="highlight"><pre><span></span><code>headers
+sections
+imports
+base relocations
+entry point
+</code></pre></div>
+<hr/>
+<h1 id="127-windows-loader">127. Windows loader решает ту же задачу<a class="headerlink" href="#127-windows-loader" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>map executable
+↓
+map DLLs
+↓
+resolve imports
+↓
+base relocations
+↓
+startup
+↓
+entry point
+</code></pre></div>
+<p>Глубже PE сейчас не идем.</p>
+<hr/>
+<h1 id="128-import-address-table">128. Import Address Table<a class="headerlink" href="#128-import-address-table" title="Permanent link">¶</a></h1>
+<p>Концептуально похожая задача:</p>
+<div class="highlight"><pre><span></span><code>program imports function F from DLL
+↓
+loader finds DLL/F
+↓
+writes resolved address into import table
+</code></pre></div>
+<p>Это platform-версия dynamic symbol binding.</p>
+<hr/>
+<h1 id="x-linux-startup">Часть X. Диагностика Linux startup<a class="headerlink" href="#x-linux-startup" title="Permanent link">¶</a></h1>
+<h1 id="129-no1-file">129. Инструмент №1: <code>file</code><a class="headerlink" href="#129-no1-file" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>file<span class="w"> </span>./app
+</code></pre></div>
+<p>Быстро показывает:</p>
+<div class="highlight"><pre><span></span><code>ELF
+architecture
+dynamic/static hints
+interpreter
+stripped
+</code></pre></div>
+<hr/>
+<h1 id="130-no2-readelf-h">130. Инструмент №2: <code>readelf -h</code><a class="headerlink" href="#130-no2-readelf-h" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+</code></pre></div>
+<p>Вопросы:</p>
+<div class="highlight"><pre><span></span><code>ET_EXEC или ET_DYN?
+architecture?
+entry point?
+</code></pre></div>
+<hr/>
+<h1 id="131-no3-readelf-l">131. Инструмент №3: <code>readelf -l</code><a class="headerlink" href="#131-no3-readelf-l" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>LOAD
+INTERP
+DYNAMIC
+GNU_RELRO
+GNU_STACK
+</code></pre></div>
+<p>Главный вопрос:</p>
+<blockquote>
+<p>Какие segments loader создаст в address space?</p>
+</blockquote>
+<hr/>
+<h1 id="132-no4-readelf-d">132. Инструмент №4: <code>readelf -d</code><a class="headerlink" href="#132-no4-readelf-d" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-d<span class="w"> </span>./app
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>NEEDED
+RUNPATH
+RPATH
+flags
+</code></pre></div>
+<hr/>
+<h1 id="133-procpidmaps">133. <code>/proc/&lt;pid&gt;/maps</code><a class="headerlink" href="#133-procpidmaps" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>/proc/<span class="nv">$PID</span>/maps
+</code></pre></div>
+<p>Теперь сопоставляем:</p>
+<div class="highlight"><pre><span></span><code>ELF PT_LOAD
+↔
+runtime mapping
+</code></pre></div>
+<p>По:</p>
+<div class="highlight"><pre><span></span><code>address
+permissions
+file offset
+pathname
+</code></pre></div>
+<hr/>
+<h1 id="134">134. Это центральное доказательство лекции<a class="headerlink" href="#134" title="Permanent link">¶</a></h1>
+<p>До запуска:</p>
+<div class="highlight"><pre><span></span><code>readelf -l
+</code></pre></div>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>/proc/PID/maps
+</code></pre></div>
+<p>И мы руками видим:</p>
+<div class="highlight"><pre><span></span><code>executable metadata
+↓
+real VM layout
+</code></pre></div>
+<hr/>
+<h1 id="135-procpidsmaps">135. <code>/proc/&lt;pid&gt;/smaps</code><a class="headerlink" href="#135-procpidsmaps" title="Permanent link">¶</a></h1>
+<p>Если нужно добавить residency:</p>
+<div class="highlight"><pre><span></span><code>RSS
+PSS
+private/shared
+anonymous/file-backed
+</code></pre></div>
+<p>Но это уже использование знаний из VM-лекции.</p>
+<hr/>
+<h1 id="136-strace">136. <code>strace</code><a class="headerlink" href="#136-strace" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>strace<span class="w"> </span>-f<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>execve,openat,mmap,mprotect,munmap<span class="w"> </span>./app
+</code></pre></div>
+<p>Полезно для:</p>
+<div class="highlight"><pre><span></span><code>exec
+library opens
+user-space loader mappings
+mprotect
+</code></pre></div>
+<hr/>
+<h1 id="137-strace">137. Ограничение <code>strace</code><a class="headerlink" href="#137-strace" title="Permanent link">¶</a></h1>
+<p>Kernel ELF loader выполняет часть работы <strong>внутри <code>execve</code></strong>.</p>
+<p>Она не обязана появиться как серия отдельных user-visible syscalls.</p>
+<p>Поэтому <code>strace</code> не является трассировкой внутреннего kernel loader.</p>
+<hr/>
+<h1 id="138-perf-stat">138. <code>perf stat</code><a class="headerlink" href="#138-perf-stat" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>perf<span class="w"> </span>stat<span class="w"> </span>./app
+</code></pre></div>
+<p>Можно смотреть:</p>
+<div class="highlight"><pre><span></span><code>page-faults
+cycles
+instructions
+task-clock
+</code></pre></div>
+<p>Для очень короткого процесса делаем много повторов.</p>
+<hr/>
+<h1 id="139-coldwarm-experiment">139. Cold/warm experiment<a class="headerlink" href="#139-coldwarm-experiment" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>cold-ish start
+warm start
+</code></pre></div>
+<p>По:</p>
+<div class="highlight"><pre><span></span><code>wall time
+major faults
+minor faults
+</code></pre></div>
+<p>Не чистим page cache на production.</p>
+<hr/>
+<h1 id="140-ld_debug">140. <code>LD_DEBUG</code><a class="headerlink" href="#140-ld_debug" title="Permanent link">¶</a></h1>
+<p>Для dynamic binary:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">LD_DEBUG</span><span class="o">=</span>libs,reloc<span class="w"> </span>./app
+</code></pre></div>
+<p>Показывает dynamic loader work.</p>
+<hr/>
+<h1 id="141-macos-vmmap">141. macOS: <code>vmmap</code><a class="headerlink" href="#141-macos-vmmap" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>vmmap<span class="w"> </span><span class="nv">$PID</span>
+</code></pre></div>
+<p>Сопоставляем:</p>
+<div class="highlight"><pre><span></span><code>Mach-O load commands
+↓
+real mappings
+</code></pre></div>
+<hr/>
+<h1 id="142-macos-dyld-diagnostics">142. macOS: dyld diagnostics<a class="headerlink" href="#142-macos-dyld-diagnostics" title="Permanent link">¶</a></h1>
+<p>Можно использовать diagnostic variables dyld, например:</p>
+<div class="highlight"><pre><span></span><code>DYLD_PRINT_LIBRARIES
+</code></pre></div>
+<p>с учетом security restrictions текущей macOS.</p>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>увидеть реальные dylib loads
+</code></pre></div>
+<hr/>
+<h1 id="xi">Часть XI. Практика<a class="headerlink" href="#xi" title="Permanent link">¶</a></h1>
+<h1 id="143-1-elf-header">143. Практика 1: ELF header<a class="headerlink" href="#143-1-elf-header" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nv">CGO_ENABLED</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>app<span class="w"> </span>.
+readelf<span class="w"> </span>-h<span class="w"> </span>./app
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>Class
+Machine
+Type
+Entry point
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Executable сам описывает architecture и entry.</p>
+</blockquote>
+<hr/>
+<h1 id="144-2-sections-segments">144. Практика 2: sections против segments<a class="headerlink" href="#144-2-sections-segments" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-S<span class="w"> </span>./app
+readelf<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>Сопоставить:</p>
+<div class="highlight"><pre><span></span><code>.text
+.rodata
+.data
+.bss
+</code></pre></div>
+<p>с <code>PT_LOAD</code>.</p>
+<hr/>
+<h1 id="145-3-bss">145. Практика 3: <code>.bss</code><a class="headerlink" href="#145-3-bss" title="Permanent link">¶</a></h1>
+<p>Добавить:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">big</span><span class="w"> </span><span class="p">[</span><span class="mi">512</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">20</span><span class="p">]</span><span class="kt">byte</span>
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>binary file size
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>PT_LOAD p_memsz
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>512 MiB zero state
+≠
+512 MiB нулей в файле
+</code></pre></div>
+<hr/>
+<h1 id="146-4-pt_load-procpidmaps">146. Практика 4: PT_LOAD ↔ <code>/proc/PID/maps</code><a class="headerlink" href="#146-4-pt_load-procpidmaps" title="Permanent link">¶</a></h1>
+<p>Запустить долгоживущий процесс.</p>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-l<span class="w"> </span>./app
+cat<span class="w"> </span>/proc/<span class="nv">$PID</span>/maps
+</code></pre></div>
+<p>По:</p>
+<div class="highlight"><pre><span></span><code>permissions
+offsets
+addresses
+</code></pre></div>
+<hr/>
+<h1 id="147-5-mapping-residency">147. Практика 5: mapping ≠ residency<a class="headerlink" href="#147-5-mapping-residency" title="Permanent link">¶</a></h1>
+<p>Большой BSS сначала не трогать.</p>
+<p>Потом пройти с шагом page.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>smaps
+RSS
+page faults
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Loader создал mapping раньше, чем RAM стала resident.</p>
+</blockquote>
+<hr/>
+<h1 id="148-6-pie-aslr">148. Практика 6: PIE + ASLR<a class="headerlink" href="#148-6-pie-aslr" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>app-normal<span class="w"> </span>.
+go<span class="w"> </span>build<span class="w"> </span>-buildmode<span class="o">=</span>pie<span class="w"> </span>-o<span class="w"> </span>app-pie<span class="w"> </span>.
+</code></pre></div>
+<p>Запустить несколько раз.</p>
+<p>Смотреть base addresses.</p>
+<hr/>
+<h1 id="149-7-pure-go-vs-cgo">149. Практика 7: pure Go vs cgo<a class="headerlink" href="#149-7-pure-go-vs-cgo" title="Permanent link">¶</a></h1>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>CGO_ENABLED=0
+</code></pre></div>
+<p>и вариант с реальной cgo dependency.</p>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>file
+readelf<span class="w"> </span>-l
+readelf<span class="w"> </span>-d
+ldd
+</code></pre></div>
+<hr/>
+<h1 id="150-8-loader-trace">150. Практика 8: loader trace<a class="headerlink" href="#150-8-loader-trace" title="Permanent link">¶</a></h1>
+<p>Для dynamic binary:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">LD_DEBUG</span><span class="o">=</span>libs,reloc<span class="w"> </span>./app
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>search
+map
+relocation
+</code></pre></div>
+<hr/>
+<h1 id="151-9-strace-startup">151. Практика 9: <code>strace</code> startup<a class="headerlink" href="#151-9-strace-startup" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>strace<span class="w"> </span>-f<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>execve,openat,mmap,mprotect<span class="w"> </span>./app
+</code></pre></div>
+<p>Сравнить static и dynamic builds.</p>
+<hr/>
+<h1 id="152-10-argv">152. Практика 10: argv<a class="headerlink" href="#152-10-argv" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"%q\n"</span><span class="p">,</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Args</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Запуск:</p>
+<div class="highlight"><pre><span></span><code>./app<span class="w"> </span>a<span class="w"> </span>b<span class="w"> </span>c
+</code></pre></div>
+<p>Объяснить:</p>
+<div class="highlight"><pre><span></span><code>shell
+↓
+execve argv
+↓
+initial stack
+↓
+runtime
+↓
+os.Args
+</code></pre></div>
+<hr/>
+<h1 id="153-11-entry-point">153. Практика 11: entry point<a class="headerlink" href="#153-11-entry-point" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+</code></pre></div>
+<p>Взять entry address.</p>
+<p>Через:</p>
+<div class="highlight"><pre><span></span><code>objdump / go tool objdump
+</code></pre></div>
+<p>найти startup code.</p>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>entry point
+≠
+main.main
+</code></pre></div>
+<hr/>
+<h1 id="154-12-coldwarm-startup">154. Практика 12: cold/warm startup<a class="headerlink" href="#154-12-coldwarm-startup" title="Permanent link">¶</a></h1>
+<p>Много раз запускать короткий process.</p>
+<p>Снимать:</p>
+<div class="highlight"><pre><span></span><code>wall time
+faults
+</code></pre></div>
+<p>Сравнить холодный и прогретый file cache.</p>
+<hr/>
+<h1 id="155-13-shared-library-pages">155. Практика 13: shared library pages<a class="headerlink" href="#155-13-shared-library-pages" title="Permanent link">¶</a></h1>
+<p>Запустить несколько экземпляров dynamic binary.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>maps
+PSS
+shared clean pages
+</code></pre></div>
+<p>Не использовать RSS одного процесса как сумму physical memory системы.</p>
+<hr/>
+<h1 id="156-14-macos">156. Практика 14: macOS<a class="headerlink" href="#156-14-macos" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>otool<span class="w"> </span>-l<span class="w"> </span>./app
+otool<span class="w"> </span>-L<span class="w"> </span>./app
+vmmap<span class="w"> </span><span class="nv">$PID</span>
+</code></pre></div>
+<p>Сопоставить:</p>
+<div class="highlight"><pre><span></span><code>load commands
+dylibs
+VM mappings
+</code></pre></div>
+<hr/>
+<h1 id="xii">Часть XII. Инциденты<a class="headerlink" href="#xii" title="Permanent link">¶</a></h1>
+<h1 id="157-binary-no-such-file-or-directory">157. Binary есть, но запуск говорит <code>No such file or directory</code><a class="headerlink" href="#157-binary-no-such-file-or-directory" title="Permanent link">¶</a></h1>
+<p>Очень неприятный случай.</p>
+<p>File существует.</p>
+<p>Одна из гипотез:</p>
+<div class="highlight"><pre><span></span><code>PT_INTERP указывает на loader,
+которого нет в filesystem
+</code></pre></div>
+<hr/>
+<h1 id="158-container-scenario">158. Container scenario<a class="headerlink" href="#158-container-scenario" title="Permanent link">¶</a></h1>
+<p>Собрали dynamic glibc binary.</p>
+<p>Перенесли в minimal image.</p>
+<p>Нет:</p>
+<div class="highlight"><pre><span></span><code>/lib64/ld-linux-...
+</code></pre></div>
+<p>Kernel:</p>
+<div class="highlight"><pre><span></span><code>нашел executable
+↓
+прочитал PT_INTERP
+↓
+не нашел interpreter
+↓
+exec fails
+</code></pre></div>
+<hr/>
+<h1 id="159">159. Диагностика<a class="headerlink" href="#159" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>file<span class="w"> </span>./app
+readelf<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>INTERP
+</code></pre></div>
+<p>Проверяем pathname <strong>внутри container filesystem</strong>.</p>
+<hr/>
+<h1 id="160-error-while-loading-shared-libraries">160. <code>error while loading shared libraries</code><a class="headerlink" href="#160-error-while-loading-shared-libraries" title="Permanent link">¶</a></h1>
+<p>Здесь interpreter уже стартовал.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>DT_NEEDED
+↓
+library search
+↓
+не нашли .so
+</code></pre></div>
+<hr/>
+<h1 id="161-library-resolution">161. Диагностика library resolution<a class="headerlink" href="#161-library-resolution" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-d<span class="w"> </span>./app
+ldd<span class="w"> </span>./app
+<span class="nv">LD_DEBUG</span><span class="o">=</span>libs<span class="w"> </span>./app
+</code></pre></div>
+<p>В container выполняем внутри того же namespace.</p>
+<hr/>
+<h1 id="162">162. Сервис медленно стартует до первых логов<a class="headerlink" href="#162" title="Permanent link">¶</a></h1>
+<p>Возможные слои:</p>
+<div class="highlight"><pre><span></span><code>loader
+shared libraries
+relocations
+cold page faults
+runtime bootstrap
+package init
+</code></pre></div>
+<p>Нужно сначала локализовать время.</p>
+<hr/>
+<h1 id="163-loader-latency-runtime-init-latency">163. Loader latency и runtime init latency — разные вещи<a class="headerlink" href="#163-loader-latency-runtime-init-latency" title="Permanent link">¶</a></h1>
+<p>Если dynamic loader закончил быстро, но до <code>main.main</code> долго:</p>
+<div class="highlight"><pre><span></span><code>проблема уже выше
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>runtime startup
+package initialization
+</code></pre></div>
+<p>Это мост к следующей лекции.</p>
+<hr/>
+<h1 id="164-startup-p99-request-p99">164. Startup p99 ухудшился, request p99 стабильный<a class="headerlink" href="#164-startup-p99-request-p99" title="Permanent link">¶</a></h1>
+<p>Это нормальный тип инцидента.</p>
+<p>Steady-state CPU profile может ничего не показать.</p>
+<p>Нужно отдельно измерять:</p>
+<div class="highlight"><pre><span></span><code>process startup
+</code></pre></div>
+<hr/>
+<h1 id="165-static-vs-dynamic">165. Static vs dynamic нельзя выбирать лозунгом<a class="headerlink" href="#165-static-vs-dynamic" title="Permanent link">¶</a></h1>
+<p>Плохие советы:</p>
+<div class="highlight"><pre><span></span><code>static всегда быстрее
+dynamic всегда экономнее
+</code></pre></div>
+<p>Правильные вопросы:</p>
+<div class="highlight"><pre><span></span><code>deployment?
+security updates?
+binary size?
+startup?
+RSS/PSS?
+cgo?
+operational dependencies?
+</code></pre></div>
+<hr/>
+<h1 id="166-static-linking-security-updates">166. Static linking и security updates<a class="headerlink" href="#166-static-linking-security-updates" title="Permanent link">¶</a></h1>
+<p>Dynamic:</p>
+<div class="highlight"><pre><span></span><code>library обновили
+↓
+совместимый executable может использовать новую версию
+</code></pre></div>
+<p>Static:</p>
+<div class="highlight"><pre><span></span><code>library code встроен
+↓
+нужно rebuild/redeploy
+</code></pre></div>
+<p>Это operational trade-off.</p>
+<hr/>
+<h1 id="167-static-artifact">167. Static artifact проще переносить<a class="headerlink" href="#167-static-artifact" title="Permanent link">¶</a></h1>
+<p>Меньше:</p>
+<div class="highlight"><pre><span></span><code>runtime shared dependencies
+loader-path issues
+</code></pre></div>
+<p>Поэтому pure-Go static binaries удобны для container deployment.</p>
+<p>Но debugging/OS integration могут иметь свои trade-offs.</p>
+<hr/>
+<h1 id="168-aslr-memory-corruption">168. ASLR не лечит memory corruption<a class="headerlink" href="#168-aslr-memory-corruption" title="Permanent link">¶</a></h1>
+<p>ASLR:</p>
+<div class="highlight"><pre><span></span><code>делает addresses менее предсказуемыми
+</code></pre></div>
+<p>Но bug остается.</p>
+<p>Это mitigation, а не memory safety.</p>
+<hr/>
+<h1 id="169-nxwxrelro-protections">169. NX/W^X/RELRO — разные protections<a class="headerlink" href="#169-nxwxrelro-protections" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>NX
+→ data page нельзя исполнять
+
+W^X
+→ page не должна быть W+X
+
+RELRO
+→ relocation-related data после setup становится read-only
+</code></pre></div>
+<p>Не смешиваем эти механизмы.</p>
+<hr/>
+<h1 id="170-dynamic-loader-request">170. Dynamic loader обычно не участвует в каждом request<a class="headerlink" href="#170-dynamic-loader-request" title="Permanent link">¶</a></h1>
+<p>После startup:</p>
+<div class="highlight"><pre><span></span><code>libraries mapped
+relocations applied
+symbols resolved
+</code></pre></div>
+<p>Большая часть этой работы закончена.</p>
+<p>Поэтому steady-state latency обычно не включает loader startup.</p>
+<hr/>
+<h1 id="171-lazy-binding">171. Исключение: lazy binding<a class="headerlink" href="#171-lazy-binding" title="Permanent link">¶</a></h1>
+<p>Первый call к external function может еще заплатить:</p>
+<div class="highlight"><pre><span></span><code>resolver latency
+</code></pre></div>
+<p>После binding этот путь исчезает.</p>
+<hr/>
+<h1 id="172">172. Что является устойчивой моделью<a class="headerlink" href="#172" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>executable
+↓
+format metadata
+↓
+loader
+↓
+VM mappings
+↓
+permissions
+↓
+optional dynamic dependencies
+↓
+runtime relocations
+↓
+entry point
+</code></pre></div>
+<p>Это долгоживущая причинная схема.</p>
+<hr/>
+<h1 id="173-linuxelf-abi">173. Что является Linux/ELF ABI<a class="headerlink" href="#173-linuxelf-abi" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>ELF header
+Program Header Table
+PT_LOAD
+PT_INTERP
+PT_DYNAMIC
+DT_NEEDED
+execve
+auxv
+</code></pre></div>
+<p>Это уже platform ABI.</p>
+<hr/>
+<h1 id="174-detail-implementation">174. Что является detail implementation<a class="headerlink" href="#174-detail-implementation" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>точная ASLR policy
+glibc loader algorithms
+dyld cache internals
+конкретная relocation optimization
+конкретный mapping order
+</code></pre></div>
+<p>Эти детали могут меняться.</p>
+<hr/>
+<h1 id="175">175. Разрушаем плохие упрощения<a class="headerlink" href="#175" title="Permanent link">¶</a></h1>
+<h2 id="os-binary-ram">«OS загружает binary целиком в RAM»<a class="headerlink" href="#os-binary-ram" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Создаются file-backed mappings, а pages fault'ятся по demand.</p>
+<h2 id="sections-kernel">«Sections — это то, что kernel грузит»<a class="headerlink" href="#sections-kernel" title="Permanent link">¶</a></h2>
+<p>Не совсем.</p>
+<p>Kernel loader в первую очередь работает с program segments.</p>
+<h2 id="bss-binary">«<code>.bss</code> лежит в binary как нули»<a class="headerlink" href="#bss-binary" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Memory size может быть больше file size.</p>
+<h2 id="execve-process">«<code>execve</code> создает новый process»<a class="headerlink" href="#execve-process" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Он заменяет program image текущего процесса.</p>
+<h2 id="go-binary-static">«Go binary всегда static»<a class="headerlink" href="#go-binary-static" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Нужно смотреть actual build.</p>
+<h2 id="dynamic-linker-kernel">«Dynamic linker — часть kernel»<a class="headerlink" href="#dynamic-linker-kernel" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Kernel запускает interpreter из <code>PT_INTERP</code>; дальнейшая link work идет в user space.</p>
+<h2 id="dynamic-linking-symbol-call">«Dynamic linking означает поиск symbol по имени на каждый CALL»<a class="headerlink" href="#dynamic-linking-symbol-call" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Bindings/relocations/GOT/PLT подготавливают addresses.</p>
+<h2 id="aslr-pie">«ASLR = PIE»<a class="headerlink" href="#aslr-pie" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>ASLR — policy размещения.</p>
+<p>PIE — форма executable/codegen.</p>
+<h2 id="shared-library-ram">«Shared library всегда экономит RAM»<a class="headerlink" href="#shared-library-ram" title="Permanent link">¶</a></h2>
+<p>Слишком грубо.</p>
+<p>Нужны PSS/residency и конкретная модель sharing.</p>
+<h2 id="entry-point-mainmain">«Entry point = <code>main.main</code>»<a class="headerlink" href="#entry-point-mainmain" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Сначала runtime startup.</p>
+<hr/>
+<h1 id="176-linux-static-executable">176. Полная Linux-цепочка static executable<a class="headerlink" href="#176-linux-static-executable" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>shell
+↓
+создание child process
+↓
+execve("./app")
+↓
+kernel recognizes ELF
+↓
+ELF header
+↓
+Program Header Table
+↓
+PT_LOAD → VM mappings
+↓
+initial stack
+├── argc
+├── argv
+├── envp
+└── auxv
+↓
+vDSO
+↓
+instruction pointer = e_entry
+↓
+return to user mode
+↓
+Go startup code
+</code></pre></div>
+<hr/>
+<h1 id="177-linux-dynamic-executable">177. Полная Linux-цепочка dynamic executable<a class="headerlink" href="#177-linux-dynamic-executable" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>execve
+↓
+kernel recognizes ELF
+↓
+map main PT_LOAD
+↓
+PT_INTERP
+↓
+map dynamic linker
+↓
+initial stack / auxv
+↓
+enter ld.so
+↓
+PT_DYNAMIC
+↓
+DT_NEEDED dependency graph
+↓
+map libraries
+↓
+resolve symbols
+↓
+apply relocations
+↓
+RELRO / final protections
+↓
+transfer to program entry
+↓
+Go/C runtime startup
+</code></pre></div>
+<hr/>
+<h1 id="178-cold-code-page">178. Полная цепочка cold code page<a class="headerlink" href="#178-cold-code-page" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>segment mapped
+↓
+page non-resident
+↓
+CPU instruction fetch
+↓
+page fault
+↓
+file-backed page lookup
+↓
+page cache?
+├── hit → RAM
+└── miss → storage
+↓
+page table updated
+↓
+instruction retried
+</code></pre></div>
+<hr/>
+<h1 id="179-pie-aslr">179. Полная цепочка PIE + ASLR<a class="headerlink" href="#179-pie-aslr" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>PIE
+↓
+random load base
+↓
+segments at base + offsets
+↓
+remaining relocations
+↓
+entry = base + entry offset
+</code></pre></div>
+<hr/>
+<h1 id="180-lazy-dynamic-call">180. Полная цепочка lazy dynamic call<a class="headerlink" href="#180-lazy-dynamic-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>CALL PLT
+↓
+GOT unresolved
+↓
+dynamic resolver
+↓
+symbol lookup
+↓
+GOT patched
+↓
+target call
+
+next call:
+PLT
+↓
+GOT
+↓
+target
+</code></pre></div>
+<hr/>
+<h1 id="181-macos-">181. Полная macOS-цепочка<a class="headerlink" href="#181-macos-" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>exec
+↓
+Mach-O
+↓
+load commands
+↓
+LC_SEGMENT_64
+↓
+VM mappings
+↓
+ASLR slide
+↓
+dyld
+↓
+dylibs / shared cache
+↓
+fixups
+↓
+entry point
+↓
+Go runtime startup
+</code></pre></div>
+<hr/>
+<h1 id="182">182. Что важно запомнить<a class="headerlink" href="#182" title="Permanent link">¶</a></h1>
+<ol>
+<li>Executable — структурированный файл, описывающий code/data и будущий process image.</li>
+<li>На Linux kernel loader в первую очередь использует Program Header Table, а не section table.</li>
+<li>Sections и segments решают разные задачи.</li>
+<li><code>PT_LOAD</code> связывает file offset, virtual address, file size, memory size и permissions.</li>
+<li><code>p_memsz &gt; p_filesz</code> позволяет реализовать <code>.bss</code> без хранения всех нулей в file.</li>
+<li>Mapping executable segment не означает немедленную residency всех pages.</li>
+<li>Permissions R/W/X доходят от executable metadata до MMU.</li>
+<li><code>execve</code> заменяет program image текущего процесса и не означает новый PID.</li>
+<li><code>FD_CLOEXEC</code> определяет наследование file descriptor через exec boundary.</li>
+<li>Initial user stack содержит argv/env/auxv еще до runtime startup.</li>
+<li><code>auxv</code> передает platform startup data.</li>
+<li>vDSO — mapping от kernel, а не часть executable.</li>
+<li>Demand paging позволяет читать code pages только при фактическом использовании.</li>
+<li>ASLR рандомизирует layout; PIE делает основной executable relocatable по base address.</li>
+<li><code>PT_INTERP</code> указывает user-space dynamic linker.</li>
+<li>Dynamic linker загружает <code>DT_NEEDED</code> libraries и применяет runtime relocations.</li>
+<li>GOT/PLT помогают работать с dynamic addresses без постоянного patch executable text.</li>
+<li>Lazy binding переносит часть symbol-resolution cost на первый call.</li>
+<li>RELRO защищает relocation-related data после loader setup.</li>
+<li>Shared library code pages могут физически делиться, а writable/private data имеют другую модель.</li>
+<li>Pure-Go Linux binary часто может быть static, но Go binary не гарантированно static.</li>
+<li>cgo вводит platform ABI, external linking и shared-library dependencies.</li>
+<li>Mach-O/dyld решают на macOS ту же физическую задачу другими форматами.</li>
+<li><code>LC_SEGMENT_64</code> описывает loadable Mach-O segment; ASLR применяет slide.</li>
+<li><code>readelf</code>, <code>/proc/PID/maps</code>, <code>strace</code>, <code>LD_DEBUG</code>, <code>otool</code> и <code>vmmap</code> отвечают на разные вопросы.</li>
+<li>Startup latency и steady-state latency нужно измерять отдельно.</li>
+<li>Entry point Go executable не равен <code>main.main</code>.</li>
+<li><code>4.5</code> заканчивается в точке передачи управления Go runtime.</li>
+<li>Следующий слой — bootstrap самого Go runtime.</li>
+<li>Финальная модель: <code>executable → loader → mappings → dynamic linker → entry point → runtime</code>.</li>
+</ol>
+<hr/>
+<h1 id="183">183. Финальная модель<a class="headerlink" href="#183" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                           EXECUTABLE
+                               │
+                               ▼
+                            execve
+                               │
+                               ▼
+                         kernel loader
+                               │
+                    ┌──────────┴──────────┐
+                    ▼                     ▼
+                 ELF/Mach-O           initial stack
+                    │                  argv/env/auxv
+                    ▼
+                 segments
+                    │
+             ┌──────┼──────┐
+             ▼      ▼      ▼
+            R-X    R--     RW-
+             │      │      │
+             └──────┴──────┘
+                    │
+                    ▼
+              virtual mappings
+                    │
+                    ▼
+              dynamic linking?
+               ┌────┴────┐
+               │         │
+              нет        да
+               │         │
+               │         ▼
+               │    dynamic loader
+               │         │
+               │    shared libraries
+               │         │
+               │      relocations
+               │         │
+               └────┬────┘
+                    ▼
+                  ASLR
+                    │
+                    ▼
+               entry point
+                    │
+                    ▼
+             Go startup code
+                    │
+                    ▼
+             runtime bootstrap
+                    │
+                    ▼
+                  ...
+                    │
+                    ▼
+               main.main
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Linker в <code>4.4</code> создал executable, но executable еще не является работающим процессом. Ядро должно интерпретировать формат файла, построить виртуальное адресное пространство, назначить permissions, сформировать начальный stack и передать управление entry point. Если binary динамический, появляется еще один полноценный user-space этап: dynamic linker загружает libraries, разрешает symbols и применяет relocations.</p>
+<p>Поэтому startup backend-сервиса начинается раньше <code>main.main</code>, а cold-start latency может формироваться еще до инициализации Go runtime: на file-backed page faults, dynamic dependencies, relocations и loader work.</p>
+</blockquote>
+<hr/>
+<h1 id="_2">Практическое продолжение темы<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>1. readelf -h
+↓
+2. sections vs segments
+↓
+3. BSS: file size vs p_memsz
+↓
+4. PT_LOAD ↔ /proc/PID/maps
+↓
+5. mapping vs residency
+↓
+6. PIE + ASLR
+↓
+7. pure Go vs cgo
+↓
+8. PT_INTERP / DT_NEEDED
+↓
+9. LD_DEBUG
+↓
+10. strace startup
+↓
+11. entry point
+↓
+12. cold/warm page faults
+↓
+13. Mach-O / otool
+↓
+14. vmmap / dyld
+</code></pre></div>
+<p>Практика должна руками доказать четыре тезиса:</p>
+<div class="highlight"><pre><span></span><code>sections
+≠
+loader mappings
+
+mapped
+≠
+resident
+
+executable
+≠
+process
+
+entry point
+≠
+main.main
+</code></pre></div>
+<hr/>
+<h1 id="_3">Основные источники<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<h2 id="linux-elf">Linux / ELF<a class="headerlink" href="#linux-elf" title="Permanent link">¶</a></h2>
+<ul>
+<li>Linux man-pages — <code>execve(2)</code></li>
+<li>Linux man-pages — <code>elf(5)</code></li>
+<li>glibc dynamic linker — <code>ld.so(8)</code></li>
+<li>System V ABI — ELF Program Loading</li>
+<li>glibc dynamic linker diagnostics</li>
+</ul>
+<h2 id="go">Go<a class="headerlink" href="#go" title="Permanent link">¶</a></h2>
+<ul>
+<li>Go 1.27 release notes</li>
+<li><code>cmd/link</code></li>
+<li><code>cmd/cgo</code> linking documentation</li>
+<li>Go runtime startup sources — platform-specific <code>rt0_*</code></li>
+</ul>
+<h2 id="macos">macOS<a class="headerlink" href="#macos" title="Permanent link">¶</a></h2>
+<ul>
+<li>Apple — Mach-O load commands</li>
+<li>Apple — Symbolication / Mach-O segments</li>
+<li>Apple — dyld</li>
+<li><code>otool</code>, <code>vmmap</code></li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4.4. Go ABI, generics codegen и linker" class="md-footer__link md-footer__link--prev" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4.4. Go ABI, generics codegen и linker
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4.6. Startup рантайма Go глубже: от rt0 до main.main" class="md-footer__link md-footer__link--next" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4.6. Startup рантайма Go глубже: от rt0 до main.main
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

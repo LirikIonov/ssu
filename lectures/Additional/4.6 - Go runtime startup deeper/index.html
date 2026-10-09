@@ -1,0 +1,3651 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.6%20-%20Go%20runtime%20startup%20deeper/" rel="canonical"/>
+<link href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/" rel="prev"/>
+<link href="../../../practice/1%20-%20task/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.6. Startup рантайма Go глубже: от rt0 до main.main - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#46-startup-go-rt0-mainmain">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.6. Startup рантайма Go глубже: от rt0 до main.main
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="46-startup-go-rt0-mainmain">4.6. Startup рантайма Go глубже: от <code>rt0</code> до <code>main.main</code><a class="headerlink" href="#46-startup-go-rt0-mainmain" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на Go 1.27.x.</p>
+<p>Основная линия разбора — обычный executable, собранный Go toolchain; Linux/amd64 используется как главный конкретный пример, arm64 и другие платформы отмечаются там, где механизм отличается.</p>
+<p>Это продолжение <code>4.5. Запуск процесса глубже</code>.</p>
+<p>В <code>4.5</code> мы остановились здесь:</p>
+<div class="highlight"><pre><span></span><code>executable
+↓
+загрузчик ОС
+↓
+mappings
+↓
+entry point
+</code></pre></div>
+<p>Теперь вопрос:</p>
+<blockquote>
+<p>Как из состояния «есть один поток ОС и несколько отображенных страниц executable» возникает полноценный Go runtime с G/M/P, allocator, GC, scheduler и пользовательским <code>main.main</code>?</p>
+</blockquote>
+</blockquote>
+<hr/>
+<h1 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>В <code>Runtime deep</code> мы уже разобрали работающую машину:</p>
+<div class="highlight"><pre><span></span><code>G
+M
+P
+↓
+run queues
+↓
+schedule
+↓
+findRunnable
+↓
+execute
+</code></pre></div>
+<p>Но эта модель молча предполагает:</p>
+<div class="highlight"><pre><span></span><code>G уже существуют
+M уже существуют
+P уже существуют
+scheduler уже работает
+allocator уже работает
+GC уже инициализирован
+</code></pre></div>
+<p>А кто создал все это?</p>
+<p>Вот здесь начинается bootstrap-проблема.</p>
+<hr/>
+<h1 id="0-bootstrap">0. Главная проблема bootstrap<a class="headerlink" href="#0-bootstrap" title="Permanent link">¶</a></h1>
+<p>Обычный runtime-код хочет:</p>
+<div class="highlight"><pre><span></span><code>выделять память
+создавать goroutines
+использовать scheduler
+использовать locks
+использовать maps
+знать текущая G
+</code></pre></div>
+<p>Но чтобы поднять эти механизмы, рантайму уже нужно выполнить код.</p>
+<p>Получается:</p>
+<div class="highlight"><pre><span></span><code>чтобы запустить runtime,
+нужен runtime
+</code></pre></div>
+<p>Конечно, бесконечной рекурсии нет.</p>
+<p>Нужен минимальный набор сущностей, который существует <strong>до</strong> нормального рантайма.</p>
+<hr/>
+<h1 id="1-45">1. Что уже существует после <code>4.5</code><a class="headerlink" href="#1-45" title="Permanent link">¶</a></h1>
+<p>загрузчик ОС закончил работу.</p>
+<p>Есть:</p>
+<div class="highlight"><pre><span></span><code>virtual address space
+↓
+mapped executable code
+mapped static data
+initial thread
+начальный стек ОС
+argc / argv / env / auxv
+CPU registers
+entry point
+</code></pre></div>
+<p>Для обычного Linux executable kernel передает управление точке входа.</p>
+<p>Но еще нет привычного Go-world.</p>
+<hr/>
+<h1 id="2">2. Чего еще нет<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
+<p>На этой стадии нельзя мысленно рисовать:</p>
+<div class="highlight"><pre><span></span><code>P0
+local run queue
+worker goroutines
+GC workers
+sysmon
+</code></pre></div>
+<p>Их еще не создали.</p>
+<p>В начале у нас буквально:</p>
+<div class="highlight"><pre><span></span><code>один поток ОС
++
+статические bytes программы
++
+stack от ОС
+</code></pre></div>
+<hr/>
+<h1 id="3-entry-point-amd64">3. Entry point на amd64<a class="headerlink" href="#3-entry-point-amd64" title="Permanent link">¶</a></h1>
+<p>Для обычного <code>-buildmode=exe</code> с internal linking current runtime имеет:</p>
+<div class="highlight"><pre><span></span><code>_rt0_amd64
+</code></pre></div>
+<p>Это entry point, в который приходит kernel.</p>
+<p>Начало очень маленькое:</p>
+<div class="highlight"><pre><span></span><code>argc
+argv
+↓
+runtime.rt0_go
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>OS
+↓
+_rt0_amd64
+↓
+runtime.rt0_go
+</code></pre></div>
+<hr/>
+<h1 id="4-_rt0_amd64">4. Почему <code>_rt0_amd64</code> почти ничего не делает<a class="headerlink" href="#4-_rt0_amd64" title="Permanent link">¶</a></h1>
+<p>У него нет задачи:</p>
+<div class="highlight"><pre><span></span><code>поднять весь runtime
+</code></pre></div>
+<p>Его задача — адаптировать platform entry convention к общей startup-функции:</p>
+<div class="highlight"><pre><span></span><code>runtime.rt0_go
+</code></pre></div>
+<p>На другой architecture будет другой маленький platform entry.</p>
+<hr/>
+<h1 id="5-internal-external-linking">5. Internal и external linking дают разные внешние входы<a class="headerlink" href="#5-internal-external-linking" title="Permanent link">¶</a></h1>
+<p>При internal linking kernel может входить прямо в:</p>
+<div class="highlight"><pre><span></span><code>_rt0_amd64
+</code></pre></div>
+<p>При external linking platform C startup может вызвать symbol:</p>
+<div class="highlight"><pre><span></span><code>main
+</code></pre></div>
+<p>который затем тоже прыгает в:</p>
+<div class="highlight"><pre><span></span><code>runtime.rt0_go
+</code></pre></div>
+<p>То есть внешний путь может различаться.</p>
+<p>Общая Go-bootstrap линия сходится в <code>rt0_go</code>.</p>
+<hr/>
+<h1 id="6-rt0_go-assembly">6. Почему <code>rt0_go</code> написан на assembly<a class="headerlink" href="#6-rt0_go-assembly" title="Permanent link">¶</a></h1>
+<p>В этот момент еще нельзя спокойно использовать обычный Go-код.</p>
+<p>Обычная Go function предполагает:</p>
+<div class="highlight"><pre><span></span><code>валидный G
+валидный M
+корректный stack guard
+ABI runtime state
+возможность stack growth
+</code></pre></div>
+<p>А мы как раз только собираемся это создать.</p>
+<p>Поэтому начало bootstrap — специальный assembly.</p>
+<hr/>
+<h1 id="7-rt0_go-stack">7. Первый вопрос <code>rt0_go</code>: где вообще stack<a class="headerlink" href="#7-rt0_go-stack" title="Permanent link">¶</a></h1>
+<p>OS уже дала initial thread stack.</p>
+<p>Но Go runtime еще не знает его как:</p>
+<div class="highlight"><pre><span></span><code>g.stack.lo
+g.stack.hi
+</code></pre></div>
+<p>Нужно превратить platform stack в runtime-aware system stack.</p>
+<hr/>
+<h1 id="8-g0">8. Появляется <code>g0</code><a class="headerlink" href="#8-g0" title="Permanent link">¶</a></h1>
+<p>Из Runtime deep мы знаем:</p>
+<div class="highlight"><pre><span></span><code>g0
+→ служебная G конкретного M
+→ runtime/scheduler/system-stack work
+</code></pre></div>
+<p>Но обычная модель:</p>
+<div class="highlight"><pre><span></span><code>runtime создал G
+→ выделил ей stack
+</code></pre></div>
+<p>здесь не работает.</p>
+<p>Allocator еще не готов.</p>
+<hr/>
+<h1 id="9-g0">9. <code>g0</code> существует заранее<a class="headerlink" href="#9-g0" title="Permanent link">¶</a></h1>
+<p>Current runtime содержит статические globals:</p>
+<div class="highlight"><pre><span></span><code>var (
+    m0 m
+    g0 g
+)
+</code></pre></div>
+<p>То есть linker уже поместил storage под них в data/BSS executable.</p>
+<p>После загрузчик ОС:</p>
+<div class="highlight"><pre><span></span><code>memory для m0/g0 уже существует
+</code></pre></div>
+<p>хотя runtime еще ничего не аллоцировал.</p>
+<hr/>
+<h1 id="10-bootstrap-">10. Вот первый bootstrap-трюк<a class="headerlink" href="#10-bootstrap-" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>обычные G/M
+→ создаются runtime-механизмами
+
+g0/m0
+→ существуют как статические объекты executable
+</code></pre></div>
+<p>То есть:</p>
+<blockquote>
+<p>Первый M и его g0 не создаются тем же механизмом, который потом создает остальные M/G.</p>
+</blockquote>
+<p>Иначе снова получили бы циклическую зависимость.</p>
+<hr/>
+<h1 id="11-m0">11. Что такое <code>m0</code><a class="headerlink" href="#11-m0" title="Permanent link">¶</a></h1>
+<p><code>m0</code> — runtime representation начальный поток ОС.</p>
+<p>ОС уже создала thread.</p>
+<p>Рантайму не нужно:</p>
+<div class="highlight"><pre><span></span><code>pthread_create
+clone
+newosproc
+</code></pre></div>
+<p>для первого M.</p>
+<p>Нужно сказать:</p>
+<div class="highlight"><pre><span></span><code>этот уже существующий OS thread
+→ будет m0
+</code></pre></div>
+<hr/>
+<h1 id="12-g0">12. Что такое <code>g0</code> на старте<a class="headerlink" href="#12-g0" title="Permanent link">¶</a></h1>
+<p><code>g0</code> — служебная G <code>m0</code>.</p>
+<p>Ее stack:</p>
+<div class="highlight"><pre><span></span><code>не выделен обычным stack allocator
+</code></pre></div>
+<p>Вместо этого рантайм берет уже существующий:</p>
+<div class="highlight"><pre><span></span><code>начальный поток ОС stack
+</code></pre></div>
+<hr/>
+<h1 id="13-rt0_go-stack-bounds-g0">13. <code>rt0_go</code> задает stack bounds <code>g0</code><a class="headerlink" href="#13-rt0_go-stack-bounds-g0" title="Permanent link">¶</a></h1>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>current SP
+↓
+оценить верх/низ initial stack
+↓
+g0.stack.lo
+g0.stack.hi
+↓
+stackguard0
+stackguard1
+</code></pre></div>
+<p>Точные вычисления platform-specific.</p>
+<p>Но причинность важна:</p>
+<div class="highlight"><pre><span></span><code>OS stack
+↓
+становится system stack g0
+</code></pre></div>
+<hr/>
+<h1 id="14-bounds">14. Почему bounds сначала могут быть приблизительными<a class="headerlink" href="#14-bounds" title="Permanent link">¶</a></h1>
+<p>Рантайм на самом раннем этапе знает не всю platform-specific информацию о размере stack.</p>
+<p>Поэтому bootstrap может:</p>
+<div class="highlight"><pre><span></span><code>установить первоначальные bounds
+↓
+позже minit/platform code уточнит
+</code></pre></div>
+<p>Это нормально.</p>
+<p>Нужна сначала достаточно корректная граница, чтобы безопасно продолжить startup.</p>
+<hr/>
+<h1 id="15-g0">15. Почему <code>g0</code> нужен прямо сейчас<a class="headerlink" href="#15-g0" title="Permanent link">¶</a></h1>
+<p>Следующие функции:</p>
+<div class="highlight"><pre><span></span><code>runtime.args
+runtime.osinit
+runtime.schedinit
+</code></pre></div>
+<p>уже являются Go/runtime-кодом.</p>
+<p>Для их вызова runtime должен иметь:</p>
+<div class="highlight"><pre><span></span><code>текущая G
+</code></pre></div>
+<p>И этой G становится <code>g0</code>.</p>
+<hr/>
+<h1 id="16-g0">16. Но одной глобальной <code>g0</code> недостаточно<a class="headerlink" href="#16-g0" title="Permanent link">¶</a></h1>
+<p>Дальше появятся несколько M:</p>
+<div class="highlight"><pre><span></span><code>M0 → G0
+M1 → G0_1
+M2 → G0_2
+</code></pre></div>
+<p>Runtime-функция должна быстро спросить:</p>
+<div class="highlight"><pre><span></span><code>какая G сейчас выполняется на этом thread?
+</code></pre></div>
+<p>Нельзя использовать одну глобальную переменную.</p>
+<hr/>
+<h1 id="17-getg">17. <code>getg()</code><a class="headerlink" href="#17-getg" title="Permanent link">¶</a></h1>
+<p>Во многих местах runtime встречается:</p>
+<div class="highlight"><pre><span></span><code>getg()
+</code></pre></div>
+<p>Ментальная модель:</p>
+<div class="highlight"><pre><span></span><code>текущий OS thread
+↓
+быстро получить текущая G
+</code></pre></div>
+<p>В нормальной работе это фундаментальная операция.</p>
+<p>Но startup должен сначала сделать ее возможной.</p>
+<hr/>
+<h1 id="18-g-thread-local-state">18. Почему текущая G — thread-local state<a class="headerlink" href="#18-g-thread-local-state" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>M1 выполняет G17
+M2 выполняет G42
+</code></pre></div>
+<p>Если было бы:</p>
+<div class="highlight"><pre><span></span><code>global currentG
+</code></pre></div>
+<p>два M постоянно перезаписывали бы одно значение.</p>
+<p>Значит связь должна быть:</p>
+<div class="highlight"><pre><span></span><code>OS thread
+→ текущая G
+</code></pre></div>
+<hr/>
+<h1 id="19-tls-g-register">19. TLS и специальный <code>g</code> register<a class="headerlink" href="#19-tls-g-register" title="Permanent link">¶</a></h1>
+<p>Конкретный механизм зависит от architecture/platform.</p>
+<p>На amd64 current runtime сочетает:</p>
+<div class="highlight"><pre><span></span><code>TLS slot
++
+reserved register для g в ABIInternal
+</code></pre></div>
+<p>На других architectures детали отличаются.</p>
+<p>Устойчивая модель:</p>
+<blockquote>
+<p>Каждый M должен иметь быстрый per-thread способ получить текущую G.</p>
+</blockquote>
+<hr/>
+<h1 id="20-g-tls">20. Почему нельзя объяснять это только как «G лежит в TLS»<a class="headerlink" href="#20-g-tls" title="Permanent link">¶</a></h1>
+<p>Слишком грубо.</p>
+<p>Generated Go-код на некоторых architectures держит <code>g</code> в специальном register.</p>
+<p>TLS нужен в том числе:</p>
+<ul>
+<li>при переходах между ABI;</li>
+<li>cgo;</li>
+<li>startup;</li>
+<li>восстановлении runtime state.</li>
+</ul>
+<p>Поэтому точная формула:</p>
+<div class="highlight"><pre><span></span><code>current-G mechanism
+=
+platform TLS + ABI/runtime conventions
+</code></pre></div>
+<hr/>
+<h1 id="21-rt0_go-tls">21. <code>rt0_go</code> настраивает TLS<a class="headerlink" href="#21-rt0_go-tls" title="Permanent link">¶</a></h1>
+<p>На amd64 early startup:</p>
+<div class="highlight"><pre><span></span><code>setup TLS
+↓
+проверить, что TLS действительно работает
+↓
+записать g0
+</code></pre></div>
+<p>Почему даже проверять?</p>
+<p>Потому что если TLS setup сломан:</p>
+<div class="highlight"><pre><span></span><code>getg()
+→ мусор
+</code></pre></div>
+<p>а после этого любой runtime-код становится некорректным.</p>
+<hr/>
+<h1 id="22-m0-g0">22. Связь <code>m0 ↔ g0</code><a class="headerlink" href="#22-m0-g0" title="Permanent link">¶</a></h1>
+<p>После подготовки current-G state устанавливается логическая связь:</p>
+<div class="highlight"><pre><span></span><code>m0.g0 = &amp;g0
+g0.m  = &amp;m0
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>getg()
+↓
+g0
+↓
+g0.m
+↓
+m0
+</code></pre></div>
+<p>Bootstrap получил минимальную runtime identity.</p>
+<hr/>
+<h1 id="23">23. Почему это центральный момент<a class="headerlink" href="#23" title="Permanent link">¶</a></h1>
+<p>До:</p>
+<div class="highlight"><pre><span></span><code>m0 ↔ g0
+</code></pre></div>
+<p>есть просто:</p>
+<div class="highlight"><pre><span></span><code>OS thread
+</code></pre></div>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>OS thread
+↓
+runtime M
+↓
+runtime G
+</code></pre></div>
+<p>То есть рантайм впервые начинает понимать сам себя своими собственными сущностями.</p>
+<hr/>
+<h1 id="24-m0-m">24. Но <code>m0</code> еще не полноценный обычный M<a class="headerlink" href="#24-m0-m" title="Permanent link">¶</a></h1>
+<p>Важно не перепрыгнуть.</p>
+<p>Есть:</p>
+<div class="highlight"><pre><span></span><code>m0/g0 identity
+</code></pre></div>
+<p>Но еще не готовы:</p>
+<div class="highlight"><pre><span></span><code>allm state
+scheduler queues
+P
+allocator
+GC
+signal state
+</code></pre></div>
+<p><code>m0</code> будет дополнительно инициализирован позже в <code>schedinit</code>.</p>
+<hr/>
+<h1 id="25-optional-cgo-bootstrap">25. Optional cgo bootstrap<a class="headerlink" href="#25-optional-cgo-bootstrap" title="Permanent link">¶</a></h1>
+<p>Если используется cgo, early startup может вызвать:</p>
+<div class="highlight"><pre><span></span><code>_cgo_init
+</code></pre></div>
+<p>чтобы platform/C side помогла с:</p>
+<ul>
+<li>TLS;</li>
+<li>stack bounds;</li>
+<li>platform thread state.</li>
+</ul>
+<p>После этого stack guards могут быть пересчитаны.</p>
+<hr/>
+<h1 id="26-cgo-path">26. Почему cgo path сложнее<a class="headerlink" href="#26-cgo-path" title="Permanent link">¶</a></h1>
+<p>Теперь одновременно существуют два мира:</p>
+<div class="highlight"><pre><span></span><code>Go runtime conventions
+↔
+C/platform thread runtime
+</code></pre></div>
+<p>Startup должен согласовать их еще до нормальной работы scheduler.</p>
+<p>Но основную лекцию дальше ведем по pure-Go пути.</p>
+<hr/>
+<h1 id="27-cpu-compatibility-check">27. CPU compatibility check<a class="headerlink" href="#27-cpu-compatibility-check" title="Permanent link">¶</a></h1>
+<p>На amd64 current startup может проверить required microarchitecture level:</p>
+<div class="highlight"><pre><span></span><code>GOAMD64=v2/v3/v4
+</code></pre></div>
+<p>через:</p>
+<div class="highlight"><pre><span></span><code>CPUID
+XGETBV
+platform capability data
+</code></pre></div>
+<p>Если CPU не поддерживает нужные features:</p>
+<div class="highlight"><pre><span></span><code>программа завершается до обычного runtime startup
+</code></pre></div>
+<hr/>
+<h1 id="28-feature-check">28. Почему feature check находится так рано<a class="headerlink" href="#28-feature-check" title="Permanent link">¶</a></h1>
+<p>Compiler уже мог сгенерировать instructions, которые baseline CPU не поддерживает.</p>
+<p>Если продолжить:</p>
+<div class="highlight"><pre><span></span><code>illegal instruction
+</code></pre></div>
+<p>или некорректное выполнение.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>compiler assumption
+↓
+startup validates hardware
+</code></pre></div>
+<p>до входа в основной runtime.</p>
+<hr/>
+<h1 id="29-43">29. Это мост к <code>4.3</code><a class="headerlink" href="#29-43" title="Permanent link">¶</a></h1>
+<p>В <code>4.3</code>:</p>
+<div class="highlight"><pre><span></span><code>GOARCH / GOAMD64
+↓
+architecture lowering
+↓
+machine code
+</code></pre></div>
+<p>В <code>4.6</code>:</p>
+<div class="highlight"><pre><span></span><code>machine starts
+↓
+runtime verifies required CPU level
+</code></pre></div>
+<p>Toolchain assumptions встречаются с реальным железом.</p>
+<hr/>
+<h1 id="30-bootstrap-runtime-go-">30. После минимального bootstrap можно вызывать runtime Go-функции<a class="headerlink" href="#30-bootstrap-runtime-go-" title="Permanent link">¶</a></h1>
+<p>Current amd64 startup дальше делает примерно:</p>
+<div class="highlight"><pre><span></span><code>runtime.check
+↓
+runtime.args
+↓
+runtime.osinit
+↓
+runtime.schedinit
+</code></pre></div>
+<p>И только потом:</p>
+<div class="highlight"><pre><span></span><code>newproc(runtime.main)
+↓
+mstart
+</code></pre></div>
+<p>Это центральная startup chain.</p>
+<hr/>
+<h1 id="31-runtimeargs">31. <code>runtime.args</code><a class="headerlink" href="#31-runtimeargs" title="Permanent link">¶</a></h1>
+<p><code>argc/argv</code> пришли из загрузчик ОС из <code>4.5</code>.</p>
+<p><code>runtime.args</code> сохраняет их для дальнейшего runtime/OS initialization.</p>
+<p>Позже из этого мира появится:</p>
+<div class="highlight"><pre><span></span><code>os.Args
+</code></pre></div>
+<hr/>
+<h1 id="32-args-package-os">32. <code>args</code> — еще не package <code>os</code><a class="headerlink" href="#32-args-package-os" title="Permanent link">¶</a></h1>
+<p>В этот момент пользовательские packages еще не инициализированы.</p>
+<p>Runtime сам работает с raw startup arguments.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>kernel ABI
+↓
+runtime.args
+↓
+позже os package
+</code></pre></div>
+<hr/>
+<h1 id="33-osinit">33. <code>osinit</code><a class="headerlink" href="#33-osinit" title="Permanent link">¶</a></h1>
+<p>Следующий шаг:</p>
+<div class="highlight"><pre><span></span><code>runtime.osinit
+</code></pre></div>
+<p>Его задача platform-specific:</p>
+<div class="highlight"><pre><span></span><code>получить базовую информацию от OS,
+нужную runtime startup
+</code></pre></div>
+<hr/>
+<h1 id="34-linux-osinit">34. Linux <code>osinit</code><a class="headerlink" href="#34-linux-osinit" title="Permanent link">¶</a></h1>
+<p>Current Linux path инициализирует или получает данные вроде:</p>
+<div class="highlight"><pre><span></span><code>число CPU на старте
+huge-page related data
+platform random/time support
+часть vDSO/runtime OS state
+</code></pre></div>
+<p>Нас интересует прежде всего:</p>
+<div class="highlight"><pre><span></span><code>numCPUStartup
+</code></pre></div>
+<hr/>
+<h1 id="35-cpu-count-scheduler">35. Почему CPU count нужен до scheduler<a class="headerlink" href="#35-cpu-count-scheduler" title="Permanent link">¶</a></h1>
+<p>Скоро нужно создать:</p>
+<div class="highlight"><pre><span></span><code>P
+</code></pre></div>
+<p>Но сколько?</p>
+<p>Устойчивая цепочка:</p>
+<div class="highlight"><pre><span></span><code>OS CPU environment
+↓
+osinit
+↓
+initial GOMAXPROCS
+↓
+procresize
+↓
+number of P
+</code></pre></div>
+<hr/>
+<h1 id="36-go-127-container-aware-gomaxprocs">36. Go 1.27 и container-aware <code>GOMAXPROCS</code><a class="headerlink" href="#36-go-127-container-aware-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Current Go выбирает default <code>GOMAXPROCS</code> не только из простого <code>NumCPU</code>.</p>
+<p>Если <code>GOMAXPROCS</code> environment не задан, runtime может учитывать:</p>
+<div class="highlight"><pre><span></span><code>logical CPU count
+CPU affinity
+Linux cgroup CPU throughput limit
+</code></pre></div>
+<p>Это особенно важно в контейнерах.</p>
+<hr/>
+<h1 id="37-p">37. Но решение о P еще не принято<a class="headerlink" href="#37-p" title="Permanent link">¶</a></h1>
+<p><code>osinit</code> только собирает данные.</p>
+<p>Решение:</p>
+<div class="highlight"><pre><span></span><code>сколько P реально создать
+</code></pre></div>
+<p>будет в <code>schedinit</code>.</p>
+<p>И вот здесь начинается главный bootstrap-комбайн.</p>
+<hr/>
+<h1 id="ii-schedinit">Часть II. <code>schedinit</code><a class="headerlink" href="#ii-schedinit" title="Permanent link">¶</a></h1>
+<h1 id="38-schedinit">38. Название <code>schedinit</code> обманчиво<a class="headerlink" href="#38-schedinit" title="Permanent link">¶</a></h1>
+<p>Можно подумать:</p>
+<div class="highlight"><pre><span></span><code>scheduler init
+→ создать run queue
+→ готово
+</code></pre></div>
+<p>На практике current <code>schedinit</code> инициализирует значительную часть runtime foundation.</p>
+<p>Почему?</p>
+<p>Потому что scheduler зависит от:</p>
+<ul>
+<li>allocator;</li>
+<li>stacks;</li>
+<li>метаданные рантайма;</li>
+<li>GC state;</li>
+<li>CPU feature tables;</li>
+<li>locks;</li>
+<li>M state.</li>
+</ul>
+<hr/>
+<h1 id="39-bootstrap-sequence-runtime-source">39. Bootstrap sequence прямо записана в runtime source<a class="headerlink" href="#39-bootstrap-sequence-runtime-source" title="Permanent link">¶</a></h1>
+<p>Current source формулирует:</p>
+<div class="highlight"><pre><span></span><code>call osinit
+call schedinit
+make &amp; queue new G
+call runtime.mstart
+
+The new G calls runtime.main
+</code></pre></div>
+<p>То есть это не наша учебная реконструкция.</p>
+<p>Это реальная архитектурная граница runtime.</p>
+<hr/>
+<h1 id="40-schedinit-runtime-locks">40. В начале <code>schedinit</code> инициализируются runtime locks<a class="headerlink" href="#40-schedinit-runtime-locks" title="Permanent link">¶</a></h1>
+<p>Пока рантайм еще почти single-threaded:</p>
+<div class="highlight"><pre><span></span><code>sched.lock
+allglock
+allpLock
+panic locks
+profiling locks
+...
+</code></pre></div>
+<p>получают lock rank / initial state.</p>
+<hr/>
+<h1 id="41-lock-infrastructure">41. Почему lock infrastructure поднимают так рано<a class="headerlink" href="#41-lock-infrastructure" title="Permanent link">¶</a></h1>
+<p>Очень скоро runtime начнет создавать:</p>
+<div class="highlight"><pre><span></span><code>P
+goroutines
+background threads
+</code></pre></div>
+<p>После этого глобальные структуры станут concurrent.</p>
+<p>Лучше:</p>
+<div class="highlight"><pre><span></span><code>locks готовы до concurrency
+</code></pre></div>
+<p>а не:</p>
+<div class="highlight"><pre><span></span><code>concurrency уже началась
+→ теперь пытаемся создать locks
+</code></pre></div>
+<hr/>
+<h1 id="42-world-starts-stopped">42. World starts stopped<a class="headerlink" href="#42-world-starts-stopped" title="Permanent link">¶</a></h1>
+<p>Current <code>schedinit</code> явно переводит runtime в модель:</p>
+<div class="highlight"><pre><span></span><code>world stopped
+</code></pre></div>
+<p>Почему?</p>
+<p>Потому что на этом этапе:</p>
+<div class="highlight"><pre><span></span><code>не должно быть обычных P, конкурентно исполняющих Go G
+</code></pre></div>
+<p>Инициализация глобальных подсистем гораздо проще в stop-the-world мире.</p>
+<hr/>
+<h1 id="43-stw">43. Здесь STW необычный<a class="headerlink" href="#43-stw" title="Permanent link">¶</a></h1>
+<p>Обычно STW:</p>
+<div class="highlight"><pre><span></span><code>работающий мир
+↓
+остановить G
+↓
+что-то сделать
+↓
+запустить
+</code></pre></div>
+<p>Bootstrap:</p>
+<div class="highlight"><pre><span></span><code>мира еще не было
+↓
+он сразу считается stopped
+</code></pre></div>
+<p>То есть первая STW-фаза началась раньше, чем возник working scheduler world.</p>
+<hr/>
+<h1 id="44-early-godebug">44. Early <code>GODEBUG</code><a class="headerlink" href="#44-early-godebug" title="Permanent link">¶</a></h1>
+<p>На Unix-like platforms runtime пытается прочитать:</p>
+<div class="highlight"><pre><span></span><code>GODEBUG
+</code></pre></div>
+<p>очень рано.</p>
+<p>Почему?</p>
+<p>Потому что некоторые debug/runtime options влияют на сам процесс инициализации:</p>
+<div class="highlight"><pre><span></span><code>CPU features
+GOMAXPROCS policy
+runtime modes
+</code></pre></div>
+<p>Их нельзя применять после того, как subsystem уже создана.</p>
+<hr/>
+<h1 id="45-moduledataverify">45. <code>moduledataverify</code><a class="headerlink" href="#45-moduledataverify" title="Permanent link">¶</a></h1>
+<p>До глубокого использования linker metadata runtime проверяет module data.</p>
+<p>Мост:</p>
+<div class="highlight"><pre><span></span><code>4.4 linker
+→ moduledata
+→ 4.6 runtime verifies/initializes it
+</code></pre></div>
+<p>Executable bytes стали runtime structures.</p>
+<hr/>
+<h1 id="46-subsystem-init">46. Теперь начинается строгий порядок subsystem init<a class="headerlink" href="#46-subsystem-init" title="Permanent link">¶</a></h1>
+<p>Current <code>schedinit</code> последовательно выполняет:</p>
+<div class="highlight"><pre><span></span><code>stackinit
+randinit
+mallocinit
+cpuinit
+maps.AlgInit
+mcommoninit(m0)
+modulesinit
+typelinksinit
+itabsinit
+stkobjinit
+...
+gcinit
+...
+GOMAXPROCS calculation
+procresize
+</code></pre></div>
+<p>Этот порядок нельзя бездумно переставлять.</p>
+<hr/>
+<h1 id="47-init">47. Почему нельзя вызвать все init параллельно<a class="headerlink" href="#47-init" title="Permanent link">¶</a></h1>
+<p>Runtime subsystem dependencies выглядят примерно:</p>
+<div class="highlight"><pre><span></span><code>random
+↓
+hash/map seeds
+
+allocator
+↓
+runtime allocations
+
+moduledata
+↓
+types / itabs
+
+allocator + metadata
+↓
+GC
+
+GC + scheduler foundation
+↓
+P world
+</code></pre></div>
+<p>Параллельный startup здесь только усложнил бы bootstrap.</p>
+<hr/>
+<h1 id="48-stackinit">48. <code>stackinit</code><a class="headerlink" href="#48-stackinit" title="Permanent link">¶</a></h1>
+<p>Обычные goroutines позже потребуют stack allocator.</p>
+<p><code>g0</code> уже имеет OS stack.</p>
+<p>Но normal G:</p>
+<div class="highlight"><pre><span></span><code>newproc
+↓
+new stack
+</code></pre></div>
+<p>должны использовать runtime stack machinery.</p>
+<p><code>stackinit</code> подготавливает этот фундамент.</p>
+<hr/>
+<h1 id="49-stack-allocator">49. Не повторяем stack allocator<a class="headerlink" href="#49-stack-allocator" title="Permanent link">¶</a></h1>
+<p>Мы уже знаем:</p>
+<div class="highlight"><pre><span></span><code>goroutine stack
+→ grows/copies
+</code></pre></div>
+<p>Здесь новый факт:</p>
+<blockquote>
+<p>Stack subsystem становится готова в <code>schedinit</code>, до создания первой обычной <code>runtime.main</code> G.</p>
+</blockquote>
+<hr/>
+<h1 id="50-randinit">50. <code>randinit</code><a class="headerlink" href="#50-randinit" title="Permanent link">¶</a></h1>
+<p>Следующим current runtime поднимает internal randomness.</p>
+<p>Комментарий source специально требует:</p>
+<div class="highlight"><pre><span></span><code>randinit
+до
+mallocinit
+AlgInit
+mcommoninit
+</code></pre></div>
+<p>Почему randomness настолько фундаментальна?</p>
+<hr/>
+<h1 id="51-randomness-runtime">51. Randomness нужна самому runtime<a class="headerlink" href="#51-randomness-runtime" title="Permanent link">¶</a></h1>
+<p>Примеры использования:</p>
+<div class="highlight"><pre><span></span><code>hash seeds
+per-M random state
+runtime randomization
+</code></pre></div>
+<p>То есть random subsystem — не пользовательский <code>math/rand</code>.</p>
+<p>Это внутренний primitive.</p>
+<hr/>
+<h1 id="52-mallocinit">52. <code>mallocinit</code><a class="headerlink" href="#52-mallocinit" title="Permanent link">¶</a></h1>
+<p>Теперь поднимается allocator.</p>
+<p>Из memory lecture мы знаем цепочку:</p>
+<div class="highlight"><pre><span></span><code>mcache
+mcentral
+mheap
+page allocator
+arenas
+</code></pre></div>
+<p>Здесь не перечитываем ее.</p>
+<p>Новый вопрос:</p>
+<blockquote>
+<p>Когда она появляется?</p>
+</blockquote>
+<p>Ответ:</p>
+<div class="highlight"><pre><span></span><code>schedinit
+↓
+mallocinit
+</code></pre></div>
+<hr/>
+<h1 id="53-mallocinit-runtime-allocations">53. До <code>mallocinit</code> нельзя свободно делать обычные runtime allocations<a class="headerlink" href="#53-mallocinit-runtime-allocations" title="Permanent link">¶</a></h1>
+<p>Поэтому bootstrap до этого момента опирается на:</p>
+<ul>
+<li>static globals;</li>
+<li>initial stack;</li>
+<li>заранее подготовленные data structures;</li>
+<li>специальные no-allocation paths.</li>
+</ul>
+<p>Именно поэтому startup code выглядит необычно.</p>
+<hr/>
+<h1 id="54-mallocinit-bootstrap">54. После <code>mallocinit</code> bootstrap резко получает больше свободы<a class="headerlink" href="#54-mallocinit-bootstrap" title="Permanent link">¶</a></h1>
+<p>Теперь можно поднимать структуры, которым требуется runtime allocation.</p>
+<p>Но еще:</p>
+<div class="highlight"><pre><span></span><code>обычный scheduler world
+</code></pre></div>
+<p>не запущен.</p>
+<p>Allocator и scheduler — разные границы готовности.</p>
+<hr/>
+<h1 id="55-cpuinit">55. <code>cpuinit</code><a class="headerlink" href="#55-cpuinit" title="Permanent link">¶</a></h1>
+<p>Теперь internal CPU package узнает доступные feature flags.</p>
+<p>Например на amd64 runtime заполняет flags вроде:</p>
+<div class="highlight"><pre><span></span><code>HasAVX
+HasFMA
+HasPOPCNT
+HasSSE41
+</code></pre></div>
+<p>На arm64 — свои capabilities.</p>
+<hr/>
+<h1 id="56-feature-flags-cpu-hard-check">56. Зачем feature flags после раннего CPU hard check<a class="headerlink" href="#56-feature-flags-cpu-hard-check" title="Permanent link">¶</a></h1>
+<p>Ранний <code>rt0_go</code> проверял:</p>
+<div class="highlight"><pre><span></span><code>минимальный required GOAMD64 level
+</code></pre></div>
+<p><code>cpuinit</code> решает более общий вопрос:</p>
+<div class="highlight"><pre><span></span><code>какие optional fast paths доступны?
+</code></pre></div>
+<p>Это разные задачи.</p>
+<hr/>
+<h1 id="57-compiler-generated-code-runtime-cpu-flags">57. Compiler-generated code может читать runtime CPU flags<a class="headerlink" href="#57-compiler-generated-code-runtime-cpu-flags" title="Permanent link">¶</a></h1>
+<p>В <code>4.3</code> мы говорили:</p>
+<div class="highlight"><pre><span></span><code>intrinsic / architecture optimization
+</code></pre></div>
+<p>Некоторые generated paths guarded runtime feature flags.</p>
+<p><code>cpuinit</code> делает эти flags корректными.</p>
+<hr/>
+<h1 id="58-mapsalginit">58. <code>maps.AlgInit</code><a class="headerlink" href="#58-mapsalginit" title="Permanent link">¶</a></h1>
+<p>Current <code>schedinit</code> после <code>cpuinit</code> вызывает:</p>
+<div class="highlight"><pre><span></span><code>maps.AlgInit()
+</code></pre></div>
+<p>И source прямо предупреждает:</p>
+<div class="highlight"><pre><span></span><code>maps, hash, rand
+нельзя нормально использовать до этой точки
+</code></pre></div>
+<hr/>
+<h1 id="59">59. Очень сильный учебный момент<a class="headerlink" href="#59" title="Permanent link">¶</a></h1>
+<p>Go-программист воспринимает <code>map</code> как фундаментальную конструкцию языка.</p>
+<p>Но сам runtime имеет startup interval:</p>
+<div class="highlight"><pre><span></span><code>Go code уже выполняется
+↓
+map machinery еще не разрешена
+</code></pre></div>
+<p>Потому что high-level language semantics опирается на уже инициализированные низкоуровневые подсистемы.</p>
+<hr/>
+<h1 id="60-mcommoninitm0">60. <code>mcommoninit(m0)</code><a class="headerlink" href="#60-mcommoninitm0" title="Permanent link">¶</a></h1>
+<p>Теперь <code>m0</code> проходит общую часть M initialization.</p>
+<p>До этого:</p>
+<div class="highlight"><pre><span></span><code>m0
+→ минимальный bootstrap M
+</code></pre></div>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>m0
+→ зарегистрированный runtime M
+</code></pre></div>
+<hr/>
+<h1 id="61-m">61. Что появляется у M на этом этапе<a class="headerlink" href="#61-m" title="Permanent link">¶</a></h1>
+<p>Конкретно текущая реализация инициализирует/публикует различные M fields:</p>
+<div class="highlight"><pre><span></span><code>M id
+random state
+profiling state
+allm linkage
+signal/метаданные рантайма
+</code></pre></div>
+<p>Не нужно запоминать все поля.</p>
+<p>Главная модель:</p>
+<div class="highlight"><pre><span></span><code>static m0
+↓
+mcommoninit
+↓
+нормальная runtime M structure
+</code></pre></div>
+<hr/>
+<h1 id="62-m-lifecycle">62. Почему обычный M имеет другой lifecycle<a class="headerlink" href="#62-m-lifecycle" title="Permanent link">¶</a></h1>
+<p>Обычный M:</p>
+<div class="highlight"><pre><span></span><code>runtime решает, что нужен thread
+↓
+newm
+↓
+создать OS thread
+↓
+mstart
+</code></pre></div>
+<p><code>m0</code>:</p>
+<div class="highlight"><pre><span></span><code>OS thread уже существует
+↓
+m0 storage уже существует
+↓
+mcommoninit достраивает state
+</code></pre></div>
+<p>Еще один bootstrap exception.</p>
+<hr/>
+<h1 id="63-modulesinit">63. <code>modulesinit</code><a class="headerlink" href="#63-modulesinit" title="Permanent link">¶</a></h1>
+<p>Теперь runtime поднимает active module metadata.</p>
+<p>Linker уже создал:</p>
+<div class="highlight"><pre><span></span><code>moduledata chains
+type metadata
+function tables
+</code></pre></div>
+<p>Но runtime должен построить usable runtime view.</p>
+<hr/>
+<h1 id="64-modulesinit-linker-runtime">64. <code>modulesinit</code> — реальный мост linker → runtime<a class="headerlink" href="#64-modulesinit-linker-runtime" title="Permanent link">¶</a></h1>
+<p>В <code>4.4</code>:</p>
+<div class="highlight"><pre><span></span><code>linker формирует moduledata
+</code></pre></div>
+<p>В <code>4.6</code>:</p>
+<div class="highlight"><pre><span></span><code>runtime.modulesinit
+↓
+activeModules
+</code></pre></div>
+<p>Так статические bytes executable превращаются в активную метаданные рантайма.</p>
+<hr/>
+<h1 id="65-typelinksinit">65. <code>typelinksinit</code><a class="headerlink" href="#65-typelinksinit" title="Permanent link">¶</a></h1>
+<p>Следом current runtime поднимает type links.</p>
+<p>Это важно для:</p>
+<div class="highlight"><pre><span></span><code>reflection
+runtime type identity
+cross-module type lookup
+</code></pre></div>
+<hr/>
+<h1 id="66-itabsinit">66. <code>itabsinit</code><a class="headerlink" href="#66-itabsinit" title="Permanent link">¶</a></h1>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>itabsinit
+</code></pre></div>
+<p>Из <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>ITab
+→ interface type + concrete type + method dispatch
+</code></pre></div>
+<p>Теперь мы видим lifecycle:</p>
+<div class="highlight"><pre><span></span><code>compiler/linker создали metadata
+↓
+startup runtime initializes tables
+↓
+interface machinery готова
+</code></pre></div>
+<hr/>
+<h1 id="67-interface-dispatch-startup-prerequisite">67. Даже interface dispatch имеет startup prerequisite<a class="headerlink" href="#67-interface-dispatch-startup-prerequisite" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>ITab — просто всегда существующая таблица.</p>
+</blockquote>
+<p>Точнее:</p>
+<div class="highlight"><pre><span></span><code>часть ITab metadata может быть статической
++
+runtime global structures нужно инициализировать
+</code></pre></div>
+<p>до обычной работы программы.</p>
+<hr/>
+<h1 id="68-stkobjinit">68. <code>stkobjinit</code><a class="headerlink" href="#68-stkobjinit" title="Permanent link">¶</a></h1>
+<p>Current runtime отдельно подготавливает stack-object metadata до старта GC.</p>
+<p>Причина:</p>
+<div class="highlight"><pre><span></span><code>GC stack scanning
+</code></pre></div>
+<p>должен понимать stack objects корректно с первого normal GC cycle.</p>
+<hr/>
+<h1 id="69-goargs-goenvs">69. <code>goargs</code> и <code>goenvs</code><a class="headerlink" href="#69-goargs-goenvs" title="Permanent link">¶</a></h1>
+<p>Ранний <code>runtime.args</code> сохранил raw platform pointers.</p>
+<p>В <code>schedinit</code> runtime уже может сформировать:</p>
+<div class="highlight"><pre><span></span><code>argslice
+envs
+</code></pre></div>
+<p>для Go-world.</p>
+<p>Получаем полную цепочку:</p>
+<div class="highlight"><pre><span></span><code>kernel argv/env
+↓
+rt0
+↓
+runtime.args
+↓
+goargs / goenvs
+↓
+os.Args / environment access
+</code></pre></div>
+<hr/>
+<h1 id="70-security-setup">70. Security setup тоже находится здесь<a class="headerlink" href="#70-security-setup" title="Permanent link">¶</a></h1>
+<p>Current runtime выполняет startup security checks/setup:</p>
+<div class="highlight"><pre><span></span><code>secure()
+checkfds()
+</code></pre></div>
+<p>Конкретная logic platform-specific.</p>
+<p>Важно:</p>
+<blockquote>
+<p>До пользовательского <code>main</code> runtime уже проверяет и нормализует часть process environment.</p>
+</blockquote>
+<hr/>
+<h1 id="71-gcinit">71. <code>gcinit</code><a class="headerlink" href="#71-gcinit" title="Permanent link">¶</a></h1>
+<p>Теперь поднимается GC state.</p>
+<p>Из GC lecture уже знаем:</p>
+<div class="highlight"><pre><span></span><code>mark
+sweep
+pacer
+write barriers
+workers
+</code></pre></div>
+<p>Не повторяем.</p>
+<p>Новый вопрос:</p>
+<blockquote>
+<p>Когда GC infrastructure становится корректной?</p>
+</blockquote>
+<p>Ответ:</p>
+<div class="highlight"><pre><span></span><code>schedinit → gcinit
+</code></pre></div>
+<hr/>
+<h1 id="72-gc">72. Но фоновый GC еще не включен<a class="headerlink" href="#72-gc" title="Permanent link">¶</a></h1>
+<p>Критическое различие:</p>
+<div class="highlight"><pre><span></span><code>gcinit
+≠
+gcenable
+</code></pre></div>
+<p><code>gcinit</code>:</p>
+<div class="highlight"><pre><span></span><code>подготовить GC subsystem
+</code></pre></div>
+<p><code>gcenable</code> позже:</p>
+<div class="highlight"><pre><span></span><code>разрешить фоновый GC machinery
+</code></pre></div>
+<hr/>
+<h1 id="73-gc">73. Почему не включить GC сразу<a class="headerlink" href="#73-gc" title="Permanent link">¶</a></h1>
+<p>Bootstrap все еще строит:</p>
+<div class="highlight"><pre><span></span><code>P
+scheduler
+runtime.main
+init machinery
+</code></pre></div>
+<p>Если одновременно запустить фоновый GC:</p>
+<div class="highlight"><pre><span></span><code>конкурентные зависимости резко усложнятся
+</code></pre></div>
+<p>Поэтому design:</p>
+<div class="highlight"><pre><span></span><code>сначала initialized
+↓
+потом enabled
+</code></pre></div>
+<hr/>
+<h1 id="74-crash-stack">74. Crash stack<a class="headerlink" href="#74-crash-stack" title="Permanent link">¶</a></h1>
+<p>Current runtime даже выделяет специальный stack для crash paths.</p>
+<p>Почему?</p>
+<p>Если crash вызван проблемой обычного stack:</p>
+<div class="highlight"><pre><span></span><code>например плохим g0 stack / morestack
+</code></pre></div>
+<p>нельзя надежно диагностировать ошибку на том же поврежденном stack.</p>
+<p>Нужен резерв.</p>
+<hr/>
+<h1 id="75-p">75. Теперь мы почти готовы создать P<a class="headerlink" href="#75-p" title="Permanent link">¶</a></h1>
+<p>Есть:</p>
+<div class="highlight"><pre><span></span><code>stacks
+random
+allocator
+CPU info
+map algorithms
+m0
+module/type/interface metadata
+GC state
+</code></pre></div>
+<p>Осталось решить:</p>
+<div class="highlight"><pre><span></span><code>сколько P
+</code></pre></div>
+<hr/>
+<h1 id="76-initial-gomaxprocs">76. Initial <code>GOMAXPROCS</code><a class="headerlink" href="#76-initial-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Current <code>schedinit</code> сначала проверяет environment:</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS=N
+</code></pre></div>
+<p>Если валидное положительное число задано:</p>
+<div class="highlight"><pre><span></span><code>использовать N
+</code></pre></div>
+<p>И пометить значение как custom.</p>
+<hr/>
+<h1 id="77-gomaxprocs">77. Если <code>GOMAXPROCS</code> не задан<a class="headerlink" href="#77-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Current Go вычисляет default через:</p>
+<div class="highlight"><pre><span></span><code>defaultGOMAXPROCS(numCPUStartup)
+</code></pre></div>
+<p>С учетом актуальной policy.</p>
+<p>На Linux это может учитывать:</p>
+<ul>
+<li>logical CPUs;</li>
+<li>affinity;</li>
+<li>cgroup CPU throughput limit.</li>
+</ul>
+<hr/>
+<h1 id="78-startup">78. Почему это делается в startup<a class="headerlink" href="#78-startup" title="Permanent link">¶</a></h1>
+<p>Число P — фундаментальный параметр scheduler.</p>
+<p>Без него нельзя сформировать:</p>
+<div class="highlight"><pre><span></span><code>allp
+per-P caches
+local run queues
+timers
+mcache bindings
+</code></pre></div>
+<hr/>
+<h1 id="79-procresize">79. <code>procresize</code><a class="headerlink" href="#79-procresize" title="Permanent link">¶</a></h1>
+<p>Вот function, которая реально приводит scheduler к нужному числу P.</p>
+<p>Условия вызова текущая реализация:</p>
+<div class="highlight"><pre><span></span><code>sched.lock held
+world stopped
+</code></pre></div>
+<p>То есть bootstrap environment идеально подходит.</p>
+<hr/>
+<h1 id="80-procresize">80. Что делает <code>procresize</code><a class="headerlink" href="#80-procresize" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>old gomaxprocs
+↓
+нужен nprocs
+↓
+расширить allp при необходимости
+↓
+создать недостающие P
+↓
+pp.init(i)
+↓
+перестроить P state
+↓
+назначить current M подходящий P
+↓
+обновить gomaxprocs
+</code></pre></div>
+<hr/>
+<h1 id="81-p">81. Здесь появляются обычные P<a class="headerlink" href="#81-p" title="Permanent link">¶</a></h1>
+<p>До:</p>
+<div class="highlight"><pre><span></span><code>procresize
+</code></pre></div>
+<p>не было полноценного набора P.</p>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>P0
+P1
+...
+P(N-1)
+</code></pre></div>
+<p>готовы участвовать в scheduler.</p>
+<hr/>
+<h1 id="82-pinit-per-p-structures">82. <code>P.init</code> тянет за собой знакомые per-P structures<a class="headerlink" href="#82-pinit-per-p-structures" title="Permanent link">¶</a></h1>
+<p>Из предыдущих лекций мы знаем, что P имеет:</p>
+<div class="highlight"><pre><span></span><code>local run queue
+runnext
+mcache
+timers / scheduler state
+GC-related local state
+</code></pre></div>
+<p><code>procresize</code> и <code>pp.init</code> делают этот мир возможным.</p>
+<p>Не повторяем внутренности каждого поля.</p>
+<hr/>
+<h1 id="83-current-runtime">83. Current runtime фиксирует важную границу<a class="headerlink" href="#83-current-runtime" title="Permanent link">¶</a></h1>
+<p>После <code>procresize</code> source говорит по смыслу:</p>
+<div class="highlight"><pre><span></span><code>World is effectively started now, as P's can run.
+</code></pre></div>
+<p>И вызывает:</p>
+<div class="highlight"><pre><span></span><code>worldStarted()
+</code></pre></div>
+<p>Это почти идеальная точка для преподавания.</p>
+<hr/>
+<h1 id="84-world-started">84. Что означает «world started»<a class="headerlink" href="#84-world-started" title="Permanent link">¶</a></h1>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>main.main уже выполняется
+</code></pre></div>
+<p>И не:</p>
+<div class="highlight"><pre><span></span><code>scheduler loop уже выбрал G
+</code></pre></div>
+<p>А:</p>
+<blockquote>
+<p>Runtime infrastructure дошла до состояния, в котором P способны исполнять Go-код.</p>
+</blockquote>
+<p>Это capability boundary.</p>
+<hr/>
+<h1 id="85-runtime">85. Три разных понятия «runtime запущен»<a class="headerlink" href="#85-runtime" title="Permanent link">¶</a></h1>
+<p>Полезно разделить:</p>
+<div class="highlight"><pre><span></span><code>A. runtime identity exists
+→ m0/g0
+
+B. scheduler world capable
+→ P после procresize
+
+C. scheduler actually running обычная G
+→ mstart/schedule
+</code></pre></div>
+<p>Если все называть:</p>
+<div class="highlight"><pre><span></span><code>runtime started
+</code></pre></div>
+<p>модель будет размыта.</p>
+<hr/>
+<h1 id="86-schedinit">86. Что важно запомнить после <code>schedinit</code><a class="headerlink" href="#86-schedinit" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>m0/g0
++
+allocator
++
+GC state
++
+метаданные рантайма
++
+P set
++
+scheduler structures
+</code></pre></div>
+<p>готовы.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>main goroutine еще только предстоит создать
+</code></pre></div>
+<hr/>
+<h1 id="iii-g">Часть III. Первая обычная G<a class="headerlink" href="#iii-g" title="Permanent link">¶</a></h1>
+<h1 id="87-rt0_go">87. Возвращаемся в <code>rt0_go</code><a class="headerlink" href="#87-rt0_go" title="Permanent link">¶</a></h1>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>runtime.args
+runtime.osinit
+runtime.schedinit
+</code></pre></div>
+<p>assembly startup продолжает:</p>
+<div class="highlight"><pre><span></span><code>создать новую G
+</code></pre></div>
+<hr/>
+<h1 id="88-g">88. Какую функцию будет исполнять первая обычная G<a class="headerlink" href="#88-g" title="Permanent link">¶</a></h1>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>main.main
+</code></pre></div>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>runtime.main
+</code></pre></div>
+<p><code>rt0_go</code> берет:</p>
+<div class="highlight"><pre><span></span><code>runtime.mainPC
+</code></pre></div>
+<p>и передает его <code>newproc</code>.</p>
+<hr/>
+<h1 id="89-runtimemain-user-main">89. Почему <code>runtime.main</code>, а не user main<a class="headerlink" href="#89-runtimemain-user-main" title="Permanent link">¶</a></h1>
+<p>Еще нужно:</p>
+<div class="highlight"><pre><span></span><code>запустить sysmon
+включить GC background work
+выполнить runtime init tasks
+выполнить package init tasks
+обработать cgo startup
+</code></pre></div>
+<p>Это responsibility runtime.</p>
+<p>Пользовательский <code>main.main</code> должен получить уже готовый мир.</p>
+<hr/>
+<h1 id="90-newproc">90. <code>newproc</code> здесь уже может использовать обычную механику<a class="headerlink" href="#90-newproc" title="Permanent link">¶</a></h1>
+<p>После <code>schedinit</code> готовы:</p>
+<div class="highlight"><pre><span></span><code>allocator
+stack subsystem
+P
+run queue
+</code></pre></div>
+<p>Значит первую обычная G можно создать тем же фундаментом, который мы изучали в Runtime deep.</p>
+<hr/>
+<h1 id="91-newproc">91. Но <code>newproc</code> второй раз не разбираем<a class="headerlink" href="#91-newproc" title="Permanent link">¶</a></h1>
+<p>Достаточно:</p>
+<div class="highlight"><pre><span></span><code>newproc(runtime.main)
+↓
+G создана
+↓
+_Grunnable
+↓
+поставлена в очередь
+</code></pre></div>
+<p>Механика <code>newproc1</code>, <code>gostartcallfn</code>, runq уже изучена.</p>
+<hr/>
+<h1 id="92-g">92. Почему G еще не выполняется<a class="headerlink" href="#92-g" title="Permanent link">¶</a></h1>
+<p>Мы создали:</p>
+<div class="highlight"><pre><span></span><code>runnable G(runtime.main)
+</code></pre></div>
+<p>Но текущий OS thread пока все еще находится:</p>
+<div class="highlight"><pre><span></span><code>в bootstrap assembly на g0
+</code></pre></div>
+<p>Нужно перейти в нормальный M scheduler lifecycle.</p>
+<hr/>
+<h1 id="93-mstart">93. Поэтому следующий вызов — <code>mstart</code><a class="headerlink" href="#93-mstart" title="Permanent link">¶</a></h1>
+<p>Current <code>rt0_go</code>:</p>
+<div class="highlight"><pre><span></span><code>newproc(mainPC)
+↓
+runtime.mstart
+</code></pre></div>
+<p>И <code>mstart</code> не должен вернуться.</p>
+<p>Если вернулся:</p>
+<div class="highlight"><pre><span></span><code>abort
+</code></pre></div>
+<hr/>
+<h1 id="94-mstart">94. Что такое <code>mstart</code><a class="headerlink" href="#94-mstart" title="Permanent link">¶</a></h1>
+<p><code>mstart</code> — assembly entry, которая переводит M в обычный runtime thread lifecycle.</p>
+<p>Он приводит к:</p>
+<div class="highlight"><pre><span></span><code>mstart0
+</code></pre></div>
+<p>на <code>g0</code>.</p>
+<hr/>
+<h1 id="95-mstart0">95. <code>mstart0</code><a class="headerlink" href="#95-mstart0" title="Permanent link">¶</a></h1>
+<p><code>mstart0</code> окончательно проверяет/инициализирует system-stack bounds для M.</p>
+<p>Для некоторых M stack уже runtime-allocated.</p>
+<p>Для initial <code>m0</code>:</p>
+<div class="highlight"><pre><span></span><code>это OS stack
+</code></pre></div>
+<hr/>
+<h1 id="96-stack-bounds">96. Почему stack bounds снова фигурируют<a class="headerlink" href="#96-stack-bounds" title="Permanent link">¶</a></h1>
+<p>Early <code>rt0_go</code> поставил bootstrap bounds.</p>
+<p>Но normal M runtime хочет более строгие guarantees.</p>
+<p><code>mstart0</code> — граница перехода:</p>
+<div class="highlight"><pre><span></span><code>bootstrap stack knowledge
+→ normal M stack invariants
+</code></pre></div>
+<hr/>
+<h1 id="97-mstart1">97. <code>mstart1</code><a class="headerlink" href="#97-mstart1" title="Permanent link">¶</a></h1>
+<p>Следующий уровень:</p>
+<div class="highlight"><pre><span></span><code>mstart1
+</code></pre></div>
+<p>Он должен выполняться на:</p>
+<div class="highlight"><pre><span></span><code>g0
+</code></pre></div>
+<p>И готовит состояние, необходимое для обычного scheduler loop.</p>
+<hr/>
+<h1 id="98-g0sched">98. <code>g0.sched</code><a class="headerlink" href="#98-g0sched" title="Permanent link">¶</a></h1>
+<p>Runtime сохраняет контекст так, чтобы system-stack transitions и traceback могли корректно понимать, где находится M.</p>
+<p>Это уже внутренность обычный рантайм M lifecycle.</p>
+<p>Нам важна причинность:</p>
+<div class="highlight"><pre><span></span><code>mstart
+↓
+сделать g0/M контекст полноценным
+↓
+schedule
+</code></pre></div>
+<hr/>
+<h1 id="99-asminit-minit">99. <code>asminit</code> и <code>minit</code><a class="headerlink" href="#99-asminit-minit" title="Permanent link">¶</a></h1>
+<p>В <code>mstart1</code> вызываются platform-specific:</p>
+<div class="highlight"><pre><span></span><code>asminit()
+minit()
+</code></pre></div>
+<p>Они завершают thread-specific runtime initialization.</p>
+<p>Например:</p>
+<ul>
+<li>signals;</li>
+<li>TLS/platform thread state;</li>
+<li>profiling-related state.</li>
+</ul>
+<hr/>
+<h1 id="100-initial-m0-special-case">100. Initial <code>m0</code> имеет дополнительную special-case инициализацию<a class="headerlink" href="#100-initial-m0-special-case" title="Permanent link">¶</a></h1>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>он не создавался обычным newm
+</code></pre></div>
+<p>Часть signal/startup state нужно настроить специально для main M.</p>
+<hr/>
+<h1 id="101-schedule">101. И наконец <code>schedule()</code><a class="headerlink" href="#101-schedule" title="Permanent link">¶</a></h1>
+<p>После thread-side initialization:</p>
+<div class="highlight"><pre><span></span><code>schedule()
+</code></pre></div>
+<p>Вот здесь мы входим в мир Runtime deep.</p>
+<hr/>
+<h1 id="102-46-schedule">102. В <code>4.6</code> <code>schedule</code> — черный ящик с известным устройством<a class="headerlink" href="#102-46-schedule" title="Permanent link">¶</a></h1>
+<p>Мы уже знаем:</p>
+<div class="highlight"><pre><span></span><code>schedule
+↓
+findRunnable
+↓
+local/global runq
+↓
+steal/netpoll/timers
+↓
+execute
+</code></pre></div>
+<p>Повторять это не нужно.</p>
+<hr/>
+<h1 id="103-runnable-g">103. Какая runnable G сейчас самая важная<a class="headerlink" href="#103-runnable-g" title="Permanent link">¶</a></h1>
+<p>Bootstrap только что добавил:</p>
+<div class="highlight"><pre><span></span><code>G(runtime.main)
+</code></pre></div>
+<p>Scheduler получает normal runnable work.</p>
+<p>И initial M/P может ее исполнить.</p>
+<hr/>
+<h1 id="104-g0-g">104. Первый переход g0 → обычная G<a class="headerlink" href="#104-g0-g" title="Permanent link">¶</a></h1>
+<p>До сих пор:</p>
+<div class="highlight"><pre><span></span><code>OS thread
+↓
+m0
+↓
+g0
+↓
+bootstrap/runtime system code
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>m0 + P
+↓
+execute
+↓
+G(runtime.main)
+</code></pre></div>
+<p>Это первая полноценная обычная goroutine startup-пути.</p>
+<hr/>
+<h1 id="105-runtime-deep">105. Вот точка, где модель Runtime deep начинает работать без оговорок<a class="headerlink" href="#105-runtime-deep" title="Permanent link">¶</a></h1>
+<p>С этого момента существуют:</p>
+<div class="highlight"><pre><span></span><code>обычная G
+M
+P
+run queues
+scheduler
+allocator
+GC state
+</code></pre></div>
+<p>То есть можно буквально сказать:</p>
+<blockquote>
+<p>Все механизмы из лекции <code>Runtime deep</code> теперь считаются включенными.</p>
+</blockquote>
+<hr/>
+<h1 id="iv-runtimemain">Часть IV. <code>runtime.main</code><a class="headerlink" href="#iv-runtimemain" title="Permanent link">¶</a></h1>
+<h1 id="106-runtimemain-main">106. Но <code>runtime.main</code> все еще не пользовательский <code>main</code><a class="headerlink" href="#106-runtimemain-main" title="Permanent link">¶</a></h1>
+<p>Мы впервые выполняем обычную G.</p>
+<p>Но она принадлежит рантайму:</p>
+<div class="highlight"><pre><span></span><code>runtime.main
+</code></pre></div>
+<p>Ее задача:</p>
+<div class="highlight"><pre><span></span><code>дозавершить runtime startup
+↓
+запустить фоновые runtime mechanisms
+↓
+выполнить init tasks
+↓
+только потом вызвать main.main
+</code></pre></div>
+<hr/>
+<h1 id="107-runtimemain-m0">107. <code>runtime.main</code> должна выполняться на <code>m0</code><a class="headerlink" href="#107-runtimemain-m0" title="Permanent link">¶</a></h1>
+<p>Current runtime проверяет:</p>
+<div class="highlight"><pre><span></span><code>getg().m == &amp;m0
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>throw
+</code></pre></div>
+<p>Почему это важно?</p>
+<p>Потому что startup initialization привязана к начальный поток ОС.</p>
+<hr/>
+<h1 id="108-mainstarted">108. <code>mainStarted</code><a class="headerlink" href="#108-mainstarted" title="Permanent link">¶</a></h1>
+<p>В начале current <code>runtime.main</code> устанавливается:</p>
+<div class="highlight"><pre><span></span><code>mainStarted = true
+</code></pre></div>
+<p>Смысл:</p>
+<div class="highlight"><pre><span></span><code>рантайм дошел до normal main-M world
+</code></pre></div>
+<p>После этого <code>newproc</code> может активнее будить/создавать M по обычным scheduler rules.</p>
+<hr/>
+<h1 id="109-mainstarted-thread-creation-intentionally">109. До <code>mainStarted</code> thread creation intentionally ограничено<a class="headerlink" href="#109-mainstarted-thread-creation-intentionally" title="Permanent link">¶</a></h1>
+<p>Bootstrap хочет избежать ситуации:</p>
+<div class="highlight"><pre><span></span><code>еще не закончена базовая инициализация
+↓
+другие M уже активно исполняют Go work
+</code></pre></div>
+<p>Поэтому ранние фазы сознательно минимизируют concurrency.</p>
+<hr/>
+<h1 id="110-sysmon">110. <code>sysmon</code> появляется здесь<a class="headerlink" href="#110-sysmon" title="Permanent link">¶</a></h1>
+<p>Если platform поддерживает sysmon:</p>
+<div class="highlight"><pre><span></span><code>runtime.main
+↓
+systemstack
+↓
+newm(sysmon, nil, -1)
+</code></pre></div>
+<p>То есть системный монитор запускается <strong>после</strong> того, как scheduler уже способен создавать M.</p>
+<hr/>
+<h1 id="111-sysmon-schedinit">111. Почему <code>sysmon</code> не запускается в <code>schedinit</code><a class="headerlink" href="#111-sysmon-schedinit" title="Permanent link">¶</a></h1>
+<p>В <code>schedinit</code> world еще stopped.</p>
+<p>P только создаются.</p>
+<p>Запуск отдельного M в середине bootstrap:</p>
+<div class="highlight"><pre><span></span><code>сломал бы предположение о контролируемой инициализации
+</code></pre></div>
+<p>Поэтому порядок:</p>
+<div class="highlight"><pre><span></span><code>поднять runtime foundation
+↓
+запустить scheduler
+↓
+потом background monitor
+</code></pre></div>
+<hr/>
+<h1 id="112-sysmon">112. Не перечитываем <code>sysmon</code><a class="headerlink" href="#112-sysmon" title="Permanent link">¶</a></h1>
+<p>Из Runtime deep уже знаем:</p>
+<div class="highlight"><pre><span></span><code>preemption assistance
+retake P
+netpoll/timers related monitoring
+</code></pre></div>
+<p>Здесь нужен только lifecycle:</p>
+<div class="highlight"><pre><span></span><code>когда он появился?
+</code></pre></div>
+<p>Ответ:</p>
+<div class="highlight"><pre><span></span><code>runtime.main
+</code></pre></div>
+<hr/>
+<h1 id="113-startup-thread-lock">113. Startup thread lock<a class="headerlink" href="#113-startup-thread-lock" title="Permanent link">¶</a></h1>
+<p>Current <code>runtime.main</code> делает:</p>
+<div class="highlight"><pre><span></span><code>lockOSThread()
+</code></pre></div>
+<p>на период initialization.</p>
+<p>Это очень интересный механизм.</p>
+<hr/>
+<h1 id="114-main-goroutine">114. Почему main goroutine временно закрепляется за начальный поток ОС<a class="headerlink" href="#114-main-goroutine" title="Permanent link">¶</a></h1>
+<p>Некоторые platform APIs требуют:</p>
+<div class="highlight"><pre><span></span><code>вызывать init на main/стартовый поток ОС
+</code></pre></div>
+<p>Например UI/graphics frameworks и другие thread-affine API.</p>
+<p>Go должен позволить package <code>init()</code> корректно взаимодействовать с такими платформами.</p>
+<hr/>
+<h1 id="115">115. Документированная гарантия<a class="headerlink" href="#115" title="Permanent link">¶</a></h1>
+<p><code>runtime.LockOSThread</code> документирует:</p>
+<div class="highlight"><pre><span></span><code>все init functions выполняются на стартовый поток ОС
+</code></pre></div>
+<p>Если <code>init</code> сам вызывает:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">LockOSThread</span><span class="p">()</span>
+</code></pre></div>
+<p>то пользовательский <code>main</code> может сохранить эту привязку к тому же thread.</p>
+<hr/>
+<h1 id="116">116. Как это достигается<a class="headerlink" href="#116" title="Permanent link">¶</a></h1>
+<p><code>runtime.main</code>:</p>
+<div class="highlight"><pre><span></span><code>сам lockOSThread()
+↓
+запускает initialization
+</code></pre></div>
+<p>Если user <code>init</code> ничего не делает:</p>
+<div class="highlight"><pre><span></span><code>runtime позже unlock
+</code></pre></div>
+<p>Если user <code>init</code> добавил собственный lock:</p>
+<div class="highlight"><pre><span></span><code>счетчик lock остается
+↓
+main продолжает на стартовый поток ОС
+</code></pre></div>
+<hr/>
+<h1 id="117-goroutines-init-thread">117. Это не значит, что все goroutines из <code>init</code> тоже выполняются на этом thread<a class="headerlink" href="#117-goroutines-init-thread" title="Permanent link">¶</a></h1>
+<p><code>init()</code> может сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="nx">worker</span><span class="p">()</span>
+</code></pre></div>
+<p>Новая G уже живет по обычным scheduler rules.</p>
+<p>Закреплена только:</p>
+<div class="highlight"><pre><span></span><code>main goroutine
+</code></pre></div>
+<p>которая выполняет сам init sequence.</p>
+<hr/>
+<h1 id="118-runtimeinittime">118. <code>runtimeInitTime</code><a class="headerlink" href="#118-runtimeinittime" title="Permanent link">¶</a></h1>
+<p>Рантайм фиксирует:</p>
+<div class="highlight"><pre><span></span><code>когда runtime startup дошел до main-init phase
+</code></pre></div>
+<p>Это используется, в частности, для init tracing.</p>
+<p>Именно здесь появляется удобная диагностическая граница времени.</p>
+<hr/>
+<h1 id="119-inittrace">119. <code>inittrace</code><a class="headerlink" href="#119-inittrace" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>GODEBUG=inittrace=1
+</code></pre></div>
+<p>рантайм включает сбор статистики initialization.</p>
+<p>Можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>package
+wall-clock init time
+allocated bytes
+number of allocations
+</code></pre></div>
+<hr/>
+<h1 id="120-inittrace">120. Почему <code>inittrace</code> включают именно здесь<a class="headerlink" href="#120-inittrace" title="Permanent link">¶</a></h1>
+<p>Слишком рано:</p>
+<div class="highlight"><pre><span></span><code>allocator еще не готов
+normal G еще нет
+</code></pre></div>
+<p>Слишком поздно:</p>
+<div class="highlight"><pre><span></span><code>runtime/package init уже прошло
+</code></pre></div>
+<p><code>runtime.main</code> — естественная точка начала init profiling.</p>
+<hr/>
+<h1 id="121-runtime-init-tasks">121. Сначала runtime init tasks<a class="headerlink" href="#121-runtime-init-tasks" title="Permanent link">¶</a></h1>
+<p>Current code вызывает:</p>
+<div class="highlight"><pre><span></span><code>doInit(runtime_inittasks)
+</code></pre></div>
+<p>до пользовательских package init tasks.</p>
+<p>Что это за список?</p>
+<hr/>
+<h1 id="122-runtime_inittasks-linker">122. <code>runtime_inittasks</code> построен linker<a class="headerlink" href="#122-runtime_inittasks-linker" title="Permanent link">¶</a></h1>
+<p>Это очень хороший мост к <code>4.4</code>.</p>
+<p>Linker уже вычислил:</p>
+<div class="highlight"><pre><span></span><code>какие init tasks принадлежат runtime
+в каком порядке они должны идти
+</code></pre></div>
+<p>И положил список в executable metadata.</p>
+<p>Startup не пересчитывает dependency graph с нуля.</p>
+<hr/>
+<h1 id="123-toolchain">123. Toolchain распределяет обязанности<a class="headerlink" href="#123-toolchain" title="Permanent link">¶</a></h1>
+<p>Compiler:</p>
+<div class="highlight"><pre><span></span><code>понимает declarations/init semantics
+</code></pre></div>
+<p>Linker:</p>
+<div class="highlight"><pre><span></span><code>собирает program-wide init order
+</code></pre></div>
+<p>Runtime:</p>
+<div class="highlight"><pre><span></span><code>выполняет готовые tasks
+</code></pre></div>
+<p>Это повторяющаяся архитектурная идея Go:</p>
+<div class="highlight"><pre><span></span><code>сделать максимум заранее
+↓
+упростить runtime
+</code></pre></div>
+<hr/>
+<h1 id="124-inittask">124. Что такое <code>initTask</code><a class="headerlink" href="#124-inittask" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>инициализация пакетов unit
+</code></pre></div>
+<p>с набором функций, которые нужно выполнить.</p>
+<p>В generated code это может включать:</p>
+<div class="highlight"><pre><span></span><code>package variable initializers
+init functions
+</code></pre></div>
+<hr/>
+<h1 id="125-package-initialization-func-init">125. Package initialization — не только <code>func init()</code><a class="headerlink" href="#125-package-initialization-func-init" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">cfg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">loadConfig</span><span class="p">()</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">register</span><span class="p">(</span><span class="nx">cfg</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Startup должен выполнить:</p>
+<div class="highlight"><pre><span></span><code>loadConfig()
+↓
+assign cfg
+↓
+init()
+</code></pre></div>
+<p>То есть тяжелая работа может находиться:</p>
+<div class="highlight"><pre><span></span><code>в глобальный инициализатор
+</code></pre></div>
+<p>даже если <code>init()</code> пуст.</p>
+<hr/>
+<h1 id="126-production">126. Почему это важно в production<a class="headerlink" href="#126-production" title="Permanent link">¶</a></h1>
+<p>Команда может искать:</p>
+<div class="highlight"><pre><span></span><code>медленный init()
+</code></pre></div>
+<p>и не найти.</p>
+<p>А проблема:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">newHeavyClient</span><span class="p">()</span>
+</code></pre></div>
+<p>Startup cost тот же.</p>
+<hr/>
+<h1 id="127-runtime-init-tasks-gcenable">127. После runtime init tasks вызывается <code>gcenable</code><a class="headerlink" href="#127-runtime-init-tasks-gcenable" title="Permanent link">¶</a></h1>
+<p>Это важная временная точка.</p>
+<div class="highlight"><pre><span></span><code>schedinit
+→ gcinit
+
+runtime.main
+→ runtime init tasks
+→ gcenable
+</code></pre></div>
+<hr/>
+<h1 id="128-gcenable">128. Что делает <code>gcenable</code> по смыслу<a class="headerlink" href="#128-gcenable" title="Permanent link">¶</a></h1>
+<p>GC infrastructure уже существует.</p>
+<p>Теперь можно запустить background entities:</p>
+<div class="highlight"><pre><span></span><code>sweep
+scavenger / GC helpers
+фоновый GC workers as needed
+</code></pre></div>
+<p>Конкретный состав version-sensitive.</p>
+<p>Главная модель:</p>
+<div class="highlight"><pre><span></span><code>GC initialized
+↓
+GC enabled
+</code></pre></div>
+<hr/>
+<h1 id="129-gc">129. Почему не включали фоновый GC раньше<a class="headerlink" href="#129-gc" title="Permanent link">¶</a></h1>
+<p>До scheduler start невозможно нормально жить background goroutines.</p>
+<p>До allocator/type metadata init GC не может быть корректным.</p>
+<p>Получаем зависимость:</p>
+<div class="highlight"><pre><span></span><code>allocator
++
+metadata
++
+P/scheduler
+↓
+фоновый GC
+</code></pre></div>
+<hr/>
+<h1 id="130-startup-">130. Это хороший общий startup-паттерн<a class="headerlink" href="#130-startup-" title="Permanent link">¶</a></h1>
+<p>Многие subsystems проходят две стадии:</p>
+<div class="highlight"><pre><span></span><code>создать структуры
+↓
+позже разрешить concurrency
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>GC
+scheduler world
+monitoring
+</code></pre></div>
+<p>Так bootstrap избегает циклических зависимостей.</p>
+<hr/>
+<h1 id="131-current-runtime-dynamic-gomaxprocs-updates-runtime-init">131. Current runtime включает dynamic <code>GOMAXPROCS</code> updates уже после runtime init<a class="headerlink" href="#131-current-runtime-dynamic-gomaxprocs-updates-runtime-init" title="Permanent link">¶</a></h1>
+<p>После <code>gcenable</code> Go 1.27 включает mechanism периодического пересчета default <code>GOMAXPROCS</code>, если policy это допускает.</p>
+<p>Почему не в <code>schedinit</code>?</p>
+<p>Потому что periodic update может потребовать:</p>
+<div class="highlight"><pre><span></span><code>STW
+scheduler machinery
+timers/background activity
+</code></pre></div>
+<p>До runtime initialization это слишком рано.</p>
+<hr/>
+<h1 id="132-container-point">132. Это важный container point<a class="headerlink" href="#132-container-point" title="Permanent link">¶</a></h1>
+<p>Initial:</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS
+</code></pre></div>
+<p>вычислили в <code>schedinit</code>.</p>
+<p>Позже runtime способен:</p>
+<div class="highlight"><pre><span></span><code>периодически пересматривать default
+</code></pre></div>
+<p>при изменении CPU affinity/cgroup quota.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>startup decision
+</code></pre></div>
+<p>в текущая Go может не быть навсегда фиксированной.</p>
+<hr/>
+<h1 id="133-cgo-initialization-coordination">133. Cgo initialization coordination<a class="headerlink" href="#133-cgo-initialization-coordination" title="Permanent link">¶</a></h1>
+<p>Если используется cgo, <code>runtime.main</code> дополнительно проверяет/подготавливает:</p>
+<div class="highlight"><pre><span></span><code>pthread keys
+C-created thread support
+cgo callbacks
+runtime-init completion notification
+</code></pre></div>
+<p>И может стартовать template thread.</p>
+<hr/>
+<h1 id="134-cgo-callbacks-main-initialization">134. Почему cgo callbacks ждут main initialization<a class="headerlink" href="#134-cgo-callbacks-main-initialization" title="Permanent link">¶</a></h1>
+<p>Представим C thread вызывает Go слишком рано:</p>
+<div class="highlight"><pre><span></span><code>runtime еще не завершил init
+</code></pre></div>
+<p>Go callback мог бы попасть в полусобранный мир.</p>
+<p>Поэтому есть:</p>
+<div class="highlight"><pre><span></span><code>mainInitDone
+mainInitDoneChan
+</code></pre></div>
+<p>для coordination.</p>
+<hr/>
+<h1 id="135-package-init-tasks">135. Теперь package init tasks всей программы<a class="headerlink" href="#135-package-init-tasks" title="Permanent link">¶</a></h1>
+<p>Current <code>runtime.main</code> проходит module list и вызывает:</p>
+<div class="highlight"><pre><span></span><code>doInit(m.inittasks)
+</code></pre></div>
+<p>для каждого module.</p>
+<p>Комментарий source прямо говорит:</p>
+<div class="highlight"><pre><span></span><code>tasks computed by linker
+packages run in dependency order
+</code></pre></div>
+<hr/>
+<h1 id="136-module-list">136. Почему module list вообще может быть больше одного<a class="headerlink" href="#136-module-list" title="Permanent link">¶</a></h1>
+<p>Обычный static executable:</p>
+<div class="highlight"><pre><span></span><code>одна основная moduledata chain
+</code></pre></div>
+<p>Но build modes/plugins/shared modules могут добавлять moduledata.</p>
+<p>Runtime должен иметь более общую модель.</p>
+<hr/>
+<h1 id="137-initialization-order">137. Initialization order<a class="headerlink" href="#137-initialization-order" title="Permanent link">¶</a></h1>
+<p>Устойчивая языковая модель:</p>
+<div class="highlight"><pre><span></span><code>dependencies first
+↓
+package-level variable initialization
+↓
+init functions
+↓
+dependent package
+</code></pre></div>
+<p>Главный package идет после своих dependencies.</p>
+<hr/>
+<h1 id="138-package-init-main-goroutine">138. Package init выполняется в main goroutine<a class="headerlink" href="#138-package-init-main-goroutine" title="Permanent link">¶</a></h1>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>по одной goroutine на package
+</code></pre></div>
+<p>А последовательный init sequence на main G.</p>
+<p>Это дает:</p>
+<ul>
+<li>детерминированный dependency order;</li>
+<li>простую initialization semantics.</li>
+</ul>
+<hr/>
+<h1 id="139-init-concurrency">139. Но <code>init</code> может сам породить concurrency<a class="headerlink" href="#139-init-concurrency" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">background</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>С этого момента:</p>
+<div class="highlight"><pre><span></span><code>другая G может выполняться параллельно
+</code></pre></div>
+<p>пока main goroutine продолжает дальнейшие init tasks.</p>
+<hr/>
+<h1 id="140">140. Значит «инициализация пакетов однопоточная» — опасное упрощение<a class="headerlink" href="#140" title="Permanent link">¶</a></h1>
+<p>Точнее:</p>
+<blockquote>
+<p>Сам init sequence выполняется одной main goroutine, но code внутри <code>init</code> может создавать concurrency.</p>
+</blockquote>
+<p>Это принципиальная разница.</p>
+<hr/>
+<h1 id="141-goroutine-init-package">141. Может ли goroutine из <code>init</code> увидеть другой package недоинициализированным<a class="headerlink" href="#141-goroutine-init-package" title="Permanent link">¶</a></h1>
+<p>Dependency rules гарантируют:</p>
+<div class="highlight"><pre><span></span><code>dependencies текущего package уже initialized
+</code></pre></div>
+<p>Но packages, которые будут инициализированы позже в общей программе, могут еще не быть готовы.</p>
+<p>Правильный design не должен строить скрытые cross-package races через goroutines из <code>init</code>.</p>
+<hr/>
+<h1 id="142-goroutines-init">142. Поэтому запуск goroutines в <code>init</code> обычно требует осторожности<a class="headerlink" href="#142-goroutines-init" title="Permanent link">¶</a></h1>
+<p>Не запрещено.</p>
+<p>Но lifecycle становится сложнее:</p>
+<div class="highlight"><pre><span></span><code>кто остановит?
+кто дождется readiness?
+с каким state она работает?
+что если main еще не начался?
+</code></pre></div>
+<p>Для backend-кода часто проще запускать long-lived workers явно из application startup.</p>
+<hr/>
+<h1 id="143-init-cold-start">143. Тяжелый <code>init</code> влияет на cold start<a class="headerlink" href="#143-init-cold-start" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="mi">3</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Process:</p>
+<div class="highlight"><pre><span></span><code>scheduler уже работает
+↓
+main goroutine sleeping
+↓
+main.main еще не вызван
+</code></pre></div>
+<p>Для orchestration:</p>
+<div class="highlight"><pre><span></span><code>container process существует
+</code></pre></div>
+<p>но сервис:</p>
+<div class="highlight"><pre><span></span><code>еще не ready
+</code></pre></div>
+<hr/>
+<h1 id="144-init">144. Самый плохой тип работы в <code>init</code><a class="headerlink" href="#144-init" title="Permanent link">¶</a></h1>
+<p>Особенно опасны:</p>
+<div class="highlight"><pre><span></span><code>network calls
+DB connections
+remote config
+unbounded retries
+filesystem scanning
+large decompression
+large cache warmup
+</code></pre></div>
+<p>Почему?</p>
+<hr/>
+<h1 id="145-init">145. Потому что <code>init</code> плохо управляется извне<a class="headerlink" href="#145-init" title="Permanent link">¶</a></h1>
+<p>Обычная application startup function может получить:</p>
+<div class="highlight"><pre><span></span><code>context
+timeout
+logger
+metrics
+dependency injection
+error return
+</code></pre></div>
+<p><code>init()</code>:</p>
+<div class="highlight"><pre><span></span><code>не принимает context
+не возвращает error
+вызывается автоматически
+</code></pre></div>
+<p>Обработка отказов становится грубее.</p>
+<hr/>
+<h1 id="146-init-panicexit-pattern">146. Ошибка <code>init</code> обычно означает panic/exit pattern<a class="headerlink" href="#146-init-panicexit-pattern" title="Permanent link">¶</a></h1>
+<p>Если initializer не может вернуть ошибку:</p>
+<div class="highlight"><pre><span></span><code>либо скрыть ошибку
+либо panic
+либо записать global broken state
+</code></pre></div>
+<p>Для production initialization это часто хуже явного:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">run</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span>
+</code></pre></div>
+<hr/>
+<h1 id="147-inittrace-startup-work">147. <code>inittrace</code> превращает скрытую startup work в измеримую<a class="headerlink" href="#147-inittrace-startup-work" title="Permanent link">¶</a></h1>
+<p>Примерная логика вывода:</p>
+<div class="highlight"><pre><span></span><code>init package X
+clock ...
+bytes ...
+allocs ...
+</code></pre></div>
+<p>Можно найти:</p>
+<div class="highlight"><pre><span></span><code>какой package реально дорогой
+</code></pre></div>
+<p>вместо гадания.</p>
+<hr/>
+<h1 id="148-inittrace-loaderbootstrap">148. Но <code>inittrace</code> не показывает всю loader/bootstrap рантайма фазу<a class="headerlink" href="#148-inittrace-loaderbootstrap" title="Permanent link">¶</a></h1>
+<p>Он относится к init tasks.</p>
+<p>Если время потеряно:</p>
+<div class="highlight"><pre><span></span><code>до runtime.main
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>в dynamic loader
+</code></pre></div>
+<p><code>inittrace</code> не объяснит его.</p>
+<p>Нужна сквозная модель <code>4.5 + 4.6</code>.</p>
+<hr/>
+<h1 id="149-package-init-tracing">149. После package init tracing отключается<a class="headerlink" href="#149-package-init-tracing" title="Permanent link">¶</a></h1>
+<p>Почему?</p>
+<p>Собирать статистику в:</p>
+<div class="highlight"><pre><span></span><code>malloc
+newproc
+</code></pre></div>
+<p>на протяжении всей жизни приложения было бы лишним overhead.</p>
+<p>Init закончился:</p>
+<div class="highlight"><pre><span></span><code>inittrace.active = false
+</code></pre></div>
+<hr/>
+<h1 id="150-maininitdone">150. <code>mainInitDone</code><a class="headerlink" href="#150-maininitdone" title="Permanent link">¶</a></h1>
+<p>После завершения initialization current runtime делает:</p>
+<div class="highlight"><pre><span></span><code>mainInitDone.Store(true)
+close(mainInitDoneChan)
+</code></pre></div>
+<p>То есть появляется явный runtime signal:</p>
+<div class="highlight"><pre><span></span><code>initialization завершена
+</code></pre></div>
+<hr/>
+<h1 id="151-atomic-state">151. Зачем канал/atomic state<a class="headerlink" href="#151-atomic-state" title="Permanent link">¶</a></h1>
+<p>Cgo callback или другая runtime machinery может спросить:</p>
+<div class="highlight"><pre><span></span><code>можно ли уже безопасно входить в обычный Go-код world?
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>подождать mainInitDoneChan
+</code></pre></div>
+<hr/>
+<h1 id="152-main-goroutine">152. Потом main goroutine освобождает стартовый поток ОС<a class="headerlink" href="#152-main-goroutine" title="Permanent link">¶</a></h1>
+<p>Current runtime:</p>
+<div class="highlight"><pre><span></span><code>unlockOSThread()
+</code></pre></div>
+<p>если не осталось пользовательской thread lock.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>main G
+</code></pre></div>
+<p>может мигрировать между M как обычная G.</p>
+<hr/>
+<h1 id="153-unlock-init">153. Почему unlock после init, а не до<a class="headerlink" href="#153-unlock-init" title="Permanent link">¶</a></h1>
+<p>Нужно сохранить гарантию:</p>
+<div class="highlight"><pre><span></span><code>все init functions
+→ startup OS thread
+</code></pre></div>
+<p>Как только init завершен:</p>
+<div class="highlight"><pre><span></span><code>эта специальная platform guarantee больше не нужна
+</code></pre></div>
+<hr/>
+<h1 id="154-mainmain">154. И наконец <code>main.main</code><a class="headerlink" href="#154-mainmain" title="Permanent link">¶</a></h1>
+<p>Только теперь current runtime делает:</p>
+<div class="highlight"><pre><span></span><code>fn := main_main
+fn()
+</code></pre></div>
+<p>Это точка входа в пользовательский main package.</p>
+<hr/>
+<h1 id="155-mainmain">155. Почему вызов <code>main.main</code> косвенный<a class="headerlink" href="#155-mainmain" title="Permanent link">¶</a></h1>
+<p>Комментарий current runtime говорит:</p>
+<div class="highlight"><pre><span></span><code>linker doesn't know main package address
+when laying down runtime
+</code></pre></div>
+<p>Поэтому <code>runtime.main</code> вызывает user main через промежуточную linked reference.</p>
+<p>Еще один мост:</p>
+<div class="highlight"><pre><span></span><code>linker
+↔
+runtime
+</code></pre></div>
+<hr/>
+<h1 id="156-mainmain">156. Что уже работает к первой строке <code>main.main</code><a class="headerlink" href="#156-mainmain" title="Permanent link">¶</a></h1>
+<p>Полный набор:</p>
+<div class="highlight"><pre><span></span><code>m0/g0
+P set
+scheduler
+sysmon
+allocator
+GC enabled
+runtime type/interface metadata
+package globals
+all package init functions
+main G
+</code></pre></div>
+<p>То есть пользовательский <code>main</code> входит уже в очень богатый runtime world.</p>
+<hr/>
+<h1 id="157-main">157. Это разрушает модель «main — начало программы»<a class="headerlink" href="#157-main" title="Permanent link">¶</a></h1>
+<p>Для разработчика:</p>
+<div class="highlight"><pre><span></span><code>main()
+→ начало
+</code></pre></div>
+<p>Для системы:</p>
+<div class="highlight"><pre><span></span><code>main.main
+→ довольно поздняя стадия startup
+</code></pre></div>
+<p>До него прошли:</p>
+<div class="highlight"><pre><span></span><code>loader
+rt0
+schedinit
+scheduler bootstrap
+runtime.main
+package init
+</code></pre></div>
+<hr/>
+<h1 id="v-startup">Часть V. Три фазы startup<a class="headerlink" href="#v-startup" title="Permanent link">¶</a></h1>
+<h1 id="158-50">158. Полезно не запоминать 50 функций<a class="headerlink" href="#158-50" title="Permanent link">¶</a></h1>
+<p>Вместо этого делим startup на три фазы.</p>
+<hr/>
+<h1 id="159-a-bootstrap-execution">159. Фаза A — bootstrap execution<a class="headerlink" href="#159-a-bootstrap-execution" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>entry
+↓
+rt0_go
+↓
+g0/m0
+↓
+TLS/текущая G
+↓
+args/osinit
+↓
+schedinit
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>из platform thread
+собрать runtime foundation
+</code></pre></div>
+<hr/>
+<h1 id="160-b-runtime-becomes-schedulable">160. Фаза B — runtime becomes schedulable<a class="headerlink" href="#160-b-runtime-becomes-schedulable" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>procresize
+↓
+P exist
+↓
+newproc(runtime.main)
+↓
+mstart
+↓
+schedule
+↓
+execute runtime.main
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>из foundation
+получить работающий scheduler
+</code></pre></div>
+<hr/>
+<h1 id="161-c-program-initialization">161. Фаза C — program initialization<a class="headerlink" href="#161-c-program-initialization" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>runtime.main
+↓
+sysmon
+↓
+runtime init tasks
+↓
+gcenable
+↓
+package init
+↓
+mainInitDone
+↓
+main.main
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>из работающего runtime
+получить готовое приложение
+</code></pre></div>
+<hr/>
+<h1 id="162">162. Это главная ментальная модель лекции<a class="headerlink" href="#162" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>platform world
+↓
+runtime foundation
+↓
+scheduler world
+↓
+application world
+</code></pre></div>
+<p>Каждый слой может использовать предыдущий.</p>
+<p>Не наоборот.</p>
+<hr/>
+<h1 id="163">163. Таблица готовности подсистем<a class="headerlink" href="#163" title="Permanent link">¶</a></h1>
+<table>
+<thead>
+<tr>
+<th>Подсистема</th>
+<th style="text-align: right;"><code>rt0_go</code> начало</th>
+<th style="text-align: right;">после <code>schedinit</code></th>
+<th style="text-align: right;"><code>runtime.main</code></th>
+<th style="text-align: right;">перед <code>main.main</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>m0/g0</code></td>
+<td style="text-align: right;">поднимаются</td>
+<td style="text-align: right;">готовы</td>
+<td style="text-align: right;">готовы</td>
+<td style="text-align: right;">готовы</td>
+</tr>
+<tr>
+<td>stack subsystem</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+</tr>
+<tr>
+<td>allocator</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+</tr>
+<tr>
+<td>maps/hash runtime</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+</tr>
+<tr>
+<td>type/itab metadata</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+<td style="text-align: right;">готов</td>
+</tr>
+<tr>
+<td>GC state</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">initialized</td>
+<td style="text-align: right;">enabled</td>
+<td style="text-align: right;">enabled</td>
+</tr>
+<tr>
+<td>P</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">готовы</td>
+<td style="text-align: right;">готовы</td>
+<td style="text-align: right;">готовы</td>
+</tr>
+<tr>
+<td>scheduler loop</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">еще не запущен</td>
+<td style="text-align: right;">работает</td>
+<td style="text-align: right;">работает</td>
+</tr>
+<tr>
+<td>sysmon</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">запускается</td>
+<td style="text-align: right;">работает</td>
+</tr>
+<tr>
+<td>package init</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">нет</td>
+<td style="text-align: right;">выполняется</td>
+<td style="text-align: right;">закончено</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="164">164. Почему эта таблица полезнее списка функций<a class="headerlink" href="#164" title="Permanent link">¶</a></h1>
+<p>Она отвечает на инженерный вопрос:</p>
+<blockquote>
+<p>Что я уже могу безопасно использовать в этой фазе?</p>
+</blockquote>
+<p>И объясняет, почему startup implementation имеет конкретный порядок.</p>
+<hr/>
+<h1 id="vi-production-startup">Часть VI. Production: startup под нагрузкой<a class="headerlink" href="#vi-production-startup" title="Permanent link">¶</a></h1>
+<h1 id="165-bootstrap">165. Bootstrap одноразовый, но иногда критичный<a class="headerlink" href="#165-bootstrap" title="Permanent link">¶</a></h1>
+<p>Для long-running backend:</p>
+<div class="highlight"><pre><span></span><code>startup 200 ms
+vs
+runtime 30 days
+</code></pre></div>
+<p>может быть неважно.</p>
+<p>Но для:</p>
+<div class="highlight"><pre><span></span><code>autoscaling
+serverless
+CLI
+batch jobs
+short-lived workers
+Kubernetes rollouts
+</code></pre></div>
+<p>startup — реальный SLA.</p>
+<hr/>
+<h1 id="166-kubernetes-lifecycle">166. Kubernetes lifecycle<a class="headerlink" href="#166-kubernetes-lifecycle" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>pod scheduled
+↓
+container process
+↓
+execve
+↓
+loader
+↓
+Go rt0
+↓
+schedinit
+↓
+runtime.main
+↓
+package init
+↓
+main.main
+↓
+listener
+↓
+readiness passes
+</code></pre></div>
+<p>Startup delay может находиться на любом уровне.</p>
+<hr/>
+<h1 id="167-pod-go-app">167. Если pod существует, это не значит, что Go app готов<a class="headerlink" href="#167-pod-go-app" title="Permanent link">¶</a></h1>
+<p>Container runtime уже видит process.</p>
+<p>Но process может быть:</p>
+<div class="highlight"><pre><span></span><code>в dynamic loader
+в schedinit
+в init()
+</code></pre></div>
+<p>Readiness должен отражать application readiness.</p>
+<p>Не просто наличие PID.</p>
+<hr/>
+<h1 id="168-startup-cost">168. Масштабирование усиливает startup cost<a class="headerlink" href="#168-startup-cost" title="Permanent link">¶</a></h1>
+<p>Один pod:</p>
+<div class="highlight"><pre><span></span><code>init 500 ms
+</code></pre></div>
+<p>Почти незаметно.</p>
+<p>1000 pods одновременно:</p>
+<div class="highlight"><pre><span></span><code>CPU burst
+storage/page-cache pressure
+DB connection storm
+remote-config storm
+</code></pre></div>
+<p>Startup logic становится distributed-systems problem.</p>
+<hr/>
+<h1 id="169-network-io-package-init">169. Особенно опасен network I/O в package init<a class="headerlink" href="#169-network-io-package-init" title="Permanent link">¶</a></h1>
+<p>Представим 500 replicas:</p>
+<div class="highlight"><pre><span></span><code>каждая до main
+→ connect DB
+→ fetch remote config
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>thundering herd
+</code></pre></div>
+<p>до того, как application lifecycle management даже полностью включилось.</p>
+<hr/>
+<h1 id="170-runtime-startup-application-startup">170. Runtime startup и application startup нужно измерять отдельно<a class="headerlink" href="#170-runtime-startup-application-startup" title="Permanent link">¶</a></h1>
+<p>Полезные точки:</p>
+<div class="highlight"><pre><span></span><code>T0 process exec
+T1 runtime/main entry
+T2 package init done
+T3 main started
+T4 listener ready
+T5 readiness true
+</code></pre></div>
+<p>Не обязательно все легко измеримы одинаково.</p>
+<p>Но mental breakdown нужен.</p>
+<hr/>
+<h1 id="171-schedinit">171. Что может замедлить <code>schedinit</code><a class="headerlink" href="#171-schedinit" title="Permanent link">¶</a></h1>
+<p>Обычно он быстрый.</p>
+<p>Но сюда входят:</p>
+<div class="highlight"><pre><span></span><code>allocator metadata setup
+module/type metadata
+GC initialization
+P creation
+runtime debug/security configuration
+</code></pre></div>
+<p>В огромных binaries/tooling modes часть работы может стать заметнее.</p>
+<hr/>
+<h1 id="172">172. Что чаще реально медленнее<a class="headerlink" href="#172" title="Permanent link">¶</a></h1>
+<p>В backend обычно подозрительнее:</p>
+<div class="highlight"><pre><span></span><code>package init
+глобальные инициализаторы
+cgo/platform initialization
+large embedded data processing
+</code></pre></div>
+<p>чем базовый <code>m0/g0</code> bootstrap.</p>
+<hr/>
+<h1 id="173-bootstrap">173. Но знать bootstrap все равно полезно<a class="headerlink" href="#173-bootstrap" title="Permanent link">¶</a></h1>
+<p>Потому что он дает правильные границы:</p>
+<div class="highlight"><pre><span></span><code>ошибка до main
+≠
+обязательно init()
+</code></pre></div>
+<p>И позволяет читать:</p>
+<div class="highlight"><pre><span></span><code>stack traces
+startup profiles
+runtime sources
+</code></pre></div>
+<p>без мистики.</p>
+<hr/>
+<h1 id="174-gomaxprocs-container-limits">174. GOMAXPROCS и container limits<a class="headerlink" href="#174-gomaxprocs-container-limits" title="Permanent link">¶</a></h1>
+<p>Current Go умеет выбирать default из container CPU environment.</p>
+<p>Это означает:</p>
+<div class="highlight"><pre><span></span><code>scheduler parallelism
+</code></pre></div>
+<p>может быть меньше host CPU count.</p>
+<hr/>
+<h1 id="175">175. Почему это полезно<a class="headerlink" href="#175" title="Permanent link">¶</a></h1>
+<p>Container:</p>
+<div class="highlight"><pre><span></span><code>host = 64 CPUs
+quota ≈ 2 CPUs
+</code></pre></div>
+<p>Если runtime создал бы:</p>
+<div class="highlight"><pre><span></span><code>64 P
+</code></pre></div>
+<p>можно получить больше scheduling/throttling noise.</p>
+<p>Container-aware default старается приблизить Go parallelism к доступной CPU throughput.</p>
+<hr/>
+<h1 id="176-p-cpus">176. Но P не равны гарантированным CPUs<a class="headerlink" href="#176-p-cpus" title="Permanent link">¶</a></h1>
+<p>Важно.</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS=2
+</code></pre></div>
+<p>не означает:</p>
+<div class="highlight"><pre><span></span><code>вам физически зарезервированы два core
+</code></pre></div>
+<p>Это ограничение conтекущая Go execution capacity.</p>
+<p>OS/cgroup scheduler остается ниже.</p>
+<hr/>
+<h1 id="177-current-go-default-gomaxprocs">177. Current Go может обновлять default <code>GOMAXPROCS</code><a class="headerlink" href="#177-current-go-default-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>CPU affinity / cgroup quota меняется
+</code></pre></div>
+<p>current runtime способен периодически пересмотреть default.</p>
+<p>Это уже происходит после startup.</p>
+<p>То есть startup создает initial P set, но lifecycle может продолжаться.</p>
+<hr/>
+<h1 id="vii">Часть VII. Диагностика<a class="headerlink" href="#vii" title="Permanent link">¶</a></h1>
+<h1 id="178">178. Первый диагностический вопрос<a class="headerlink" href="#178" title="Permanent link">¶</a></h1>
+<p>Сервис не дошел до <code>main</code>.</p>
+<p>Где мы?</p>
+<div class="highlight"><pre><span></span><code>4.5:
+binary вообще запустился?
+dynamic loader?
+
+или
+
+4.6:
+bootstrap рантайма?
+package init?
+</code></pre></div>
+<p>Это первое разделение.</p>
+<hr/>
+<h1 id="179-binary-go-runtime">179. Binary вообще не начал Go runtime<a class="headerlink" href="#179-binary-go-runtime" title="Permanent link">¶</a></h1>
+<p>Симптомы:</p>
+<div class="highlight"><pre><span></span><code>missing interpreter
+missing shared library
+illegal instruction
+exec format error
+</code></pre></div>
+<p>Это чаще:</p>
+<div class="highlight"><pre><span></span><code>loader / platform / early CPU check
+</code></pre></div>
+<hr/>
+<h1 id="180-process-main">180. Process появился, но пользовательские логи <code>main</code> отсутствуют<a class="headerlink" href="#180-process-main" title="Permanent link">¶</a></h1>
+<p>Гипотезы:</p>
+<div class="highlight"><pre><span></span><code>bootstrap рантайма
+runtime init
+package initializer
+init()
+</code></pre></div>
+<p>Первый простой инструмент:</p>
+<div class="highlight"><pre><span></span><code>GODEBUG=inittrace=1
+</code></pre></div>
+<hr/>
+<h1 id="181-inittrace">181. <code>inittrace</code><a class="headerlink" href="#181-inittrace" title="Permanent link">¶</a></h1>
+<p>Запуск:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">GODEBUG</span><span class="o">=</span><span class="nv">inittrace</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>./app
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>дорогие packages
+allocation-heavy init
+unexpected initialization order
+</code></pre></div>
+<hr/>
+<h1 id="182-allocations-init">182. Что означает много allocations в init<a class="headerlink" href="#182-allocations-init" title="Permanent link">¶</a></h1>
+<p>Не обязательно leak.</p>
+<p>Package initialization действительно может строить long-lived globals.</p>
+<p>Вопрос:</p>
+<div class="highlight"><pre><span></span><code>почему startup создает столько объектов
+и нужны ли они сразу?
+</code></pre></div>
+<hr/>
+<h1 id="183-inittrace-startup">183. Если <code>inittrace</code> пуст, а startup все равно долгий<a class="headerlink" href="#183-inittrace-startup" title="Permanent link">¶</a></h1>
+<p>Возможности:</p>
+<div class="highlight"><pre><span></span><code>задержка до init tracing
+dynamic loader
+bootstrap рантайма
+блок до соответствующего init
+platform/cgo path
+</code></pre></div>
+<p>Нужно дополнить:</p>
+<div class="highlight"><pre><span></span><code>strace
+timestamps
+runtime/trace
+</code></pre></div>
+<hr/>
+<h1 id="184-strace-loader-go-world">184. <code>strace</code> разделяет loader и Go-world<a class="headerlink" href="#184-strace-loader-go-world" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>до user logs
+</code></pre></div>
+<p>видно много:</p>
+<div class="highlight"><pre><span></span><code>openat
+mmap
+</code></pre></div>
+<p>shared libraries.</p>
+<p>Тогда часть latency еще в <code>4.5</code>.</p>
+<p>Если loader быстро отдал control:</p>
+<div class="highlight"><pre><span></span><code>ищем выше
+</code></pre></div>
+<hr/>
+<h1 id="185-startup-timestamps">185. Startup timestamps<a class="headerlink" href="#185-startup-timestamps" title="Permanent link">¶</a></h1>
+<p>Для приложения часто достаточно:</p>
+<div class="highlight"><pre><span></span><code>очень ранний init timestamp
+main entry timestamp
+readiness timestamp
+</code></pre></div>
+<p>Чтобы получить:</p>
+<div class="highlight"><pre><span></span><code>init phase duration
+application startup duration
+</code></pre></div>
+<p>Не всегда нужен profiler.</p>
+<hr/>
+<h1 id="186-cpu-http-pprof">186. профиль CPU до HTTP pprof<a class="headerlink" href="#186-cpu-http-pprof" title="Permanent link">¶</a></h1>
+<p>Если тяжелый startup CPU:</p>
+<div class="highlight"><pre><span></span><code>HTTP pprof endpoint еще не поднят
+</code></pre></div>
+<p>Можно programmatically включить CPU profiling раньше.</p>
+<p>Но инструментирование не должно менять startup настолько, что измерение становится бесполезным.</p>
+<hr/>
+<h1 id="187-runtimetrace">187. <code>runtime/trace</code><a class="headerlink" href="#187-runtimetrace" title="Permanent link">¶</a></h1>
+<p>Можно начать trace достаточно рано в application-controlled init/main path.</p>
+<p>Это поможет увидеть:</p>
+<ul>
+<li>goroutines из init;</li>
+<li>scheduler activity;</li>
+<li>blocking;</li>
+<li>timers.</li>
+</ul>
+<p>Но самый ранний <code>rt0/schedinit</code> обычным application trace не покрыть полностью.</p>
+<hr/>
+<h1 id="188-stack-dump-init">188. Stack dump при зависшем init<a class="headerlink" href="#188-stack-dump-init" title="Permanent link">¶</a></h1>
+<p>Если process жив, но startup завис:</p>
+<div class="highlight"><pre><span></span><code>SIGQUIT
+</code></pre></div>
+<p>может дать goroutine dump.</p>
+<p>Если main G стоит:</p>
+<div class="highlight"><pre><span></span><code>в package init
+</code></pre></div>
+<p>stack trace покажет конкретную функцию.</p>
+<p>Это часто самый быстрый способ.</p>
+<hr/>
+<h1 id="189-scheduler-stack-dump">189. Но до обычный scheduler stack dump может быть ограничен<a class="headerlink" href="#189-scheduler-stack-dump" title="Permanent link">¶</a></h1>
+<p>Если crash происходит совсем рано:</p>
+<div class="highlight"><pre><span></span><code>до обычный рантайм
+</code></pre></div>
+<p>обычные diagnostic mechanisms могут еще не быть доступны в полной форме.</p>
+<p>Именно поэтому runtime имеет специальные early-failure paths.</p>
+<hr/>
+<h1 id="190-unknown-runnable-goroutine-during-bootstrap">190. Ошибка <code>unknown runnable goroutine during bootstrap</code><a class="headerlink" href="#190-unknown-runnable-goroutine-during-bootstrap" title="Permanent link">¶</a></h1>
+<p>Current <code>schedinit</code> ожидает, что <code>procresize</code> во время bootstrap не обнаружит неожиданный runnable work.</p>
+<p>Если это произошло:</p>
+<div class="highlight"><pre><span></span><code>runtime internal invariant violated
+</code></pre></div>
+<p>и runtime бросает fatal error.</p>
+<p>Это пример жесткости bootstrap assumptions.</p>
+<hr/>
+<h1 id="viii">Часть VIII. Практика<a class="headerlink" href="#viii" title="Permanent link">¶</a></h1>
+<h1 id="191-1-entry-chain">191. Практика 1: найти entry chain<a class="headerlink" href="#191-1-entry-chain" title="Permanent link">¶</a></h1>
+<p>Минимальная программа:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>Собрать.</p>
+<p>На Linux:</p>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>./app
+go<span class="w"> </span>tool<span class="w"> </span>objdump<span class="w"> </span>./app
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>ELF entry
+↓
+_rt0_amd64
+↓
+runtime.rt0_go
+</code></pre></div>
+<hr/>
+<h1 id="192">192. Что доказывает эксперимент<a class="headerlink" href="#192" title="Permanent link">¶</a></h1>
+<p>Не просто:</p>
+<div class="highlight"><pre><span></span><code>есть symbol rt0
+</code></pre></div>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>entry point executable
+≠
+main.main
+</code></pre></div>
+<p>Мы руками восстанавливаем реальный call chain.</p>
+<hr/>
+<h1 id="193-2-dissect-rt0_go">193. Практика 2: dissect <code>rt0_go</code><a class="headerlink" href="#193-2-dissect-rt0_go" title="Permanent link">¶</a></h1>
+<p>Берем current source.</p>
+<p>Не читаем весь файл <code>asm_amd64.s</code>.</p>
+<p>Ищем только:</p>
+<div class="highlight"><pre><span></span><code>stack setup
+TLS
+g0/m0
+CPU check
+args
+osinit
+schedinit
+newproc
+mstart
+</code></pre></div>
+<hr/>
+<h1 id="194-source-reading">194. Цель source-reading<a class="headerlink" href="#194-source-reading" title="Permanent link">¶</a></h1>
+<p>Научить студента:</p>
+<div class="highlight"><pre><span></span><code>не читать runtime source линейно 1800 строк
+</code></pre></div>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code>идти от конкретного механизма
+↓
+искать переходы состояния
+</code></pre></div>
+<hr/>
+<h1 id="195-3-m0g0">195. Практика 3: доказать, что <code>m0/g0</code> статические<a class="headerlink" href="#195-3-m0g0" title="Permanent link">¶</a></h1>
+<p>Открыть:</p>
+<div class="highlight"><pre><span></span><code>runtime/proc.go
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="nx">m0</span><span class="w"> </span><span class="nx">m</span>
+<span class="w">    </span><span class="nx">g0</span><span class="w"> </span><span class="nx">g</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Связать с:</p>
+<div class="highlight"><pre><span></span><code>loader already mapped BSS/data
+</code></pre></div>
+<hr/>
+<h1 id="196-4-schedinit-dependency-graph">196. Практика 4: восстановить <code>schedinit</code> dependency graph<a class="headerlink" href="#196-4-schedinit-dependency-graph" title="Permanent link">¶</a></h1>
+<p>Из source выписать только крупные фазы:</p>
+<div class="highlight"><pre><span></span><code>stack
+random
+allocator
+CPU/maps
+M
+module/type metadata
+GC
+P
+</code></pre></div>
+<p>Не заучивать names.</p>
+<hr/>
+<h1 id="197-5-godebuginittrace1">197. Практика 5: <code>GODEBUG=inittrace=1</code><a class="headerlink" href="#197-5-godebuginittrace1" title="Permanent link">¶</a></h1>
+<p>Сделать:</p>
+<div class="highlight"><pre><span></span><code>package a
+package b
+package c
+main
+</code></pre></div>
+<p>В каждом initializer выделяет память и делает небольшую работу.</p>
+<p>Запустить:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">GODEBUG</span><span class="o">=</span><span class="nv">inittrace</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>go<span class="w"> </span>run<span class="w"> </span>.
+</code></pre></div>
+<hr/>
+<h1 id="198">198. Что измеряем<a class="headerlink" href="#198" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>порядок package init
+clock time
+bytes
+allocs
+</code></pre></div>
+<p>Потом намеренно добавить:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(...)</span>
+</code></pre></div>
+<p>и увидеть изменение.</p>
+<hr/>
+<h1 id="199-6">199. Практика 6: глобальный инициализатор<a class="headerlink" href="#199-6" title="Permanent link">¶</a></h1>
+<p>Вместо:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">expensive</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">expensive</span><span class="p">()</span>
+</code></pre></div>
+<p>Показать:</p>
+<div class="highlight"><pre><span></span><code>inittrace все равно видит инициализация пакетов cost
+</code></pre></div>
+<hr/>
+<h1 id="200-7-goroutine-init">200. Практика 7: goroutine из <code>init</code><a class="headerlink" href="#200-7-goroutine-init" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">println</span><span class="p">(</span><span class="s">"worker"</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Добавить synchronization, чтобы эксперимент был воспроизводим.</p>
+<p>Доказать:</p>
+<div class="highlight"><pre><span></span><code>scheduler уже работает до main.main
+</code></pre></div>
+<hr/>
+<h1 id="201-8-init">201. Практика 8: блокировка в <code>init</code><a class="headerlink" href="#201-8-init" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">init</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{}</span>
+<span class="p">}</span>
+</code></pre></div>
+<blockquote>
+<p>ВНИМАНИЕ: пример намеренно зависает.</p>
+</blockquote>
+<p>Запустить.</p>
+<p>Снять goroutine dump.</p>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>main goroutine
+↓
+package init
+↓
+select
+</code></pre></div>
+<hr/>
+<h1 id="202-9-lockosthread">202. Практика 9: <code>LockOSThread</code><a class="headerlink" href="#202-9-lockosthread" title="Permanent link">¶</a></h1>
+<p>В init:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">LockOSThread</span><span class="p">()</span>
+</code></pre></div>
+<p>На Linux получить TID platform-specific syscall'ом.</p>
+<p>Сравнить TID:</p>
+<div class="highlight"><pre><span></span><code>init
+main
+</code></pre></div>
+<p>Потом убрать lock.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Проверить documented startup-thread guarantee.</p>
+</blockquote>
+<hr/>
+<h1 id="203-10-gomaxprocs">203. Практика 10: <code>GOMAXPROCS</code><a class="headerlink" href="#203-10-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Запуск:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">GOMAXPROCS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>./app
+<span class="nv">GOMAXPROCS</span><span class="o">=</span><span class="m">4</span><span class="w"> </span>./app
+</code></pre></div>
+<p>В main:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">runtime</span><span class="p">.</span><span class="nx">GOMAXPROCS</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+<p>Связать:</p>
+<div class="highlight"><pre><span></span><code>environment
+↓
+schedinit
+↓
+procresize
+</code></pre></div>
+<hr/>
+<h1 id="204-11-container-cpu-quota">204. Практика 11: container CPU quota<a class="headerlink" href="#204-11-container-cpu-quota" title="Permanent link">¶</a></h1>
+<p>Запустить приложение в container с CPU limit.</p>
+<p>Посмотреть:</p>
+<div class="highlight"><pre><span></span><code>runtime.NumCPU()
+runtime.GOMAXPROCS(0)
+</code></pre></div>
+<p>И current container-aware behavior.</p>
+<p>Обязательно фиксировать версию Go: policy менялась.</p>
+<hr/>
+<h1 id="205-12-startup-storm">205. Практика 12: startup storm<a class="headerlink" href="#205-12-startup-storm" title="Permanent link">¶</a></h1>
+<p>Сделать init, который:</p>
+<div class="highlight"><pre><span></span><code>выделяет 100 MiB
+</code></pre></div>
+<p>Запустить много процессов параллельно.</p>
+<p>Измерить:</p>
+<div class="highlight"><pre><span></span><code>startup latency
+CPU
+memory pressure
+</code></pre></div>
+<p>Потом перенести работу в controlled application warmup.</p>
+<hr/>
+<h1 id="206-13-network-init">206. Практика 13: network в <code>init</code><a class="headerlink" href="#206-13-network-init" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>ВНИМАНИЕ: специально плохой production design.</p>
+</blockquote>
+<p>Initializer делает request к локальному тестовому server с delay.</p>
+<p>Показать:</p>
+<div class="highlight"><pre><span></span><code>main еще не начался
+↓
+startup полностью зависит от network
+</code></pre></div>
+<p>Потом переписать в:</p>
+<div class="highlight"><pre><span></span><code>explicit startup function with context/timeout
+</code></pre></div>
+<hr/>
+<h1 id="207-14-loader-vs-runtime-init">207. Практика 14: loader vs runtime init<a class="headerlink" href="#207-14-loader-vs-runtime-init" title="Permanent link">¶</a></h1>
+<p>Dynamic/cgo binary с тяжелым init.</p>
+<p>Собрать timeline:</p>
+<div class="highlight"><pre><span></span><code>strace loader phase
+↓
+inittrace package phase
+↓
+main timestamp
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Разделить <code>4.5</code> и <code>4.6</code> на реальном запуске.</p>
+</blockquote>
+<hr/>
+<h1 id="208-15-mainmain-symbol">208. Практика 15: <code>main.main</code> symbol<a class="headerlink" href="#208-15-mainmain-symbol" title="Permanent link">¶</a></h1>
+<p>Через:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>./app
+</code></pre></div>
+<p>найти:</p>
+<div class="highlight"><pre><span></span><code>main.main
+runtime.main
+</code></pre></div>
+<p>Через objdump посмотреть indirect transition.</p>
+<p>Связать с linker comment в runtime source.</p>
+<hr/>
+<h1 id="ix">Часть IX. Границы гарантий<a class="headerlink" href="#ix" title="Permanent link">¶</a></h1>
+<h1 id="209">209. Что гарантирует язык<a class="headerlink" href="#209" title="Permanent link">¶</a></h1>
+<p>Спецификация Go гарантирует initialization semantics:</p>
+<div class="highlight"><pre><span></span><code>package dependencies
+↓
+package variables
+↓
+init functions
+↓
+main
+</code></pre></div>
+<p>И однократность инициализация пакетов.</p>
+<hr/>
+<h1 id="210-runtime-api">210. Что гарантирует публичный runtime API<a class="headerlink" href="#210-runtime-api" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>LockOSThread semantics
+GOMAXPROCS API
+</code></pre></div>
+<p>Документированный API можно использовать в application code.</p>
+<hr/>
+<h1 id="211-implementation-detail-go-127x">211. Что является implementation detail Go 1.27.x<a class="headerlink" href="#211-implementation-detail-go-127x" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>_rt0_amd64
+runtime.rt0_go
+m0/g0 exact setup
+TLS implementation
+schedinit exact call order
+maps.AlgInit position
+mcommoninit details
+procresize internals
+mstart0/mstart1 details
+runtime.main exact order
+sysmon startup point
+mainInitDone internals
+</code></pre></div>
+<hr/>
+<h1 id="212">212. Почему разделение важно<a class="headerlink" href="#212" title="Permanent link">¶</a></h1>
+<p>Можно учить:</p>
+<div class="highlight"><pre><span></span><code>m0/g0 bootstrap
+</code></pre></div>
+<p>как текущая реализация и полезную mental model.</p>
+<p>Но нельзя писать application correctness, предполагая:</p>
+<div class="highlight"><pre><span></span><code>runtime.main всегда вызовет конкретную private function на конкретной строке
+</code></pre></div>
+<hr/>
+<h1 id="213-version-sensitive-gomaxprocs">213. Version-sensitive особенно <code>GOMAXPROCS</code><a class="headerlink" href="#213-version-sensitive-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Current Go учитывает container CPU limits и способен обновлять default.</p>
+<p>В старых версиях policy отличалась.</p>
+<p>Поэтому любые production рекомендации про:</p>
+<div class="highlight"><pre><span></span><code>сколько P будет в container
+</code></pre></div>
+<p>обязательно привязываем к версии Go.</p>
+<hr/>
+<h1 id="214">214. Разрушаем плохие упрощения<a class="headerlink" href="#214" title="Permanent link">¶</a></h1>
+<h2 id="os-mainmain">«OS вызывает <code>main.main</code>»<a class="headerlink" href="#os-mainmain" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<div class="highlight"><pre><span></span><code>загрузчик ОС
+↓
+rt0
+↓
+bootstrap рантайма
+↓
+runtime.main
+↓
+package init
+↓
+main.main
+</code></pre></div>
+<h2 id="scheduler-m">«Scheduler создает первый M»<a class="headerlink" href="#scheduler-m" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Первый OS thread уже существует.</p>
+<p><code>m0</code> — runtime representation этого потока.</p>
+<h2 id="g0-goroutine">«Первый g0 создается как обычная goroutine»<a class="headerlink" href="#g0-goroutine" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p><code>g0</code> — статический bootstrap object и использует initial system stack.</p>
+<h2 id="allocator-m0g0">«Allocator нужен, чтобы создать m0/g0»<a class="headerlink" href="#allocator-m0g0" title="Permanent link">¶</a></h2>
+<p>Наоборот.</p>
+<p><code>m0/g0</code> нужны, чтобы дойти до <code>mallocinit</code>.</p>
+<h2 id="p-entry-point">«P существует сразу после entry point»<a class="headerlink" href="#p-entry-point" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>P появляются в <code>schedinit → procresize</code>.</p>
+<h2 id="schedinit-main">«После <code>schedinit</code> уже выполняется main»<a class="headerlink" href="#schedinit-main" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Сначала нужно:</p>
+<div class="highlight"><pre><span></span><code>newproc(runtime.main)
+↓
+mstart
+↓
+schedule
+</code></pre></div>
+<h2 id="gc">«GC включается одним шагом»<a class="headerlink" href="#gc" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<div class="highlight"><pre><span></span><code>gcinit
+↓
+позже
+gcenable
+</code></pre></div>
+<h2 id="package-init-scheduler">«Package init идет до scheduler»<a class="headerlink" href="#package-init-scheduler" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Scheduler уже работает, когда <code>runtime.main</code> выполняет package init.</p>
+<h2 id="main-goroutines">«До main нет других goroutines»<a class="headerlink" href="#main-goroutines" title="Permanent link">¶</a></h2>
+<p><code>init</code> может создать их.</p>
+<h2 id="init-startup-work">«<code>init()</code> — единственное место скрытой startup work»<a class="headerlink" href="#init-startup-work" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Global variable initializers тоже входят в инициализация пакетов.</p>
+<h2 id="process">«Process существует — значит приложение уже стартовало»<a class="headerlink" href="#process" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>PID может существовать, пока process еще находится в loader/runtime/package init.</p>
+<hr/>
+<h1 id="215">215. Что важно запомнить<a class="headerlink" href="#215" title="Permanent link">¶</a></h1>
+<ol>
+<li>Go bootstrap рантайма начинается не с обычной goroutine, а с начальный поток ОС.</li>
+<li><code>_rt0_*</code> адаптирует platform entry convention к <code>runtime.rt0_go</code>.</li>
+<li><code>m0</code> и <code>g0</code> — статические bootstrap-объекты, существующие до allocator.</li>
+<li>Initial OS stack становится system stack <code>g0</code>.</li>
+<li>Early startup должен настроить механизм текущая G до вызова нормального runtime Go-кода.</li>
+<li>TLS/special-register details platform-specific; устойчивая модель — per-thread текущая G.</li>
+<li><code>m0.g0</code> и <code>g0.m</code> связывают platform thread с runtime сущностями.</li>
+<li><code>runtime.args → osinit → schedinit</code> выполняются до создания первой обычная G.</li>
+<li><code>schedinit</code> поднимает не только scheduler, но stack, randomness, allocator, CPU flags, map algorithms, M state, module/type/interface metadata и GC state.</li>
+<li><code>maps.AlgInit</code> показывает, что даже фундаментальные Go constructs имеют startup prerequisites.</li>
+<li><code>gcinit</code> подготавливает GC, а <code>gcenable</code> позже разрешает фоновый GC machinery.</li>
+<li>Initial <code>GOMAXPROCS</code> выбирается до <code>procresize</code>; текущая Go может учитывать affinity/cgroup CPU quota.</li>
+<li><code>procresize</code> создает/инициализирует P и переводит runtime к состоянию, где P способны исполнять Go code.</li>
+<li>Первая обычная G запускает <code>runtime.main</code>, а не <code>main.main</code>.</li>
+<li><code>mstart → mstart0 → mstart1 → schedule</code> переводит initial M в обычный scheduler lifecycle.</li>
+<li>С входом в <code>schedule</code> механика Runtime deep начинает работать в обычном режиме.</li>
+<li><code>runtime.main</code> запускает sysmon и держит main G на стартовый поток ОС во время initialization.</li>
+<li>Init tasks вычислены toolchain/linker заранее и выполняются runtime в dependency order.</li>
+<li>Package initialization включает и variable initializers, и <code>init()</code> functions.</li>
+<li><code>init()</code> выполняется main goroutine, но может создавать дополнительные goroutines.</li>
+<li>Тяжелая работа в <code>init</code> напрямую увеличивает cold-start latency до <code>main.main</code>.</li>
+<li><code>GODEBUG=inittrace=1</code> — основной инструмент для измерения инициализация пакетов.</li>
+<li><code>mainInitDone</code> сигнализирует завершение initialization для runtime/cgo coordination.</li>
+<li>Только после init runtime освобождает startup-thread lock и вызывает <code>main.main</code>.</li>
+<li><code>main.main</code> — не начало процесса, а конец длинного bootstrap pipeline.</li>
+<li>Для диагностики нужно разделять loader (<code>4.5</code>), bootstrap рантайма (<code>4.6</code>) и application initialization.</li>
+<li>Startup latency важна для autoscaling, Kubernetes, serverless, CLI и short-lived jobs.</li>
+<li>Runtime private symbols и exact call order — детали Go 1.27.x, а не контракт языка.</li>
+</ol>
+<hr/>
+<h1 id="216">216. Финальная модель<a class="headerlink" href="#216" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                         OS LOADER
+                             │
+                             ▼
+                          entry
+                             │
+                             ▼
+                         _rt0_*
+                             │
+                             ▼
+                      runtime.rt0_go
+                             │
+                ┌────────────┴────────────┐
+                ▼                         ▼
+          начальный стек ОС            TLS/текущая G
+                │                         │
+                ▼                         │
+               g0 ◄───────────────────────┘
+                │
+                ▼
+               m0
+                │
+                ▼
+              args
+                │
+                ▼
+             osinit
+                │
+                ▼
+            schedinit
+       ┌────────┼─────────┬──────────┐
+       ▼        ▼         ▼          ▼
+    stacks   allocator   metadata     GC
+       │        │         │          │
+       └────────┴────┬────┴──────────┘
+                     ▼
+                GOMAXPROCS
+                     │
+                     ▼
+                 procresize
+                     │
+                     ▼
+                   P set
+                     │
+                     ▼
+            newproc(runtime.main)
+                     │
+                     ▼
+                   mstart
+                     │
+                     ▼
+                  schedule
+                     │
+                     ▼
+               G(runtime.main)
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       sysmon   runtime init   gcenable
+                     │
+                     ▼
+                package init
+                     │
+                     ▼
+                mainInitDone
+                     │
+                     ▼
+                 main.main
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Go runtime не появляется мгновенно в точке входа процесса. Он bootstrap'ит сам себя слоями. Сначала использует уже существующие ресурсы ОС — initial thread и stack — и связывает их со статическими <code>m0/g0</code>. Затем в <code>schedinit</code> поднимает память, metadata, GC state и P. После этого создает первую обычную G с <code>runtime.main</code>, запускает scheduler, включает фоновые механизмы, выполняет инициализация пакетов и только затем передает управление пользовательскому <code>main.main</code>.</p>
+<p>Поэтому <code>main.main</code> — не начало жизни Go-процесса. Это точка, к которой процесс приходит уже с работающим scheduler, allocator, GC, метаданные рантайма и завершенной инициализацией всех packages.</p>
+</blockquote>
+<hr/>
+<h1 id="_2">Практическая цепочка лекции<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>1. executable entry
+↓
+2. _rt0_*
+↓
+3. runtime.rt0_go
+↓
+4. m0/g0
+↓
+5. schedinit dependency graph
+↓
+6. procresize / P
+↓
+7. newproc(runtime.main)
+↓
+8. mstart / schedule
+↓
+9. inittrace
+↓
+10. blocking/heavy init
+↓
+11. LockOSThread
+↓
+12. container GOMAXPROCS
+↓
+13. main.main
+</code></pre></div>
+<p>Практика должна руками доказать пять тезисов:</p>
+<div class="highlight"><pre><span></span><code>entry point
+≠
+main.main
+
+m0/g0
+≠
+обычные M/G
+
+schedinit
+≠
+только scheduler init
+
+GC initialized
+≠
+GC enabled
+
+process started
+≠
+application initialized
+</code></pre></div>
+<hr/>
+<h1 id="go-127x">Основные источники для Go 1.27.x<a class="headerlink" href="#go-127x" title="Permanent link">¶</a></h1>
+<ul>
+<li>Go runtime startup amd64 — <code>src/runtime/asm_amd64.s</code></li>
+<li>Go runtime startup arm64 — <code>src/runtime/asm_arm64.s</code></li>
+<li>Scheduler/bootstrap/main — <code>src/runtime/proc.go</code></li>
+<li>Linux OS initialization — <code>src/runtime/os_linux.go</code></li>
+<li>Runtime debug/GOMAXPROCS behavior — <code>src/runtime/debug.go</code></li>
+<li>Stack subsystem — <code>src/runtime/stack.go</code></li>
+<li>GC initialization/background enable — runtime GC sources</li>
+<li>Go specification — Program initialization and execution</li>
+<li><code>runtime.LockOSThread</code> documentation</li>
+<li><code>GODEBUG=inittrace</code> runtime documentation</li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking" class="md-footer__link md-footer__link--prev" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: Задание на допуск" class="md-footer__link md-footer__link--next" href="../../../practice/1%20-%20task/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                Задание на допуск
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

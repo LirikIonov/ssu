@@ -1,0 +1,3788 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.1%20-%20Go%20structures%20deeper/" rel="canonical"/>
+<link href="../3.5%20-%20Linux%20storage%20path/" rel="prev"/>
+<link href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#41-go-slice-map-syncmap">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_1">
+<span class="md-ellipsis">
+      
+        Зачем вообще нужна еще одна лекция
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_1">
+<span class="md-ellipsis">
+      
+        Зачем вообще нужна еще одна лекция
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="41-go-slice-map-syncmap">4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы<a class="headerlink" href="#41-go-slice-map-syncmap" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на Go 1.27.x.</p>
+<p>Эта лекция продолжает тему «Go под капотом». Здесь мы уже не строим первую ментальную модель <code>slice</code>, <code>map</code>, <code>sync.Map</code> и интерфейсов, а открываем конкретные алгоритмы текущей реализации: <code>growslice</code>, <code>nextslicecap</code>, битовые операции Swiss Table, пробирование, рост через каталог и разделение таблиц, <code>HashTrieMap</code>, ABI интерфейсов, преобразования, проверки типов и динамический вызов.</p>
+<p>Как и раньше, разделяем:</p>
+<ul>
+<li><strong>гарантии языка и публичного API</strong>;</li>
+<li><strong>решения компилятора и рантайма</strong>;</li>
+<li><strong>детали текущей реализации Go 1.27.x</strong>.</li>
+</ul>
+</blockquote>
+<h2 id="_1">Зачем вообще нужна еще одна лекция<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>В основной теме мы уже дошли до такой модели:</p>
+<div class="highlight"><pre><span></span><code>slice
+→ дескриптор
+→ базовый массив
+→ append
+
+map
+→ хеш
+→ H1 / H2
+→ Swiss Table
+
+sync.Map
+→ HashTrieMap
+
+интерфейс
+→ динамический тип
+→ данные / ITab
+</code></pre></div>
+<p>Этой модели достаточно, чтобы пользоваться конструкциями правильно.</p>
+<p>Но она оставляет неприятные вопросы.</p>
+<p><code>append</code> закончился <code>cap</code> — хорошо, создается новый массив. Но <strong>как выбирается новый <code>cap</code></strong>? Почему он иногда выглядит как <code>×2</code>, а иногда нет? Почему фактическая емкость может отличаться от промежуточного расчета?</p>
+<p>Swiss Table проверяет восемь управляющих байтов «сразу». Отлично. А <strong>что значит сразу</strong>? Восемь <code>if</code> подряд? SIMD? Битовая арифметика над <code>uint64</code>?</p>
+<p>Пробирование идет по группам. Но <strong>почему именно такая последовательность</strong> и почему она гарантированно обойдет всю таблицу?</p>
+<p><code>map</code> разбита на несколько таблиц. Когда растет одна таблица, что именно происходит? Почему иногда она просто удваивается, а иногда делится на две?</p>
+<p><code>sync.Map</code> использует <code>HashTrieMap</code>. Что значит «хеш-дерево» в реальной структуре памяти? Сколько бит хеша съедается на уровень? Где нужны атомики, а где лок?</p>
+<p>Интерфейс хранит тип и данные. Но что конкретно находится в двух машинных словах? Почему <code>any</code> и <code>io.Writer</code> имеют разное первое слово? Почему преобразование к интерфейсу иногда аллоцирует, а иногда нет?</p>
+<p>Вот здесь начинается эта лекция.</p>
+<p>Главная цепочка:</p>
+<div class="highlight"><pre><span></span><code>append
+↓
+growslice
+↓
+nextslicecap
+↓
+размер аллокации
+↓
+новый базовый массив
+↓
+копирование
+
+поиск в `map`
+↓
+хеш
+↓
+каталог / таблица
+↓
+группа
+↓
+управляющее слово
+↓
+битовая маска
+↓
+ячейка-кандидат
+↓
+сравнение ключей
+
+sync.Map
+↓
+HashTrieMap
+↓
+4 бита хеша на уровень
+↓
+атомарные указатели на дочерние узлы
+↓
+локализованное изменение структуры
+
+интерфейс
+↓
+ABI-представление
+↓
+Type / ITab
+↓
+Data
+↓
+преобразование / утверждение типа / вызов метода
+</code></pre></div>
+<p>И сразу граница.</p>
+<p>Мы <strong>не повторяем</strong>:</p>
+<div class="highlight"><pre><span></span><code>mcache / mspan / mcentral / mheap
+внутренности GC
+планировщик
+парковка / `sudog`
+MESI / когерентность кешей
+</code></pre></div>
+<p>Это уже разобрано в предыдущих лекциях.</p>
+<p>Когда они понадобятся, мы просто используем их как известный нижний слой.</p>
+<hr/>
+<h1 id="1-append-cap">1. <code>append</code>: известная модель заканчивается на границе <code>cap</code><a class="headerlink" href="#1-append-cap" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>len(s) + 1 &lt;= cap(s)
+</code></pre></div>
+<p>рантайму новый базовый массив не нужен.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>старый массив
+↓
+есть свободная ячейка
+↓
+записать x
+↓
+len++
+</code></pre></div>
+<p>Вот этот путь дешевый.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>len = cap
+</code></pre></div>
+<p>Следующий <code>append</code> уже не помещается.</p>
+<p>Основная лекция говорила:</p>
+<div class="highlight"><pre><span></span><code>получить новый массив
+↓
+скопировать старые элементы
+↓
+вернуть новый дескриптор
+</code></pre></div>
+<p>Теперь разберем каждую стрелку.</p>
+<hr/>
+<h1 id="2-growslice">2. Кто вызывает <code>growslice</code><a class="headerlink" href="#2-growslice" title="Permanent link">¶</a></h1>
+<p>Важно не перепутать уровни.</p>
+<p>В пользовательском коде мы не пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="s">``</span><span class="nx">runtime</span><span class="p">.</span><span class="nx">growslice</span><span class="s">`(...)`</span>
+</code></pre></div>
+<p>Мы пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Компилятор строит код для <code>append</code>.</p>
+<p>Когда емкости хватает, он может обслужить операцию без роста.</p>
+<p>Когда не хватает, появляется путь через внутреннюю функцию рантайма:</p>
+<div class="highlight"><pre><span></span><code>append
+↓
+проверка емкости
+↓
+места нет
+↓
+`runtime.growslice`
+</code></pre></div>
+<p>Точный lowering оставим <code>4.3</code>.</p>
+<p>Здесь считаем, что мы уже попали внутрь <code>growslice</code>.</p>
+<hr/>
+<h1 id="3-growslice">3. Какие данные получает <code>growslice</code><a class="headerlink" href="#3-growslice" title="Permanent link">¶</a></h1>
+<p>Текущая сигнатура концептуально выглядит так:</p>
+<div class="highlight"><pre><span></span><code>oldPtr   → старый базовый массив
+newLen   → новая длина
+oldCap   → старая емкость
+num      → сколько элементов добавляем
+et       → описание типа в рантайме типа элемента
+</code></pre></div>
+<p>Причем:</p>
+<div class="highlight"><pre><span></span><code>oldLen = newLen - num
+</code></pre></div>
+<p>Почему функции нужен <code>et</code>?</p>
+<p>Потому что одного числа элементов недостаточно.</p>
+<p>Рантайму нужно знать:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T)
++
+содержит ли T Go-указатели
+</code></pre></div>
+<p>То есть <code>append</code> для:</p>
+<div class="highlight"><pre><span></span><code><span class="p">[]</span><span class="kt">byte</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
+</code></pre></div>
+<p>имеет одну семантику языка, но не полностью одинаковый медленный путь.</p>
+<hr/>
+<h1 id="4-cap">4. Сначала нужно выбрать новый <code>cap</code><a class="headerlink" href="#4-cap" title="Permanent link">¶</a></h1>
+<p>Первый содержательный шаг:</p>
+<div class="highlight"><pre><span></span><code>newLen
++
+oldCap
+↓
+nextslicecap
+↓
+кандидат `newCap`
+</code></pre></div>
+<p>Популярная модель:</p>
+<blockquote>
+<p>Если места нет, удвоить <code>cap</code>.</p>
+</blockquote>
+<p>Для маленьких срезов она долго выглядит правдоподобно.</p>
+<p>Но это не общий алгоритм.</p>
+<hr/>
+<h1 id="5-nextslicecap">5. Первый случай <code>nextslicecap</code>: запрос слишком большой<a class="headerlink" href="#5-nextslicecap" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>oldCap = 100
+newLen = 500
+</code></pre></div>
+<p>Удвоение дает:</p>
+<div class="highlight"><pre><span></span><code>2 × oldCap = 200
+</code></pre></div>
+<p>Но нам прямо сейчас нужно минимум 500 элементов.</p>
+<p>Нет смысла несколько раз расти через промежуточные значения.</p>
+<p>Текущая реализация делает идею:</p>
+<div class="highlight"><pre><span></span><code>если newLen &gt; 2 * oldCap
+→ вернуть newLen
+</code></pre></div>
+<p>То есть большой единичный <code>append</code> может сразу перепрыгнуть обычную стратегию роста.</p>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">hugeBatch</span><span class="p">...)</span>
+</code></pre></div>
+<p>Если batch сам требует намного больше старой емкости, рантайм обязан обеспечить минимум <code>newLen</code>.</p>
+<hr/>
+<h1 id="6">6. Маленькие срезы: рост примерно в два раза<a class="headerlink" href="#6" title="Permanent link">¶</a></h1>
+<p>В текущем Go 1.27 внутри <code>nextslicecap</code> есть порог:</p>
+<div class="highlight"><pre><span></span><code>threshold = 256
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>oldCap &lt; 256
+</code></pre></div>
+<p>и <code>newLen</code> не перепрыгнул удвоение, кандидат:</p>
+<div class="highlight"><pre><span></span><code>newCap = 2 * oldCap
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>oldCap = 64
+newLen = 65
+↓
+newCap = 128
+</code></pre></div>
+<p>Именно отсюда выросло упрощение:</p>
+<blockquote>
+<p>срез растет вдвое.</p>
+</blockquote>
+<p>Но дальше оно ломается.</p>
+<p>И главное: <strong>256 — деталь текущей реализации</strong>, а не контракт языка.</p>
+<hr/>
+<h1 id="7">7. Большие срезы: переход к более плавному росту<a class="headerlink" href="#7" title="Permanent link">¶</a></h1>
+<p>После порога текущая формула выглядит примерно так:</p>
+<div class="highlight"><pre><span></span><code>newCap += (newCap + 3*threshold) / 4
+</code></pre></div>
+<p>Точнее в коде используется сдвиг вправо на два бита, то есть деление на 4 для целого числа.</p>
+<p>Почему формула не просто:</p>
+<div class="highlight"><pre><span></span><code>newCap *= 1.25
+</code></pre></div>
+<p>Потому что рантайм хочет <strong>плавный переход</strong> от почти <code>×2</code> у маленьких срезов к примерно <code>×1.25</code> у больших.</p>
+<p>Получается не один скачок политики, а постепенное изменение коэффициента.</p>
+<hr/>
+<h1 id="8">8. Разберем рост руками<a class="headerlink" href="#8" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>threshold = 256
+oldCap = 512
+newLen = 513
+</code></pre></div>
+<p>Начинаем:</p>
+<div class="highlight"><pre><span></span><code>newCap = 512
+</code></pre></div>
+<p>Формула:</p>
+<div class="highlight"><pre><span></span><code>newCap += (newCap + 3*256) / 4
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>newCap += (512 + 768) / 4
+newCap += 1280 / 4
+newCap += 320
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>newCap = 832
+</code></pre></div>
+<p>Коэффициент:</p>
+<div class="highlight"><pre><span></span><code>832 / 512 = 1.625
+</code></pre></div>
+<p>Еще далеко не <code>1.25</code>.</p>
+<p>При очень больших <code>cap</code> добавка <code>3*threshold</code> становится относительно маленькой, и рост приближается к:</p>
+<div class="highlight"><pre><span></span><code>newCap += newCap / 4
+</code></pre></div>
+<p>то есть примерно <code>×1.25</code>.</p>
+<hr/>
+<h1 id="9">9. Зачем вообще уменьшать коэффициент роста<a class="headerlink" href="#9" title="Permanent link">¶</a></h1>
+<p>Если всегда расти <code>×2</code>:</p>
+<div class="highlight"><pre><span></span><code>1 GiB slice
+↓
+следующий рост
+↓
+2 GiB базовый массив
+</code></pre></div>
+<p>Запас может стать огромным.</p>
+<p>Плюс во время роста некоторое время существуют:</p>
+<div class="highlight"><pre><span></span><code>старый массив
++
+новый массив
+</code></pre></div>
+<p>и идет копирование.</p>
+<p>Поэтому большой коэффициент роста:</p>
+<div class="highlight"><pre><span></span><code>меньше перевыделений
++
+больше лишней памяти
+</code></pre></div>
+<p>Меньший коэффициент:</p>
+<div class="highlight"><pre><span></span><code>меньше избыточной памяти
++
+чаще возможен рост
+</code></pre></div>
+<p>Это обычный компромисс:</p>
+<div class="highlight"><pre><span></span><code>число перевыделений
+↔
+избыточная емкость
+</code></pre></div>
+<hr/>
+<h1 id="10-nextslicecap-cap">10. <code>nextslicecap</code> еще не определил фактический <code>cap</code><a class="headerlink" href="#10-nextslicecap-cap" title="Permanent link">¶</a></h1>
+<p>Вот важный слой, который обычно пропускают.</p>
+<p>Допустим <code>nextslicecap</code> решил:</p>
+<div class="highlight"><pre><span></span><code>newCap = 1000 элементов
+</code></pre></div>
+<p>Можно подумать:</p>
+<div class="highlight"><pre><span></span><code>cap результата = 1000
+</code></pre></div>
+<p>Не обязательно.</p>
+<p>Потому что аллокатор не выдает память в единицах «элементы <code>T</code>».</p>
+<p>Ему нужны байты.</p>
+<hr/>
+<h1 id="11">11. Из элементов в байты<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T) = 24 B
+newCap = 1000
+</code></pre></div>
+<p>Требуемая память:</p>
+<div class="highlight"><pre><span></span><code>1000 × 24
+=
+24 000 B
+</code></pre></div>
+<p>Но дальше рантайм применяет уже знакомую модель аллокатора:</p>
+<div class="highlight"><pre><span></span><code>запрошенный размер в байтах
+↓
+roundupsize
+↓
+реально выделенный размер
+</code></pre></div>
+<p>Почему <code>roundupsize</code> вообще нужен, мы уже разбирали в <code>GC deep</code>: size classes, выравнивание и классы аллокаций.</p>
+<p>Здесь нас интересует другое следствие.</p>
+<hr/>
+<h1 id="12-cap">12. Аллокатор может изменить фактический <code>cap</code><a class="headerlink" href="#12-cap" title="Permanent link">¶</a></h1>
+<p>Пусть логически попросили:</p>
+<div class="highlight"><pre><span></span><code>24 000 B
+</code></pre></div>
+<p>А подходящий класс/размер аллокации дал условно:</p>
+<div class="highlight"><pre><span></span><code>24 576 B
+</code></pre></div>
+<p>Тогда рантайм может пересчитать:</p>
+<div class="highlight"><pre><span></span><code>24 576 / 24 = 1024 элемента
+</code></pre></div>
+<p>И фактический:</p>
+<div class="highlight"><pre><span></span><code>cap = 1024
+</code></pre></div>
+<p>Хотя <code>nextslicecap</code> изначально выбрал 1000.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>nextslicecap
+↓
+логическая емкость-кандидат
+↓
+перевод в байты
+↓
+округление аллокатором
+↓
+обратный пересчет
+↓
+фактический cap
+</code></pre></div>
+<p>Вот почему эксперимент:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nb">cap</span><span class="p">(</span><span class="nx">s</span><span class="p">))</span>
+</code></pre></div>
+<p>не должен превращаться в бизнес-контракт.</p>
+<hr/>
+<h1 id="13-growslice">13. Почему в <code>growslice</code> несколько вариантов расчета размера<a class="headerlink" href="#13-growslice" title="Permanent link">¶</a></h1>
+<p>Текущий код специально выделяет несколько случаев:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T) == 1
+sizeof(T) == размер указателя
+sizeof(T) — степень двойки
+общий случай
+</code></pre></div>
+<p>Зачем?</p>
+<p>Потому что горячий путь не хочет делать дорогую арифметику, если ее можно упростить.</p>
+<p>Например для:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T) = 1
+</code></pre></div>
+<p>вообще не нужно умножение:</p>
+<div class="highlight"><pre><span></span><code>число элементов == число байт
+</code></pre></div>
+<p>Для размера машинного указателя компилятор может свести умножение/деление к простому сдвигу.</p>
+<p>Для степени двойки:</p>
+<div class="highlight"><pre><span></span><code>× 8
+</code></pre></div>
+<p>можно превратить в:</p>
+<div class="highlight"><pre><span></span><code>&lt;&lt; 3
+</code></pre></div>
+<p>Это уже пример дизайна рантайма под горячий путь.</p>
+<hr/>
+<h1 id="14-growslice">14. Проверка переполнения — часть <code>growslice</code><a class="headerlink" href="#14-growslice" title="Permanent link">¶</a></h1>
+<p>Есть еще неприятный вопрос.</p>
+<p>Мы вычисляем:</p>
+<div class="highlight"><pre><span></span><code>`newCap × sizeof(T)`
+</code></pre></div>
+<p>Что если произведение переполнило <code>uintptr</code>?</p>
+<p>Без проверки можно получить маленькое число после overflow и затем записать далеко за реально выделенную память.</p>
+<p>Поэтому текущий путь отдельно проверяет:</p>
+<div class="highlight"><pre><span></span><code>переполнение
+или
+`capmem` &gt; `maxAlloc`
+</code></pre></div>
+<p>И только после этого продолжает аллокацию.</p>
+<p>Это не «защита от пользователя, который поставил странный cap».</p>
+<p>Это обязательная часть корректного преобразования:</p>
+<div class="highlight"><pre><span></span><code>элементы
+→ байты
+</code></pre></div>
+<hr/>
+<h1 id="15">15. Теперь нужно получить новую память<a class="headerlink" href="#15" title="Permanent link">¶</a></h1>
+<p>После расчета:</p>
+<div class="highlight"><pre><span></span><code>`capmem` = сколько байт реально нужно
+</code></pre></div>
+<p>появляется:</p>
+<div class="highlight"><pre><span></span><code>mallocgc(...)
+</code></pre></div>
+<p>И вот здесь мы <strong>останавливаемся</strong>.</p>
+<p>Цепочку:</p>
+<div class="highlight"><pre><span></span><code>mallocgc
+→ mcache
+→ mspan
+→ mcentral
+→ mheap
+→ page allocator
+</code></pre></div>
+<p>мы уже читали в <code>GC deep</code>.</p>
+<p>Для этой лекции достаточно:</p>
+<blockquote>
+<p><code>growslice</code> запросил новый базовый массив у известного нам аллокатора.</p>
+</blockquote>
+<p>Идем дальше.</p>
+<hr/>
+<h1 id="16-byte-node">16. <code>[]byte</code> и <code>[]*Node</code>: почему наличие указателей меняет путь<a class="headerlink" href="#16-byte-node" title="Permanent link">¶</a></h1>
+<p>В <code>growslice</code> есть развилка:</p>
+<div class="highlight"><pre><span></span><code>T содержит Go-указатели?
+├── нет
+└── да
+</code></pre></div>
+<p>Сравним:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="p">[]</span><span class="kt">byte</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
+</code></pre></div>
+<p>В первом случае базовый массив — <code>noscan</code> память.</p>
+<p>Во втором GC должен корректно видеть указатели.</p>
+<p>Мы уже знаем, что это означает для аллокатора и GC.</p>
+<p>Теперь посмотрим конкретно на рост slice.</p>
+<hr/>
+<h1 id="17-append">17. Срез без указателей: можно не очищать то, что сейчас перезапишет <code>append</code><a class="headerlink" href="#17-append" title="Permanent link">¶</a></h1>
+<p>Пусть <code>append</code> добавляет несколько элементов.</p>
+<p>Новая память делится на области:</p>
+<div class="highlight"><pre><span></span><code>[0, oldLen)
+→ сюда скопируем старые данные
+
+[oldLen, newLen)
+→ вызывающий код прямо сейчас запишет новые элементы
+
+[newLen, newCap)
+→ пока не используется
+</code></pre></div>
+<p>Для типа без указателей рантайм может не тратить время на очистку области:</p>
+<div class="highlight"><pre><span></span><code>[oldLen, newLen)
+</code></pre></div>
+<p>потому что <code>append</code> ее сразу перезапишет.</p>
+<p>Но хвост:</p>
+<div class="highlight"><pre><span></span><code>[newLen, newCap)
+</code></pre></div>
+<p>нужно привести к корректному нулевому состоянию перед будущим использованием.</p>
+<p>Получаем полезный принцип:</p>
+<blockquote>
+<p>Не очищать память раньше, чем это действительно нужно для семантики.</p>
+</blockquote>
+<hr/>
+<h1 id="18">18. Срез с указателями: неинициализированные указатели недопустимы<a class="headerlink" href="#18" title="Permanent link">¶</a></h1>
+<p>Для:</p>
+<div class="highlight"><pre><span></span><code><span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
+</code></pre></div>
+<p>ситуация другая.</p>
+<p>GC может сканировать базовый массив как память, содержащую указатели.</p>
+<p>Нельзя оставить там случайные старые биты и сказать:</p>
+<blockquote>
+<p>Потом <code>append</code> все перезапишет.</p>
+</blockquote>
+<p>До этого момента GC уже может увидеть память.</p>
+<p>Поэтому новая аллокация для памяти с указателями создается очищенной.</p>
+<p>А при копировании старых указателей во время конкурентной маркировки может понадобиться пакетный барьер записи.</p>
+<hr/>
+<h1 id="19">19. Пакетный барьер записи: причину мы уже знаем<a class="headerlink" href="#19" title="Permanent link">¶</a></h1>
+<p>Не повторяем всю лекцию про GC.</p>
+<p>Модель уже известна:</p>
+<div class="highlight"><pre><span></span><code>GC одновременно маркирует
++
+приложение меняет граф указателей
+↓
+барьер записи сохраняет инвариант
+</code></pre></div>
+<p>Теперь конкретное применение:</p>
+<div class="highlight"><pre><span></span><code>старый базовый массив
+↓
+много элементов с указателями
+↓
+новый базовый массив
+</code></pre></div>
+<p>Копировать каждый указатель как полностью независимую пользовательскую запись было бы невыгодно.</p>
+<p>Поэтому рантайм имеет пакетные механизмы для подготовки барьера перед массовым <code>memmove</code>.</p>
+<hr/>
+<h1 id="20-memmove">20. Старые элементы копируются через <code>memmove</code><a class="headerlink" href="#20-memmove" title="Permanent link">¶</a></h1>
+<p>После получения нового массива:</p>
+<div class="highlight"><pre><span></span><code>oldPtr
+↓
+lenmem байт
+↓
+memmove
+↓
+newPtr
+</code></pre></div>
+<p>Копируется именно старая логическая длина:</p>
+<div class="highlight"><pre><span></span><code>[0, oldLen)
+</code></pre></div>
+<p>Не весь старый <code>cap</code>.</p>
+<p>Почему?</p>
+<p>Потому что элементы за <code>len</code> логически не входят в slice.</p>
+<p>Их содержимое не является частью значения, которое должен сохранить <code>append</code>.</p>
+<hr/>
+<h1 id="21-growslice">21. <code>growslice</code> не записывает добавляемые элементы<a class="headerlink" href="#21-growslice" title="Permanent link">¶</a></h1>
+<p>Это еще одна полезная граница.</p>
+<p><code>growslice</code> получает:</p>
+<div class="highlight"><pre><span></span><code>newLen
+</code></pre></div>
+<p>Но добавляемые значения обычно записывает код, который реализует сам <code>append</code>, уже после возврата нового дескриптора среза.</p>
+<p>То есть концептуально:</p>
+<div class="highlight"><pre><span></span><code>growslice
+→ подготовить место
+→ скопировать старые данные
+→ вернуть новый slice
+
+вызывающий код
+→ записать новые элементы
+</code></pre></div>
+<p>Поэтому часть новой области можно не инициализировать заранее для типа без указателей.</p>
+<hr/>
+<h1 id="22">22. Особый случай: тип нулевого размера<a class="headerlink" href="#22" title="Permanent link">¶</a></h1>
+<p>Go допускает типы размера ноль:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Empty</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+</code></pre></div>
+<p>Срез:</p>
+<div class="highlight"><pre><span></span><code><span class="p">[]</span><span class="nx">Empty</span>
+</code></pre></div>
+<p>может иметь огромные <code>len</code> и <code>cap</code>, но элементы физически не требуют отдельных байтов.</p>
+<p>Текущий <code>growslice</code> имеет отдельный путь для:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T) == 0
+</code></pre></div>
+<p>и использует специальный <code>zerobase</code>.</p>
+<p>Это хороший пример:</p>
+<blockquote>
+<p>Семантика slice выражена в элементах, а физическая память зависит от размера типа.</p>
+</blockquote>
+<hr/>
+<h1 id="23-append">23. Полный медленный путь <code>append</code><a class="headerlink" href="#23-append" title="Permanent link">¶</a></h1>
+<p>Теперь можно собрать:</p>
+<div class="highlight"><pre><span></span><code>append
+↓
+newLen &gt; oldCap
+↓
+growslice
+↓
+nextslicecap
+↓
+кандидат `newCap`
+↓
+`newCap × sizeof(T)`
+↓
+roundupsize
+↓
+фактический `newCap`
+↓
+проверки переполнения
+↓
+получить новый базовый массив
+↓
+учесть путь для памяти с указателями / `noscan`
+↓
+memmove старых элементов
+↓
+вернуть {ptr, newLen, newCap}
+↓
+вызывающий код записывает новые элементы
+</code></pre></div>
+<p>Вот теперь строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>имеет законченную механическую модель.</p>
+<hr/>
+<h1 id="24-slice">24. Что происходит под нагрузкой со slice<a class="headerlink" href="#24-slice" title="Permanent link">¶</a></h1>
+<p>Пусть один <code>growslice</code> копирует:</p>
+<div class="highlight"><pre><span></span><code>1 MiB
+</code></pre></div>
+<p>Редко — неинтересно.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>5000 вызовов `growslice`/с
+×
+копирование 1 MiB
+</code></pre></div>
+<p>Получаем уже гигабайты памяти, проходящие через <code>memmove</code>.</p>
+<p>Цена может проявиться как:</p>
+<div class="highlight"><pre><span></span><code>пропускная способность памяти ↑
+скорость аллокаций ↑
+работа GC ↑
+CPU ↑
+p99 ↑
+</code></pre></div>
+<p>Инженерный вопрос не:</p>
+<blockquote>
+<p><code>append</code> медленный?</p>
+</blockquote>
+<p>А:</p>
+<blockquote>
+<p>Как часто именно этот <code>append</code> пересекает границу <code>cap</code> и сколько данных при этом копирует?</p>
+</blockquote>
+<hr/>
+<h1 id="25-slice">25. Диагностика роста slice<a class="headerlink" href="#25-slice" title="Permanent link">¶</a></h1>
+<p>Если подозреваем этот путь:</p>
+<div class="highlight"><pre><span></span><code>профиль CPU
++
+`alloc_space`
++
+`benchmem`
+</code></pre></div>
+<p>Ищем:</p>
+<ul>
+<li>горячие <code>append</code>;</li>
+<li><code>runtime.growslice</code>;</li>
+<li>большие <code>B/op</code>;</li>
+<li>рост <code>allocs/op</code>;</li>
+<li>места, где известен ожидаемый размер, но <code>cap</code> не задается заранее.</li>
+</ul>
+<p>Но оптимизация должна быть измеримой.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">([]</span><span class="nx">T</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nx">expected</span><span class="p">)</span>
+</code></pre></div>
+<p>полезен только если <code>expected</code> реалистичен.</p>
+<p>Завысить <code>cap</code> в десять раз — тоже расход памяти.</p>
+<hr/>
+<h1 id="26-map">26. Переходим к <code>map</code>: предыдущая модель заканчивается на слове «группа»<a class="headerlink" href="#26-map" title="Permanent link">¶</a></h1>
+<p>Основная лекция дала:</p>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+хеш
+↓
+H1 / H2
+↓
+группа Swiss Table
+↓
+ячейки-кандидаты
+↓
+сравнение ключей
+</code></pre></div>
+<p>Сегодня интересует дырка:</p>
+<blockquote>
+<p>Как одна группа проверяет восемь H2 практически одновременно?</p>
+</blockquote>
+<p>Вот здесь начинается настоящий Swiss Table.</p>
+<hr/>
+<h1 id="27-go-map">27. Текущая Go <code>map</code>: несколько важных фактов<a class="headerlink" href="#27-go-map" title="Permanent link">¶</a></h1>
+<p>Для Go 1.27 текущая реализация использует идею Swiss Table с модификациями под Go.</p>
+<p>Основные сущности:</p>
+<div class="highlight"><pre><span></span><code>ячейка
+→ одна пара ключ/значение
+
+группа
+→ 8 ячейки + управляющее слово
+
+таблица
+→ одна самостоятельная Swiss Table
+
+каталог
+→ массив ссылок на таблицы
+
+Map
+→ верхний объект, управляющий каталогом и зерном хеша
+</code></pre></div>
+<p>Хеш делится:</p>
+<div class="highlight"><pre><span></span><code>H1 = верхние биты
+H2 = нижние 7 бит
+</code></pre></div>
+<p>На 64-битной архитектуре учебно:</p>
+<div class="highlight"><pre><span></span><code>57 бит H1
+7 бит H2
+</code></pre></div>
+<hr/>
+<h1 id="28">28. Одна группа — восемь логических ячеек<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
+<p>Управляющая часть занимает восемь байтов:</p>
+<div class="highlight"><pre><span></span><code>ячейка:   0    1    2    3    4    5    6    7
+ctrl:  [c0] [c1] [c2] [c3] [c4] [c5] [c6] [c7]
+</code></pre></div>
+<p>Рядом находятся восемь ключ/значение ячеек.</p>
+<p>Но точная физическая раскладка ключ/значение в текущем Go может зависеть от <code>GOEXPERIMENT=mapsplitgroup</code>.</p>
+<p>Для нашей модели стабильно другое:</p>
+<blockquote>
+<p>На одну логическую группу приходится восемь ячеек и восемь управляющих байтов.</p>
+</blockquote>
+<hr/>
+<h1 id="29-h2">29. Управляющий байт кодирует состояние и H2<a class="headerlink" href="#29-h2" title="Permanent link">¶</a></h1>
+<p>В текущей реализации:</p>
+<div class="highlight"><pre><span></span><code>empty   = 1000 0000
+deleted = 1111 1110
+full    = 0hhh hhhh
+</code></pre></div>
+<p>Для занятой ячейки:</p>
+<div class="highlight"><pre><span></span><code>старший бит = 0
+нижние 7 бит = H2
+</code></pre></div>
+<p>То есть управляющий байт решает сразу две задачи:</p>
+<div class="highlight"><pre><span></span><code>занята ли ячейка?
++
+какой короткий отпечаток хеша там лежит?
+</code></pre></div>
+<hr/>
+<h1 id="30">30. Почему метаданные отделены от полного ключа<a class="headerlink" href="#30" title="Permanent link">¶</a></h1>
+<p>Допустим ключ — строка длиной 200 байт.</p>
+<p>Проверять восемь ключей последовательно дорого.</p>
+<p>Вместо этого:</p>
+<div class="highlight"><pre><span></span><code>сначала 8 маленьких управляющих байтов
+↓
+отбросить почти все ячейки
+↓
+только потом трогать настоящие ключи
+</code></pre></div>
+<p>У <code>H2</code> семь бит.</p>
+<p>Вероятность случайного совпадения конкретной ячейки примерно:</p>
+<div class="highlight"><pre><span></span><code>1 / 128
+≈ 0.78%
+</code></pre></div>
+<p>Ложное совпадение допустимо.</p>
+<p>Потому что после него все равно выполняется настоящее сравнение ключа на равенство.</p>
+<hr/>
+<h1 id="31-if">31. Главный вопрос: восемь сравнений без восьми <code>if</code><a class="headerlink" href="#31-if" title="Permanent link">¶</a></h1>
+<p>Пусть управляющие байты:</p>
+<div class="highlight"><pre><span></span><code>ячейка:   0    1    2    3    4    5    6    7
+ctrl:  12   35   80   35   7F   FE   22   35
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>H2 = 35
+</code></pre></div>
+<p>Человек сразу видит:</p>
+<div class="highlight"><pre><span></span><code>ячейка 1
+ячейка 3
+ячейка 7
+</code></pre></div>
+<p>Но нам нужен дешевый машинный способ.</p>
+<hr/>
+<h1 id="32-uint64">32. Восемь управляющих байтов помещаются в <code>uint64</code><a class="headerlink" href="#32-uint64" title="Permanent link">¶</a></h1>
+<p>На little-endian машине, если считать ячейку 0 младшим байтом:</p>
+<div class="highlight"><pre><span></span><code>[12][35][80][35][7F][FE][22][35]
+</code></pre></div>
+<p>можно представить как:</p>
+<div class="highlight"><pre><span></span><code>g = 0x3522FE7F35803512
+</code></pre></div>
+<p>Теперь одна 64-битная арифметическая операция работает сразу над восемью байтовыми позициями.</p>
+<p>Именно здесь появляется битовый трюк.</p>
+<hr/>
+<h1 id="33-h2">33. Сначала размножаем H2 по всем байтам<a class="headerlink" href="#33-h2" title="Permanent link">¶</a></h1>
+<p>Нужно получить:</p>
+<div class="highlight"><pre><span></span><code>35 35 35 35 35 35 35 35
+</code></pre></div>
+<p>Константа:</p>
+<div class="highlight"><pre><span></span><code>0x0101010101010101
+</code></pre></div>
+<p>умножается на <code>0x35</code>:</p>
+<div class="highlight"><pre><span></span><code>0x0101010101010101 * 0x35
+=
+0x3535353535353535
+</code></pre></div>
+<p>Назовем это:</p>
+<div class="highlight"><pre><span></span><code>repeatedH2
+</code></pre></div>
+<hr/>
+<h1 id="34-xor">34. XOR превращает совпадение в нулевой байт<a class="headerlink" href="#34-xor" title="Permanent link">¶</a></h1>
+<p>Вычисляем:</p>
+<div class="highlight"><pre><span></span><code>v = g XOR repeatedH2
+</code></pre></div>
+<p>Для нашего примера:</p>
+<div class="highlight"><pre><span></span><code>g          = 0x3522FE7F35803512
+repeatedH2 = 0x3535353535353535
+-------------------------------- XOR
+v          = 0x0017CB4A00B50027
+</code></pre></div>
+<p>Посмотрим по ячейкам:</p>
+<div class="highlight"><pre><span></span><code>ячейка 0: 12 XOR 35 = 27
+ячейка 1: 35 XOR 35 = 00   ← match
+ячейка 2: 80 XOR 35 = B5
+ячейка 3: 35 XOR 35 = 00   ← match
+ячейка 4: 7F XOR 35 = 4A
+ячейка 5: FE XOR 35 = CB
+ячейка 6: 22 XOR 35 = 17
+ячейка 7: 35 XOR 35 = 00   ← match
+</code></pre></div>
+<p>Теперь задача изменилась.</p>
+<p>Было:</p>
+<blockquote>
+<p>Какие байты равны H2?</p>
+</blockquote>
+<p>Стало:</p>
+<blockquote>
+<p>В каких байтовых позициях <code>v</code> равен нулю?</p>
+</blockquote>
+<hr/>
+<h1 id="35">35. Классический трюк поиска нулевых байтов<a class="headerlink" href="#35" title="Permanent link">¶</a></h1>
+<p>Переносимый путь текущего Go использует идею:</p>
+<div class="highlight"><pre><span></span><code>((v - 0x0101010101010101) &amp;^ v) &amp; 0x8080808080808080
+</code></pre></div>
+<p>Разберем не магию формулы, а причинность.</p>
+<p>Нулевой байт:</p>
+<div class="highlight"><pre><span></span><code>00 - 01
+→ FF
+</code></pre></div>
+<p>У результата старший бит равен 1.</p>
+<p>Пара:</p>
+<div class="highlight"><pre><span></span><code>(v - 0x01...) &amp; ^v
+</code></pre></div>
+<p>пытается оставить старший бит именно там, где исходный байт был нулевым.</p>
+<p>Последняя маска:</p>
+<div class="highlight"><pre><span></span><code>0x8080808080808080
+</code></pre></div>
+<p>оставляет только старший бит каждого байта.</p>
+<hr/>
+<h1 id="36-matchh2">36. Результат <code>matchH2</code> на нашем примере<a class="headerlink" href="#36-matchh2" title="Permanent link">¶</a></h1>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>маска = 0x8000000080008000
+</code></pre></div>
+<p>По байтам:</p>
+<div class="highlight"><pre><span></span><code>ячейка:   0    1    2    3    4    5    6    7
+маска:   00   80   00   80   00   00   00   80
+</code></pre></div>
+<p>То есть снова:</p>
+<div class="highlight"><pre><span></span><code>1, 3, 7
+</code></pre></div>
+<p>Но мы получили их без цикла из восьми отдельных сравнений H2.</p>
+<hr/>
+<h1 id="37">37. Переносимый путь может дать редкое ложное совпадение<a class="headerlink" href="#37" title="Permanent link">¶</a></h1>
+<p>У битового приема поиска нулевых байтов есть неприятный эффект: заем при вычитании может иногда зацепить соседний байт.</p>
+<p>Текущий исходник Go прямо говорит, что переносимый <code>matchH2</code> способен вернуть дополнительное ложное совпадение в специфическом случае.</p>
+<p>Почему это не ошибка корректности?</p>
+<p>Потому что H2 никогда не является окончательным доказательством.</p>
+<p>После получения маски все равно:</p>
+<div class="highlight"><pre><span></span><code>ячейка-кандидат
+↓
+настоящий ключ
+↓
+Equal(key, slotKey)
+</code></pre></div>
+<p>Ложное совпадение означает только лишнее сравнение ключа.</p>
+<p>Не неправильный результат <code>map</code>.</p>
+<hr/>
+<h1 id="38-amd64">38. На amd64 реальный путь еще интереснее<a class="headerlink" href="#38-amd64" title="Permanent link">¶</a></h1>
+<p>Важно не выучить переносимый код как вечную физическую реализацию.</p>
+<p>В Go 1.27 на amd64 методы <code>match*</code> заменяются встроенными операциями компилятора (intrinsics), использующими SIMD.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>учебный переносимый путь
+→ арифметика над `uint64`
+
+amd64
+→ intrinsic компилятора / SIMD-путь
+</code></pre></div>
+<p>Более того, представление битовой маски отличается.</p>
+<p>Переносимый вариант удобно хранит результат как старший бит каждого байта.</p>
+<p>На amd64 intrinsic возвращает более плотную маску: один бит на ячейку.</p>
+<p>Семантика одна:</p>
+<div class="highlight"><pre><span></span><code>получить множество подходящих ячеек
+</code></pre></div>
+<p>Машинная реализация может различаться. Переносимая реализация для ARM64 использует другую арифметическую ветку, а amd64 получает специализированный SIMD-путь через intrinsic компилятора. Поэтому формулу над <code>uint64</code> ниже нужно понимать как способ увидеть алгоритм, а не как обещание конкретной последовательности инструкций на каждой архитектуре.</p>
+<p>Это идеальный пример границы:</p>
+<div class="highlight"><pre><span></span><code>алгоритм структуры
+≠
+конкретный ассемблер
+</code></pre></div>
+<p>К ассемблер вернемся в <code>4.3</code>.</p>
+<hr/>
+<h1 id="39">39. Как из маски получить первую ячейку<a class="headerlink" href="#39" title="Permanent link">¶</a></h1>
+<p>В переносимом варианте битовая маска:</p>
+<div class="highlight"><pre><span></span><code>00 80 00 80 00 00 00 80
+</code></pre></div>
+<p>Первый установленный бит находится на позиции:</p>
+<div class="highlight"><pre><span></span><code>15
+</code></pre></div>
+<p>Почему 15?</p>
+<p>Ячейка 1 — второй байт.</p>
+<p>Его старший бит:</p>
+<div class="highlight"><pre><span></span><code>8 + 7 = 15
+</code></pre></div>
+<p>Текущая переносимая реализация делает:</p>
+<div class="highlight"><pre><span></span><code>TrailingZeros64(маска) &gt;&gt; 3
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>15 &gt;&gt; 3 = 1
+</code></pre></div>
+<p>Вот индекс первого ячейка-кандидат.</p>
+<hr/>
+<h1 id="40">40. Как взять следующего кандидата<a class="headerlink" href="#40" title="Permanent link">¶</a></h1>
+<p>После проверки ячейки 1 ключ мог не совпасть.</p>
+<p>Нужно перейти к следующему установленному биту.</p>
+<p>Классический прием:</p>
+<div class="highlight"><pre><span></span><code>маска &amp;= маска - 1
+</code></pre></div>
+<p>Он снимает младший установленный бит.</p>
+<p>Дальше снова:</p>
+<div class="highlight"><pre><span></span><code>TrailingZeros
+</code></pre></div>
+<p>И так пока:</p>
+<div class="highlight"><pre><span></span><code>маска == 0
+</code></pre></div>
+<p>В текущем Go эта операция скрыта за <code>bitset.removeFirst()</code>.</p>
+<hr/>
+<h1 id="41-matchempty">41. <code>matchEmpty</code>: найти конец последовательности пробирования<a class="headerlink" href="#41-matchempty" title="Permanent link">¶</a></h1>
+<p>Поиск должен понимать не только:</p>
+<div class="highlight"><pre><span></span><code>H2 совпал
+</code></pre></div>
+<p>но и:</p>
+<div class="highlight"><pre><span></span><code>в группе есть настоящее состояние `empty`?
+</code></pre></div>
+<p>Почему <code>empty</code> так важен?</p>
+<p>Потому что открытая адресация имеет инвариант:</p>
+<blockquote>
+<p>Если во время пробирования встретили ячейку, который никогда не был занят, искомый ключ не мог быть вставлен дальше по этой последовательности пробирования.</p>
+</blockquote>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>нашли `empty`
+↓
+поиск можно завершить
+</code></pre></div>
+<hr/>
+<h1 id="42-empty">42. Как кодируется empty<a class="headerlink" href="#42-empty" title="Permanent link">¶</a></h1>
+<p>Текущие состояния:</p>
+<div class="highlight"><pre><span></span><code>empty   = 1000 0000
+deleted = 1111 1110
+full    = 0hhh hhhh
+</code></pre></div>
+<p>Нужно отличить:</p>
+<div class="highlight"><pre><span></span><code>empty
+</code></pre></div>
+<p>от:</p>
+<div class="highlight"><pre><span></span><code>deleted
+</code></pre></div>
+<p>У обоих старший бит 1.</p>
+<p>Но у <code>empty</code> бит 1 равен 0, а у <code>deleted</code> — 1.</p>
+<p>Текущий переносимый <code>matchEmpty</code> использует это свойство сразу для всех восьми байтов.</p>
+<hr/>
+<h1 id="43-matchemptyordeleted">43. <code>matchEmptyOrDeleted</code>: для вставки задача другая<a class="headerlink" href="#43-matchemptyordeleted" title="Permanent link">¶</a></h1>
+<p>При поиске ключа:</p>
+<div class="highlight"><pre><span></span><code>deleted
+→ продолжить пробирование
+</code></pre></div>
+<p>Но при вставке:</p>
+<div class="highlight"><pre><span></span><code>deleted
+→ можно потенциально переиспользовать
+</code></pre></div>
+<p>Поэтому есть отдельная операция:</p>
+<div class="highlight"><pre><span></span><code>matchEmptyOrDeleted
+</code></pre></div>
+<p>В текущем кодировании это еще проще:</p>
+<div class="highlight"><pre><span></span><code>старший бит = 1
+</code></pre></div>
+<p>означает:</p>
+<div class="highlight"><pre><span></span><code>`empty` или `deleted`
+</code></pre></div>
+<p>Следовательно можно маскировать:</p>
+<div class="highlight"><pre><span></span><code>v &amp; 0x8080808080808080
+</code></pre></div>
+<hr/>
+<h1 id="44">44. Теперь полный поиск внутри одной группы<a class="headerlink" href="#44" title="Permanent link">¶</a></h1>
+<p>Получаем алгоритм:</p>
+<div class="highlight"><pre><span></span><code>h2Hash
+↓
+matchH2
+↓
+маска кандидатов
+↓
+пока маска != 0:
+    i = first(маска)
+    сравнить настоящий ключ в ячейке i
+    если равен → нашли
+    иначе removeFirst
+↓
+matchEmpty
+↓
+`empty` есть?
+├── да → ключ отсутствует
+└── нет → пробировать следующую группу
+</code></pre></div>
+<p>Вот здесь Swiss Table становится алгоритмом, а не схемой.</p>
+<hr/>
+<h1 id="45">45. Почему восемь ячеек — это не восемь шагов обычного линейного пробирования<a class="headerlink" href="#45" title="Permanent link">¶</a></h1>
+<p>Наивная таблица с открытой адресацией:</p>
+<div class="highlight"><pre><span></span><code>сравнить ячейку 0
+сравнить ячейку 1
+сравнить ячейку 2
+...
+</code></pre></div>
+<p>Swiss Table использует метаданные группы:</p>
+<div class="highlight"><pre><span></span><code>одна компактная операция над ctrl word
+↓
+маска кандидатов
+↓
+обычно 0 или очень мало настоящих сравнений ключей
+</code></pre></div>
+<p>Поэтому асимптотика все еще:</p>
+<div class="highlight"><pre><span></span><code>в среднем O(1)
+</code></pre></div>
+<p>Но константы меняются очень сильно.</p>
+<hr/>
+<h1 id="46">46. Группа закончилась. Что дальше?<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>matchH2 ничего не дал
++
+matchEmpty ничего не дал
+</code></pre></div>
+<p>Это значит:</p>
+<div class="highlight"><pre><span></span><code>в этой группе ключа нет
++
+мы еще не встретили конец цепочки пробирования
+</code></pre></div>
+<p>Нужно выбрать следующую группу.</p>
+<p>Вот здесь появляется <code>probeSeq</code>.</p>
+<hr/>
+<h1 id="47">47. Самое очевидное решение — линейное пробирование<a class="headerlink" href="#47" title="Permanent link">¶</a></h1>
+<p>Можно было бы:</p>
+<div class="highlight"><pre><span></span><code>g0
+g0 + 1
+g0 + 2
+g0 + 3
+...
+</code></pre></div>
+<p>по кругу таблицы.</p>
+<p>Работает.</p>
+<p>Но рядом с занятыми участками начинают формироваться длинные плотные кластеры.</p>
+<p>Новые ключи, попавшие рядом, продолжают увеличивать тот же кластер.</p>
+<p>Это первичная кластеризация.</p>
+<p>Swiss Table использует другую последовательность.</p>
+<hr/>
+<h1 id="48-go">48. Текущая последовательность пробирования Go<a class="headerlink" href="#48-go" title="Permanent link">¶</a></h1>
+<p>Состояние:</p>
+<div class="highlight"><pre><span></span><code>маска
+ смещение
+ index
+</code></pre></div>
+<p>Начало:</p>
+<div class="highlight"><pre><span></span><code>смещение = H1 &amp; маска
+index = 0
+</code></pre></div>
+<p>Каждый следующий шаг:</p>
+<div class="highlight"><pre><span></span><code>index++
+смещение = (смещение + index) &amp; маска
+</code></pre></div>
+<p>То есть прибавляем:</p>
+<div class="highlight"><pre><span></span><code>+1
++2
++3
++4
+...
+</code></pre></div>
+<p>Получаются треугольные числа.</p>
+<hr/>
+<h1 id="49">49. Запишем последовательность математически<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
+<p>Пусть начальный смещение:</p>
+<div class="highlight"><pre><span></span><code>h0
+</code></pre></div>
+<p>Тогда смещения:</p>
+<div class="highlight"><pre><span></span><code>h0 + T0
+h0 + T1
+h0 + T2
+h0 + T3
+...
+</code></pre></div>
+<p>где:</p>
+<div class="highlight"><pre><span></span><code>Tn = n(n+1)/2
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>0, 1, 3, 6, 10, 15, 21, ...
+</code></pre></div>
+<p>Все вычисления идут по модулю числа групп.</p>
+<p>Поскольку число группы — степень двойки, по модулю реализуется маской:</p>
+<div class="highlight"><pre><span></span><code>&amp; (groupCount - 1)
+</code></pre></div>
+<hr/>
+<h1 id="50-16">50. Пример: 16 групп<a class="headerlink" href="#50-16" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>groupCount = 16
+маска = 15
+start = 5
+</code></pre></div>
+<p>Треугольные смещения по модулю 16:</p>
+<div class="highlight"><pre><span></span><code>0
+1
+3
+6
+10
+15
+5
+12
+4
+13
+7
+2
+14
+11
+9
+8
+</code></pre></div>
+<p>Добавляем start = 5 и берем по модулю 16:</p>
+<div class="highlight"><pre><span></span><code>5
+6
+8
+11
+15
+4
+10
+1
+9
+2
+12
+7
+3
+0
+14
+13
+</code></pre></div>
+<p>Мы посетили все 16 групп ровно по одному разу.</p>
+<p>Не застряли в подмножестве.</p>
+<hr/>
+<h1 id="51-2m">51. Почему треугольная последовательность покрывает <code>2^m</code> позиций<a class="headerlink" href="#51-2m" title="Permanent link">¶</a></h1>
+<p>Нам нужен не просто эксперимент.</p>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>T_i = i(i+1)/2
+T_j = j(j+1)/2
+</code></pre></div>
+<p>Предположим для:</p>
+<div class="highlight"><pre><span></span><code>0 &lt;= i &lt; j &lt; 2^m
+</code></pre></div>
+<p>что:</p>
+<div class="highlight"><pre><span></span><code>T_i ≡ T_j (mod 2^m)
+</code></pre></div>
+<p>Тогда разность:</p>
+<div class="highlight"><pre><span></span><code>T_j - T_i
+=
+(j-i)(i+j+1)/2
+</code></pre></div>
+<p>должна делиться на <code>2^m</code>.</p>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>(j-i)(i+j+1)
+</code></pre></div>
+<p>должно делиться на:</p>
+<div class="highlight"><pre><span></span><code>2^(m+1)
+</code></pre></div>
+<p>Но числа:</p>
+<div class="highlight"><pre><span></span><code>j-i
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>i+j+1
+</code></pre></div>
+<p>имеют разную четность, потому что их сумма:</p>
+<div class="highlight"><pre><span></span><code>2j + 1
+</code></pre></div>
+<p>нечетна.</p>
+<p>Следовательно все степени двойки должны находиться в одном, четном множителе.</p>
+<p>Но в заданном диапазоне ни один из множителей не может быть ненулевым кратным <code>2^(m+1)</code>.</p>
+<p>Противоречие.</p>
+<p>Значит все:</p>
+<div class="highlight"><pre><span></span><code>T_0 ... T_(2^m-1)
+</code></pre></div>
+<p>дают разные остатки по модулю <code>2^m</code>.</p>
+<p>А различных остатков ровно <code>2^m</code>.</p>
+<p>Следовательно последовательность покрывает всю таблицу.</p>
+<hr/>
+<h1 id="52-">52. Зачем нам эта математика в бэкенд-курсе<a class="headerlink" href="#52-" title="Permanent link">¶</a></h1>
+<p>Чтобы не осталось магии:</p>
+<blockquote>
+<p>«Рантайм как-то прыгает по таблице».</p>
+</blockquote>
+<p>Теперь понятно:</p>
+<div class="highlight"><pre><span></span><code>размер = степень двойки
++
+треугольная последовательность пробирования
+↓
+гарантированно обходим все группы
+</code></pre></div>
+<p>И при этом первые шаги достаточно быстро отходят от одного линейного кластера.</p>
+<hr/>
+<h1 id="53">53. Высокая заполненность все равно ухудшает поиск<a class="headerlink" href="#53" title="Permanent link">¶</a></h1>
+<p>Никакая красивая последовательность пробирования не отменяет математику нагрузки.</p>
+<p>При низкой заполненности:</p>
+<div class="highlight"><pre><span></span><code>первая группа
+↓
+совпадение H2 или `empty`
+↓
+готово
+</code></pre></div>
+<p>При высокой:</p>
+<div class="highlight"><pre><span></span><code>группа 1 заполнена
+↓
+группа 2 заполнена
+↓
+группа 3 заполнена
+↓
+...
+</code></pre></div>
+<p>Читаем больше метаданных.</p>
+<p>Трогаем больше памяти.</p>
+<p>Получаем больше H2 ложные совпадения.</p>
+<p>Растет вероятность реальных сравнений ключей.</p>
+<hr/>
+<h1 id="54">54. Текущий коэффициент заполнения<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
+<p>В текущей реализации Go используется средний предел:</p>
+<div class="highlight"><pre><span></span><code>7 занятых ячеек из 8
+</code></pre></div>
+<p>То есть примерно:</p>
+<div class="highlight"><pre><span></span><code>7/8 = 87.5%
+</code></pre></div>
+<p>Почему не 100%?</p>
+<p>Потому что открытая адресация нуждается в свободных ячеек как в части самого алгоритма.</p>
+<p>Иначе поиск отсутствующего ключ рискует обходить практически всю таблицу.</p>
+<p>Еще раз: конкретное число — деталь реализации Go 1.27.</p>
+<p>Причинность стабильнее:</p>
+<div class="highlight"><pre><span></span><code>коэффициент заполнения ↑
+↓
+длина пробирования ↑
+↓
+стоимость поиска / вставки ↑
+</code></pre></div>
+<hr/>
+<h1 id="55-map">55. Маленькая <code>map</code>: отдельный путь<a class="headerlink" href="#55-map" title="Permanent link">¶</a></h1>
+<p>Теперь интересная оптимизация.</p>
+<p>Если <code>map</code> всегда содержала не больше одной группа:</p>
+<div class="highlight"><pre><span></span><code>&lt;= 8 записи
+</code></pre></div>
+<p>текущей реализации не нужен обычный каталог.</p>
+<p>В этом режиме:</p>
+<div class="highlight"><pre><span></span><code>dirLen = 0
+</code></pre></div>
+<p>а <code>dirPtr</code> указывает прямо на одну группа.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>маленькая map
+↓
+одна группа
+↓
+никакого поиска по каталогу
+↓
+никакого пробирования между группами
+</code></pre></div>
+<hr/>
+<h1 id="56-map-tombstones">56. Почему у маленькой <code>map</code> нет tombstones<a class="headerlink" href="#56-map-tombstones" title="Permanent link">¶</a></h1>
+<p>Если группа всего одна, после удаления не нужно сохранять длинную цепочка пробирования через следующие группы.</p>
+<p>Поэтому текущая оптимизация маленькой <code>map</code> может просто освободить ячейку без tombstone.</p>
+<p>Причинная связь:</p>
+<div class="highlight"><pre><span></span><code>нет переходов между группами
+↓
+нет необходимости сохранять доказательство «поиск должен идти дальше»
+↓
+состояние `deleted` не нужно
+</code></pre></div>
+<p>Это хороший пример:</p>
+<blockquote>
+<p>Специальный маленький случай позволяет убрать часть общего алгоритма.</p>
+</blockquote>
+<hr/>
+<h1 id="57-map">57. Полный поиск современной <code>map</code><a class="headerlink" href="#57-map" title="Permanent link">¶</a></h1>
+<p>Для обычной, не маленькой map:</p>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+typ.Hasher(key, seed)
+↓
+хеш
+↓
+directoryIndex(hash)
+↓
+таблица
+↓
+makeProbeSeq(H1, маска)
+↓
+группа
+↓
+matchH2(H2)
+↓
+кандидат сравнения ключей
+↓
+matchEmpty?
+├── да → not found
+└── нет → `probe.next()`
+</code></pre></div>
+<p>Вот теперь <code>m[ключ]</code> разобрана практически до алгоритма текущего рантайма.</p>
+<hr/>
+<h1 id="58">58. Вставка сложнее поискаа<a class="headerlink" href="#58" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Нужно сначала понять:</p>
+<div class="highlight"><pre><span></span><code>ключ уже существует?
+</code></pre></div>
+<p>Если да:</p>
+<div class="highlight"><pre><span></span><code>найти ячейку
+↓
+обновить значение
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>найти место для новой пары
+</code></pre></div>
+<p>И вот здесь <code>deleted</code> становится полезным.</p>
+<hr/>
+<h1 id="59">59. Вставка запоминает первую метку удаления<a class="headerlink" href="#59" title="Permanent link">¶</a></h1>
+<p>Во время пробирование текущий алгоритм может встретить:</p>
+<div class="highlight"><pre><span></span><code>ячейка с меткой `deleted`
+</code></pre></div>
+<p>Его можно потенциально переиспользовать.</p>
+<p>Но поиск нельзя сразу завершить.</p>
+<p>Почему?</p>
+<p>Потому что настоящий ключ мог быть дальше по последовательность пробирования.</p>
+<p>Поэтому идея:</p>
+<div class="highlight"><pre><span></span><code>встретили первую метку `deleted`
+↓
+запомнили как ячейку-кандидат для вставки
+↓
+продолжаем искать существующий ключ
+</code></pre></div>
+<p>Если потом ключ не найден, метку <code>deleted</code> можно переиспользовать для вставки.</p>
+<hr/>
+<h1 id="60-growthleft">60. <code>growthLeft</code>: таблица считает оставшийся бюджет роста<a class="headerlink" href="#60-growthleft" title="Permanent link">¶</a></h1>
+<p>Текущая таблица хранит не только данные:</p>
+<div class="highlight"><pre><span></span><code>used
+емкость
+</code></pre></div>
+<p>но и:</p>
+<div class="highlight"><pre><span></span><code>growthLeft
+</code></pre></div>
+<p>Смысл:</p>
+<blockquote>
+<p>Сколько новых записей еще можно вставить до перестроения/роста с учетом меток удаления и коэффициента заполнения.</p>
+</blockquote>
+<p>Почему tombstone тоже потребляет бюджет?</p>
+<p>Потому что такая ячейка остается занятой с точки зрения структуры пробирования.</p>
+<p>Даже удаленные записи могут ухудшать пробирование, пока таблица не перестроена.</p>
+<hr/>
+<h1 id="61-empty-deleted">61. Удаление: почему выбор между <code>empty</code> и <code>deleted</code> зависит от инварианта пробирования<a class="headerlink" href="#61-empty-deleted" title="Permanent link">¶</a></h1>
+<p>После поиска удаляемого ключ нельзя механически написать:</p>
+<div class="highlight"><pre><span></span><code>ctrl = empty
+</code></pre></div>
+<p>Если за ним в цепочке пробирования есть записи, которые попали дальше из-за коллизий, <code>empty</code> может преждевременно остановить будущий поиск.</p>
+<p>Тогда нужен:</p>
+<div class="highlight"><pre><span></span><code>deleted
+</code></pre></div>
+<p>Но если структура вокруг позволяет доказать, что цепочка не ломается, метка <code>deleted</code> может быть не нужна.</p>
+<p>То есть удаление — не просто:</p>
+<div class="highlight"><pre><span></span><code>стереть ключ/значение
+</code></pre></div>
+<p>Это изменение метаданных алгоритма поиска.</p>
+<hr/>
+<h1 id="62-map">62. Расти может одна таблица, а не вся <code>map</code><a class="headerlink" href="#62-map" title="Permanent link">¶</a></h1>
+<p>Основная идея современной Go <code>map</code>:</p>
+<div class="highlight"><pre><span></span><code>Map
+↓
+каталог
+↓
+несколько независимых таблиц Swiss Table
+</code></pre></div>
+<p>Каждая таблица имеет собственные:</p>
+<div class="highlight"><pre><span></span><code>емкость
+growthLeft
+localDepth
+</code></pre></div>
+<p>Поэтому рост может быть локальным.</p>
+<p>Но тут есть важное уточнение.</p>
+<p>Не каждый рост сразу означает разделение.</p>
+<hr/>
+<h1 id="63">63. Сначала таблица может просто стать больше<a class="headerlink" href="#63" title="Permanent link">¶</a></h1>
+<p>В текущем Go таблица растет до внутреннего предела.</p>
+<p>Текущий <code>maxTableCapacity</code>:</p>
+<div class="highlight"><pre><span></span><code>1024 ячейки
+</code></pre></div>
+<p>Пока удвоенная емкость не превышает этот предел:</p>
+<div class="highlight"><pre><span></span><code>старая таблица
+↓
+новая таблица с удвоенной емкостью
+↓
+перевставить записи
+↓
+заменить таблицу
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>8 → 16 → 32 → ... → 1024 ячейки
+</code></pre></div>
+<p>в рамках одной логической таблицы.</p>
+<p><code>1024</code> — деталь текущей реализации и фактически является настраиваемым инженерным выбором.</p>
+<hr/>
+<h1 id="64">64. Только большая таблица делится<a class="headerlink" href="#64" title="Permanent link">¶</a></h1>
+<p>Когда следующее удвоение превысило бы текущий предел:</p>
+<div class="highlight"><pre><span></span><code>1024
+→ хотели 2048
+</code></pre></div>
+<p>вместо одной гигантской таблицы текущая реализация делает:</p>
+<div class="highlight"><pre><span></span><code>разделение
+↓
+левая таблица
++
+правая таблица
+</code></pre></div>
+<p>Теперь нужен дополнительный бит хеш префикс, чтобы выбрать между ними.</p>
+<hr/>
+<h1 id="65">65. Что такое каталог<a class="headerlink" href="#65" title="Permanent link">¶</a></h1>
+<p>Каталог — массив ссылок на таблицы.</p>
+<p>Размер:</p>
+<div class="highlight"><pre><span></span><code>2^globalDepth
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>globalDepth = 0
+</code></pre></div>
+<p>выбора таблицы по префиксу фактически нет.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>globalDepth = 2
+</code></pre></div>
+<p>используются два старших бита хеша:</p>
+<div class="highlight"><pre><span></span><code>00
+01
+10
+11
+</code></pre></div>
+<p>как индекс каталога.</p>
+<hr/>
+<h1 id="66-globaldepth">66. <code>globalDepth</code><a class="headerlink" href="#66-globaldepth" title="Permanent link">¶</a></h1>
+<p><code>globalDepth</code> отвечает:</p>
+<blockquote>
+<p>Сколько старших битов хеша сейчас использует весь каталог для выбора таблицы?</p>
+</blockquote>
+<p>На 64-bit хеш:</p>
+<div class="highlight"><pre><span></span><code>индекс каталога = hash &gt;&gt; (64 - globalDepth)
+</code></pre></div>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>hash = 101101...
+globalDepth = 3
+↓
+101
+↓
+каталог[5]
+</code></pre></div>
+<hr/>
+<h1 id="67-localdepth">67. <code>localDepth</code><a class="headerlink" href="#67-localdepth" title="Permanent link">¶</a></h1>
+<p>Конкретная таблица может быть создана раньше и использовать меньше битов префикса.</p>
+<p>Это ее:</p>
+<div class="highlight"><pre><span></span><code>localDepth
+</code></pre></div>
+<p>Поэтому возможна картина:</p>
+<div class="highlight"><pre><span></span><code>globalDepth = 2
+
+00 ─┐
+01 ─┴→ таблица A, `localDepth`=1
+
+10 ─→ таблица B, `localDepth`=2
+11 ─→ таблица C, `localDepth`=2
+</code></pre></div>
+<p>Почему две записи каталога указывают на одну таблицу A?</p>
+<p>Потому что для нее младший из двух битов выбора каталога пока не важен.</p>
+<p>Она еще не разделялась до этой глубины.</p>
+<hr/>
+<h1 id="68">68. Разделение таблицы руками<a class="headerlink" href="#68" title="Permanent link">¶</a></h1>
+<p>Пусть таблица обслуживает префикс:</p>
+<div class="highlight"><pre><span></span><code>01
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>localDepth = 2
+</code></pre></div>
+<p>Она достигла максимальной емкости и должна разделиться.</p>
+<p>Увеличиваем:</p>
+<div class="highlight"><pre><span></span><code>localDepth = 3
+</code></pre></div>
+<p>Теперь старый префикс разбивается:</p>
+<div class="highlight"><pre><span></span><code>010...
+011...
+</code></pre></div>
+<p>Создаются:</p>
+<div class="highlight"><pre><span></span><code>левая
+правая
+</code></pre></div>
+<p>Каждый старый ключ снова хешируется.</p>
+<p>Новый бит выбора решает:</p>
+<div class="highlight"><pre><span></span><code>левую или правую таблицу
+</code></pre></div>
+<hr/>
+<h1 id="69">69. Почему при разделении нужно снова считать хеш<a class="headerlink" href="#69" title="Permanent link">¶</a></h1>
+<p>В старой таблице лежит ключ.</p>
+<p>Для разделения нужен следующий бит префикса его хеша.</p>
+<p>Управляющий байт хранит только:</p>
+<div class="highlight"><pre><span></span><code>H2 = нижние 7 бит
+</code></pre></div>
+<p>Этого недостаточно, чтобы узнать старший бит префикса.</p>
+<p>Поэтому при разделении текущая реализация снова вызывает хешер для каждого ключа.</p>
+<p>То есть рост имеет реальную цену по CPU:</p>
+<div class="highlight"><pre><span></span><code>перебор записей
++
+повторное хеширование ключей
++
+новые вставки
+</code></pre></div>
+<hr/>
+<h1 id="70">70. Когда нужно удвоить каталог<a class="headerlink" href="#70" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>old.localDepth == globalDepth
+</code></pre></div>
+<p>Таблице нужно разделиться и использовать еще один бит префикса.</p>
+<p>Но каталог этого бита пока вообще не имеет.</p>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>dirLen ×2
+↓
+globalDepth++
+</code></pre></div>
+<p>Каждая старая запись каталога временно дублируется:</p>
+<div class="highlight"><pre><span></span><code>A
+B
+</code></pre></div>
+<p>превращается в:</p>
+<div class="highlight"><pre><span></span><code>A
+A
+B
+B
+</code></pre></div>
+<p>После этого разделение может заменить нужную пару новыми таблицами.</p>
+<hr/>
+<h1 id="71">71. Удвоение каталогаа не означает копирование всех ключей и значений<a class="headerlink" href="#71" title="Permanent link">¶</a></h1>
+<p>Вот важное отличие.</p>
+<p>Удвоение каталога — это в основном работа со ссылками на таблицы:</p>
+<div class="highlight"><pre><span></span><code>старые указатели на таблицы
+↓
+новый массив указателей каталога
+</code></pre></div>
+<p>А реальные записи перераспределяются только для таблицы, которая разделяется.</p>
+<p>Именно поэтому расширяемое хеширование (extendible hashing) распределяет рост по частям структуры.</p>
+<hr/>
+<h1 id="72">72. Почему это уменьшает всплески задержки<a class="headerlink" href="#72" title="Permanent link">¶</a></h1>
+<p>Наивная гигантская таблица:</p>
+<div class="highlight"><pre><span></span><code>N записей
+↓
+рост
+↓
+перехешировать N записей
+</code></pre></div>
+<p>Одна операция может заплатить огромную цену O(N).</p>
+<p>Каталог + таблицы ограниченного размера:</p>
+<div class="highlight"><pre><span></span><code>переполнилась конкретная таблица
+↓
+рост / разделение только ее
+↓
+остальные таблицы не трогаем
+</code></pre></div>
+<p>Цена роста ограничивается лучше.</p>
+<p>Не бесплатно.</p>
+<p>Но хвост задержки контролировать проще.</p>
+<hr/>
+<h1 id="73">73. Теперь откроем еще один черный ящик: хеширование ключа<a class="headerlink" href="#73" title="Permanent link">¶</a></h1>
+<p>До сих пор:</p>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+хеш
+</code></pre></div>
+<p>выглядело как O(1) магия.</p>
+<p>Но хеш тоже нужно вычислить.</p>
+<p>Текущая <code>MapType</code> содержит функцию:</p>
+<div class="highlight"><pre><span></span><code>Hasher
+</code></pre></div>
+<p>а каждая <code>map</code> имеет свое зерно хеша.</p>
+<p>Поиск начинается примерно с:</p>
+<div class="highlight"><pre><span></span><code>хеш = typ.Hasher(ключ, m.seed)  // m.seed — зерно конкретной `map`
+</code></pre></div>
+<hr/>
+<h1 id="74">74. Цена хеширования зависит от типа ключа<a class="headerlink" href="#74" title="Permanent link">¶</a></h1>
+<p>Сравним:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="kt">uint64</span><span class="p">]</span><span class="nx">Value</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">Value</span>
+</code></pre></div>
+<p>Для <code>uint64</code> вход — фиксированные восемь байт.</p>
+<p>Для строки нужно учитывать ее содержимое.</p>
+<p>Строка:</p>
+<div class="highlight"><pre><span></span><code>16 B
+</code></pre></div>
+<p>и строка:</p>
+<div class="highlight"><pre><span></span><code>16 KiB
+</code></pre></div>
+<p>не могут иметь одинаковую физическую цену полного хеширования в общем случае.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>поиск в `map` в среднем ≈ O(1) по числу записей
+</code></pre></div>
+<p>не означает:</p>
+<div class="highlight"><pre><span></span><code>стоимость не зависит от размера ключа
+</code></pre></div>
+<hr/>
+<h1 id="75">75. Сравнение ключей тоже не бесплатно<a class="headerlink" href="#75" title="Permanent link">¶</a></h1>
+<p>Совпадение H2 дало кандидата.</p>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>typ.Key.Equal(key, slotKey)
+</code></pre></div>
+<p>Для целочисленного ключа сравнение дешево.</p>
+<p>Для структуры:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Key</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Tenant</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">UserID</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">    </span><span class="nx">Region</span><span class="w"> </span><span class="kt">uint32</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>нужно сравнить составное значение.</p>
+<p>Если H2 дал ложное совпадение, мы платим эту стоимость зря.</p>
+<p>Метаданные Swiss Table минимизируют число таких сравнений.</p>
+<p>Но не делает сравнение на равенство бесплатной.</p>
+<hr/>
+<h1 id="76">76. Зерно хеша нужно не для красоты<a class="headerlink" href="#76" title="Permanent link">¶</a></h1>
+<p>Если размещение по хешу был бы полностью одинаковым для всех экземпляров <code>map</code>, злоумышленник или просто патологический набор ключей мог бы заранее создавать особенно плохое распределение.</p>
+<p>Зерно конкретной <code>map</code> делает размещение ключей зависимым от экземпляра таблицы.</p>
+<p>Это помогает избежать предсказуемых паттернов коллизий.</p>
+<p>При этом точный алгоритм хеширования — деталь реализации и может различаться по типу/архитектуре/версии.</p>
+<p>Для прикладного кода контракт другой:</p>
+<blockquote>
+<p>Сравнимые равные ключи должны находить одну запись.</p>
+</blockquote>
+<hr/>
+<h1 id="77-cpu">77. Под нагрузкой сложный ключ может стать заметен в профиле CPU<a class="headerlink" href="#77-cpu" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>2 млн поисков в `map`/с
+</code></pre></div>
+<p>и каждый ключ — длинная строка.</p>
+<p>Даже если Swiss пробирование почти всегда заканчивается на первой группе:</p>
+<div class="highlight"><pre><span></span><code>хеширование
++
+сравнение ключей
+</code></pre></div>
+<p>могут стать заметной стоимостью по CPU.</p>
+<p>Поэтому при профилировании бэкенд с интенсивной работой с кешем иногда полезно смотреть не только:</p>
+<div class="highlight"><pre><span></span><code>поиск в `map` внутри рантайма
+</code></pre></div>
+<p>но и функции хеширования/сравнения.</p>
+<hr/>
+<h1 id="78-syncmap-map">78. <code>sync.Map</code>: обычная <code>map</code> уже не решает задачу целиком<a class="headerlink" href="#78-syncmap-map" title="Permanent link">¶</a></h1>
+<p>Обычная встроенная <code>map</code>:</p>
+<div class="highlight"><pre><span></span><code>не потокобезопасна
+</code></pre></div>
+<p>Можно сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Cache</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">mu</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">RWMutex</span>
+<span class="w">    </span><span class="nx">m</span><span class="w">  </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="nx">Value</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Это нормальное решение.</p>
+<p>Но все ключи проходят через одна область синхронизации:</p>
+<div class="highlight"><pre><span></span><code>один RWMutex
+</code></pre></div>
+<p>Для некоторых сценариев доступа это становится лишней общей координацией.</p>
+<hr/>
+<h1 id="79-syncmap-hashtriemap">79. Текущий <code>sync.Map</code> — буквально обертка над <code>HashTrieMap</code><a class="headerlink" href="#79-syncmap-hashtriemap" title="Permanent link">¶</a></h1>
+<p>В Go 1.27 <code>sync.Map</code> содержит:</p>
+<div class="highlight"><pre><span></span><code>internal/sync.HashTrieMap[any, any]
+</code></pre></div>
+<p>То есть это уже не историческая модель:</p>
+<div class="highlight"><pre><span></span><code>read / dirty / misses
+</code></pre></div>
+<p>а конкурентное хеш-дерево.</p>
+<p>Основная лекция дала картинку дерева.</p>
+<p>Теперь откроем устройство узлов.</p>
+<hr/>
+<h1 id="80-hashtriemap">80. Корень <code>HashTrieMap</code><a class="headerlink" href="#80-hashtriemap" title="Permanent link">¶</a></h1>
+<p>Внутри есть:</p>
+<div class="highlight"><pre><span></span><code>root atomic.Pointer[косвенный]
+</code></pre></div>
+<p>И функция хеширования ключа плюс зерно.</p>
+<p>Поиск:</p>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+хеш
+↓
+root
+↓
+часть хеша
+↓
+дочерний узел
+↓
+часть хеша
+↓
+дочерний узел
+...
+</code></pre></div>
+<p>Но сколько бит используется на уровень?</p>
+<hr/>
+<h1 id="81">81. По четыре бита хеша на уровень<a class="headerlink" href="#81" title="Permanent link">¶</a></h1>
+<p>Текущая реализация:</p>
+<div class="highlight"><pre><span></span><code>nChildrenLog2 = 4
+nChildren = 16
+</code></pre></div>
+<p>То есть каждый косвенный узел имеет:</p>
+<div class="highlight"><pre><span></span><code>16 дочерних позиций
+</code></pre></div>
+<p>А индекс выбирается четырьмя битами хеша:</p>
+<div class="highlight"><pre><span></span><code>0000 → дочерний узел 0
+0001 → дочерний узел 1
+...
+1111 → дочерний узел 15
+</code></pre></div>
+<p>На 64-bit хеш максимум логически:</p>
+<div class="highlight"><pre><span></span><code>64 / 4 = 16 уровней
+</code></pre></div>
+<p>если действительно понадобятся все биты.</p>
+<hr/>
+<h1 id="82-indirect">82. Узел <code>indirect</code><a class="headerlink" href="#82-indirect" title="Permanent link">¶</a></h1>
+<p>Концептуально текущий внутренний узел:</p>
+<div class="highlight"><pre><span></span><code>косвенный
+├── marker: это не запись
+├── dead flag
+├── mutex
+├── parent
+└── дочерние узлы[16] atomic pointers
+</code></pre></div>
+<p>Почему указатели на дочерние узлы атомарные?</p>
+<p>Потому что <code>Load</code> должен безопасно читать дерево одновременно с изменениями.</p>
+<p>Почему при этом внутри узла все равно есть mutex?</p>
+<p>Потому что структурная модификация сложнее одной независимой записи указателя.</p>
+<hr/>
+<h1 id="83-entry">83. Узел <code>entry</code><a class="headerlink" href="#83-entry" title="Permanent link">¶</a></h1>
+<p>Лист <code>entry</code> хранит:</p>
+<div class="highlight"><pre><span></span><code>запись
+├── marker: это запись
+├── overflow
+├── ключ
+└── value
+</code></pre></div>
+<p><code>overflow</code> нужен для редкого, но возможного случая:</p>
+<div class="highlight"><pre><span></span><code>разные ключи
+↓
+одинаковый полный хеш
+</code></pre></div>
+<p>Trie уже использовал все биты хеша.</p>
+<p>Разделить записи следующими битами невозможно.</p>
+<p>Остается цепочка коллизий.</p>
+<hr/>
+<h1 id="84-load">84. <code>Load</code>: чистое чтение идет по атомарным указателям<a class="headerlink" href="#84-load" title="Permanent link">¶</a></h1>
+<p>Текущий путь примерно такой:</p>
+<div class="highlight"><pre><span></span><code>hashShift = число битов машинного слова
+↓
+root.Load()
+↓
+hashShift -= 4
+↓
+index = (hash &gt;&gt; hashShift) &amp; 0xF
+↓
+`child.Load()`
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>дочерний узел == nil
+</code></pre></div>
+<p>ключа нет.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>дочерний узел — `entry`
+</code></pre></div>
+<p>сравниваем ключ, при необходимости идем по цепочке коллизий.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>дочерний узел — `indirect`
+</code></pre></div>
+<p>переходим на следующий уровень и съедаем еще четыре бита.</p>
+<hr/>
+<h1 id="85-load-mutex">85. Почему <code>Load</code> не берет общий mutex<a class="headerlink" href="#85-load-mutex" title="Permanent link">¶</a></h1>
+<p>Он использует атомарную публикацию указателей на дочерние узлы.</p>
+<p>Следовательно для чтения не нужен:</p>
+<div class="highlight"><pre><span></span><code>глобальный лок корня
+</code></pre></div>
+<p>Это особенно полезно для нагрузки с преобладанием чтения.</p>
+<p>Но важно не сделать новый миф:</p>
+<blockquote>
+<p>Значит <code>sync.Map</code> вообще без локов.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Структурные изменения используют локи внутренних узлов.</p>
+<hr/>
+<h1 id="86-store">86. <code>Store</code>: сначала оптимистично читаем дерево<a class="headerlink" href="#86-store" title="Permanent link">¶</a></h1>
+<p>Путь вставки начинает похоже на <code>Load</code>:</p>
+<div class="highlight"><pre><span></span><code>root
+↓
+4 бита
+↓
+дочерний узел
+↓
+...
+</code></pre></div>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>пустую позицию
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>запись, ключ которой не равен нашему
+</code></pre></div>
+<p>Это кандидатное место вставки.</p>
+<p>Но между поиском и изменением другая горутина могла уже изменить узел.</p>
+<hr/>
+<h1 id="87">87. Поэтому после локирования состояние проверяется снова<a class="headerlink" href="#87" title="Permanent link">¶</a></h1>
+<p>Алгоритм:</p>
+<div class="highlight"><pre><span></span><code>нашли кандидатное место
+↓
+взяли лок конкретного узла `indirect`
+↓
+снова прочитать позицию
+↓
+состояние все еще такое же?
+├── да → можно изменять
+└── нет → отпустить лок и начать поиск заново
+</code></pre></div>
+<p>Это знакомый паттерн:</p>
+<div class="highlight"><pre><span></span><code>оптимистичное чтение
+↓
+лок
+↓
+повторная проверка
+</code></pre></div>
+<p>Почему лок находится именно на узле?</p>
+<p>Чтобы изменения разных частей trie не обязаны были проходить через один глобальный лок.</p>
+<hr/>
+<h1 id="88">88. Если два ключа расходятся на следующих четырех битах<a class="headerlink" href="#88" title="Permanent link">¶</a></h1>
+<p>Представим два хеша:</p>
+<div class="highlight"><pre><span></span><code>A: 1010 0011 ...
+B: 1010 1110 ...
+</code></pre></div>
+<p>На первом уровне оба идут:</p>
+<div class="highlight"><pre><span></span><code>1010
+→ дочерний узел 10
+</code></pre></div>
+<p>Но дальше:</p>
+<div class="highlight"><pre><span></span><code>A → 0011
+B → 1110
+</code></pre></div>
+<p>Если в дочернем узле раньше лежала одна <code>entry</code>, при вставке второго можно заменить его новым промежуточным узлом <code>indirect</code> и развести записи по двум дочерним узлам.</p>
+<p>Это и есть рост trie вниз.</p>
+<hr/>
+<h1 id="89">89. Если полный хеш одинаковый<a class="headerlink" href="#89" title="Permanent link">¶</a></h1>
+<p>Теперь хуже:</p>
+<div class="highlight"><pre><span></span><code>hash(A) == hash(B)
+</code></pre></div>
+<p>Можно добавлять уровни сколько угодно — все четыре-битные куски совпадают.</p>
+<p>Тогда используется:</p>
+<div class="highlight"><pre><span></span><code>цепочка коллизий
+</code></pre></div>
+<p>И уже внутри нее настоящее сравнение ключей отличает A от B.</p>
+<p>То есть:</p>
+<blockquote>
+<p>HashTrieMap тоже не отменяет фундаментальную возможность коллизии хеша.</p>
+</blockquote>
+<hr/>
+<h1 id="90-syncmap-range">90. <code>sync.Map</code> не обещает согласованный снимок в <code>Range</code><a class="headerlink" href="#90-syncmap-range" title="Permanent link">¶</a></h1>
+<p>Еще одно практическое следствие конкурентной структуры.</p>
+<p><code>Range</code> не блокирует все остальные операции на время полного обхода.</p>
+<p>Поэтому результат не обязан соответствовать одному мгновенному снимку всего содержимого.</p>
+<p>Это не недостаток текущего HashTrieMap.</p>
+<p>Это часть публичного контракта <code>sync.Map</code>.</p>
+<p>Если бизнес-инвариант требует:</p>
+<div class="highlight"><pre><span></span><code>увидеть несколько связанных ключей в одном согласованном состоянии
+</code></pre></div>
+<p>нужна другая синхронизация.</p>
+<hr/>
+<h1 id="91-syncmap-map-rwmutex">91. <code>sync.Map</code> против <code>map + RWMutex</code>: правильный вопрос<a class="headerlink" href="#91-syncmap-map-rwmutex" title="Permanent link">¶</a></h1>
+<p>Неправильный:</p>
+<blockquote>
+<p>Что быстрее?</p>
+</blockquote>
+<p>Правильный:</p>
+<blockquote>
+<p>Какой у нас характер доступа и какой инвариант нужно защищать?</p>
+</blockquote>
+<p><code>sync.Map</code> особенно ориентирована на случаи:</p>
+<div class="highlight"><pre><span></span><code>одна запись → много чтений
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>разные горутины в основном работают с разными ключами
+</code></pre></div>
+<p>Обычная:</p>
+<div class="highlight"><pre><span></span><code>map + Mutex/RWMutex
+</code></pre></div>
+<p>часто лучше, если:</p>
+<ul>
+<li>структура маленькая;</li>
+<li>записи частые и концентрированные;</li>
+<li>нужен составной инвариант;</li>
+<li>под одним локом нужно изменить несколько объектов.</li>
+</ul>
+<hr/>
+<h1 id="92-trie">92. Под нагрузкой trie тоже имеет цену<a class="headerlink" href="#92-trie" title="Permanent link">¶</a></h1>
+<p><code>HashTrieMap</code> добавляет:</p>
+<div class="highlight"><pre><span></span><code>несколько косвенных обращений через указатели
++
+несколько атомарных загрузок
++
+больше метаданных
++
+локи при изменениях структуры
+</code></pre></div>
+<p>Поэтому нагрузка с одной горутиной или маленькой структурой не обязана выигрывать.</p>
+<p>Сложная конкурентная структура оправдывается тогда, когда она уменьшает более дорогую общую конкуренцию за ресурс.</p>
+<hr/>
+<h1 id="93">93. Теперь интерфейсы: модель «тип + данные» становится недостаточной<a class="headerlink" href="#93" title="Permanent link">¶</a></h1>
+<p>В основной лекции нам хватало модели:</p>
+<div class="highlight"><pre><span></span><code>интерфейс
+=
+динамический тип
++
+данные
+</code></pre></div>
+<p>Для непустого интерфейса мы добавили <code>ITab</code>.</p>
+<p>Этого достаточно, чтобы объяснить typed <code>nil</code>, утверждение типа и динамический вызов.</p>
+<p>Теперь новый вопрос:</p>
+<blockquote>
+<p>Что конкретно лежит в машинном представлении интерфейса и как из него получается вызов метода?</p>
+</blockquote>
+<p>Вот здесь появляется ABI — двоичный контракт между компилятором и рантаймом.</p>
+<hr/>
+<h1 id="94-">94. Пустой и непустой интерфейс устроены по-разному<a class="headerlink" href="#94-" title="Permanent link">¶</a></h1>
+<p>Для пустого интерфейса, то есть <code>any</code>, полезная модель текущего ABI:</p>
+<div class="highlight"><pre><span></span><code>EmptyInterface
+├── Type *abi.Type
+└── Data unsafe.Pointer
+</code></pre></div>
+<p>Для интерфейса с методами:</p>
+<div class="highlight"><pre><span></span><code>NonEmptyInterface
+├── ITab *ITab
+└── Data unsafe.Pointer
+</code></pre></div>
+<p>То есть оба представления занимают два машинных слова, но первое слово имеет разный смысл:</p>
+<div class="highlight"><pre><span></span><code>any
+→ Type
+
+непустой интерфейс
+→ ITab
+</code></pre></div>
+<p>Это уже важнее формулы «интерфейс = два указателя».</p>
+<hr/>
+<h1 id="95-any-itab">95. Почему <code>any</code> не нужен <code>ITab</code><a class="headerlink" href="#95-any-itab" title="Permanent link">¶</a></h1>
+<p>Возьмем:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p><code>any</code> не требует никаких методов.</p>
+<p>Рантайму достаточно знать:</p>
+<div class="highlight"><pre><span></span><code>какой динамический тип лежит внутри?
++
+как представлены его данные?
+</code></pre></div>
+<p>Поэтому первое слово хранит дескриптор типа.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Здесь вопрос уже другой:</p>
+<blockquote>
+<p>Как именно конкретный тип реализует <code>io.Writer</code>?</p>
+</blockquote>
+<p>Нужна не просто информация о конкретном типе, а связь:</p>
+<div class="highlight"><pre><span></span><code>тип интерфейса
++
+конкретный тип
+</code></pre></div>
+<p>Эту связь и представляет <code>ITab</code>.</p>
+<hr/>
+<h1 id="96-itab">96. Что находится в <code>ITab</code><a class="headerlink" href="#96-itab" title="Permanent link">¶</a></h1>
+<p>Текущий <code>abi.ITab</code> концептуально содержит:</p>
+<div class="highlight"><pre><span></span><code>Inter
+→ тип интерфейса
+
+Type
+→ конкретный тип
+
+Hash
+→ копия хеша конкретного типа
+
+Fun[]
+→ адреса функций для методов интерфейса
+</code></pre></div>
+<p><code>Fun</code> имеет переменный фактический размер: в нем достаточно места для методов конкретного интерфейса.</p>
+<p>Главная мысль:</p>
+<blockquote>
+<p><code>ITab</code> — это уже подготовленная связь между одним интерфейсом и одним конкретным типом.</p>
+</blockquote>
+<p>Поэтому вызов метода не обязан каждый раз заново искать метод по имени.</p>
+<hr/>
+<h1 id="97-itabfun">97. <code>ITab.Fun</code> подводит нас к динамическому вызову<a class="headerlink" href="#97-itabfun" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Write</span><span class="p">([]</span><span class="kt">byte</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">buf</span>
+</code></pre></div>
+<p>Для этой пары рантайм должен знать:</p>
+<div class="highlight"><pre><span></span><code>Writer
++
+конкретный тип `buf`
+↓
+какая функция реализует Write?
+</code></pre></div>
+<p>В <code>ITab.Fun</code> уже находятся адреса подходящих функций.</p>
+<p>Поэтому модель вызова:</p>
+<div class="highlight"><pre><span></span><code>w.Write(p)
+↓
+ITab
+↓
+элемент Fun
+↓
+адрес функции
+↓
+вызов
+</code></pre></div>
+<p>Но до самого вызова мы еще дойдем.</p>
+<p>Сначала нужно понять второе машинное слово — <code>Data</code>.</p>
+<hr/>
+<h1 id="98-data">98. <code>Data</code> не означает «обязательно указатель на объект в хипе»<a class="headerlink" href="#98-data" title="Permanent link">¶</a></h1>
+<p>Поле имеет тип:</p>
+<div class="highlight"><pre><span></span><code>Data unsafe.Pointer
+</code></pre></div>
+<p>Очень легко сделать плохой вывод:</p>
+<blockquote>
+<p>Если значение попало в интерфейс, рантайм обязан создать отдельный объект в хипе, а <code>Data</code> указывает на него.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Нужно разделить два разных вопроса:</p>
+<div class="highlight"><pre><span></span><code>как значение представлено внутри интерфейса?
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>где физически живет память этого значения?
+</code></pre></div>
+<p>Первое относится к ABI интерфейса.</p>
+<p>Второе зависит от компилятора, эскейп-анализа и конкретного пути преобразования.</p>
+<hr/>
+<h1 id="99">99. Прямое представление в интерфейсе<a class="headerlink" href="#99" title="Permanent link">¶</a></h1>
+<p>В текущем ABI существует флаг:</p>
+<div class="highlight"><pre><span></span><code>TFlagDirectIface
+</code></pre></div>
+<p>Он означает, что значение можно представить непосредственно в слове <code>Data</code>, без дополнительного уровня косвенности.</p>
+<p>Полезная модель:</p>
+<div class="highlight"><pre><span></span><code>прямое представление
+
+Data
+↓
+само указательноподобное значение
+</code></pre></div>
+<p>Так можно представлять не любой объект размером в машинное слово.</p>
+<p>Текущий критерий связан не только с размером значения, но и с картой указателей типа.</p>
+<hr/>
+<h1 id="100-int64">100. Почему <code>int64</code> нельзя автоматически считать значением с прямым представлением<a class="headerlink" href="#100-int64" title="Permanent link">¶</a></h1>
+<p>На 64-битной машине:</p>
+<div class="highlight"><pre><span></span><code>sizeof(int64) = 8
+sizeof(pointer) = 8
+</code></pre></div>
+<p>Можно подумать:</p>
+<blockquote>
+<p>Раз размеры совпадают, положим биты <code>int64</code> прямо в <code>Data</code>.</p>
+</blockquote>
+<p>Но ABI учитывает не только размер.</p>
+<p>Для прямого представления важно, что тип является указательноподобным с точки зрения карты указателей.</p>
+<p>Обычный <code>int64</code> этим свойством не обладает.</p>
+<p>Поэтому правило:</p>
+<div class="highlight"><pre><span></span><code>size &lt;= machine word
+→ прямое представление
+</code></pre></div>
+<p>неверно.</p>
+<p>Более того, для некоторых маленьких скалярных значений текущий рантайм использует заранее подготовленное статическое хранилище, чтобы не создавать отдельную аллокацию при каждом преобразовании.</p>
+<hr/>
+<h1 id="101">101. Косвенное представление<a class="headerlink" href="#101" title="Permanent link">¶</a></h1>
+<p>Если тип не может быть представлен непосредственно:</p>
+<div class="highlight"><pre><span></span><code>Data
+↓
+адрес памяти, где находится значение
+</code></pre></div>
+<p>Но и здесь нельзя автоматически заключать:</p>
+<div class="highlight"><pre><span></span><code>косвенно
+=
+аллокация в хипе
+</code></pre></div>
+<p>Компилятор может:</p>
+<ul>
+<li>разместить временную копию на стеке;</li>
+<li>использовать статически подготовленную память;</li>
+<li>вызвать функцию рантайма, которая выполнит аллокацию;</li>
+<li>после оптимизаций вообще устранить часть преобразования.</li>
+</ul>
+<p>Поэтому вопрос:</p>
+<blockquote>
+<p>Будет ли здесь аллокация?</p>
+</blockquote>
+<p>решается измерением и анализом сгенерированного кода, а не одной только схемой ABI.</p>
+<p>К этому вернемся в <code>4.3</code>.</p>
+<hr/>
+<h1 id="102-any">102. Конкретный тип → <code>any</code><a class="headerlink" href="#102-any" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">v</span>
+</code></pre></div>
+<p>Компилятор уже знает статический тип <code>v</code>.</p>
+<p>Нужно сформировать:</p>
+<div class="highlight"><pre><span></span><code>Type
+→ дескриптор конкретного типа T
+
+Data
+→ представление значения v
+</code></pre></div>
+<p>То есть рантайму не нужно угадывать, что за тип перед нами.</p>
+<p>Вопрос только в том, как представить данные и требуется ли для этого отдельное хранилище.</p>
+<hr/>
+<h1 id="103">103. Конкретный тип → непустой интерфейс<a class="headerlink" href="#103" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">v</span>
+</code></pre></div>
+<p>Одного дескриптора конкретного типа недостаточно.</p>
+<p>Нужна связь:</p>
+<div class="highlight"><pre><span></span><code>(io.Writer, T)
+↓
+ITab
+</code></pre></div>
+<p>Часть таких <code>ITab</code> может быть подготовлена компилятором и линкером заранее.</p>
+<p>Для динамических случаев рантайм умеет искать или создавать подходящую запись.</p>
+<p>Отсюда появляется новый вопрос:</p>
+<blockquote>
+<p>Если одна и та же пара <code>(интерфейс, конкретный тип)</code> встречается миллион раз, мы миллион раз сопоставляем методы?</p>
+</blockquote>
+<p>Нет.</p>
+<hr/>
+<h1 id="104-itabtable">104. <code>itabTable</code>: кеш уже построенных связей<a class="headerlink" href="#104-itabtable" title="Permanent link">¶</a></h1>
+<p>Текущий рантайм поддерживает глобальную таблицу известных <code>ITab</code>.</p>
+<p>Ключ концептуально такой:</p>
+<div class="highlight"><pre><span></span><code>тип интерфейса
++
+конкретный тип
+</code></pre></div>
+<p>Частый путь <code>getitab</code> выглядит так:</p>
+<div class="highlight"><pre><span></span><code>атомарно загрузить текущую itabTable
+↓
+найти пару (interface, concrete type)
+↓
+нашли?
+├── да → вернуть готовый ITab
+└── нет → медленный путь
+</code></pre></div>
+<p>То есть повторное использование уже известной пары не должно требовать общего лока.</p>
+<hr/>
+<h1 id="105-itab">105. Если <code>ITab</code> еще нет<a class="headerlink" href="#105-itab" title="Permanent link">¶</a></h1>
+<p>Медленный путь:</p>
+<div class="highlight"><pre><span></span><code>не нашли
+↓
+взять itabLock
+↓
+проверить еще раз
+</code></pre></div>
+<p>Повторная проверка нужна по знакомой причине:</p>
+<div class="highlight"><pre><span></span><code>мы искали без лока
+↓
+пока ждали лок, другой поток мог создать тот же ITab
+</code></pre></div>
+<p>Если записи по-прежнему нет:</p>
+<div class="highlight"><pre><span></span><code>создать ITab
+↓
+сопоставить методы
+↓
+заполнить Fun[]
+↓
+добавить запись в itabTable
+↓
+опубликовать
+</code></pre></div>
+<p>Снова знакомая архитектура:</p>
+<div class="highlight"><pre><span></span><code>частый путь
+→ чтение без общего лока
+
+редкий путь
+→ синхронизированное построение структуры
+</code></pre></div>
+<hr/>
+<h1 id="106-itabinit">106. <code>itabInit</code>: как проверить реализацию интерфейса<a class="headerlink" href="#106-itabinit" title="Permanent link">¶</a></h1>
+<p>Нужно доказать:</p>
+<blockquote>
+<p>Конкретный тип реализует все методы интерфейса.</p>
+</blockquote>
+<p>Наивно можно было бы для каждого метода интерфейса каждый раз перебирать весь набор методов конкретного типа.</p>
+<p>Текущая реализация использует тот факт, что оба набора методов упорядочены.</p>
+<p>Получаем проход, похожий на слияние двух отсортированных последовательностей:</p>
+<div class="highlight"><pre><span></span><code>методы интерфейса
++
+методы конкретного типа
+↓
+двигаться по обоим спискам
+↓
+для каждого метода интерфейса найти соответствующую реализацию
+</code></pre></div>
+<p>Поэтому работа ближе к:</p>
+<div class="highlight"><pre><span></span><code>O(ni + nt)
+</code></pre></div>
+<p>чем к:</p>
+<div class="highlight"><pre><span></span><code>O(ni × nt)
+</code></pre></div>
+<p>где <code>ni</code> — число методов интерфейса, а <code>nt</code> — число методов конкретного типа.</p>
+<hr/>
+<h1 id="107-itabinit">107. После <code>itabInit</code> вызовы уже не ищут методы по имени<a class="headerlink" href="#107-itabinit" title="Permanent link">¶</a></h1>
+<p>Если проверка успешна:</p>
+<div class="highlight"><pre><span></span><code>Fun[0]
+Fun[1]
+...
+</code></pre></div>
+<p>заполняются адресами функций, соответствующих методам интерфейса.</p>
+<p>Теперь для:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+</code></pre></div>
+<p>не нужен поиск строки <code>"Write"</code> в какой-то таблице методов.</p>
+<p>Нужный элемент уже известен из структуры интерфейса.</p>
+<p>Это и делает динамический вызов достаточно компактным.</p>
+<hr/>
+<h1 id="108">108. Интерфейс → интерфейс: появляется новая проверка<a class="headerlink" href="#108" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">v</span>
+<span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span>
+</code></pre></div>
+<p>В <code>x</code> уже известен динамический конкретный тип.</p>
+<p>Но теперь нужно ответить:</p>
+<div class="highlight"><pre><span></span><code>этот тип
+↓
+реализует io.Writer?
+</code></pre></div>
+<p>То есть задача уже не сводится к сравнению одного <code>Type</code> с другим.</p>
+<p>Нужно получить подходящий <code>ITab</code> для пары:</p>
+<div class="highlight"><pre><span></span><code>(dynamic concrete type, io.Writer)
+</code></pre></div>
+<p>или доказать, что такой пары нет.</p>
+<hr/>
+<h1 id="109">109. Утверждение к конкретному типу проще<a class="headerlink" href="#109" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">u</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">User</span><span class="p">)</span>
+</code></pre></div>
+<p>Для пустого интерфейса полезная модель:</p>
+<div class="highlight"><pre><span></span><code>динамический Type
+↓
+сравнить с Type(User)
+</code></pre></div>
+<p>Если тип совпал:</p>
+<div class="highlight"><pre><span></span><code>извлечь данные
+↓
+ok = true
+</code></pre></div>
+<p>Если нет:</p>
+<div class="highlight"><pre><span></span><code>ok = false
+</code></pre></div>
+<p>В однорезультатной форме отрицательный результат приводит к <code>panic</code>.</p>
+<p>Здесь не нужно искать реализацию другого интерфейса.</p>
+<hr/>
+<h1 id="110">110. Утверждение к интерфейсу — это поиск совместимости<a class="headerlink" href="#110" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span>
+</code></pre></div>
+<p>Теперь нельзя просто проверить:</p>
+<div class="highlight"><pre><span></span><code>dynamic Type == io.Writer
+</code></pre></div>
+<p><code>io.Writer</code> может реализовываться множеством разных типов.</p>
+<p>Нужно получить:</p>
+<div class="highlight"><pre><span></span><code>ITab(dynamicConcrete, io.Writer)
+</code></pre></div>
+<p>Именно поэтому утверждение к конкретному типу и утверждение к интерфейсу — разные механические задачи.</p>
+<hr/>
+<h1 id="111-typeassertcache">111. <code>TypeAssertCache</code>: горячий повторный путь<a class="headerlink" href="#111-typeassertcache" title="Permanent link">¶</a></h1>
+<p>Если одно и то же утверждение типа выполняется миллионы раз, постоянно уходить в общий <code>getitab</code> невыгодно.</p>
+<p>В текущем ABI есть <code>TypeAssertCache</code>.</p>
+<p>Концептуально запись кеша связывает:</p>
+<div class="highlight"><pre><span></span><code>динамический Type исходного значения
+↓
+результирующий ITab
+</code></pre></div>
+<p>Для формы с <code>ok</code> кеш может хранить и отрицательный результат.</p>
+<p>Идея:</p>
+<div class="highlight"><pre><span></span><code>повторное утверждение типа
+↓
+проверить кеш
+↓
+попадание?
+├── да → получить результат без общего поиска
+└── нет → медленный путь рантайма
+</code></pre></div>
+<hr/>
+<h1 id="112">112. Почему кеш не перестраивается после каждого промаха<a class="headerlink" href="#112" title="Permanent link">¶</a></h1>
+<p>Сам кеш тоже стоит денег.</p>
+<p>Чтобы его обновить, нужно:</p>
+<ul>
+<li>выделить новую структуру;</li>
+<li>перенести существующие записи;</li>
+<li>добавить новую;</li>
+<li>безопасно опубликовать новую версию.</li>
+</ul>
+<p>Если конкретное утверждение выполнилось один раз, эта работа не окупится.</p>
+<p>Поэтому текущая реализация обновляет кеш вероятностно, причем вероятность обновления уменьшается по мере его роста.</p>
+<p>Инженерный принцип тот же:</p>
+<blockquote>
+<p>Не платить дорогую цену оптимизации редкого пути.</p>
+</blockquote>
+<hr/>
+<h1 id="113-type-switch">113. <code>type switch</code>: та же задача сразу для нескольких интерфейсов<a class="headerlink" href="#113-type-switch" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">switch</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="kd">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Reader</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Stringer</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Для интерфейсных <code>case</code> нужно выяснить:</p>
+<div class="highlight"><pre><span></span><code>динамический конкретный тип
+↓
+какой из целевых интерфейсов он реализует?
+</code></pre></div>
+<p>Для этого в текущем ABI есть отдельный <code>InterfaceSwitchCache</code>.</p>
+<p>Запись концептуально хранит:</p>
+<div class="highlight"><pre><span></span><code>исходный Type
+↓
+номер подходящего case
++
+ITab
+</code></pre></div>
+<hr/>
+<h1 id="114-type-switch-">114. Что происходит при промахе <code>type switch</code>-кеша<a class="headerlink" href="#114-type-switch-" title="Permanent link">¶</a></h1>
+<p>Если кеш не помог, рантайм может последовательно проверять интерфейсные <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>case 0 → getitab
+case 1 → getitab
+case 2 → getitab
+...
+</code></pre></div>
+<p>Когда подходящая ветка найдена, результат может позже попасть в кеш.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>первый дорогой путь
+↓
+накопили информацию
+↓
+повторный горячий путь дешевле
+</code></pre></div>
+<hr/>
+<h1 id="115-itab">115. Динамический вызов метода через <code>ITab</code><a class="headerlink" href="#115-itab" title="Permanent link">¶</a></h1>
+<p>Возвращаемся к:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+</code></pre></div>
+<p>Если вызов действительно остается динамическим, полезная модель:</p>
+<div class="highlight"><pre><span></span><code>значение интерфейса w
+↓
+ITab
+↓
+нужный элемент Fun
+↓
+адрес функции
+↓
+косвенный вызов
+</code></pre></div>
+<p><code>Data</code> передает представление конкретного получателя метода (receiver).</p>
+<p>Главное:</p>
+<blockquote>
+<p>Динамический вызов через интерфейс не является поиском метода по строковому имени при каждом вызове.</p>
+</blockquote>
+<hr/>
+<h1 id="116">116. Почему косвенный вызов может быть дороже прямого<a class="headerlink" href="#116" title="Permanent link">¶</a></h1>
+<p>Сравним:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">buf</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">buf</span>
+<span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+</code></pre></div>
+<p>При реальной динамике второй вариант может содержать косвенный переход к функции.</p>
+<p>Это влияет не столько на цену одной дополнительной загрузки, сколько на возможности оптимизатора:</p>
+<ul>
+<li>сложнее доказать конкретную цель вызова;</li>
+<li>сложнее инлайнить;</li>
+<li>хуже распространяется информация о конкретном типе;</li>
+<li>могут потеряться последующие оптимизации.</li>
+</ul>
+<p>Но здесь нельзя рассуждать только по синтаксису.</p>
+<p>Компилятор способен удалить динамику.</p>
+<hr/>
+<h1 id="117">117. Девиртуализация: интерфейсный вызов может исчезнуть<a class="headerlink" href="#117" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>Раз в исходнике переменная имеет интерфейсный тип, машинный код обязательно содержит косвенный вызов.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Если компилятор доказывает конкретную цель:</p>
+<div class="highlight"><pre><span></span><code>интерфейсное значение
+↓
+конкретный тип известен
+↓
+девиртуализация
+↓
+прямой вызов
+</code></pre></div>
+<p>После этого прямой вызов может попасть под инлайнинг.</p>
+<p>То есть ABI объясняет, <strong>как мог бы работать</strong> динамический вызов.</p>
+<p>Но оптимизатор может доказать, что динамика в конкретном месте вообще не нужна.</p>
+<hr/>
+<h1 id="118-pgo">118. PGO добавляет еще один вариант девиртуализации<a class="headerlink" href="#118-pgo" title="Permanent link">¶</a></h1>
+<p>Помимо статической девиртуализации компилятор может использовать профиль выполнения.</p>
+<p>Если один конкретный тип доминирует на горячем пути:</p>
+<div class="highlight"><pre><span></span><code>горячий конкретный тип
+↓
+условная проверка
+├── совпал → прямой быстрый вызов
+└── другой тип → общий косвенный путь
+</code></pre></div>
+<p>Это условная девиртуализация на основе профиля.</p>
+<p>Подробно разбирать ее здесь не будем.</p>
+<p>Она нужна нам как мост в <code>4.3</code>:</p>
+<div class="highlight"><pre><span></span><code>мы поняли ABI интерфейса
+↓
+теперь нужно понять, какой из этих путей вообще оставил компилятор
+↓
+SSA / lowering / devirtualization / assembly
+</code></pre></div>
+<p>На этом блок интерфейсов логически заканчивается.</p>
+<hr/>
+<h1 id="119">119. Собираем четыре конструкции рядом<a class="headerlink" href="#119" title="Permanent link">¶</a></h1>
+<h2 id="_2">Срез<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>append
+↓
+проверка cap
+↓
+growslice
+↓
+nextslicecap
+↓
+расчет размера в байтах
+↓
+округление размера аллокатором
+↓
+аллокация нового базового массива
+↓
+memmove
+</code></pre></div>
+<h2 id="map"><code>map</code><a class="headerlink" href="#map" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+хеш
+↓
+каталог / таблица
+↓
+последовательность пробирования
+↓
+группа
+↓
+управляющее слово
+↓
+matchH2
+↓
+маска кандидатов
+↓
+сравнение настоящих ключей
+</code></pre></div>
+<h2 id="syncmap"><code>sync.Map</code><a class="headerlink" href="#syncmap" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+хеш
+↓
+HashTrieMap
+↓
+4 бита хеша на уровень
+↓
+атомарная загрузка дочернего указателя
+↓
+entry / indirect
+↓
+при изменении структуры — локальная блокировка узла
+</code></pre></div>
+<h2 id="_3">Интерфейс<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>Type / ITab
++
+Data
+↓
+преобразование
+↓
+утверждение типа
+или
+вызов метода
+</code></pre></div>
+<hr/>
+<h1 id="120">120. Что происходит под нагрузкой: срез<a class="headerlink" href="#120" title="Permanent link">¶</a></h1>
+<p>Механизм:</p>
+<div class="highlight"><pre><span></span><code>частые переходы через границу cap
+↓
+growslice
+↓
+аллокация + memmove
+</code></pre></div>
+<p>Ограниченные ресурсы:</p>
+<div class="highlight"><pre><span></span><code>пропускная способность памяти
+аллокационный поток
+CPU
+работа GC
+</code></pre></div>
+<p>Симптомы:</p>
+<div class="highlight"><pre><span></span><code>alloc_space ↑
+CPU в runtime.growslice ↑
+memmove заметен в профиле
+p99 ↑
+</code></pre></div>
+<p>Измеряем:</p>
+<div class="highlight"><pre><span></span><code>benchmark + benchmem
+CPU profile
+allocation profile
+</code></pre></div>
+<p>Инженерный вывод:</p>
+<blockquote>
+<p>Оптимизируем не <code>append</code> вообще, а частые и крупные операции роста.</p>
+</blockquote>
+<hr/>
+<h1 id="121-map">121. Что происходит под нагрузкой: <code>map</code><a class="headerlink" href="#121-map" title="Permanent link">¶</a></h1>
+<p>Механизм:</p>
+<div class="highlight"><pre><span></span><code>хеширование
++
+пробирование
++
+сравнение ключей
+</code></pre></div>
+<p>Ограниченный ресурс:</p>
+<div class="highlight"><pre><span></span><code>CPU
++
+локальность кеша и памяти
+</code></pre></div>
+<p>Причины высокой цены могут быть разными:</p>
+<div class="highlight"><pre><span></span><code>дорогой хеш ключа
+длинное сравнение ключей
+высокий коэффициент заполнения
+частый рост / перехеширование
+большой рабочий набор с плохой локальностью
+</code></pre></div>
+<p>Поэтому фраза:</p>
+<blockquote>
+<p><code>map</code> медленная</p>
+</blockquote>
+<p>ничего не диагностирует.</p>
+<p>Нужно понять, какая именно часть пути стала дорогой.</p>
+<hr/>
+<h1 id="122-syncmap">122. Что происходит под нагрузкой: <code>sync.Map</code><a class="headerlink" href="#122-syncmap" title="Permanent link">¶</a></h1>
+<p>Механизм:</p>
+<div class="highlight"><pre><span></span><code>атомарный обход trie
++
+локализованные изменения структуры
+</code></pre></div>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>косвенные обращения через указатели
+атомарные загрузки
+метаданные
+локи при структурных изменениях
+</code></pre></div>
+<p>Если характер нагрузки подходит:</p>
+<div class="highlight"><pre><span></span><code>конкуренция за один общий лок ↓
+</code></pre></div>
+<p>Если не подходит:</p>
+<div class="highlight"><pre><span></span><code>сложность HashTrieMap
+&gt;
+выигрыш от локализации
+</code></pre></div>
+<p>Поэтому <code>sync.Map</code> — специализированная структура, а не «ускоренная map».</p>
+<hr/>
+<h1 id="123">123. Что происходит под нагрузкой: интерфейсы<a class="headerlink" href="#123" title="Permanent link">¶</a></h1>
+<p>Одна операция преобразования или одно утверждение типа обычно почти неинтересны.</p>
+<p>Теперь умножим на:</p>
+<div class="highlight"><pre><span></span><code>10 000 000 операций/с
+</code></pre></div>
+<p>В профиле могут проявиться:</p>
+<ul>
+<li>функции преобразования интерфейсов;</li>
+<li><code>getitab</code>;</li>
+<li>путь утверждения типа;</li>
+<li>аллокации, если для представления требуется отдельная память;</li>
+<li>косвенные вызовы;</li>
+<li>потерянные возможности инлайнинга и дальнейших оптимизаций.</li>
+</ul>
+<p>Но до измерения переписывать интерфейсный код на конкретные типы бессмысленно.</p>
+<hr/>
+<h1 id="124">124. Как диагностировать<a class="headerlink" href="#124" title="Permanent link">¶</a></h1>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Первый инструмент</th>
+<th>Что пытаемся доказать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>много аллокаций рядом с <code>append</code></td>
+<td><code>benchmem</code>, <code>alloc_space</code></td>
+<td>часто ли происходит рост</td>
+</tr>
+<tr>
+<td>CPU заметно уходит в операции <code>map</code></td>
+<td>профиль CPU</td>
+<td>дорог ли хеш, equality, probing или рост</td>
+</tr>
+<tr>
+<td><code>sync.Map</code> плохо масштабируется</td>
+<td>benchmark с разным параллелизмом</td>
+<td>подходит ли характер доступа</td>
+</tr>
+<tr>
+<td>горячий интерфейсный путь аллоцирует</td>
+<td><code>benchmem</code>, escape analysis</td>
+<td>где появляется отдельное хранилище</td>
+</tr>
+<tr>
+<td>горячий вызов через интерфейс</td>
+<td>профиль CPU, затем SSA/assembly</td>
+<td>остался ли косвенный вызов</td>
+</tr>
+<tr>
+<td>после обновления Go изменилась производительность</td>
+<td>benchmark + профили</td>
+<td>изменилась ли стоимость текущей реализации</td>
+</tr>
+</tbody>
+</table>
+<p>Главное правило прежнее:</p>
+<blockquote>
+<p>Инструмент выбираем под конкретный вопрос.</p>
+</blockquote>
+<hr/>
+<h1 id="125-api">125. Что является гарантией языка и API<a class="headerlink" href="#125-api" title="Permanent link">¶</a></h1>
+<p>Прикладной код может опираться на:</p>
+<ul>
+<li>семантику <code>append</code>;</li>
+<li><code>len</code> и <code>cap</code>;</li>
+<li>семантику встроенной <code>map</code>;</li>
+<li>правила сравнимости ключей;</li>
+<li>семантику интерфейсов;</li>
+<li>правила утверждения типа;</li>
+<li>публичный API <code>sync.Map</code>;</li>
+<li>гарантии модели памяти, описанные для <code>sync.Map</code>.</li>
+</ul>
+<hr/>
+<h1 id="126-go-127x">126. Что относится к текущей реализации Go 1.27.x<a class="headerlink" href="#126-go-127x" title="Permanent link">¶</a></h1>
+<p>К деталям реализации относятся:</p>
+<ul>
+<li><code>growslice</code>;</li>
+<li><code>nextslicecap</code> и текущий порог <code>256</code>;</li>
+<li>конкретная формула роста среза;</li>
+<li><code>roundupsize</code> и влияние округления на фактический <code>cap</code>;</li>
+<li>группы Swiss Table по восемь ячеек;</li>
+<li>кодирование управляющих байтов;</li>
+<li>конкретный битовый алгоритм <code>matchH2</code>;</li>
+<li>SIMD-intrinsic на amd64;</li>
+<li>текущая последовательность пробирования;</li>
+<li>коэффициент заполнения <code>7/8</code>;</li>
+<li>специальный путь маленькой <code>map</code>;</li>
+<li>текущий <code>maxTableCapacity = 1024</code>;</li>
+<li>каталог, <code>globalDepth</code>, <code>localDepth</code>;</li>
+<li>конкретный алгоритм роста и разделения таблиц;</li>
+<li><code>internal/sync.HashTrieMap</code>;</li>
+<li>16 дочерних позиций и 4 бита хеша на уровень;</li>
+<li><code>EmptyInterface</code> / <code>NonEmptyInterface</code>;</li>
+<li>текущая структура <code>ITab</code>;</li>
+<li><code>itabTable</code>, <code>TypeAssertCache</code>, <code>InterfaceSwitchCache</code>.</li>
+</ul>
+<p>Все это полезно для понимания и диагностики.</p>
+<p>Но это не контракт языка.</p>
+<hr/>
+<h1 id="127">127. Разрушаем последние плохие упрощения<a class="headerlink" href="#127" title="Permanent link">¶</a></h1>
+<h2 id="_4">«Срез всегда растет в два раза»<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<div class="highlight"><pre><span></span><code>nextslicecap
++
+округление размера аллокатором
+↓
+фактический cap
+</code></pre></div>
+<p>Конкретная политика роста — деталь версии.</p>
+<h2 id="swiss-table">«Swiss Table сразу сравнивает восемь ключей»<a class="headerlink" href="#swiss-table" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Сначала:</p>
+<div class="highlight"><pre><span></span><code>8 управляющих байтов
+↓
+matchH2
+↓
+маска кандидатов
+</code></pre></div>
+<p>И только для кандидатов выполняется настоящее сравнение ключа.</p>
+<h2 id="_5">«Пробирование просто прыгает по таблице»<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Текущая последовательность детерминирована:</p>
+<div class="highlight"><pre><span></span><code>+1
++2
++3
++4
+...
+</code></pre></div>
+<p>То есть задается треугольными числами по модулю степени двойки.</p>
+<h2 id="syncmap_1">«sync.Map работает без локов»<a class="headerlink" href="#syncmap_1" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Чтение использует атомарные указатели.</p>
+<p>Структурные изменения используют локализованные блокировки.</p>
+<h2 id="_6">«Интерфейс — это указатель на тип и указатель на объект в хипе»<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
+<p>Слишком грубо.</p>
+<div class="highlight"><pre><span></span><code>any
+→ Type + Data
+
+непустой interface
+→ ITab + Data
+</code></pre></div>
+<p>А <code>Data</code> может представлять значение прямо или косвенно. Наличие интерфейса само по себе не доказывает аллокацию в хипе.</p>
+<h2 id="_7">«Вызов через интерфейс всегда косвенный»<a class="headerlink" href="#_7" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Компилятор может выполнить девиртуализацию и превратить его в прямой вызов.</p>
+<hr/>
+<h1 id="128-append">128. Полная цепочка одного <code>append</code><a class="headerlink" href="#128-append" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>s = append(s, x)
+↓
+сгенерированная проверка cap
+↓
+места хватает?
+├── да
+│   ↓
+│   записать x
+│
+└── нет
+    ↓
+    growslice
+    ↓
+    nextslicecap
+    ↓
+    число элементов × sizeof(T)
+    ↓
+    roundupsize
+    ↓
+    аллокатор
+    ↓
+    подготовка памяти с учетом pointer / noscan
+    ↓
+    memmove старых элементов
+    ↓
+    новый дескриптор среза
+    ↓
+    записать новые элементы
+</code></pre></div>
+<hr/>
+<h1 id="129-map">129. Полная цепочка одного поиска в <code>map</code><a class="headerlink" href="#129-map" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>v := m[key]
+↓
+hash(key, seed)
+↓
+маленькая map?
+├── да
+│   ↓
+│   одна группа
+│
+└── нет
+    ↓
+    индекс каталога
+    ↓
+    таблица
+    ↓
+    H1 → начальная группа
+
+H2
+↓
+matchH2(control word)
+↓
+маска кандидатов
+↓
+для каждого кандидата:
+    сравнить настоящий key
+
+ключ найден?
+├── да → вернуть value
+└── нет
+    ↓
+    есть empty?
+    ├── да → ключ отсутствует
+    └── нет → следующая группа по probe sequence
+</code></pre></div>
+<hr/>
+<h1 id="130-map">130. Полная цепочка роста <code>map</code><a class="headerlink" href="#130-map" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>вставка
+↓
+growthLeft == 0
+↓
+перестроение
+↓
+таблица еще может локально вырасти?
+├── да
+│   ↓
+│   увеличить ее емкость
+│   ↓
+│   повторно разместить записи
+│
+└── нет
+    ↓
+    разделить таблицу
+    ↓
+    localDepth++
+    ↓
+    globalDepth достаточно?
+    ├── да
+    └── нет → удвоить каталог
+    ↓
+    заново вычислить хеши ключей
+    ↓
+    распределить записи между двумя таблицами
+</code></pre></div>
+<hr/>
+<h1 id="131-syncmapload">131. Полная цепочка <code>sync.Map.Load</code><a class="headerlink" href="#131-syncmapload" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>key
+↓
+hash(key, seed)
+↓
+атомарно загрузить root
+↓
+взять 4 бита хеша
+↓
+атомарно загрузить child
+↓
+что получили?
+├── entry
+│   ↓
+│   сравнить key
+│   ↓
+│   при полном hash collision пройти overflow chain
+│
+└── indirect
+    ↓
+    взять следующие 4 бита
+    ↓
+    следующий уровень
+</code></pre></div>
+<p>Глобального read-lock на весь <code>sync.Map</code> здесь нет.</p>
+<p>Но цена переходов по указателям и атомарных загрузок остается.</p>
+<hr/>
+<h1 id="132">132. Полная цепочка утверждения типа к интерфейсу<a class="headerlink" href="#132" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="p">)</span>
+</code></pre></div>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>динамический concrete type
+↓
+TypeAssertCache
+↓
+cache hit?
+├── да
+│   ↓
+│   готовый ITab или известный отрицательный результат
+│
+└── нет
+    ↓
+    getitab(io.Writer, concrete type)
+    ↓
+    itabTable
+    ↓
+    ITab уже существует?
+    ├── да → вернуть
+    └── нет
+        ↓
+        синхронизированно построить ITab
+        ↓
+        сопоставить методы
+        ↓
+        опубликовать
+</code></pre></div>
+<p>Точный быстрый путь сгенерированного кода будем читать уже в <code>4.3</code>.</p>
+<hr/>
+<h1 id="133">133. Что важно запомнить<a class="headerlink" href="#133" title="Permanent link">¶</a></h1>
+<ol>
+<li>Медленный <code>append</code> — это выбор новой емкости, перевод элементов в байты, округление размера аллокатором, новая аллокация и копирование старых элементов.</li>
+<li><code>nextslicecap</code> дает емкость-кандидат; фактический <code>cap</code> может измениться после округления размера аллокации.</li>
+<li>Рост среза без указателей и среза с указателями различается подготовкой памяти и взаимодействием с барьером записи.</li>
+<li>Группа Swiss Table содержит восемь логических ячеек и восемь управляющих байтов.</li>
+<li>H2 — только семибитный фильтр кандидатов. Настоящее равенство доказывает сравнение ключей.</li>
+<li>Переносимый <code>matchH2</code> использует битовую арифметику над <code>uint64</code>; amd64 в текущем Go получает специализированный SIMD-intrinsic.</li>
+<li>Битовая маска кандидатов позволяет быстро получить индекс подходящей ячейки через <code>TrailingZeros</code>.</li>
+<li><code>empty</code> завершает поиск, а <code>deleted</code> позволяет не разрушить цепочку пробирования.</li>
+<li>Последовательность пробирования текущего Go прибавляет <code>1,2,3,...</code>; это треугольные числа по модулю степени двойки.</li>
+<li>Высокий коэффициент заполнения все равно увеличивает длину пробирования.</li>
+<li>Маленькая <code>map</code>, помещающаяся в одну группу, использует специальный упрощенный путь.</li>
+<li>Таблица сначала может локально расти, а после текущего предела разделяется; каталог удваивается только когда не хватает <code>globalDepth</code>.</li>
+<li>O(1) по числу записей не означает постоянную физическую цену: хеширование и equality зависят от типа и размера ключа.</li>
+<li><code>sync.Map</code> в Go 1.27 использует <code>HashTrieMap</code>: 16 дочерних позиций, 4 бита хеша на уровень, атомарные чтения и локализованные изменения.</li>
+<li>Полная коллизия хеша все равно требует цепочки overflow-записей и настоящего сравнения ключей.</li>
+<li>Пустой интерфейс представлен как <code>Type + Data</code>, непустой — как <code>ITab + Data</code>.</li>
+<li><code>ITab</code> связывает интерфейс с конкретным типом и содержит адреса реализаций методов.</li>
+<li><code>Data</code> не означает автоматически «указатель на объект в хипе»: представление может быть прямым или косвенным, а физическое размещение определяет компилятор.</li>
+<li>Утверждение к конкретному типу и утверждение к другому интерфейсу — разные механические задачи.</li>
+<li><code>itabTable</code>, <code>TypeAssertCache</code> и <code>InterfaceSwitchCache</code> уменьшают цену повторных динамических проверок.</li>
+<li>Вызов через <code>ITab.Fun</code> может быть косвенным, но компилятор способен выполнить девиртуализацию.</li>
+<li>Все конкретные пороги, форматы представления, битовые приемы и внутренние структуры этой лекции относятся к реализации Go 1.27.x, а не к спецификации языка.</li>
+</ol>
+<hr/>
+<h1 id="134">134. Финальная инженерная модель<a class="headerlink" href="#134" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                         Go-код
+                            │
+          ┌─────────────────┼─────────────────┐
+          │                 │                 │
+          ▼                 ▼                 ▼
+        slice              map            interface
+          │                 │                 │
+          ▼                 ▼                 ▼
+      growslice            hash          Type / ITab
+          │                 │                 │
+          ▼                 ▼                 ▼
+   nextslicecap          directory            Data
+          │                 │                 │
+          ▼                 ▼                 ▼
+ округление аллокатором   таблица       преобразование
+          │                 │                 │
+          ▼                 ▼                 ▼
+      аллокация            группа        утверждение типа
+          │                 │                 │
+          ▼                 ▼                 ▼
+       memmove         управляющее слово   вызов
+                            │
+                            ▼
+                         matchH2
+                            │
+                            ▼
+                   маска кандидатов
+                            │
+                            ▼
+                         probing
+                            │
+                            ▼
+                   рост / разделение
+
+sync.Map
+   │
+   ▼
+HashTrieMap
+   │
+   ▼
+4 hash bits / level
+   │
+   ▼
+atomic child loads
+   │
+   ▼
+localized structural mutation
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>В основной лекции конструкции Go были удобными абстракциями. Здесь они превратились в конкретные алгоритмы: <code>append</code> — в расчет емкости, аллокацию и копирование; <code>map</code> — в хеширование, управляющие байты, битовые маски, пробирование и локальный рост таблиц; <code>sync.Map</code> — в конкурентное trie; интерфейс — в ABI, <code>ITab</code>, кеши проверок типов и динамический вызов.</p>
+<p>После этого остается последний разрыв: мы знаем, <strong>какой механизм должен выполниться</strong>, но еще не знаем, <strong>какой код для него оставил компилятор</strong>. Это уже <code>4.3</code>: SSA, lowering, девиртуализация и машинный код.</p>
+</blockquote>
+<hr/>
+<h1 id="_8">Практическое продолжение темы<a class="headerlink" href="#_8" title="Permanent link">¶</a></h1>
+<p>Для этой лекции особенно хорошо руками доказать три механизма.</p>
+<h2 id="1-growslice">1. <code>growslice</code><a class="headerlink" href="#1-growslice" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>разные начальный cap
+↓
+append в цикле
+↓
+логировать изменения cap
+↓
+`benchmem`
+↓
+CPU / профиль аллокаций
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, что <code>cap</code> растет по политике рантайма и дополнительно зависит от округления аллокатором.</p>
+</blockquote>
+<h2 id="2-swiss-table">2. Swiss Table битовые приемы<a class="headerlink" href="#2-swiss-table" title="Permanent link">¶</a></h2>
+<p>Реализовать маленькую учебную функцию:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">matchH2Portable</span><span class="p">(</span><span class="nx">ctrl</span><span class="w"> </span><span class="kt">uint64</span><span class="p">,</span><span class="w"> </span><span class="nx">h2</span><span class="w"> </span><span class="kt">byte</span><span class="p">)</span><span class="w"> </span><span class="kt">uint64</span>
+</code></pre></div>
+<p>и на конкретном слове:</p>
+<div class="highlight"><pre><span></span><code>0x3522FE7F35803512
+</code></pre></div>
+<p>получить ячейки:</p>
+<div class="highlight"><pre><span></span><code>1, 3, 7
+</code></pre></div>
+<p>Затем сравнить с наивным циклом по восьми байтам.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Руками доказать, что управляющие метаданные действительно позволяют отфильтровать восемь ячеек одной пачкой битовых операций.</p>
+</blockquote>
+<h2 id="3">3. Последовательность пробирования<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<p>Для:</p>
+<div class="highlight"><pre><span></span><code>2, 4, 8, 16, 32 группы
+</code></pre></div>
+<p>построить последовательность:</p>
+<div class="highlight"><pre><span></span><code>смещение = start
+смещение += 1
+смещение += 2
+смещение += 3
+...
+</code></pre></div>
+<p>с маска.</p>
+<p>Проверить программно:</p>
+<div class="highlight"><pre><span></span><code>каждая группа посещена ровно один раз до повторения
+</code></pre></div>
+<p>А затем доказать это математически через различность треугольных чисел по модулю <code>2^m</code>.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Связать исходник рантайма с математическим свойством алгоритма, а не просто запомнить <code>seq.next()</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="go-127x">Источники реализации Go 1.27.x<a class="headerlink" href="#go-127x" title="Permanent link">¶</a></h1>
+<p>Основные файлы, на которые опирается эта лекция:</p>
+<div class="highlight"><pre><span></span><code>src/runtime/slice.go
+src/internal/runtime/maps/map.go
+src/internal/runtime/maps/group.go
+src/internal/runtime/maps/table.go
+src/internal/runtime/maps/runtime.go
+src/sync/map.go
+src/internal/sync/hashtriemap.go
+src/internal/abi/iface.go
+src/internal/abi/type.go
+src/internal/abi/switch.go
+src/runtime/iface.go
+src/runtime/runtime2.go
+src/cmd/compile/internal/devirtualize/
+</code></pre></div>
+<p>Эти файлы описывают текущую реализацию. Они не являются спецификацией языка и могут меняться между версиями Go.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD" class="md-footer__link md-footer__link--prev" href="../3.5%20-%20Linux%20storage%20path/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4.2. Каналы, select и context глубже" class="md-footer__link md-footer__link--next" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4.2. Каналы, select и context глубже
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

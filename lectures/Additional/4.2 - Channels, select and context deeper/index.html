@@ -1,0 +1,4272 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/" rel="canonical"/>
+<link href="../4.1%20-%20Go%20structures%20deeper/" rel="prev"/>
+<link href="../4.3%20-%20Go%20compiler%20under%20the%20hood/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.2. Каналы, select и context глубже - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#42-select-context">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.2. Каналы, select и context глубже
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="42-select-context">4.2. Каналы, <code>select</code> и <code>context</code> глубже<a class="headerlink" href="#42-select-context" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на Go 1.27.x.</p>
+<p>Это продолжение обычной лекции <code>Go under the hood</code> и уже прочитанной <code>Runtime deep</code>.</p>
+<p>Здесь мы <strong>не повторяем</strong> G/M/P, <code>sudog</code>, <code>gopark</code>, <code>goready</code>, состояния горутин и общую механику парковки. Они считаются известным фундаментом.</p>
+<p>Нас интересует следующий слой:</p>
+<div class="highlight"><pre><span></span><code>канал
+↓
+какой конкретно путь выбирает рантайм?
+
+select
+↓
+как одна G регистрируется сразу на нескольких каналах?
+
+context
+↓
+как отмена физически распространяется по дереву?
+</code></pre></div>
+</blockquote>
+<hr/>
+<h1 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>На основной лекции достаточно было модели:</p>
+<div class="highlight"><pre><span></span><code>отправка
+├── получатель уже ждет
+├── есть место в буфере
+└── парковка
+
+получение
+├── отправитель уже ждет
+├── есть данные в буфере
+└── парковка
+</code></pre></div>
+<p>Для <code>select</code>:</p>
+<div class="highlight"><pre><span></span><code>несколько операций
+↓
+зарегистрировать одну G в нескольких очередях ожидания
+↓
+парковка
+↓
+одна ветка победила
+↓
+убрать остальные регистрации
+</code></pre></div>
+<p>Для <code>context</code>:</p>
+<div class="highlight"><pre><span></span><code>parent
+↓
+children
+↓
+Done
+↓
+cancel
+</code></pre></div>
+<p>Эта модель правильная.</p>
+<p>Но она оставляет несколько неудобных вопросов.</p>
+<p>Если получатель уже ждет, зачем вообще использовать буфер?</p>
+<p>Если значение отправителя лежит на его стеке, а получатель спит со своим стеком, кто и куда копирует байты?</p>
+<p>Если буферизованный канал заполнен и один отправитель уже припаркован, что именно делает следующий получатель?</p>
+<p>Почему <code>close(ch)</code> будит получатели и отправители по-разному?</p>
+<p>Как <code>selectgo</code> избегает дедлока, если один <code>select</code> одновременно берет локи нескольких каналов?</p>
+<p>Почему одна G может зарегистрироваться в десяти каналах, но проснуться должна ровно от одного?</p>
+<p>И наконец:</p>
+<blockquote>
+<p>Правда ли, что каждый дочерний <code>Context</code> требует отдельную горутину для распространения отмены?</p>
+</blockquote>
+<p>Нет.</p>
+<p>Вот это и разбираем.</p>
+<hr/>
+<h1 id="0">0. Сначала проведем границу с уже прочитанным рантаймом<a class="headerlink" href="#0" title="Permanent link">¶</a></h1>
+<p>Уже известно:</p>
+<div class="highlight"><pre><span></span><code>операция не может продолжаться
+↓
+создается/используется sudog
+↓
+G связывается с объектом ожидания
+↓
+gopark
+↓
+G → ожидающий
+
+событие произошло
+↓
+goready
+↓
+G → RUNNABLE
+</code></pre></div>
+<p>Уже известно и зачем <code>sudog</code> существует отдельно от <code>G</code>:</p>
+<div class="highlight"><pre><span></span><code>одна G
+↔
+несколько ожиданий
+</code></pre></div>
+<p>Особенно это важно для <code>select</code>.</p>
+<p>Поэтому дальше, когда увидим:</p>
+<div class="highlight"><pre><span></span><code>sendq + sudog + парковка
+</code></pre></div>
+<p>мы не будем снова открывать планировщик.</p>
+<p>Нас интересует <strong>то, что произошло до парковки и после пробуждения</strong>.</p>
+<hr/>
+<h1 id="1">1. Карта лекции<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>make(chan T, n)
+↓
+makechan
+↓
+hchan + буфер
+
+отправка
+↓
+chansend
+├── прямая передача
+├── буферизованная отправка
+└── блокирующий путь
+
+получение
+↓
+chanrecv
+├── прямое получение
+├── заполненный буфер + ожидающий отправитель
+├── обычное получение из буфера
+└── блокирующий путь
+
+закрытие
+↓
+closechan
+├── ожидающие получатели
+└── ожидающие отправители
+
+select
+↓
+selectgo
+├── pollOrder
+├── lockOrder
+├── проход 1
+├── проход 2
+├── парковка
+└── проход 3
+
+context
+↓
+cancelCtx
+↓
+propagateCancel
+├── parentCancelCtx
+├── AfterFunc
+└── горутина резервный путь
+↓
+cancel
+↓
+timerCtx
+</code></pre></div>
+<hr/>
+<h1 id="2-makechan-t-n">2. <code>make(chan T, n)</code> — что вообще нужно создать<a class="headerlink" href="#2-makechan-t-n" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="nx">Job</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+</code></pre></div>
+<p>На уровне языка:</p>
+<div class="highlight"><pre><span></span><code>канал capacity = 128
+element type = Job
+</code></pre></div>
+<p>Рантайму нужно получить:</p>
+<div class="highlight"><pre><span></span><code>hchan
++
+память под 128 элементов Job
+</code></pre></div>
+<p>И сразу появляется первый вопрос:</p>
+<blockquote>
+<p>Это всегда две отдельные аллокации?</p>
+</blockquote>
+<p>Нет.</p>
+<hr/>
+<h1 id="3-hchan">3. Что концептуально находится в <code>hchan</code><a class="headerlink" href="#3-hchan" title="Permanent link">¶</a></h1>
+<p>Текущая реализация содержит поля примерно такого смысла:</p>
+<div class="highlight"><pre><span></span><code>hchan
+├── qcount    — сколько элементов сейчас в буфере
+├── dataqsiz  — емкость буфера
+├── buf       — адрес кольцевого буфера
+├── elemsize  — размер одного элемента
+├── elemtype  — тип элемента
+├── closed    — закрыт ли канал
+├── sendx     — индекс следующей записи
+├── recvx     — индекс следующего чтения
+├── recvq     — ожидающие получатели
+├── sendq     — ожидающие отправители
+└── lock      — внутренний лок
+</code></pre></div>
+<p>Названия полей — деталь реализации.</p>
+<p>Но инварианты важны.</p>
+<p>Для буферизованный канал:</p>
+<div class="highlight"><pre><span></span><code>qcount &gt; 0
+→ recvq пуст
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>qcount &lt; dataqsiz
+→ sendq пуст
+</code></pre></div>
+<p>Почему?</p>
+<p>Если в буфере уже есть данные, получатель не должен ждать.</p>
+<p>Если в буфере есть свободное место, отправитель не должен ждать.</p>
+<p>Это не оптимизация.</p>
+<p>Это логическое следствие корректного состояния канала.</p>
+<hr/>
+<h1 id="4">4. Размер элемента проверяется при создании<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
+<p><code>makechan</code> получает описание типа элемента.</p>
+<p>Рантайму нужны:</p>
+<div class="highlight"><pre><span></span><code>elem.Size
+elem.Align
+содержит ли elem Go-указатели
+</code></pre></div>
+<p>Почему размер понятен:</p>
+<div class="highlight"><pre><span></span><code>байты буфера
+=
+capacity × sizeof(T)
+</code></pre></div>
+<p>Но зачем уже здесь знать про указатели?</p>
+<p>Сейчас увидим.</p>
+<hr/>
+<h1 id="5">5. Канал без буфера и канал с нулевым размером элемента<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kd">struct</span><span class="p">{})</span>
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span>
+</code></pre></div>
+<p>где capacity равен нулю, пользовательского массива элементов нет.</p>
+<p>Текущему рантайму достаточно выделить сам <code>hchan</code>.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>hchan
++
+байты буфера = 0
+</code></pre></div>
+<p>Отдельный backing array не нужен.</p>
+<hr/>
+<h1 id="6-go-hchan">6. Буфер без Go-указателей: <code>hchan</code> и данные можно выделить вместе<a class="headerlink" href="#6-go-hchan" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="p">]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+</code></pre></div>
+<p>Элементы не содержат Go-указателей.</p>
+<p>Текущий <code>makechan</code> может сделать:</p>
+<div class="highlight"><pre><span></span><code>одна аллокация
+
+┌───────────────┬────────────────────────────┐
+│     hchan     │ буфер                     │
+│               │ [T][T][T][T]...            │
+└───────────────┴────────────────────────────┘
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>c = mallocgc(hchanSize + bufferBytes)
+c.buf = адрес сразу после hchan
+</code></pre></div>
+<p>Почему это удобно?</p>
+<ul>
+<li>одна аллокация вместо двух;</li>
+<li>метаданные и буфер физически рядом;</li>
+<li>GC не нужно сканировать буфер на предмет Go-указателей.</li>
+</ul>
+<p>Последний пункт уже знаком из <code>GC deep</code>.</p>
+<hr/>
+<h1 id="7-go-">7. Буфер содержит Go-указатели — путь другой<a class="headerlink" href="#7-go-" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="o">*</span><span class="nx">Node</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Job</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">User</span><span class="w"> </span><span class="o">*</span><span class="nx">User</span>
+<span class="p">}</span>
+
+<span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="nx">Job</span><span class="p">,</span><span class="w"> </span><span class="mi">128</span><span class="p">)</span>
+</code></pre></div>
+<p>буфер содержит Go-указатели.</p>
+<p>Текущая реализация делает отдельные объекты:</p>
+<div class="highlight"><pre><span></span><code>hchan
+↓
+отдельный буфер, типизированный как T
+</code></pre></div>
+<p>Почему?</p>
+<p>Потому что GC должен понимать карта указателей буфера.</p>
+<p>Получаем красивую связь с предыдущей лекцией:</p>
+<div class="highlight"><pre><span></span><code>тип элемента канал
+↓
+карта указателей
+↓
+способ аллокации буфер
+↓
+работа GC
+</code></pre></div>
+<p>Канал — синхронизационная конструкция.</p>
+<p>Но его физическая стоимость уже зависит от модели памяти.</p>
+<hr/>
+<h1 id="8">8. Цена буфера появляется еще до первой отправки<a class="headerlink" href="#8" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="p">[</span><span class="mi">4096</span><span class="p">]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">10_000</span><span class="p">)</span>
+</code></pre></div>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>capacity = 10 000
+</code></pre></div>
+<p>Физически:</p>
+<div class="highlight"><pre><span></span><code>≈ 40 MiB буфер
+</code></pre></div>
+<p>То есть большой канал буфер — не абстрактное число.</p>
+<p>Это реальная память.</p>
+<p>И если элементы содержат указатели:</p>
+<div class="highlight"><pre><span></span><code>больше памяти с указателями
+↓
+больше потенциальной scan-work GC
+</code></pre></div>
+<p>Мы еще даже ничего не отправили.</p>
+<hr/>
+<h1 id="9-chansend">9. Теперь открываем <code>chansend</code><a class="headerlink" href="#9-chansend" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Компилятор в общем случае приводит нас к рантайм entry point отправки.</p>
+<p>Как компилятор делает lowering — оставим <code>4.3</code>.</p>
+<p>Здесь начинаем с того момента, когда рантайм уже получил:</p>
+<div class="highlight"><pre><span></span><code>c  → *hchan
+ep → адрес отправляемого значения
+block → можно ли ждать
+</code></pre></div>
+<hr/>
+<h1 id="10-nil-">10. Nil-канал — особый случай еще до захвата лока<a class="headerlink" href="#10-nil-" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
+<span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">42</span>
+</code></pre></div>
+<p>то:</p>
+<div class="highlight"><pre><span></span><code>c == nil
+</code></pre></div>
+<p>блокирующий send:</p>
+<div class="highlight"><pre><span></span><code>парковка forever
+</code></pre></div>
+<p>Неблокирующий рантайм-путь:</p>
+<div class="highlight"><pre><span></span><code>возврат false
+</code></pre></div>
+<p>Никакого <code>hchan.lock</code> нет.</p>
+<p>Потому что самого <code>hchan</code> нет.</p>
+<hr/>
+<h1 id="11">11. Неблокирующая отправка имеет путь без лока<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
+<p>Это особенно интересно для <code>select</code> с <code>default</code> и некоторых специализированных compiler paths.</p>
+<p>Текущий <code>chansend</code> умеет проверить:</p>
+<div class="highlight"><pre><span></span><code>операция неблокирующая
++
+канал еще не закрыт
++
+канал сейчас заполненный
+↓
+send сейчас невозможен
+↓
+возврат false
+</code></pre></div>
+<p>без захвата <code>hchan.lock</code>.</p>
+<hr/>
+<h1 id="12">12. Но мы прочитали два поля без общего лока. Это вообще корректно?<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
+<p>Проверяются факты вроде:</p>
+<div class="highlight"><pre><span></span><code>closed == 0
+заполненный(c) == true
+</code></pre></div>
+<p>Между чтениями состояние может измениться.</p>
+<p>То есть мы не получили атомарный snapsгорячий всей структуры.</p>
+<p>Почему ответ все равно корректен?</p>
+<p>Потому что неблокирующей операции не нужно доказать:</p>
+<blockquote>
+<p>Канал был полон в некоторый магический единый наносекундный момент, который мы сохранили навсегда.</p>
+</blockquote>
+<p>Ей нужно доказать:</p>
+<blockquote>
+<p>Существовал момент наблюдения, в который канал еще не был закрыт и send не мог завершиться немедленно.</p>
+</blockquote>
+<p>Свойства переходов состояния позволяют это вывести.</p>
+<p>Это пример более общей идеи:</p>
+<blockquote>
+<p>Иногда корректность lock-free быстрый путь строится не на полном snapsгорячий, а на монотонности и допустимом линейзационном моменте.</p>
+</blockquote>
+<p>Memory ordering мы уже разбирали.</p>
+<p>Здесь нас интересует применение этой идеи в канале.</p>
+<hr/>
+<h1 id="13-chansend">13. Обычный <code>chansend</code>: теперь берем лок<a class="headerlink" href="#13-chansend" title="Permanent link">¶</a></h1>
+<p>Если быстрый путь не завершил операцию:</p>
+<div class="highlight"><pre><span></span><code>lock(hchan)
+</code></pre></div>
+<p>Первое, что нужно проверить под локом:</p>
+<div class="highlight"><pre><span></span><code>closed?
+</code></pre></div>
+<p>Если канал закрыт:</p>
+<div class="highlight"><pre><span></span><code>unlock
+↓
+panic("send on closed канал")
+</code></pre></div>
+<p>Это уже точная точка, где обычный send обнаруживает закрытие до регистрации ожидания.</p>
+<hr/>
+<h1 id="14">14. Первый предпочтительный путь: получатель уже ждет<a class="headerlink" href="#14" title="Permanent link">¶</a></h1>
+<p>Под локом:</p>
+<div class="highlight"><pre><span></span><code>recvq.dequeue()
+</code></pre></div>
+<p>Если ожидающий получатель найден:</p>
+<div class="highlight"><pre><span></span><code>отправляемое значение прямойly
+↓
+буфер не нужен
+</code></pre></div>
+<p>Даже если канал буферизованный.</p>
+<p>Это важный момент.</p>
+<hr/>
+<h1 id="15">15. Почему ожидающий получатель важнее свободного места в буфере<a class="headerlink" href="#15" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>емкость буфера = 100
+буфер пустой
+recvq содержит G2
+</code></pre></div>
+<p>Приходит G1:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Можно было бы:</p>
+<div class="highlight"><pre><span></span><code>G1 → буфер
+потом
+буфер → G2
+</code></pre></div>
+<p>Но получатель уже известен.</p>
+<p>Тогда лишний промежуточный storage бессмыслен.</p>
+<p>Текущий рантайм делает прямая передача.</p>
+<hr/>
+<h1 id="16">16. Небуферизованный канал: встреча превращается в реальное копирование<a class="headerlink" href="#16" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="nx">Job</span><span class="p">)</span>
+</code></pre></div>
+<p>G2 уже выполняет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">job</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>и припаркована.</p>
+<p>G1 выполняет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>G1
+↓ value
+G2
+</code></pre></div>
+<p>Но физически где лежат данные?</p>
+<hr/>
+<h1 id="17-g1">17. Значение отправителя может находиться на стеке G1<a class="headerlink" href="#17-g1" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">send</span><span class="p">(</span><span class="nx">ch</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="nx">Job</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">j</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">Job</span><span class="p">{...}</span>
+<span class="w">    </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">j</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>j</code> может находиться:</p>
+<div class="highlight"><pre><span></span><code>стек G1
+</code></pre></div>
+<p>получатель подготовил место назначения:</p>
+<div class="highlight"><pre><span></span><code>стек G2
+</code></pre></div>
+<p>Получаем необычную операцию:</p>
+<div class="highlight"><pre><span></span><code>стек G1
+↓
+рантайм
+↓
+стек G2
+</code></pre></div>
+<p>Без:</p>
+<div class="highlight"><pre><span></span><code>heap object
+</code></pre></div>
+<p>и без:</p>
+<div class="highlight"><pre><span></span><code>канал буфер
+</code></pre></div>
+<hr/>
+<h1 id="18-senddirect">18. <code>sendDirect</code>: рантайм пишет в стек другой горутины<a class="headerlink" href="#18-senddirect" title="Permanent link">¶</a></h1>
+<p>В текущем рантайм есть специальный путь:</p>
+<div class="highlight"><pre><span></span><code>sendDirect
+</code></pre></div>
+<p>Его смысл:</p>
+<div class="highlight"><pre><span></span><code>src → стек отправитель
+dst → слот в стеке получатель
+↓
+скопировать T
+</code></pre></div>
+<p>Это один из редких случаев, когда работающая горутина через рантайм инициирует запись в стек другой горутины.</p>
+<p>И вот здесь обычная модель Go начинает серьезно протекать.</p>
+<hr/>
+<h1 id="19-typedmemmove">19. Почему обычного <code>typedmemmove</code> недостаточно<a class="headerlink" href="#19-typedmemmove" title="Permanent link">¶</a></h1>
+<p>GC обычно исходит из важного предположения:</p>
+<blockquote>
+<p>Запись в стек горутина выполняется самой этой горутина, пока она работает.</p>
+</blockquote>
+<p>Прямой канал handoff это предположение нарушает.</p>
+<p>Мы пишем в стек другой G.</p>
+<p>Для с указателями <code>T</code> нужно сохранить корректность GC.</p>
+<p>Поэтому текущий путь использует:</p>
+<div class="highlight"><pre><span></span><code>typeBitsBulkBarrier
++
+memmove
+</code></pre></div>
+<p>а не просто обычный типизированный перенос как для область в хипе.</p>
+<hr/>
+<h1 id="20-sgelem">20. Почему <code>sg.elem</code> нельзя просто прочитать и потом спокойно использовать<a class="headerlink" href="#20-sgelem" title="Permanent link">¶</a></h1>
+<p><code>sudog.elem</code> может указывать в стек ожидающей G.</p>
+<p>Но стек Go умеет перемещаться.</p>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>прочитали dst из sg.elem
+↓
+если сейчас случится безопасная точка и перемещение стека
+↓
+старый dst может устареть
+</code></pre></div>
+<p>Поэтому между чтением <code>sg.elem</code> и использованием адреса рантайм не должен допустить окно, в котором стек назначения переедет.</p>
+<p>Эта проблема уже знакома из <code>Runtime deep</code>.</p>
+<p>Здесь видно конкретное место, где она влияет на реализацию канала.</p>
+<hr/>
+<h1 id="21">21. Прямая передача заканчивается пробуждением получателя<a class="headerlink" href="#21" title="Permanent link">¶</a></h1>
+<p>После копирования:</p>
+<div class="highlight"><pre><span></span><code>sg.success = true
+↓
+unlock(канал)
+↓
+goready(получатель)
+</code></pre></div>
+<p>Механику <code>goready</code> не повторяем.</p>
+<p>Но важен порядок:</p>
+<div class="highlight"><pre><span></span><code>сначала данные и состояние операции
+↓
+потом получатель снова может выполняться
+</code></pre></div>
+<p>получатель должен проснуться уже в мире, где его операция завершена.</p>
+<hr/>
+<h1 id="22">22. Второй путь отправки: в буфере есть свободное место<a class="headerlink" href="#22" title="Permanent link">¶</a></h1>
+<p>Если ожидающий получатель нет:</p>
+<div class="highlight"><pre><span></span><code>qcount &lt; dataqsiz
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>qp = chanbuf(c, sendx)
+↓
+`typedmemmove`(elemtype, qp, ep)
+↓
+sendx++
+↓
+если конец → sendx = 0
+↓
+qcount++
+</code></pre></div>
+<p>И:</p>
+<div class="highlight"><pre><span></span><code>unlock
+возврат
+</code></pre></div>
+<p>Никакого парковка.</p>
+<hr/>
+<h1 id="23-chanbufc-sendx">23. <code>chanbuf(c, sendx)</code> — адрес конкретной ячейки<a class="headerlink" href="#23-chanbufc-sendx" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>buf
++
+sendx × elemsize
+↓
+адрес ячейки
+</code></pre></div>
+<p>То есть рантайм должен хранить:</p>
+<div class="highlight"><pre><span></span><code>buf
+sendx
+elemsize
+</code></pre></div>
+<p>Именно поэтому тип элемента нужен не только GC.</p>
+<p>Он нужен для адресной арифметики и корректного копирования.</p>
+<hr/>
+<h1 id="24">24. Кольцевой буфер: почему элементы не сдвигаются<a class="headerlink" href="#24" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>capacity = 4
+</code></pre></div>
+<p>Индексы:</p>
+<div class="highlight"><pre><span></span><code>0 → 1 → 2 → 3 → 0
+</code></pre></div>
+<p>После receive рантайм не делает:</p>
+<div class="highlight"><pre><span></span><code>[B][C][D][_]
+↓
+сдвинуть все влево
+</code></pre></div>
+<p>Он просто двигает <code>recvx</code>.</p>
+<p>После send — <code>sendx</code>.</p>
+<p>Получаем O(1) работу относительно длины очереди.</p>
+<hr/>
+<h1 id="25-qcount-sendx-recvx">25. <code>qcount</code> не вычисляется как <code>sendx - recvx</code><a class="headerlink" href="#25-qcount-sendx-recvx" title="Permanent link">¶</a></h1>
+<p>Можно было бы попытаться вывести число элементов только из индексов.</p>
+<p>Но в кольце:</p>
+<div class="highlight"><pre><span></span><code>sendx == recvx
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>буфер пустой
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>буфер заполненный
+</code></pre></div>
+<p>Нужно дополнительное состояние.</p>
+<p>Текущий <code>hchan</code> хранит:</p>
+<div class="highlight"><pre><span></span><code>qcount
+</code></pre></div>
+<p>явно.</p>
+<hr/>
+<h1 id="26">26. Третий путь отправки: продолжать нельзя<a class="headerlink" href="#26" title="Permanent link">¶</a></h1>
+<p>Нет ожидающий получатель.</p>
+<p>буфер заполнен.</p>
+<p>Для блокирующий send:</p>
+<div class="highlight"><pre><span></span><code>acquireSudog
+↓
+sg.elem → отправляемое значение
+↓
+sg.g → текущая G
+↓
+sendq.добавить в очередь(sg)
+↓
+парковка
+</code></pre></div>
+<p>На этом месте <strong>останавливаемся</strong>.</p>
+<p><code>acquireSudog</code>, <code>gp.waiting</code>, <code>gopark</code>, состояние G уже разобраны в <code>Runtime deep</code>.</p>
+<hr/>
+<h1 id="27-sgelem">27. Но зачем <code>sg.elem</code> хранит адрес отправляемого значения<a class="headerlink" href="#27-sgelem" title="Permanent link">¶</a></h1>
+<p>отправитель припаркован.</p>
+<p>получатель придет позже.</p>
+<p>Нужно откуда-то получить значение.</p>
+<p>Можно было бы скопировать значение в отдельный heap-object при блокировке.</p>
+<p>Но это означало бы:</p>
+<div class="highlight"><pre><span></span><code>каждый заблокированный send
+↓
+дополнительное копирование / storage
+</code></pre></div>
+<p>Вместо этого <code>sudog</code> может ссылаться на исходный слот значения.</p>
+<p>Это быстрее.</p>
+<p>Цена — жесткая связь с жизненным циклом и перемещением стек.</p>
+<hr/>
+<h1 id="28">28. Проснулись после заблокированной отправки. Как понять почему?<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
+<p>После <code>gopark</code> G продолжает выполнение внутри <code>chansend</code>.</p>
+<p>Возможны два принципиально разных события:</p>
+<div class="highlight"><pre><span></span><code>получатель принял значение
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>канал закрыли
+</code></pre></div>
+<p><code>sudog.success</code> позволяет различить эти пути.</p>
+<p>Успех:</p>
+<div class="highlight"><pre><span></span><code>возврат true
+</code></pre></div>
+<p>Закрытие:</p>
+<div class="highlight"><pre><span></span><code>канал действительно closed?
+↓
+panic("send on closed канал")
+</code></pre></div>
+<hr/>
+<h1 id="29-panic-closechan">29. Почему <code>panic</code> выполняет отправитель, а не <code>closechan</code><a class="headerlink" href="#29-panic-closechan" title="Permanent link">¶</a></h1>
+<p>Это важно.</p>
+<p><code>closechan</code> может обнаружить ожидающего отправитель.</p>
+<p>Но panic должен возникнуть как результат его операции:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Поэтому <code>closechan</code>:</p>
+<div class="highlight"><pre><span></span><code>помечает ожидание как неуспешное
+↓
+делает G runnable
+</code></pre></div>
+<p>А уже проснувшийся <code>chansend</code> завершает свою операцию через panic.</p>
+<hr/>
+<h1 id="30-chanrecv">30. Теперь открываем <code>chanrecv</code><a class="headerlink" href="#30-chanrecv" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>Runtime получает:</p>
+<div class="highlight"><pre><span></span><code>c  → *hchan
+ep → куда положить T
+block
+</code></pre></div>
+<p>Высокоуровневое дерево похоже на send.</p>
+<p>Но получение из буфера имеет очень интересный специальный случай.</p>
+<hr/>
+<h1 id="31-nil-">31. Получение из nil-канала<a class="headerlink" href="#31-nil-" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
+<span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>блокирующий receive:</p>
+<div class="highlight"><pre><span></span><code>парковка forever
+</code></pre></div>
+<p>неблокирующий:</p>
+<div class="highlight"><pre><span></span><code>возврат false, false
+</code></pre></div>
+<p>Симметрично send.</p>
+<hr/>
+<h1 id="32-chanrecv">32. У <code>chanrecv</code> тоже есть быстрый путь без лока канала<a class="headerlink" href="#32-chanrecv" title="Permanent link">¶</a></h1>
+<p>Для неблокирующей операции сначала можно проверить:</p>
+<div class="highlight"><pre><span></span><code>канал пустой?
+</code></pre></div>
+<p>Если да — дополнительно нужно понять:</p>
+<div class="highlight"><pre><span></span><code>closed?
+</code></pre></div>
+<p>Но здесь порядок наблюдений тоньше, чем у send.</p>
+<p>Почему?</p>
+<p>Потому что буферизованный канал может быть:</p>
+<div class="highlight"><pre><span></span><code>open + non-пустой
+↓
+close
+↓
+drain
+↓
+closed + пустой
+</code></pre></div>
+<p>Неверное переупорядочивание чтений могло бы создать невозможный логический snapsгорячий.</p>
+<p>Текущий путь использует атомарные загрузки, чтобы сохранить нужную семантику.</p>
+<hr/>
+<h1 id="33">33. Закрытый и пустой канал: специальный результат получения<a class="headerlink" href="#33" title="Permanent link">¶</a></h1>
+<p>Если канал:</p>
+<div class="highlight"><pre><span></span><code>closed
++
+qcount == 0
+</code></pre></div>
+<p>то:</p>
+<div class="highlight"><pre><span></span><code>*ep = zero(T)
+возврат selected=true, received=false
+</code></pre></div>
+<p>Именно из этого получается:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>где:</p>
+<div class="highlight"><pre><span></span><code>ok == false
+</code></pre></div>
+<hr/>
+<h1 id="34">34. Закрытый канал не означает, что буфер уже пуст<a class="headerlink" href="#34" title="Permanent link">¶</a></h1>
+<p>Канал можно закрыть, когда в нем остались значения.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>буфер:
+[A][B][C]
+closed = true
+</code></pre></div>
+<p>Receive должен вернуть:</p>
+<div class="highlight"><pre><span></span><code>A
+B
+C
+</code></pre></div>
+<p>и только потом:</p>
+<div class="highlight"><pre><span></span><code>zero, false
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>closed
+≠
+немедленно zero value
+</code></pre></div>
+<p>Нужно учитывать <code>qcount</code>.</p>
+<hr/>
+<h1 id="35">35. Ожидающий отправитель при открытом канале<a class="headerlink" href="#35" title="Permanent link">¶</a></h1>
+<p>После захвата <code>hchan.lock</code> рантайм проверяет:</p>
+<div class="highlight"><pre><span></span><code>sendq.dequeue()
+</code></pre></div>
+<p>Если ожидающий отправитель есть:</p>
+<div class="highlight"><pre><span></span><code>recv(c, sg, ep, ...)
+</code></pre></div>
+<p>Дальше поведение зависит от:</p>
+<div class="highlight"><pre><span></span><code>размер буфера == 0?
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>буфер заполненный?
+</code></pre></div>
+<p>Вот здесь начинается самый интересный receive path.</p>
+<hr/>
+<h1 id="36">36. Небуферизованное получение: данные прямо от отправителя<a class="headerlink" href="#36" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>dataqsiz == 0
+</code></pre></div>
+<p>то:</p>
+<div class="highlight"><pre><span></span><code>стек отправителя
+↓
+recvDirect
+↓
+место назначения получателя
+</code></pre></div>
+<p>Это зеркальная версия <code>sendDirect</code>.</p>
+<p>Источник находится в стеке ожидающего отправитель.</p>
+<p>Destination — стек текущего получатель или другое допустимое Go-хранилище.</p>
+<hr/>
+<h1 id="37-recvdirect">37. <code>recvDirect</code>: почему исходный стек не должен двигаться<a class="headerlink" href="#37-recvdirect" title="Permanent link">¶</a></h1>
+<p>В этот момент лок канала удерживается.</p>
+<p>Связь <code>sudog</code> со стек отправитель защищена соответствующим протоколом runtime.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>src := sg.elem
+↓
+typeBitsBulkBarrier
+↓
+memmove(dst, src)
+</code></pre></div>
+<p>И опять:</p>
+<div class="highlight"><pre><span></span><code>обычный пользовательский код
+</code></pre></div>
+<p>никогда не получает права произвольно писать/читать чужие стеки.</p>
+<p>Это специальная операция runtime.</p>
+<hr/>
+<h1 id="38">38. Теперь буферизованный канал заполнен, а отправитель ждет<a class="headerlink" href="#38" title="Permanent link">¶</a></h1>
+<p>Состояние:</p>
+<div class="highlight"><pre><span></span><code>capacity = 4
+qcount = 4
+
+буфер:
+[A][B][C][D]
+
+sendq:
+G5 хочет отправить E
+</code></pre></div>
+<p>Почему отправитель вообще ждет?</p>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>буфер заполненный
+</code></pre></div>
+<p>Теперь приходит получатель.</p>
+<hr/>
+<h1 id="39">39. Наивный алгоритм<a class="headerlink" href="#39" title="Permanent link">¶</a></h1>
+<p>Можно было бы:</p>
+<div class="highlight"><pre><span></span><code>1. получатель берет A
+2. qcount--
+3. unlock
+4. разбудить отправитель
+5. отправитель потом снова захватывает lock
+6. отправитель записывает E
+</code></pre></div>
+<p>Корректно.</p>
+<p>Но много лишней работы:</p>
+<div class="highlight"><pre><span></span><code>unlock
+scheduler
+lock
+еще одна операция с каналом
+</code></pre></div>
+<p>Можно лучше.</p>
+<hr/>
+<h1 id="40-recv">40. Текущий <code>recv</code> делает обмен за одну критическую секцию<a class="headerlink" href="#40-recv" title="Permanent link">¶</a></h1>
+<p>Когда буферизованный канал заполненный и ожидающий отправитель найден:</p>
+<div class="highlight"><pre><span></span><code>головная ячейка буфера → получатель
+</code></pre></div>
+<p>и одновременно:</p>
+<div class="highlight"><pre><span></span><code>ожидающий значение отправителя → освободившаяся ячейка
+</code></pre></div>
+<p>То есть логически:</p>
+<div class="highlight"><pre><span></span><code>до:
+[A][B][C][D]
+
+после:
+[B][C][D][E]
+</code></pre></div>
+<p>Но массив физически не сдвигается.</p>
+<hr/>
+<h1 id="41">41. Почему начало и конец очереди здесь попадают в одну физическую ячейку<a class="headerlink" href="#41" title="Permanent link">¶</a></h1>
+<p>В полном ring буфер:</p>
+<div class="highlight"><pre><span></span><code>sendx == recvx
+</code></pre></div>
+<p>Это как раз двусмысленное состояние, для которого нам нужен <code>qcount</code>.</p>
+<p><code>recvx</code> указывает на head.</p>
+<p>Но когда head забрали, <strong>эта же физическая ячейка</strong> становится позиция конца очереди для следующего элемента.</p>
+<p>Поэтому рантайм может:</p>
+<div class="highlight"><pre><span></span><code>qp = chanbuf(c, recvx)
+
+qp → получатель
+отправитель → qp
+</code></pre></div>
+<p>за один заход.</p>
+<hr/>
+<h1 id="42">42. Индексы после такой операции<a class="headerlink" href="#42" title="Permanent link">¶</a></h1>
+<p>После полного получение из буфера с ожидающий отправитель:</p>
+<div class="highlight"><pre><span></span><code>recvx++
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>sendx = recvx
+</code></pre></div>
+<p>с учетом переход через конец кольца.</p>
+<p><code>qcount</code> остается:</p>
+<div class="highlight"><pre><span></span><code>полным
+</code></pre></div>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>один элемент ушел
++
+один элемент сразу пришел
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>qcount не меняется
+</code></pre></div>
+<p>Это очень красивый инвариант.</p>
+<hr/>
+<h1 id="43">43. Почему этот путь полезен под нагрузкой<a class="headerlink" href="#43" title="Permanent link">¶</a></h1>
+<p>В производитель/потребитель системе буфер постоянно около заполненный.</p>
+<p>Без специального пути:</p>
+<div class="highlight"><pre><span></span><code>каждый receive
+→ освободить место
+→ отдельный отправитель пробуждение
+→ новый lock
+→ отдельная запись
+</code></pre></div>
+<p>Со специальным путем:</p>
+<div class="highlight"><pre><span></span><code>одна критическая секция
+↓
+получение из головы + запись ожидающего отправителя
+</code></pre></div>
+<p>Меньше переходов между состояниями.</p>
+<p>Меньше лишней работы scheduler.</p>
+<hr/>
+<h1 id="44">44. Обычное получение из буфера<a class="headerlink" href="#44" title="Permanent link">¶</a></h1>
+<p>Если ожидающий отправитель нет, но:</p>
+<div class="highlight"><pre><span></span><code>qcount &gt; 0
+</code></pre></div>
+<p>тогда:</p>
+<div class="highlight"><pre><span></span><code>qp = chanbuf(c, recvx)
+↓
+`typedmemmove`(ep, qp)
+↓
+`typedmemclr`(qp)
+↓
+recvx++
+↓
+при необходимости перейти в начало кольца
+↓
+qcount--
+</code></pre></div>
+<p>Почему <code>typedmemclr</code>?</p>
+<p>Сейчас разберем.</p>
+<hr/>
+<h1 id="45">45. Почему освобожденную ячейку буфера нужно очищать<a class="headerlink" href="#45" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">chan</span><span class="w"> </span><span class="o">*</span><span class="nx">User</span>
+</code></pre></div>
+<p>получатель забрал указатель.</p>
+<p>Если старый указатель останется физически в ячейка буфера:</p>
+<div class="highlight"><pre><span></span><code>логически slot свободен
+но байты все еще содержат *User
+</code></pre></div>
+<p>Для GC это может создать нежелательное удержание или некорректную состояние указателей в типизированной памяти.</p>
+<p>Поэтому освобождаемая ячейка очищается тип-aware операцией.</p>
+<p>Связь с GC тут прямая.</p>
+<hr/>
+<h1 id="46">46. Буфер пуст, ожидающего отправителя нет<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>qcount == 0
+sendq пустой
+</code></pre></div>
+<p>Если операция блокирующий:</p>
+<div class="highlight"><pre><span></span><code>acquireSudog
+↓
+sg.elem → место назначения получатель
+↓
+recvq.добавить в очередь
+↓
+парковка
+</code></pre></div>
+<p>И снова:</p>
+<blockquote>
+<p>Дальше начинается уже известный рантайм ожидающий path.</p>
+</blockquote>
+<hr/>
+<h1 id="47">47. Полный алгоритм отправки<a class="headerlink" href="#47" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>ch &lt;- v
+↓
+nil?
+├── да → парковка forever / неблокирующий false
+└── нет
+    ↓
+неблокирующий быстрый путь?
+├── send невозможно → false
+└── продолжаем
+    ↓
+lock
+↓
+closed?
+├── да → panic
+└── нет
+    ↓
+ожидающий получатель?
+├── да → прямая передача
+└── нет
+    ↓
+буфер space?
+├── да → write at sendx, qcount++
+└── нет
+    ↓
+блокирующий?
+├── нет → false
+└── да → sendq + sudog + парковка
+</code></pre></div>
+<hr/>
+<h1 id="48">48. Полный алгоритм получения<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>&lt;-ch
+↓
+nil?
+├── да → парковка forever / неблокирующий false
+└── нет
+    ↓
+неблокирующий быстрый путь?
+↓
+lock
+↓
+closed + пустой?
+├── да → zero, false
+└── нет
+    ↓
+ожидающий отправитель?
+├── да
+│   ├── небуферизованный
+│   │   → прямой отправитель → получатель
+│   └── заполненный буферизованный
+│       → головная ячейка → получатель
+│       → отправитель → та же физическая ячейка
+│
+├── qcount &gt; 0
+│   → обычное получение из буфера
+│
+└── блокирующий?
+    ├── нет → false, false
+    └── да → recvq + sudog + парковка
+</code></pre></div>
+<hr/>
+<h1 id="49-closechan">49. Теперь <code>closechan</code><a class="headerlink" href="#49-closechan" title="Permanent link">¶</a></h1>
+<p>Семантика уже известна.</p>
+<p>Но одна строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">close</span><span class="p">(</span><span class="nx">ch</span><span class="p">)</span>
+</code></pre></div>
+<p>может затронуть:</p>
+<div class="highlight"><pre><span></span><code>весь recvq
++
+весь sendq
+</code></pre></div>
+<p>То есть цена <code>close</code> зависит не только от самого <code>hchan</code>.</p>
+<p>Она зависит от числа ожидающих операций.</p>
+<hr/>
+<h1 id="50-nil">50. Закрытие nil и повторное закрытие<a class="headerlink" href="#50-nil" title="Permanent link">¶</a></h1>
+<p>Текущий рантайм сразу защищает два случая:</p>
+<div class="highlight"><pre><span></span><code>close(nil)
+→ panic
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>close(already closed)
+→ panic
+</code></pre></div>
+<p>Потом под <code>hchan.lock</code>:</p>
+<div class="highlight"><pre><span></span><code>closed = 1
+</code></pre></div>
+<p>Теперь нужно разобрать очереди.</p>
+<hr/>
+<h1 id="51">51. Сначала освобождаются ожидающие получатели<a class="headerlink" href="#51" title="Permanent link">¶</a></h1>
+<p>Для каждого <code>sudog</code> в <code>recvq</code>:</p>
+<div class="highlight"><pre><span></span><code>если есть место назначения
+→ `typedmemclr`(место назначения)
+</code></pre></div>
+<p>Затем:</p>
+<div class="highlight"><pre><span></span><code>sg.success = false
+gp.param = sg
+</code></pre></div>
+<p>То есть проснувшийся получатель увидит:</p>
+<div class="highlight"><pre><span></span><code>операция завершилась не обычным receive
+</code></pre></div>
+<p>и получит zero value / <code>ok=false</code>.</p>
+<hr/>
+<h1 id="52">52. Потом разбираются ожидающие отправители<a class="headerlink" href="#52" title="Permanent link">¶</a></h1>
+<p>Для каждого waiter из <code>sendq</code>:</p>
+<div class="highlight"><pre><span></span><code>sg.elem = nil
+sg.success = false
+gp.param = sg
+</code></pre></div>
+<p>Это еще не panic.</p>
+<p>Это подготовка результата.</p>
+<p>Сам отправитель после пробуждения продолжит <code>chansend</code> и дойдет до:</p>
+<div class="highlight"><pre><span></span><code>send on closed канал
+</code></pre></div>
+<hr/>
+<h1 id="53-closechan-goready">53. Почему <code>closechan</code> не вызывает <code>goready</code> под локом<a class="headerlink" href="#53-closechan-goready" title="Permanent link">¶</a></h1>
+<p>Обрати внимание на дизайн.</p>
+<p>Под <code>hchan.lock</code> рантайм:</p>
+<div class="highlight"><pre><span></span><code>1. переводит состояние канала в closed
+2. извлекает waiters
+3. готовит их результаты
+4. складывает G во временный glist
+</code></pre></div>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>unlock(hchan)
+</code></pre></div>
+<p>И только после этого:</p>
+<div class="highlight"><pre><span></span><code>goready(получатель/отправитель)
+</code></pre></div>
+<hr/>
+<h1 id="54">54. Почему это принципиально<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
+<p>Комментарий рантайм прямо запрещает менять состояние другой G, удерживая <code>hchan.lock</code>.</p>
+<p>Причина связана со уменьшением стека и взаимными зависимостями runtime.</p>
+<p>Но даже на более общем уровне правило хорошее:</p>
+<div class="highlight"><pre><span></span><code>внутри критическая секция
+→ только изменить защищаемую структуру
+
+после unlock
+→ делать внешние действия / пробуждения
+</code></pre></div>
+<p>Так критическая секция короче и безопаснее.</p>
+<hr/>
+<h1 id="55-close-on">55. <code>close</code> с большой очередью ожидания — это O(N) работа<a class="headerlink" href="#55-close-on" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>recvq = 50 000 горутины
+</code></pre></div>
+<p><code>close(ch)</code> должен:</p>
+<div class="highlight"><pre><span></span><code>пройти очередь
+↓
+подготовить 50 000 ожиданий
+↓
+после unlock сделать G runnable
+</code></pre></div>
+<p>Логически:</p>
+<div class="highlight"><pre><span></span><code>close
+</code></pre></div>
+<p>выглядит как одна операция.</p>
+<p>Физически:</p>
+<div class="highlight"><pre><span></span><code>работа пропорциональна числу waiters
+</code></pre></div>
+<p>А после этого scheduler получает всплеск готовых к выполнению горутин.</p>
+<p>Механику scheduler всплеск уже знаем.</p>
+<hr/>
+<h1 id="56">56. Внутреннее устройство канала: что важно запомнить<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
+<ol>
+<li><code>makechan</code> знает размер и карта указателей элемента.</li>
+<li>буфер без Go-указателей может быть выделен вместе с <code>hchan</code>.</li>
+<li><code>chansend</code> сначала предпочитает ожидающий получатель, потом буфер, потом парковка.</li>
+<li>ожидающий получатель получает прямая передача без промежуточной записи в буфер.</li>
+<li>Небуферизованный канал может копировать значение прямо между стеками разных горутин.</li>
+<li>Для такого стек-to-стек copy нужен специальный путь с учетом барьера GC.</li>
+<li>Buffered send использует <code>sendx</code>, получение из буфера — <code>recvx</code>.</li>
+<li>заполненный получение из буфера с ожидающий отправитель одновременно забирает head и кладет значение отправителя в ту же физическую ячейку.</li>
+<li><code>closechan</code> по-разному подготавливает получатели и отправители.</li>
+<li>G пробуждаются уже после освобождения <code>hchan.lock</code>.</li>
+</ol>
+<hr/>
+<h1 id="57-select">57. Переходим к <code>select</code><a class="headerlink" href="#57-select" title="Permanent link">¶</a></h1>
+<p>Один канал теперь разобран.</p>
+<p>Но <code>select</code> меняет задачу:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+
+<span class="k">case</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">sent</span><span class="p">()</span>
+
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">c</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">done</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Одна G.</p>
+<p>Три потенциальных операции.</p>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code>не пропустить готовую операцию
+не получить deadlock на локи каналов
+не зарегистрироваться дважды некорректно
+проснуться только от одного `case`
+после пробуждение убрать проигравшие регистрации
+</code></pre></div>
+<p>Вот почему <code>selectgo</code> заметно сложнее <code>if</code>.</p>
+<hr/>
+<h1 id="58-selectgo">58. Что уже сделал компилятор до <code>selectgo</code><a class="headerlink" href="#58-selectgo" title="Permanent link">¶</a></h1>
+<p>Текущий рантайм получает массив <code>case</code> descriptors.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>s`case`
+├── канал
+└── elem
+</code></pre></div>
+<p>Где <code>elem</code> — адрес отправляемого или принимаемого значения.</p>
+<p>Кроме того, рантайм получает временную память под два порядка:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+lockOrder
+</code></pre></div>
+<p>Важная деталь:</p>
+<blockquote>
+<p>Эти массивы находятся на стеке горутина, а не создаются как отдельные heap-объекты внутри <code>selectgo</code>.</p>
+</blockquote>
+<p>Как компилятор их строит — тема <code>4.3</code>.</p>
+<hr/>
+<h1 id="59-select-selectgo">59. Простой <code>select</code> может вообще не дойти до общего <code>selectgo</code><a class="headerlink" href="#59-select-selectgo" title="Permanent link">¶</a></h1>
+<p>Текущий компилятор умеет переписывать простые формы вроде:</p>
+<div class="highlight"><pre><span></span><code>0 `case`
+1 `case`
+1 `case` + default
+</code></pre></div>
+<p>в более специализированный код.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>select syntax
+≠
+обязательно runtime.selectgo
+</code></pre></div>
+<p>Мы это только фиксируем.</p>
+<p>Подробно lowering посмотрим в <code>4.3</code>.</p>
+<hr/>
+<h1 id="60-selectgo">60. Общий <code>selectgo</code> начинает с двух разных порядков<a class="headerlink" href="#60-selectgo" title="Permanent link">¶</a></h1>
+<p>Нужны:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>lockOrder
+</code></pre></div>
+<p>Почему нельзя один?</p>
+<p>Потому что они решают противоположные задачи.</p>
+<hr/>
+<h1 id="61-pollorder">61. <code>pollOrder</code>: убрать систематический приоритет<a class="headerlink" href="#61-pollorder" title="Permanent link">¶</a></h1>
+<p>Если всегда проверять:</p>
+<div class="highlight"><pre><span></span><code>`case` 0
+`case` 1
+`case` 2
+</code></pre></div>
+<p>первый готовый <code>case</code> получит структурное преимущество.</p>
+<p>Поэтому рантайм строит псевдослучайную перестановку <code>case</code>.</p>
+<p>Это не строгая fairness-гарантия.</p>
+<p>Но это убирает постоянный перекос текстового порядка.</p>
+<hr/>
+<h1 id="62-pollorder">62. Как строится <code>pollOrder</code><a class="headerlink" href="#62-pollorder" title="Permanent link">¶</a></h1>
+<p>Текущий алгоритм добавляет <code>case</code> по одному.</p>
+<p>Для каждого нового элемента:</p>
+<div class="highlight"><pre><span></span><code>n уже добавлено
+↓
+j = random[0..n]
+↓
+новый `case` меняется местами с позицией j
+</code></pre></div>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>было:
+[A B C]
+
+добавляем D
+j = 1
+
+получаем:
+[A D C B]
+</code></pre></div>
+<p>Это incremental shuffle.</p>
+<p>Отдельный временный массив и отдельный второй проход для перемешивания не нужны.</p>
+<hr/>
+<h1 id="63-nil-">63. Nil-каналы вообще не попадают в рабочие порядки<a class="headerlink" href="#63-nil-" title="Permanent link">¶</a></h1>
+<p>Если <code>case</code> использует:</p>
+<div class="highlight"><pre><span></span><code>nil канал
+</code></pre></div>
+<p>он никогда не станет готовый.</p>
+<p>Поэтому <code>selectgo</code> исключает такой <code>case</code> из:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+lockOrder
+</code></pre></div>
+<p>И заодно очищает ссылку на element, чтобы GC не удерживал данные без необходимости.</p>
+<p>Это конкретный рантайм-эффект известной семантики nil-канал.</p>
+<hr/>
+<h1 id="64-lockorder">64. <code>lockOrder</code>: совершенно другая задача<a class="headerlink" href="#64-lockorder" title="Permanent link">¶</a></h1>
+<p>Теперь два concurrent <code>select</code>.</p>
+<p>Первый использует:</p>
+<div class="highlight"><pre><span></span><code>A, B
+</code></pre></div>
+<p>Второй:</p>
+<div class="highlight"><pre><span></span><code>B, A
+</code></pre></div>
+<p>Если брать локи в текстовом или случайном порядке:</p>
+<div class="highlight"><pre><span></span><code>G1: lock A
+G2: lock B
+G1: wait B
+G2: wait A
+</code></pre></div>
+<p>Получили deadlock внутри runtime.</p>
+<p>Нужен глобально согласованный порядок.</p>
+<hr/>
+<h1 id="65">65. Поэтому каналы сортируются по ключу рантайма<a class="headerlink" href="#65" title="Permanent link">¶</a></h1>
+<p>Текущая реализация сортирует <code>case</code> по ключу <code>hchan</code>.</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>все select
+↓
+одна функция порядка каналов
+↓
+одинаковый набор каналы
+→ одинаковый порядок lock
+</code></pre></div>
+<p>Тогда cycle:</p>
+<div class="highlight"><pre><span></span><code>A → B
+и
+B → A
+</code></pre></div>
+<p>не возникает.</p>
+<hr/>
+<h1 id="66">66. Почему используется пирамидальная сортировка<a class="headerlink" href="#66" title="Permanent link">¶</a></h1>
+<p>Текущий <code>selectgo</code> строит <code>lockOrder</code> через heap sort.</p>
+<p>Комментарий рантайм объясняет две цели:</p>
+<div class="highlight"><pre><span></span><code>O(N log N)
++
+constant стек footprint
+</code></pre></div>
+<p>Почему не обычная удобная сортировка из standard library?</p>
+<p>Потому что мы уже внутри рантайм горячий путь и хотим контролировать память и стек.</p>
+<hr/>
+<h1 id="67-case">67. Несколько <code>case</code> на одном канале<a class="headerlink" href="#67-case" title="Permanent link">¶</a></h1>
+<p>Один <code>select</code> может содержать несколько операций над тем же канал.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>lockOrder</code> содержит <code>case</code>.</p>
+<p>Но <code>sellock</code> не берет один и тот же <code>hchan.lock</code> повторно для соседних entries одного канал.</p>
+<p>Иначе рантайм сам deadlock'нулся бы на нерекурсивном локе.</p>
+<hr/>
+<h1 id="68">68. Теперь все локи каналов взяты<a class="headerlink" href="#68" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>sellock(s`case`, lockOrder)
+</code></pre></div>
+<p>После этого можно безопасно исследовать состояние всех участвующих каналы как согласованный набор относительно других операции с каналами, которые требуют тех же локи.</p>
+<p>И начинается первый проход.</p>
+<h1 id="69-1">69. Проход 1: сначала ищем операцию, которую можно выполнить прямо сейчас<a class="headerlink" href="#69-1" title="Permanent link">¶</a></h1>
+<p><code>selectgo</code> идет по:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
+</code></pre></div>
+<p>Для receive <code>case</code> проверяет:</p>
+<div class="highlight"><pre><span></span><code>есть ожидающий отправитель?
+есть данные в буфер?
+канал closed?
+</code></pre></div>
+<p>Для send <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>канал closed?
+есть ожидающий получатель?
+есть место в буфер?
+</code></pre></div>
+<p>Нашли готовый <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>выполнить его сразу
+↓
+select завершен
+</code></pre></div>
+<p>Никакой парковки.</p>
+<hr/>
+<h1 id="70-case">70. Почему готовый <code>case</code> нужно искать до регистрации ожиданий<a class="headerlink" href="#70-case" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>канал уже содержит данные
+</code></pre></div>
+<p>Плохой алгоритм:</p>
+<div class="highlight"><pre><span></span><code>создать sudog
+↓
+добавить в очередь
+↓
+парковка
+↓
+кто-то сразу пробуждение
+</code></pre></div>
+<p>Мы создали служебную работу для операции, которую можно было закончить прямо сейчас.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>сначала дешевый готовый path
+↓
+только потом регистрация ожиданий
+</code></pre></div>
+<p>Это повторяющийся дизайн runtime.</p>
+<hr/>
+<h1 id="71">71. Получение в первом проходе<a class="headerlink" href="#71" title="Permanent link">¶</a></h1>
+<p>Порядок логически такой:</p>
+<div class="highlight"><pre><span></span><code>ожидающий отправитель?
+↓
+буфер contains value?
+↓
+closed?
+</code></pre></div>
+<p>Почему ожидающий отправитель проверяется раньше буфер?</p>
+<p>Для заполненный буферизованный канал ожидающий отправитель означает специальный путь:</p>
+<div class="highlight"><pre><span></span><code>головная ячейка → получатель
+ожидающий отправитель → освободившаяся ячейка
+</code></pre></div>
+<p>То есть рантайм уже знает оптимальный переход состояния канал.</p>
+<hr/>
+<h1 id="72">72. Отправка в первом проходе<a class="headerlink" href="#72" title="Permanent link">¶</a></h1>
+<p>Для send:</p>
+<div class="highlight"><pre><span></span><code>closed?
+↓
+ожидающий получатель?
+↓
+буфер has space?
+</code></pre></div>
+<p>Closed проверяется первым, потому что:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">send</span><span class="w"> </span><span class="nx">on</span><span class="w"> </span><span class="nx">closed</span><span class="w"> </span><span class="nx">канал</span>
+</code></pre></div>
+<p>всегда panic.</p>
+<p>Даже если где-то есть получатель.</p>
+<p>Семантика закрытия важнее потенциальной готовности другой стороны.</p>
+<hr/>
+<h1 id="73-default">73. <code>default</code>: если ничего не готово, можно сразу выйти<a class="headerlink" href="#73-default" title="Permanent link">¶</a></h1>
+<p>Если <code>select</code> неблокирующий:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span>
+<span class="k">default</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>и проход 1 не нашел готовый <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>selunlock
+↓
+возврат default
+</code></pre></div>
+<p>До создания <code>sudog</code> дело не доходит.</p>
+<p>То есть <code>default</code> меняет не только семантику.</p>
+<p>Он буквально отсекает всю вторую половину алгоритма ожидания.</p>
+<hr/>
+<h1 id="74-default">74. Ничего не готово, и <code>default</code> нет<a class="headerlink" href="#74-default" title="Permanent link">¶</a></h1>
+<p>Вот теперь начинается настоящая блокировка.</p>
+<p>Нужно сделать одну G ожидающей сразу на нескольких операции с каналами.</p>
+<p>Для каждого <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>acquireSudog
+↓
+sg.g = current G
+↓
+sg.isSelect = true
+↓
+sg.elem = address of `case` value
+↓
+sg.c = канал
+</code></pre></div>
+<p>И потом:</p>
+<div class="highlight"><pre><span></span><code>send `case` → sendq
+receive `case` → recvq
+</code></pre></div>
+<hr/>
+<h1 id="75-g-sudog">75. Одна G получает несколько <code>sudog</code><a class="headerlink" href="#75-g-sudog" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">b</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">c</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">x</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">d</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>a.recvq → sudog A ─┐
+b.recvq → sudog B ─┤
+c.sendq → sudog C ─┼→ G
+d.recvq → sudog D ─┘
+</code></pre></div>
+<p>Это уже было концептуально.</p>
+<p>Теперь важная новая деталь:</p>
+<blockquote>
+<p>Рантайм еще связывает эти <code>sudog</code> в собственный список <code>gp.waiting</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="76-gpwaiting-lockorder">76. Почему <code>gp.waiting</code> строится в <code>lockOrder</code><a class="headerlink" href="#76-gpwaiting-lockorder" title="Permanent link">¶</a></h1>
+<p><code>selectgo</code> собирает список ожиданий в том же порядке, в котором отсортированы локи каналов.</p>
+<p>Это нужно не для красоты.</p>
+<p>Позже <code>selparkcommit</code> должен:</p>
+<div class="highlight"><pre><span></span><code>идти по gp.waiting
+↓
+безопасно отпускать локи каналов
+</code></pre></div>
+<p>Если список уже упорядочен:</p>
+<div class="highlight"><pre><span></span><code>одинаковые каналы идут рядом
+</code></pre></div>
+<p>можно корректно отпускать каждый lock один раз.</p>
+<hr/>
+<h1 id="77">77. Почему регистрация выполняется под локами каналов<a class="headerlink" href="#77" title="Permanent link">¶</a></h1>
+<p>Представим плохой алгоритм:</p>
+<div class="highlight"><pre><span></span><code>проверили канал A
+↓
+ничего не готовый
+↓
+unlock A
+↓
+позже добавить в очередь waiter
+</code></pre></div>
+<p>Между:</p>
+<div class="highlight"><pre><span></span><code>unlock
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>добавить в очередь
+</code></pre></div>
+<p>отправитель может выполнить send.</p>
+<p>Он увидит:</p>
+<div class="highlight"><pre><span></span><code>получатель нет
+</code></pre></div>
+<p>и уйдет дальше.</p>
+<p>Потом получатель зарегистрируется.</p>
+<p>Сигнал уже потерян.</p>
+<hr/>
+<h1 id="78">78. Классическая проблема потерянного пробуждения<a class="headerlink" href="#78" title="Permanent link">¶</a></h1>
+<p>Нужно атомарно по смыслу связать:</p>
+<div class="highlight"><pre><span></span><code>проверили условие
++
+зарегистрировали ожидание
+</code></pre></div>
+<p>Такой же класс проблем встречается в condition variables, futex-подобных протоколах и других wait/пробуждение схемах.</p>
+<p>В <code>selectgo</code> локи каналов обеспечивают эту связь.</p>
+<hr/>
+<h1 id="79">79. Но теперь появилась новая проблема: как отпустить локи и припарковаться<a class="headerlink" href="#79" title="Permanent link">¶</a></h1>
+<p>Мы уже зарегистрированы во всех очереди.</p>
+<p>Все локи каналов еще удерживаются.</p>
+<p>Нельзя:</p>
+<div class="highlight"><pre><span></span><code>парковка
+</code></pre></div>
+<p>оставив локи навсегда.</p>
+<p>Но нельзя и просто:</p>
+<div class="highlight"><pre><span></span><code>unlock all
+↓
+потом парковка
+</code></pre></div>
+<p>Почему?</p>
+<hr/>
+<h1 id="80">80. Окно между освобождением локов и парковкой<a class="headerlink" href="#80" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>unlock каналы
+↓
+отправитель приходит
+↓
+видит наш sudog
+↓
+goready(G)
+↓
+но G еще формально не припарковалась
+</code></pre></div>
+<p>Получаем опасное race window вокруг состояния G.</p>
+<p>Нужен специальный commit-протокол парковки.</p>
+<hr/>
+<h1 id="81-selparkcommit">81. <code>selparkcommit</code><a class="headerlink" href="#81-selparkcommit" title="Permanent link">¶</a></h1>
+<p><code>selectgo</code> вызывает:</p>
+<div class="highlight"><pre><span></span><code>gopark(selparkcommit, ...)
+</code></pre></div>
+<p>То есть parking функция обратного вызова специально знает про <code>select</code>.</p>
+<p>Его задача:</p>
+<div class="highlight"><pre><span></span><code>подготовить G к безопасному взаимодействию со стеком
+↓
+зафиксировать parking state
+↓
+отпустить локи каналов
+↓
+разрешить окончательный парковка
+</code></pre></div>
+<p>Это не повтор общего <code>gopark</code>.</p>
+<p>Это специализированный протокол commit для <code>select</code>.</p>
+<hr/>
+<h1 id="82-activestackchans">82. <code>activeStackChans</code><a class="headerlink" href="#82-activestackchans" title="Permanent link">¶</a></h1>
+<p>Почему <code>selparkcommit</code> вообще думает о стек?</p>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>sudog.elem
+</code></pre></div>
+<p>может указывать в стек текущей G.</p>
+<p>После unlock канал другой поток рантайм сможет взаимодействовать с этими <code>sudog</code>.</p>
+<p>Одновременно стек Go может shrink/copy.</p>
+<p>Нужно сообщить стек machinery:</p>
+<div class="highlight"><pre><span></span><code>у этой G есть активные ссылки каналов в стек
+</code></pre></div>
+<p>Для этого существует состояние вроде:</p>
+<div class="highlight"><pre><span></span><code>activeStackChans
+</code></pre></div>
+<hr/>
+<h1 id="83-parkingonchan">83. <code>parkingOnChan</code><a class="headerlink" href="#83-parkingonchan" title="Permanent link">¶</a></h1>
+<p>Runtime также отмечает:</p>
+<div class="highlight"><pre><span></span><code>G прямо сейчас входит в parking protocol на канал
+</code></pre></div>
+<p>Через отдельное состояние.</p>
+<p>Когда <code>selparkcommit</code> завершает подготовку:</p>
+<div class="highlight"><pre><span></span><code>parkingOnChan = false
+</code></pre></div>
+<p>и только после нужных публикаций начинает отпускать локи каналов.</p>
+<p>Это деталь текущей реализации.</p>
+<p>Но причинность важна:</p>
+<blockquote>
+<p>перемещением стека, канал очереди и parking — не независимые подсистемы.</p>
+</blockquote>
+<hr/>
+<h1 id="84-selparkcommit">84. Почему <code>selparkcommit</code> не должен обращаться к стеку после освобождения первого лока<a class="headerlink" href="#84-selparkcommit" title="Permanent link">¶</a></h1>
+<p>Как только отпущен первый лок канала:</p>
+<div class="highlight"><pre><span></span><code>другая G может найти наш sudog
+↓
+сделать нас runnable
+↓
+эта G может начать выполняться на другом M
+</code></pre></div>
+<p>То есть после unlock старый M должен считать:</p>
+<div class="highlight"><pre><span></span><code>стек этой G уже потенциально принадлежит снова самой G
+</code></pre></div>
+<p>Поэтому функция обратного вызова очень осторожно ограничивает, к чему обращается.</p>
+<hr/>
+<h1 id="85-g">85. Теперь G действительно спит<a class="headerlink" href="#85-g" title="Permanent link">¶</a></h1>
+<p>После commit:</p>
+<div class="highlight"><pre><span></span><code>G → ожидающий
+</code></pre></div>
+<p>В очереди остается:</p>
+<div class="highlight"><pre><span></span><code>несколько sudog
+</code></pre></div>
+<p>Любой из участвующих каналы может стать готовым.</p>
+<p>Но победить должен только один <code>case</code>.</p>
+<p>И вот здесь появляется еще один механизм.</p>
+<hr/>
+<h1 id="86">86. Что если два канала становятся готовы почти одновременно<a class="headerlink" href="#86" title="Permanent link">¶</a></h1>
+<p>G зарегистрирована:</p>
+<div class="highlight"><pre><span></span><code>A.recvq
+B.recvq
+</code></pre></div>
+<p>Почти одновременно:</p>
+<div class="highlight"><pre><span></span><code>отправитель A
+отправитель B
+</code></pre></div>
+<p>Оба находят соответствующий <code>sudog</code>.</p>
+<p>Если оба просто сделают:</p>
+<div class="highlight"><pre><span></span><code>goready(G)
+</code></pre></div>
+<p>мы получим двойное завершение одного <code>select</code>.</p>
+<p>Нужна арбитражная точка.</p>
+<hr/>
+<h1 id="87-selectdone">87. <code>selectDone</code><a class="headerlink" href="#87-selectdone" title="Permanent link">¶</a></h1>
+<p>У G есть атомарное состояние:</p>
+<div class="highlight"><pre><span></span><code>selectDone
+</code></pre></div>
+<p>Очередь ожидания при <code>dequeue</code> <code>sudog</code> от <code>select</code> пытается атомарно сделать:</p>
+<div class="highlight"><pre><span></span><code>0 → 1
+</code></pre></div>
+<p>Успел первым:</p>
+<div class="highlight"><pre><span></span><code>этот `case` победил
+</code></pre></div>
+<p>Не успел:</p>
+<div class="highlight"><pre><span></span><code>другой `case` уже победил
+↓
+этот sudog устаревший
+</code></pre></div>
+<hr/>
+<h1 id="88-cas-waitqdequeue">88. Почему CAS нужен в <code>waitq.dequeue</code><a class="headerlink" href="#88-cas-waitqdequeue" title="Permanent link">¶</a></h1>
+<p>Арбитраж не находится только внутри <code>selectgo</code>.</p>
+<p>Победитель обнаруживается в момент, когда конкретная операция с каналом извлекает waiter из своей очередь.</p>
+<p>Поэтому <code>waitq.dequeue</code> знает:</p>
+<div class="highlight"><pre><span></span><code>sg.isSelect?
+</code></pre></div>
+<p>Если да — участвует в выборе победителя.</p>
+<p>Получаем связь:</p>
+<div class="highlight"><pre><span></span><code>канал очередь
+↔
+select state одной G
+</code></pre></div>
+<hr/>
+<h1 id="89-sudog">89. Проигравший <code>sudog</code> может временно оставаться в очереди<a class="headerlink" href="#89-sudog" title="Permanent link">¶</a></h1>
+<p>Победил <code>case</code> B.</p>
+<p>Но физически <code>sudog A</code> может еще лежать в:</p>
+<div class="highlight"><pre><span></span><code>A.recvq
+</code></pre></div>
+<p>Пока проснувшийся <code>selectgo</code> не выполнит очистка.</p>
+<p>Если в этот момент кто-то придет в A:</p>
+<div class="highlight"><pre><span></span><code>`dequeue`
+↓
+видит select sudog
+↓
+CAS selectDone проигрывает
+↓
+пропускает устаревший waiter
+</code></pre></div>
+<p>То есть очередь умеет самоочищаться от логически проигравших записей при встрече с ними.</p>
+<hr/>
+<h1 id="90-sudog-g">90. Кто передает победивший <code>sudog</code> обратно G<a class="headerlink" href="#90-sudog-g" title="Permanent link">¶</a></h1>
+<p>операция с каналом, которая выиграла, перед пробуждением записывает waiter в:</p>
+<div class="highlight"><pre><span></span><code>gp.param
+</code></pre></div>
+<p>После пробуждение <code>selectgo</code> получает:</p>
+<div class="highlight"><pre><span></span><code>sg := gp.param
+</code></pre></div>
+<p>Теперь он знает:</p>
+<div class="highlight"><pre><span></span><code>какое именно ожидание победило
+</code></pre></div>
+<p>Но все остальные регистрации еще нужно удалить.</p>
+<hr/>
+<h1 id="91-g-3">91. G проснулась — проход 3<a class="headerlink" href="#91-g-3" title="Permanent link">¶</a></h1>
+<p>Первое:</p>
+<div class="highlight"><pre><span></span><code>снова взять все локи каналов
+</code></pre></div>
+<p>Почему?</p>
+<p>Потому что сейчас будем изменять очереди ожидания.</p>
+<p>Без локи удалять <code>sudog</code> из нескольких concurrent очереди нельзя.</p>
+<hr/>
+<h1 id="92">92. Перед удалением связей рантайм очищает указатели, связанные со стеком<a class="headerlink" href="#92" title="Permanent link">¶</a></h1>
+<p>Сначала:</p>
+<div class="highlight"><pre><span></span><code>для всех sg в gp.waiting
+↓
+isSelect = false
+elem = nil
+c = nil
+</code></pre></div>
+<p>И затем:</p>
+<div class="highlight"><pre><span></span><code>gp.waiting = nil
+</code></pre></div>
+<p>Только после этого можно постепенно освобождать <code>sudog</code>.</p>
+<p>Это снова связано с тем, что их поля могли указывать в стек.</p>
+<hr/>
+<h1 id="93-sudog">93. Победивший <code>sudog</code> уже удален из своей очереди<a class="headerlink" href="#93-sudog" title="Permanent link">¶</a></h1>
+<p>операция с каналом, которая разбудила G:</p>
+<div class="highlight"><pre><span></span><code>извлечение победителя
+</code></pre></div>
+<p>уже выполнила.</p>
+<p>Поэтому в проход 3:</p>
+<div class="highlight"><pre><span></span><code>если sg == победитель
+→ не удаляем повторно
+→ запоминаем выбранный `case`
+</code></pre></div>
+<p>Для остальных:</p>
+<div class="highlight"><pre><span></span><code>send `case`
+→ dequeueSudoG из sendq
+
+receive `case`
+→ dequeueSudoG из recvq
+</code></pre></div>
+<hr/>
+<h1 id="94-sudog">94. Потом все <code>sudog</code> возвращаются в пул рантайма<a class="headerlink" href="#94-sudog" title="Permanent link">¶</a></h1>
+<p>Для каждого:</p>
+<div class="highlight"><pre><span></span><code>releaseSudog
+</code></pre></div>
+<p>То есть один блокирующий <code>select</code> на N <code>case</code> потенциально использует:</p>
+<div class="highlight"><pre><span></span><code>N sudog
+</code></pre></div>
+<p>на период ожидания.</p>
+<p>После завершения они переиспользуются.</p>
+<hr/>
+<h1 id="95-3">95. Проход 3 нужен не только для памяти<a class="headerlink" href="#95-3" title="Permanent link">¶</a></h1>
+<p>Если проигравшие регистрации оставить:</p>
+<div class="highlight"><pre><span></span><code>quiet канал
+↓
+тысячи старых sudog
+↓
+очередь растет
+</code></pre></div>
+<p>Потом любой send/recv вынужден будет пропускать устаревший entries.</p>
+<p>Поэтому очистка — часть корректности и производительности.</p>
+<hr/>
+<h1 id="96-selectgo">96. Полный <code>selectgo</code><a class="headerlink" href="#96-selectgo" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>`case`
+↓
+убрать nil каналы
+↓
+построить pollOrder
+↓
+построить lockOrder
+↓
+lock all каналы
+
+PASS 1
+↓
+проверить готовый operations в pollOrder
+↓
+готово?
+├── да → выполнить и возврат
+└── нет
+    ↓
+    неблокирующий/default?
+    ├── да → unlock + возврат
+    └── нет
+        ↓
+
+PASS 2
+↓
+создать sudog для `case`
+↓
+добавить в очередь в sendq/recvq
+↓
+gp.waiting
+↓
+gopark(selparkcommit)
+↓
+unlock каналы внутри commit
+↓
+G ожидающий
+
+один канал выигрывает
+↓
+selectDone CAS
+↓
+победитель → gp.param
+↓
+goready
+
+G снова выполняется
+↓
+lock all каналы
+
+PASS 3
+↓
+очистить проигравшие регистрации
+↓
+releaseSudog
+↓
+определить победитель
+↓
+unlock
+↓
+возврат `case` index
+</code></pre></div>
+<hr/>
+<h1 id="97-select">97. Сложность <code>select</code> уже видна из алгоритма<a class="headerlink" href="#97-select" title="Permanent link">¶</a></h1>
+<p>Пусть N активных <code>case</code>.</p>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code>построить pollOrder      ~ O(N)
+построить lockOrder      ~ O(N log N)
+проход 1                   ~ O(N)
+</code></pre></div>
+<p>Если блокируемся:</p>
+<div class="highlight"><pre><span></span><code>зарегистрировать N sudog ~ O(N)
+проход 3 очистка           ~ O(N)
+</code></pre></div>
+<p>Точная цена зависит от конкретного пути.</p>
+<p>Но важная модель:</p>
+<blockquote>
+<p><code>select</code> не O(1) относительно числа <code>case</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="98-2-case-200-case-select">98. Почему 2-<code>case</code> и 200-<code>case</code> <code>select</code> — разные по цене<a class="headerlink" href="#98-2-case-200-case-select" title="Permanent link">¶</a></h1>
+<p>Синтаксис одинаков:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>Но работа рантайм:</p>
+<div class="highlight"><pre><span></span><code>2 `case`
+→ маленькие массивы
+→ мало локи
+→ мало checks
+
+200 `case`
+→ большие порядки
+→ сортировка
+→ много локи каналов
+→ потенциально 200 sudog
+→ большой очистка
+</code></pre></div>
+<p>Под высокой частотой это уже заметно.</p>
+<hr/>
+<h1 id="99-select">99. Но широкий <code>select</code> не обязательно блокируется<a class="headerlink" href="#99-select" title="Permanent link">¶</a></h1>
+<p>Если проход 1 часто находит готовый <code>case</code>:</p>
+<div class="highlight"><pre><span></span><code>проход 2
+проход 3
+парковка
+</code></pre></div>
+<p>вообще не выполняются.</p>
+<p>То есть характер нагрузки важнее одной ширины syntax.</p>
+<p>Сравнивать нужно:</p>
+<div class="highlight"><pre><span></span><code>готовый-heavy workload
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>нагрузка, где `select` обычно блокируется
+</code></pre></div>
+<hr/>
+<h1 id="100-select">100. Один горячий канал во множестве <code>select</code><a class="headerlink" href="#100-select" title="Permanent link">¶</a></h1>
+<p>Пусть тысячи горутины имеют:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">горячий</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">other</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Каждый общий <code>selectgo</code> включает <code>горячий</code> в:</p>
+<div class="highlight"><pre><span></span><code>lockOrder
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>много G
+↓
+один hchan.lock
+↓
+contention
+</code></pre></div>
+<p>на уровне канала contention не исчезает от использования <code>select</code>.</p>
+<hr/>
+<h1 id="101-pollorder">101. <code>pollOrder</code> не дает строгой справедливости<a class="headerlink" href="#101-pollorder" title="Permanent link">¶</a></h1>
+<p>Псевдослучайный порядок нужен, чтобы убрать систематический перекос.</p>
+<p>Но он не обещает:</p>
+<div class="highlight"><pre><span></span><code>каждый готовый `case` получит ровно 1/N выборов
+</code></pre></div>
+<p>на любом конечном отрезке.</p>
+<p>И не является механизмом:</p>
+<div class="highlight"><pre><span></span><code>priority
+weighted scheduling
+round-robin SLA
+</code></pre></div>
+<p>Если приложению нужна бизнес-политика выбора — ее строят отдельно.</p>
+<hr/>
+<h1 id="102-selectgo">102. <code>selectgo</code>: что важно запомнить<a class="headerlink" href="#102-selectgo" title="Permanent link">¶</a></h1>
+<ol>
+<li><code>selectgo</code> работает с двумя порядками: случайным <code>pollOrder</code> и детерминированным <code>lockOrder</code>.</li>
+<li>Nil-каналы исключаются из рабочих порядков.</li>
+<li><code>lockOrder</code> нужен, чтобы несколько <code>select</code> не дедлочились на <code>hchan.lock</code>.</li>
+<li>Проход 1 ищет already-готовый operation.</li>
+<li>При <code>default</code> проход 2 вообще не нужен.</li>
+<li>Проход 2 регистрирует одну G во всех нужных очереди ожидания.</li>
+<li>Регистрация выполняется при удерживаемых локи каналов, чтобы не потерять пробуждение.</li>
+<li><code>selparkcommit</code> связывает безопасный парковка, отпускание локи каналов и перемещаемый стек.</li>
+<li><code>selectDone</code> гарантирует одного победителя.</li>
+<li>Проход 3 удаляет проигравшие регистрации.</li>
+<li>Стоимость блокирующий <code>select</code> растет с числом <code>case</code>.</li>
+</ol>
+<hr/>
+<h1 id="103-context">103. Теперь переходим к <code>context</code><a class="headerlink" href="#103-context" title="Permanent link">¶</a></h1>
+<p>После каналов и <code>select</code> легко построить новую слишком простую модель:</p>
+<blockquote>
+<p><code>context</code> — это просто еще один <code>Done</code>-канал.</p>
+</blockquote>
+<p>Нет.</p>
+<p><code>Done</code> — только внешняя точка наблюдения.</p>
+<p>Нужно еще решить:</p>
+<div class="highlight"><pre><span></span><code>как дочерний контекст узнает об отмене родителя?
+как родитель знает о дочернем контексте?
+что если родитель — пользовательский `Context`?
+что если родитель никогда не отменяется?
+что если родитель поддерживает `AfterFunc`?
+как убрать дочерний контекст, если он завершился раньше родителя?
+как дедлайн встраивается в ту же схему?
+</code></pre></div>
+<hr/>
+<h1 id="104">104. Напомним только устойчивую модель<a class="headerlink" href="#104" title="Permanent link">¶</a></h1>
+<p>Из основной лекции известно:</p>
+<div class="highlight"><pre><span></span><code>Context
+→ цепочка оберток
+
+отменяемый Context
+→ родитель / потомки
+
+cancel
+→ `Done` закрыт
+→ потомки отменяются
+</code></pre></div>
+<p>И:</p>
+<div class="highlight"><pre><span></span><code>отмена cooperative
+</code></pre></div>
+<p>То есть <code>cancel()</code> не убивает произвольную G.</p>
+<p>Этого достаточно как фундамент.</p>
+<hr/>
+<h1 id="105-cancelctx">105. <code>cancelCtx</code>: какие инварианты ему нужны<a class="headerlink" href="#105-cancelctx" title="Permanent link">¶</a></h1>
+<p>Текущая структура содержит примерно:</p>
+<div class="highlight"><pre><span></span><code>cancelCtx
+├── Context
+├── mu
+├── done
+├── children
+├── err
+└── cause
+</code></pre></div>
+<p>Нас интересуют не поля сами по себе.</p>
+<p>Нас интересуют требования:</p>
+<div class="highlight"><pre><span></span><code>Done закрывается один раз
+err устанавливается один раз
+cause устанавливается один раз
+children меняются конкурентно
+отмена родителя должна дойти до потомков
+повторный cancel безопасен
+</code></pre></div>
+<hr/>
+<h1 id="106-done-atomicvalue">106. <code>done</code> хранится через <code>atomic.Value</code><a class="headerlink" href="#106-done-atomicvalue" title="Permanent link">¶</a></h1>
+<p>Почему не просто:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">done</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+</code></pre></div>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>Done() часто читается
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>канал нужен не каждому context
+</code></pre></div>
+<p>Текущая реализация сочетает:</p>
+<div class="highlight"><pre><span></span><code>ленивое создание
++
+быстрое чтение
+</code></pre></div>
+<hr/>
+<h1 id="107-done">107. <code>Done()</code> создается лениво<a class="headerlink" href="#107-done" title="Permanent link">¶</a></h1>
+<p>Первый вызов:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+</code></pre></div>
+<p>делает:</p>
+<div class="highlight"><pre><span></span><code>атомарная загрузка
+↓
+канал уже есть?
+├── да → возврат
+└── нет
+    ↓
+    lock
+    ↓
+    проверить еще раз
+    ↓
+    make(chan struct{})
+    ↓
+    атомарная запись
+</code></pre></div>
+<p>Это классическая двойная проверка под локом.</p>
+<hr/>
+<h1 id="108">108. Зачем ленивость вообще нужна<a class="headerlink" href="#108" title="Permanent link">¶</a></h1>
+<p>Создаем:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 производных контекстов
+</code></pre></div>
+<p>Но приложение никогда не читает:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+</code></pre></div>
+<p>Если канал создавать всегда:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 дополнительных объектов канала
+</code></pre></div>
+<p>Пустая цена.</p>
+<p>Ленивый <code>Done</code> позволяет не платить.</p>
+<hr/>
+<h1 id="109-cancel-done">109. Что если <code>cancel()</code> произошел до первого <code>Done()</code><a class="headerlink" href="#109-cancel-done" title="Permanent link">¶</a></h1>
+<p>Очень красивый специальный случай.</p>
+<p>Если <code>done</code> еще nil:</p>
+<div class="highlight"><pre><span></span><code>cancel
+↓
+не создавать новый уникальный канал
+</code></pre></div>
+<p>Вместо этого можно сохранить:</p>
+<div class="highlight"><pre><span></span><code>общий закрытый канал
+</code></pre></div>
+<p>То есть уже отмененные контексты, у которых <code>Done</code> еще не был создан могут ссылаться на общий закрытый канал.</p>
+<p>Еще один пример:</p>
+<div class="highlight"><pre><span></span><code>не платить за механизм,
+если уникальный объект уже не нужен
+</code></pre></div>
+<hr/>
+<h1 id="110-err">110. <code>Err()</code> тоже оптимизирован под частое чтение<a class="headerlink" href="#110-err" title="Permanent link">¶</a></h1>
+<p>Текущая реализация хранит <code>err</code> в <code>atomic.Value</code>.</p>
+<p>Частый путь:</p>
+<div class="highlight"><pre><span></span><code>err := атомарная загрузка
+</code></pre></div>
+<p>без <code>mu</code>.</p>
+<p>Если ошибка уже есть, реализация дополнительно синхронизирует наблюдение с закрытием <code>Done</code>.</p>
+<p>Нам важна идея:</p>
+<blockquote>
+<p>Проверка состояния отмены — горячая операция, поэтому частый путь чтения стараются не вести через мьютекс.</p>
+</blockquote>
+<hr/>
+<h1 id="111-withcancelparent">111. Теперь <code>WithCancel(parent)</code><a class="headerlink" href="#111-withcancelparent" title="Permanent link">¶</a></h1>
+<p>Высокоуровнево:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">child</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+</code></pre></div>
+<p>Внутри:</p>
+<div class="highlight"><pre><span></span><code>создать cancelCtx child
+↓
+propagateCancel(parent, child)
+</code></pre></div>
+<p>И вот <code>propagateCancel</code> — центральный алгоритм блока <code>context</code>.</p>
+<hr/>
+<h1 id="112-propagatecancel">112. Что должен гарантировать <code>propagateCancel</code><a class="headerlink" href="#112-propagatecancel" title="Permanent link">¶</a></h1>
+<p>После возврата:</p>
+<div class="highlight"><pre><span></span><code>если parent когда-нибудь отменится
+↓
+child тоже должен отмениться
+</code></pre></div>
+<p>Но тип <code>parent</code> — интерфейс:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Context</span>
+</code></pre></div>
+<p>Это может быть:</p>
+<ul>
+<li><code>Background</code>;</li>
+<li>стандартный <code>cancelCtx</code>;</li>
+<li><code>timerCtx</code>;</li>
+<li>обертка вокруг стандартного <code>Context</code>;</li>
+<li>сторонняя реализация;</li>
+<li>пользовательский тип.</li>
+</ul>
+<p>Нужен универсальный алгоритм.</p>
+<hr/>
+<h1 id="113-parentdone-nil">113. Первый вопрос: <code>parent.Done() == nil</code>?<a class="headerlink" href="#113-parentdone-nil" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>Done() == nil
+</code></pre></div>
+<p>родитель никогда не сообщает об отмене.</p>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code>Background
+WithoutCancel(...)
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>распространение отмены не нужна
+↓
+возврат
+</code></pre></div>
+<p>Нет children регистрация.</p>
+<p>Нет функция обратного вызова.</p>
+<p>Нет горутина.</p>
+<hr/>
+<h1 id="114">114. Второй вопрос: родитель уже отменен?<a class="headerlink" href="#114" title="Permanent link">¶</a></h1>
+<p><code>propagateCancel</code> делает неблокирующую проверку:</p>
+<div class="highlight"><pre><span></span><code>select {
+`case` &lt;-parent.Done():
+    ...
+default:
+}
+</code></pre></div>
+<p>Если родитель уже отменен:</p>
+<div class="highlight"><pre><span></span><code>child.cancel(...)
+↓
+возврат
+</code></pre></div>
+<p>Регистрация у родителя бессмысленна.</p>
+<p>Событие уже произошло.</p>
+<hr/>
+<h1 id="115-parentcancelctx">115. Самый дешевый нормальный путь: <code>parentCancelCtx</code><a class="headerlink" href="#115-parentcancelctx" title="Permanent link">¶</a></h1>
+<p>Теперь родитель еще жив.</p>
+<p>Библиотека пытается найти:</p>
+<div class="highlight"><pre><span></span><code>внутренний `*cancelCtx` родителя
+</code></pre></div>
+<p>Если удалось:</p>
+<div class="highlight"><pre><span></span><code>lock parent
+↓
+родитель уже успел отмениться?
+├── да → отменить дочерний контекст
+└── нет
+    ↓
+    ленивое create `children` map
+    ↓
+    children[child] = struct{}{}
+↓
+unlock
+</code></pre></div>
+<p>Все.</p>
+<p>Ни одной новой горутина.</p>
+<hr/>
+<h1 id="116-context">116. Вот почему стандартное дерево <code>context</code> не равно «горутина на ребро»<a class="headerlink" href="#116-context" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>parent
+→ горутина-наблюдатель
+→ child
+</code></pre></div>
+<p>для каждого дочернего контекста.</p>
+<p>В обычной цепочке стандартных contexts:</p>
+<div class="highlight"><pre><span></span><code>parent.cancelCtx
+↓
+`children` map
+</code></pre></div>
+<p>И отмена распространяется прямым обходом структуры.</p>
+<p>Это принципиально дешевле по горутина count.</p>
+<hr/>
+<h1 id="117-parentcancelctx-cancelctx">117. Но как <code>parentCancelCtx</code> находит внутренний <code>cancelCtx</code> через интерфейс?<a class="headerlink" href="#117-parentcancelctx-cancelctx" title="Permanent link">¶</a></h1>
+<p>У <code>Context</code> нет публичного метода:</p>
+<div class="highlight"><pre><span></span><code>GetUnderlyingCancelCtx()
+</code></pre></div>
+<p>Стандартная библиотека использует внутренний ключ через:</p>
+<div class="highlight"><pre><span></span><code>Value(&amp;cancelCtxKey)
+</code></pre></div>
+<p>Стандартный <code>cancelCtx</code> возвращает себя для этого специального ключа.</p>
+<p>Но одной проверки type assertion недостаточно.</p>
+<hr/>
+<h1 id="118-done">118. Почему дополнительно сравнивается <code>Done()</code><a class="headerlink" href="#118-done" title="Permanent link">¶</a></h1>
+<p>Представим кастомную обертка-реализацию:</p>
+<div class="highlight"><pre><span></span><code>внутри содержит стандартный cancelCtx
+</code></pre></div>
+<p>но переопределяет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Done</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;-</span><span class="kt">chan</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+</code></pre></div>
+<p>и возвращает другой канал.</p>
+<p>Если библиотека просто найдет внутренний <code>cancelCtx</code> через <code>Value</code> и зарегистрирует child прямо в нем:</p>
+<div class="highlight"><pre><span></span><code>custom Done semantics будут обойдены
+</code></pre></div>
+<p>Это может нарушить контракт обертка.</p>
+<p>Поэтому проверяется:</p>
+<div class="highlight"><pre><span></span><code>Done(parent)
+==
+Done(found cancelCtx)
+</code></pre></div>
+<p>Если не совпадает:</p>
+<div class="highlight"><pre><span></span><code>быстрый путь запрещен
+</code></pre></div>
+<p>Очень хороший пример defensive реализация.</p>
+<hr/>
+<h1 id="119-children-map">119. <code>children</code> map тоже создается лениво<a class="headerlink" href="#119-children-map" title="Permanent link">¶</a></h1>
+<p>Parent может иметь:</p>
+<div class="highlight"><pre><span></span><code>0 children
+</code></pre></div>
+<p>Большую часть жизни.</p>
+<p>Зачем заранее делать:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">make</span><span class="p">(</span><span class="kt">map</span><span class="p">[</span><span class="nx">canceler</span><span class="p">]</span><span class="kd">struct</span><span class="p">{})</span>
+</code></pre></div>
+<p>?</p>
+<p>Поэтому map появляется только при первом реально зарегистрированном child.</p>
+<p>Еще одна локальная оптимизация:</p>
+<div class="highlight"><pre><span></span><code>не платим за unused feature
+</code></pre></div>
+<hr/>
+<h1 id="120">120. Цена большого ветвления уже видна<a class="headerlink" href="#120" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>root
+→ 100 000 прямых дочерних контекстов
+</code></pre></div>
+<p>До cancel:</p>
+<div class="highlight"><pre><span></span><code>`children` map ~ 100 000 entries
+</code></pre></div>
+<p>Во время cancel:</p>
+<div class="highlight"><pre><span></span><code>for child := range c.children
+↓
+child.cancel(...)
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>cancel(root)
+</code></pre></div>
+<p>имеет реальную работу O(number of потомков) в грубой модели.</p>
+<hr/>
+<h1 id="121-parentcancelctx">121. Но <code>parentCancelCtx</code> — не единственный путь<a class="headerlink" href="#121-parentcancelctx" title="Permanent link">¶</a></h1>
+<p>Если родитель:</p>
+<div class="highlight"><pre><span></span><code>не дает прямого доступа к стандартный `cancelCtx`
+</code></pre></div>
+<p>нужно попробовать следующий механизм.</p>
+<p>Стандартная библиотека проверяет:</p>
+<div class="highlight"><pre><span></span><code>родитель реализует `AfterFunc`?
+</code></pre></div>
+<hr/>
+<h1 id="122-afterfunc-">122. <code>AfterFunc</code>-путь<a class="headerlink" href="#122-afterfunc-" title="Permanent link">¶</a></h1>
+<p>Если родитель умеет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">AfterFunc</span><span class="p">(</span><span class="kd">func</span><span class="p">())</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="kt">bool</span>
+</code></pre></div>
+<p>можно зарегистрировать функция обратного вызова:</p>
+<div class="highlight"><pre><span></span><code>родитель отменен
+↓
+функция обратного вызова
+↓
+child.cancel(...)
+</code></pre></div>
+<p>Преимущество:</p>
+<div class="highlight"><pre><span></span><code>не нужна постоянная горутина-наблюдатель
+</code></pre></div>
+<hr/>
+<h1 id="123">123. Но дочерний контекст может завершиться раньше родителя<a class="headerlink" href="#123" title="Permanent link">¶</a></h1>
+<p>Зарегистрировали функцию обратного вызова у родителя.</p>
+<p>Потом дочерний контекст отменили вручную:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancelChild</span><span class="p">()</span>
+</code></pre></div>
+<p>Callback больше не нужен.</p>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code>отписаться от родителя
+</code></pre></div>
+<p>Для этого <code>propagateCancel</code> оборачивает parent специальным внутренним <code>stopCtx</code>, который хранит функцию остановки регистрации.</p>
+<hr/>
+<h1 id="124-removechild">124. <code>removeChild</code> должен понимать разные типы связи<a class="headerlink" href="#124-removechild" title="Permanent link">¶</a></h1>
+<p>Если связь:</p>
+<div class="highlight"><pre><span></span><code>parentCancelCtx.children
+</code></pre></div>
+<p>тогда:</p>
+<div class="highlight"><pre><span></span><code>lock parent
+delete(children, child)
+unlock
+</code></pre></div>
+<p>Если связь была через:</p>
+<div class="highlight"><pre><span></span><code>AfterFunc
+</code></pre></div>
+<p>тогда:</p>
+<div class="highlight"><pre><span></span><code>stop функция обратного вызова
+</code></pre></div>
+<p>Одна функция <code>removeChild</code> скрывает оба пути.</p>
+<hr/>
+<h1 id="125">125. И только потом остается дорогой резервный путь<a class="headerlink" href="#125" title="Permanent link">¶</a></h1>
+<p>Parent:</p>
+<div class="highlight"><pre><span></span><code>Done != nil
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>не стандартный `cancelCtx`
+не afterFuncer
+</code></pre></div>
+<p>Контракт все равно требует распространение отмены.</p>
+<p>Остается универсальный способ:</p>
+<div class="highlight"><pre><span></span><code>отдельная горутина
+</code></pre></div>
+<hr/>
+<h1 id="126">126. Резервный путь: отдельная горутина<a class="headerlink" href="#126" title="Permanent link">¶</a></h1>
+<p>Текущий путь концептуально:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">parent</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">        </span><span class="nx">child</span><span class="p">.</span><span class="nx">cancel</span><span class="p">(...)</span>
+
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">child</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>То есть наблюдатель живет до первого из двух событий:</p>
+<div class="highlight"><pre><span></span><code>родитель отменен
+или
+дочерний контекст отменен отдельно
+</code></pre></div>
+<hr/>
+<h1 id="127-case">127. Почему второй <code>case</code> обязательный<a class="headerlink" href="#127-case" title="Permanent link">¶</a></h1>
+<p>Без:</p>
+<div class="highlight"><pre><span></span><code><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">child</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">    </span><span class="k">return</span>
+</code></pre></div>
+<p>если дочерний контекст завершился раньше родителя:</p>
+<div class="highlight"><pre><span></span><code>наблюдатель продолжал бы жить до отмены родителя
+</code></pre></div>
+<p>Получили бы горутина retention.</p>
+<p>Поэтому отмена дочернего контекста сама завершает наблюдатель.</p>
+<hr/>
+<h1 id="128-api">128. Одинаковый API — разная внутренняя цена<a class="headerlink" href="#128-api" title="Permanent link">¶</a></h1>
+<p>Код:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+</code></pre></div>
+<p>Родитель A:</p>
+<div class="highlight"><pre><span></span><code>обычный cancelCtx
+↓
+`children` map
+</code></pre></div>
+<p>Родитель B:</p>
+<div class="highlight"><pre><span></span><code>поддерживает AfterFunc
+↓
+регистрация функция обратного вызова
+</code></pre></div>
+<p>Родитель C:</p>
+<div class="highlight"><pre><span></span><code>неизвестный пользовательский `Context`
+↓
+горутина-наблюдатель
+</code></pre></div>
+<p>API одинаков.</p>
+<p>Модель стоимости — нет.</p>
+<hr/>
+<h1 id="129-context">129. Практический вывод про пользовательский <code>Context</code><a class="headerlink" href="#129-context" title="Permanent link">¶</a></h1>
+<p>Обычно собственные реализации <code>Context</code> не нужны.</p>
+<p>И теперь причина глубже, чем:</p>
+<blockquote>
+<p>Так рекомендует документация.</p>
+</blockquote>
+<p>Пользовательский родитель может:</p>
+<ul>
+<li>отключить стандартный быстрый путь;</li>
+<li>заставить <code>propagateCancel</code> использовать путь через <code>AfterFunc</code>;</li>
+<li>в худшем случае породить отдельную горутину на child.</li>
+</ul>
+<p>Абстракция влияет на физическую стоимость.</p>
+<hr/>
+<h1 id="130-propagatecancel">130. Собираем <code>propagateCancel</code><a class="headerlink" href="#130-propagatecancel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>дочерний контекст создан
+↓
+parent.Done()
+
+nil?
+├── да
+│   → родитель никогда не отменяется
+│   → возврат
+│
+└── нет
+    ↓
+    родитель уже отменен?
+    ├── да
+    │   → отменить дочерний контекст immediately
+    │
+    └── нет
+        ↓
+        parentCancelCtx?
+        ├── да
+        │   → parent.children += child
+        │   → возврат
+        │
+        └── нет
+            ↓
+            родитель реализует `AfterFunc`?
+            ├── да
+            │   → register функция обратного вызова
+            │   → wrap parent in stopCtx
+            │   → возврат
+            │
+            └── нет
+                ↓
+                start резервная горутина
+</code></pre></div>
+<p>Это центральная схема <code>context</code>.</p>
+<hr/>
+<h1 id="131-cancel">131. Теперь вызываем <code>cancel()</code><a class="headerlink" href="#131-cancel" title="Permanent link">¶</a></h1>
+<p>Что должен сделать <code>cancelCtx.cancel</code>?</p>
+<p>Минимум:</p>
+<div class="highlight"><pre><span></span><code>установить Err
+установить Cause
+закрыть Done
+отменить children
+очистить children
+при необходимости убрать себя из parent
+</code></pre></div>
+<p>Но порядок важен.</p>
+<hr/>
+<h1 id="132">132. Первый инвариант: повторная отмена ничего не делает<a class="headerlink" href="#132" title="Permanent link">¶</a></h1>
+<p>Под <code>mu</code>:</p>
+<div class="highlight"><pre><span></span><code>err уже non-nil?
+├── да → unlock, возврат
+└── нет → это первый cancel
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancel</span><span class="p">()</span>
+<span class="nx">cancel</span><span class="p">()</span>
+<span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>безопасно.</p>
+<p>Вторая и последующие операции почти сразу выходят.</p>
+<hr/>
+<h1 id="133-err-cause">133. <code>err</code> и <code>cause</code><a class="headerlink" href="#133-err-cause" title="Permanent link">¶</a></h1>
+<p>Первый cancel устанавливает:</p>
+<div class="highlight"><pre><span></span><code>err
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>cause
+</code></pre></div>
+<p>Если отдельная cause не передана:</p>
+<div class="highlight"><pre><span></span><code>cause = err
+</code></pre></div>
+<p>Так общий механизм поддерживает и обычный <code>CancelFunc</code>, и <code>CancelCauseFunc</code>.</p>
+<hr/>
+<h1 id="134-done">134. Потом нужно закрыть <code>Done</code><a class="headerlink" href="#134-done" title="Permanent link">¶</a></h1>
+<p>Два случая.</p>
+<p>Канал уже создан:</p>
+<div class="highlight"><pre><span></span><code>close(done)
+</code></pre></div>
+<p>Канал еще ни разу не создавался:</p>
+<div class="highlight"><pre><span></span><code>done = shared closedchan
+</code></pre></div>
+<p>Не нужно делать:</p>
+<div class="highlight"><pre><span></span><code>make(chan struct{})
+↓
+close
+</code></pre></div>
+<p>ради канала, который никто раньше не наблюдал.</p>
+<hr/>
+<h1 id="135">135. Потом отменяются дочерние контексты<a class="headerlink" href="#135" title="Permanent link">¶</a></h1>
+<p>Под parent lock:</p>
+<div class="highlight"><pre><span></span><code>for child := range c.children {
+    child.cancel(false, err, cause)
+}
+</code></pre></div>
+<p>Это рекурсивное распространение вниз.</p>
+<p>Обрати внимание:</p>
+<div class="highlight"><pre><span></span><code>лок родителя удерживается
+↓
+берется лок дочернего контекста
+</code></pre></div>
+<p>Значит структура дерева и порядок реализации должны избегать циклов родитель-потомок.</p>
+<p>Контексты образуют направленное дерево, а не произвольный граф.</p>
+<hr/>
+<h1 id="136-cchildren-nil">136. После обхода <code>c.children = nil</code><a class="headerlink" href="#136-cchildren-nil" title="Permanent link">¶</a></h1>
+<p>Почему не оставить map с уже отмененными потомками?</p>
+<p>Она больше не нужна.</p>
+<p>Кроме памяти, она удерживала бы ссылки на потомков.</p>
+<p>Поэтому после распространение отмены:</p>
+<div class="highlight"><pre><span></span><code>c.children = nil
+</code></pre></div>
+<p>освобождает структуру для GC.</p>
+<hr/>
+<h1 id="137-unlock-removefromparent">137. И только после unlock — <code>removeFromParent</code><a class="headerlink" href="#137-unlock-removefromparent" title="Permanent link">¶</a></h1>
+<p>Если текущий context отменили собственной <code>CancelFunc</code>, нужно убрать его из родителя.</p>
+<p>Но делать это, удерживая собственный <code>mu</code>, опасно:</p>
+<div class="highlight"><pre><span></span><code>child.mu
+↓
+parent.mu
+</code></pre></div>
+<p>при том что распространение отмены идет:</p>
+<div class="highlight"><pre><span></span><code>parent.mu
+↓
+child.mu
+</code></pre></div>
+<p>Получили бы возможность lock-order inversion.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>unlock child
+↓
+removeChild(parent, child)
+</code></pre></div>
+<hr/>
+<h1 id="138">138. Вот где дизайн избегает дедлока<a class="headerlink" href="#138" title="Permanent link">¶</a></h1>
+<p>Propagation:</p>
+<div class="highlight"><pre><span></span><code>parent.mu
+→ child.mu
+</code></pre></div>
+<p>Self-removal:</p>
+<div class="highlight"><pre><span></span><code>сначала child.mu released
+→ потом parent.mu
+</code></pre></div>
+<p>То есть одновременно:</p>
+<div class="highlight"><pre><span></span><code>child.mu → parent.mu
+</code></pre></div>
+<p>не удерживается.</p>
+<p>Это маленькая, но очень важная деталь.</p>
+<hr/>
+<h1 id="139-cancel-o1">139. <code>cancel()</code> — не O(1)<a class="headerlink" href="#139-cancel-o1" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>root
+├── 10 000 children
+│   └── у каждого свои children
+</code></pre></div>
+<p>Одна строка:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">cancelRoot</span><span class="p">()</span>
+</code></pre></div>
+<p>может означать:</p>
+<div class="highlight"><pre><span></span><code>обход большого поддерева
++
+close множества Done
++
+очистку `children` maps
++
+подготовку множества wakeups
+</code></pre></div>
+<p>Логическая операция одна.</p>
+<p>Физической работы много.</p>
+<hr/>
+<h1 id="140">140. Время распространения отмены и время полного завершения — разные вещи<a class="headerlink" href="#140" title="Permanent link">¶</a></h1>
+<p>Пусть cancel дошел до всех contexts.</p>
+<p>Это еще не значит:</p>
+<div class="highlight"><pre><span></span><code>все горутины завершились
+</code></pre></div>
+<p>Каждая работа должна:</p>
+<div class="highlight"><pre><span></span><code>получить CPU
+увидеть Done / Err
+остановить собственную операцию
+освободить ресурсы
+возврат
+</code></pre></div>
+<p>Поэтому измеряем отдельно:</p>
+<div class="highlight"><pre><span></span><code>сколько занял cancel()
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>сколько прошло до полного завершения workers
+</code></pre></div>
+<hr/>
+<h1 id="141-cancel">141. Почему большое ветвление создает всплеск после <code>cancel</code><a class="headerlink" href="#141-cancel" title="Permanent link">¶</a></h1>
+<p><code>cancel()</code> закрывает множество <code>Done</code>.</p>
+<p>Заблокированный горутины:</p>
+<div class="highlight"><pre><span></span><code>select {
+`case` &lt;-ctx.Done():
+}
+</code></pre></div>
+<p>становятся готовы.</p>
+<p>Дальше знакомая цепочка:</p>
+<div class="highlight"><pre><span></span><code>много G RUNNABLE
+↓
+scheduler очереди
+↓
+CPU finite
+↓
+completion растянута во времени
+</code></pre></div>
+<p>Это уже слой <code>Runtime deep</code>.</p>
+<p>Здесь важно только увидеть источник всплеск:</p>
+<div class="highlight"><pre><span></span><code>одно дерево cancellation
+</code></pre></div>
+<hr/>
+<h1 id="142-removechild-cancel">142. <code>removeChild</code>: зачем ручной <code>cancel()</code> освобождает ресурсы раньше<a class="headerlink" href="#142-removechild-cancel" title="Permanent link">¶</a></h1>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+</code></pre></div>
+<p>Работа завершилась за:</p>
+<div class="highlight"><pre><span></span><code>20 ms
+</code></pre></div>
+<p>Если <code>cancel()</code> не вызвать:</p>
+<div class="highlight"><pre><span></span><code>родитель может продолжать держать дочерний контекст
+timer продолжает жить
+внутренние структуры остаются достижимыми
+</code></pre></div>
+<p>до дедлайна или отмены родителя.</p>
+<p>Теперь правило:</p>
+<div class="highlight"><pre><span></span><code><span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>имеет понятный физический смысл.</p>
+<hr/>
+<h1 id="143-timerctx">143. Переходим к <code>timerCtx</code><a class="headerlink" href="#143-timerctx" title="Permanent link">¶</a></h1>
+<p><code>WithTimeout</code> — это не отдельная система cancellation.</p>
+<p>Это:</p>
+<div class="highlight"><pre><span></span><code>cancelCtx
++
+дедлайн
++
+timer
+</code></pre></div>
+<p>Когда timer срабатывает:</p>
+<div class="highlight"><pre><span></span><code>timer функция обратного вызова
+↓
+cancel(DeadlineExceeded)
+</code></pre></div>
+<p>Дальше работает уже знакомое дерево.</p>
+<hr/>
+<h1 id="144-withdeadline">144. <code>WithDeadline</code>: сначала проверяется дедлайн родителя<a class="headerlink" href="#144-withdeadline" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithDeadline</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">d</span><span class="p">)</span>
+</code></pre></div>
+<p>Если у родителя уже есть дедлайн:</p>
+<div class="highlight"><pre><span></span><code>parentDeadline &lt; d
+</code></pre></div>
+<p>то дочерний контекст все равно завершится раньше через родителя.</p>
+<p>Создавать отдельный timer на более позднее время бессмысленно.</p>
+<p>Текущая реализация возвращает более простой производный отменяемый контекст.</p>
+<hr/>
+<h1 id="145">145. Дедлайн уже прошел<a class="headerlink" href="#145" title="Permanent link">¶</a></h1>
+<p>После подключения cancellation распространение отмены:</p>
+<div class="highlight"><pre><span></span><code>duration := time.Until(d)
+</code></pre></div>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>duration &lt;= 0
+</code></pre></div>
+<p>таймер не нужен.</p>
+<p>Сразу:</p>
+<div class="highlight"><pre><span></span><code>cancel(DeadlineExceeded)
+</code></pre></div>
+<p>и возврат.</p>
+<p>Еще один пример:</p>
+<div class="highlight"><pre><span></span><code>не создаем механизм,
+который уже не сможет понадобиться
+</code></pre></div>
+<hr/>
+<h1 id="146">146. Дедлайн в будущем<a class="headerlink" href="#146" title="Permanent link">¶</a></h1>
+<p>Если context еще жив:</p>
+<div class="highlight"><pre><span></span><code>`timer = time.AfterFunc(duration, callback)`
+</code></pre></div>
+<p>Callback:</p>
+<div class="highlight"><pre><span></span><code>cancel(true, DeadlineExceeded, cause)
+</code></pre></div>
+<p>То есть таймер только генерирует событие.</p>
+<p>Вся cancellation machinery остается той же.</p>
+<hr/>
+<h1 id="147-timerctxcancel">147. <code>timerCtx.cancel</code><a class="headerlink" href="#147-timerctxcancel" title="Permanent link">¶</a></h1>
+<p>При ручной или родительской отмене:</p>
+<div class="highlight"><pre><span></span><code>cancelCtx.cancel(...)
+↓
+при необходимости removeChild
+↓
+lock
+↓
+timer.Stop()
+↓
+timer = nil
+↓
+unlock
+</code></pre></div>
+<p>Зачем останавливать timer?</p>
+<p>Иначе функция обратного вызова может сработать позже, когда context уже давно не нужен.</p>
+<hr/>
+<h1 id="148-withtimeout-withdeadline">148. <code>WithTimeout</code> — просто удобная форма <code>WithDeadline</code><a class="headerlink" href="#148-withtimeout-withdeadline" title="Permanent link">¶</a></h1>
+<p>Высокоуровнево:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">timeout</span><span class="p">)</span>
+</code></pre></div>
+<p>делает:</p>
+<div class="highlight"><pre><span></span><code>WithDeadline(parent, now + timeout)
+</code></pre></div>
+<p>То есть внутренне отдельного timeout-protocol нет.</p>
+<p>Есть дедлайн + таймер + отмена.</p>
+<hr/>
+<h1 id="149-withtimeout">149. Много <code>WithTimeout</code> — это много реальных таймеров<a class="headerlink" href="#149-withtimeout" title="Permanent link">¶</a></h1>
+<p>Пусть сервис делает:</p>
+<div class="highlight"><pre><span></span><code>100 000 requests/s
+</code></pre></div>
+<p>и для каждого создает несколько коротких <code>WithTimeout</code>.</p>
+<p>Если дедлайны действительно самостоятельны:</p>
+<div class="highlight"><pre><span></span><code>много timer регистрации
+</code></pre></div>
+<p>становятся отдельной рантайм-нагрузкой.</p>
+<p>Мы не открываем здесь timer subsystem.</p>
+<p>Но важно увидеть цену abstraction.</p>
+<hr/>
+<h1 id="150-contextafterfunc">150. <code>context.AfterFunc</code><a class="headerlink" href="#150-contextafterfunc" title="Permanent link">¶</a></h1>
+<p>Мы уже встретили его внутри <code>propagateCancel</code>.</p>
+<p>Public API позволяет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">stop</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">AfterFunc</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">f</span><span class="p">)</span>
+</code></pre></div>
+<p>Смысл:</p>
+<div class="highlight"><pre><span></span><code>ctx canceled
+↓
+запустить f
+</code></pre></div>
+<p>Текущая реализация строит специальный дочерний контекст и использует <code>sync.Once</code>.</p>
+<hr/>
+<h1 id="151">151. Почему функция обратного вызова запускается в отдельной горутине<a class="headerlink" href="#151" title="Permanent link">¶</a></h1>
+<p>Внутренний cancel path не должен выполнять произвольный пользовательский функция обратного вызова:</p>
+<div class="highlight"><pre><span></span><code>под cancel lock
+</code></pre></div>
+<p>Иначе:</p>
+<div class="highlight"><pre><span></span><code>медленный f()
+↓
+держим внутренние локи
+↓
+блокируем распространение отмены
+</code></pre></div>
+<p>Поэтому функция обратного вызова запускается отдельно.</p>
+<p>Еще один пример правила:</p>
+<blockquote>
+<p>Не исполнять произвольный внешний код внутри критической секции внутренней структуры.</p>
+</blockquote>
+<hr/>
+<h1 id="152-afterfunc">152. <code>AfterFunc</code> тоже можно остановить<a class="headerlink" href="#152-afterfunc" title="Permanent link">¶</a></h1>
+<p>Возвращаемая функция:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">stop</span><span class="p">()</span>
+</code></pre></div>
+<p>пытается выиграть <code>sync.Once</code>.</p>
+<p>Если функция обратного вызова еще не начал запуск:</p>
+<div class="highlight"><pre><span></span><code>stop → true
+</code></pre></div>
+<p>и связанный child отменяется/отвязывается.</p>
+<p>Если функция обратного вызова уже начал:</p>
+<div class="highlight"><pre><span></span><code>stop → false
+</code></pre></div>
+<p>Это отдельный lifecycle.</p>
+<hr/>
+<h1 id="153-withoutcancel-propagatecancel">153. <code>WithoutCancel</code> хорошо показывает первую ветку <code>propagateCancel</code><a class="headerlink" href="#153-withoutcancel-propagatecancel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">detached</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithoutCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+</code></pre></div>
+<p>У такого context:</p>
+<div class="highlight"><pre><span></span><code>Done() == nil
+Err() == nil
+Дедлайн отсутствует
+</code></pre></div>
+<p>Значит любой child, производный от него, не получает cancellation через старого parent.</p>
+<p>В <code>propagateCancel</code> это буквально:</p>
+<div class="highlight"><pre><span></span><code>done == nil
+↓
+возврат
+</code></pre></div>
+<p>Семантика API прямо превращается в дешевый рантайм path.</p>
+<hr/>
+<h1 id="154-context">154. Что происходит под нагрузкой: стандартное дерево <code>context</code><a class="headerlink" href="#154-context" title="Permanent link">¶</a></h1>
+<p>Большое число children не означает большое число наблюдатель горутины.</p>
+<p>Но означает:</p>
+<div class="highlight"><pre><span></span><code>`children` map memory
++
+работу вставки / удаления
++
+стоимость обхода при cancel
++
+удержание child до detach
+</code></pre></div>
+<p>То есть стандартный путь дешевле резервный путь.</p>
+<p>Но не бесплатен.</p>
+<hr/>
+<h1 id="155-context">155. Что происходит под нагрузкой: пользовательский родительский <code>Context</code><a class="headerlink" href="#155-context" title="Permanent link">¶</a></h1>
+<p>Если быстрый путь и <code>AfterFunc</code> path недоступны:</p>
+<div class="highlight"><pre><span></span><code>1 child
+→ 1 горутина-наблюдатель
+</code></pre></div>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>100 000 children
+→ до 100 000 наблюдатель горутины
+</code></pre></div>
+<p>Это уже:</p>
+<ul>
+<li>стеки;</li>
+<li>scheduler state;</li>
+<li>горутина profile noise;</li>
+<li>память;</li>
+<li>работа пробуждений.</li>
+</ul>
+<hr/>
+<h1 id="156">156. Что происходит под нагрузкой: массовое распространение отмены<a class="headerlink" href="#156" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>root
+→ 100 000 потомков
+</code></pre></div>
+<p>При cancel:</p>
+<div class="highlight"><pre><span></span><code>синхронный обход
+↓
+много Done закрываются
+↓
+много waiters становятся готовы
+↓
+scheduler всплеск
+</code></pre></div>
+<p>Симптомы:</p>
+<div class="highlight"><pre><span></span><code>cancel задержка ↑
+горутина runnable spike
+request completion spread ↑
+CPU spike
+</code></pre></div>
+<hr/>
+<h1 id="157">157. Что происходит под нагрузкой: горячий канал<a class="headerlink" href="#157" title="Permanent link">¶</a></h1>
+<p>Один канал:</p>
+<div class="highlight"><pre><span></span><code>много отправители
++
+много получатели
+</code></pre></div>
+<p>Ограниченные ресурсы:</p>
+<div class="highlight"><pre><span></span><code>hchan.lock
+очереди ожидания
+cache line ownership
+scheduler wakeups
+пропускная способность памяти копирования T
+</code></pre></div>
+<p>Симптом:</p>
+<div class="highlight"><pre><span></span><code>добавили горутины
+↓
+пропускная способность почти не растет
+↓
+задержка растет
+</code></pre></div>
+<p>Механику когерентность кешей уже знаем из CPU-лекции.</p>
+<hr/>
+<h1 id="158">158. Размер передаваемого значения — часть цены канала<a class="headerlink" href="#158" title="Permanent link">¶</a></h1>
+<p>Сравним:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">chan</span><span class="w"> </span><span class="kt">uint64</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">chan</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">]</span><span class="kt">byte</span>
+</code></pre></div>
+<p>Каждый successful send должен передать значение.</p>
+<p>прямая передача или буфер:</p>
+<div class="highlight"><pre><span></span><code>копирование bytes
+</code></pre></div>
+<p>никуда не исчезает.</p>
+<p>Канал не превращает большой object в бесплатное сообщение.</p>
+<hr/>
+<h1 id="159">159. Когда передавать указатель дешевле по копированию<a class="headerlink" href="#159" title="Permanent link">¶</a></h1>
+<p>Можно сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="kt">chan</span><span class="w"> </span><span class="o">*</span><span class="nx">Large</span>
+</code></pre></div>
+<p>Вместо копирования большой структуры:</p>
+<div class="highlight"><pre><span></span><code>копируем один указатель
+</code></pre></div>
+<p>Но цена переносится:</p>
+<ul>
+<li>общий жизненный цикл данных;</li>
+<li>удержание объектов в хипе;</li>
+<li>сканирование GC;</li>
+<li>ownership;</li>
+<li>возможные races при mutation.</li>
+</ul>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>меньше bytes copied
+≠
+бесплатная архитектура
+</code></pre></div>
+<hr/>
+<h1 id="160">160. Большой буфер не лечит медленного потребителя<a class="headerlink" href="#160" title="Permanent link">¶</a></h1>
+<p>Уже известно:</p>
+<div class="highlight"><pre><span></span><code>производитель rate &gt; потребитель rate
+</code></pre></div>
+<p>Больший буфер:</p>
+<div class="highlight"><pre><span></span><code>позже заполнится
+</code></pre></div>
+<p>Но когда заполнится:</p>
+<div class="highlight"><pre><span></span><code>отправители снова попадут в блокирующий path
+</code></pre></div>
+<p>Теперь мы точно знаем, что это значит внутри:</p>
+<div class="highlight"><pre><span></span><code>sendq
++
+sudog
++
+парковка
+</code></pre></div>
+<hr/>
+<h1 id="161-chan-send">161. Диагностика: <code>[chan send]</code><a class="headerlink" href="#161-chan-send" title="Permanent link">¶</a></h1>
+<p>В горутина profile:</p>
+<div class="highlight"><pre><span></span><code>[chan send]
+</code></pre></div>
+<p>Теперь переводим не в:</p>
+<blockquote>
+<p>Каналы тормозят.</p>
+</blockquote>
+<p>А в:</p>
+<div class="highlight"><pre><span></span><code>chansend
+↓
+не нашел ожидающий получатель
+↓
+не нашел свободный ячейка буфера
+↓
+дошел до блокирующий path
+</code></pre></div>
+<p>Следующий вопрос:</p>
+<div class="highlight"><pre><span></span><code>почему потребитель не освобождает capacity?
+</code></pre></div>
+<hr/>
+<h1 id="162-chan-receive">162. Диагностика: <code>[chan receive]</code><a class="headerlink" href="#162-chan-receive" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>[chan receive]
+</code></pre></div>
+<p>Означает, что:</p>
+<div class="highlight"><pre><span></span><code>chanrecv
+↓
+не нашел ожидающий отправитель
+↓
+буфер пустой
+↓
+блокирующий receive
+</code></pre></div>
+<p>То есть ищем производитель lifecycle.</p>
+<p>Не «оптимизируем <code>runtime.chanrecv</code>».</p>
+<hr/>
+<h1 id="163-select">163. Диагностика: <code>[select]</code><a class="headerlink" href="#163-select" title="Permanent link">¶</a></h1>
+<p>Большое число:</p>
+<div class="highlight"><pre><span></span><code>[select]
+</code></pre></div>
+<p>может быть нормальным.</p>
+<p>Например workers ожидают:</p>
+<div class="highlight"><pre><span></span><code>job
+или
+ctx.Done()
+</code></pre></div>
+<p>Проблема появляется, если:</p>
+<div class="highlight"><pre><span></span><code>горутина count постоянно растет
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>ожидание не соответствует ожидаемому lifecycle
+</code></pre></div>
+<p>Тогда восстанавливаем конкретные каналы/cancellation paths.</p>
+<hr/>
+<h1 id="164">164. профиль блокировок<a class="headerlink" href="#164" title="Permanent link">¶</a></h1>
+<p>профиль блокировок помогает увидеть:</p>
+<div class="highlight"><pre><span></span><code>где горутины реально ждали
+</code></pre></div>
+<p>В этой теме полезны:</p>
+<div class="highlight"><pre><span></span><code>chan send
+chan receive
+select
+</code></pre></div>
+<p>Но block profile агрегирует.</p>
+<p>Он не всегда показывает временную причинную цепочку.</p>
+<hr/>
+<h1 id="165">165. Трассировка<a class="headerlink" href="#165" title="Permanent link">¶</a></h1>
+<p><code>go tool trace</code> полезен, когда нужно увидеть:</p>
+<div class="highlight"><pre><span></span><code>G заблокированный
+↓
+конкретное событие
+↓
+G runnable
+↓
+scheduler delay
+↓
+G runs
+</code></pre></div>
+<p>Особенно интересно для:</p>
+<div class="highlight"><pre><span></span><code>mass cancellation
+канал всплеск
+wide select
+</code></pre></div>
+<p>Здесь временная структура важнее одной суммы CPU.</p>
+<hr/>
+<h1 id="166-cpu">166. Профиль CPU горячего канала<a class="headerlink" href="#166-cpu" title="Permanent link">¶</a></h1>
+<p>В профиль CPU могут появиться:</p>
+<div class="highlight"><pre><span></span><code>runtime.chansend
+runtime.chanrecv
+runtime.lock*
+runtime.unlock*
+memmove
+</code></pre></div>
+<p>Но интерпретация зависит от механизма.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>memmove высокий
+</code></pre></div>
+<p>может говорить не о contention, а о больших значениях.</p>
+<hr/>
+<h1 id="167-context">167. <code>Context</code>: неожиданный рост числа горутин<a class="headerlink" href="#167-context" title="Permanent link">¶</a></h1>
+<p>Если contexts стандартные:</p>
+<div class="highlight"><pre><span></span><code>WithCancel
+→ WithCancel
+</code></pre></div>
+<p>каждое ребро само по себе не создает горутина-наблюдатель.</p>
+<p>Поэтому увидели резкий рост горутины после появления пользовательской обертки <code>Context</code>:</p>
+<div class="highlight"><pre><span></span><code>гипотеза
+→ propagateCancel резервный путь
+</code></pre></div>
+<p>Это уже конкретный проверяемый механизм.</p>
+<hr/>
+<h1 id="168-context-cancel">168. <code>Context</code>: <code>cancel()</code> занял заметное время<a class="headerlink" href="#168-context-cancel" title="Permanent link">¶</a></h1>
+<p>Гипотезы:</p>
+<div class="highlight"><pre><span></span><code>огромный широкое ветвление
+глубокое дерево
+много потомков
+AfterFunc регистрации
+</code></pre></div>
+<p>Не начинаем с scheduler.</p>
+<p>Сначала измеряем сам распространение отмены.</p>
+<hr/>
+<h1 id="169-1">169. Практика 1: прямая передача<a class="headerlink" href="#169-1" title="Permanent link">¶</a></h1>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>небуферизованный канал
+получатель уже ожидающий
+отправитель отправляет значение
+</code></pre></div>
+<p>Варианты <code>T</code>:</p>
+<div class="highlight"><pre><span></span><code>uint64
+[4 KiB]byte
+[64 KiB]byte
+struct with указательs
+</code></pre></div>
+<p>Измерять:</p>
+<div class="highlight"><pre><span></span><code>ns/op
+B/op
+allocs/op
+CPU
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, что канал synchronization и стоимость передачи данных — разные компоненты одной операции.</p>
+</blockquote>
+<hr/>
+<h1 id="170-2">170. Практика 2: путь через буфер против прямой передачи<a class="headerlink" href="#170-2" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>получатель уже ожидающий
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>получатель отсутствует, буфер свободен
+</code></pre></div>
+<p>Одинаковый <code>T</code>.</p>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>send syntax одинаков
+↓
+рантайм path разный
+</code></pre></div>
+<p>Не обязательно ожидать огромную разницу.</p>
+<p>Нужно доказать существование разных путей.</p>
+<hr/>
+<h1 id="171-3">171. Практика 3: заполненный буфер + ожидающий отправитель<a class="headerlink" href="#171-3" title="Permanent link">¶</a></h1>
+<p>Детерминированный сценарий:</p>
+<div class="highlight"><pre><span></span><code>capacity = 2
+
+send A
+send B
+↓
+буфер заполненный
+
+Gsender:
+send C
+→ заблокированный
+
+получатель:
+&lt;-ch
+</code></pre></div>
+<p>Руками по исходнику пройти:</p>
+<div class="highlight"><pre><span></span><code>A → получатель
+C → физическая ячейка, где лежал A
+</code></pre></div>
+<p>И проверить последовательность наблюдаемых значений:</p>
+<div class="highlight"><pre><span></span><code>A, B, C
+</code></pre></div>
+<hr/>
+<h1 id="172-4-closechan">172. Практика 4: <code>closechan</code><a class="headerlink" href="#172-4-closechan" title="Permanent link">¶</a></h1>
+<p>Создать:</p>
+<div class="highlight"><pre><span></span><code>N ожидающий получатели
+M ожидающий отправители
+</code></pre></div>
+<p>Закрыть канал.</p>
+<p>Наблюдать:</p>
+<div class="highlight"><pre><span></span><code>получатели
+→ zero / ok=false
+
+отправители
+→ panic после resume
+</code></pre></div>
+<p>Замерить стоимость <code>close</code> при росте N+M.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Показать, что <code>close</code> не O(1) относительно waiters.</p>
+</blockquote>
+<hr/>
+<h1 id="173-5-select">173. Практика 5: ширина <code>select</code><a class="headerlink" href="#173-5-select" title="Permanent link">¶</a></h1>
+<p>Сгенерировать benchmarks:</p>
+<div class="highlight"><pre><span></span><code>2
+4
+8
+16
+32
+64
+128 `case`
+</code></pre></div>
+<p>Сценарий A:</p>
+<div class="highlight"><pre><span></span><code>один `case` всегда готовый
+</code></pre></div>
+<p>Сценарий B:</p>
+<div class="highlight"><pre><span></span><code>нужно блокироваться
+</code></pre></div>
+<p>Измерять:</p>
+<div class="highlight"><pre><span></span><code>ns/op
+allocs/op
+профиль CPU
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть разницу проход 1-only и полного проход 1→2→3.</p>
+</blockquote>
+<hr/>
+<h1 id="174-6-default">174. Практика 6: <code>default</code> и отсутствие парковки<a class="headerlink" href="#174-6-default" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
+<span class="k">default</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>при пустом <code>ch</code>.</p>
+<p>Первый:</p>
+<div class="highlight"><pre><span></span><code>очередь ожидания + парковка
+</code></pre></div>
+<p>Второй:</p>
+<div class="highlight"><pre><span></span><code>проход 1
+↓
+возврат default
+</code></pre></div>
+<p>Потом показать, как второй вариант внутри tight loop превращается в активный опрос.</p>
+<hr/>
+<h1 id="175-7">175. Практика 7: массовая отмена<a class="headerlink" href="#175-7" title="Permanent link">¶</a></h1>
+<p>Создать дерево:</p>
+<div class="highlight"><pre><span></span><code>root
+├── 1 000 children
+├── 10 000 children
+└── 100 000 children
+</code></pre></div>
+<p>Измерить:</p>
+<div class="highlight"><pre><span></span><code>duration(cancelRoot)
+</code></pre></div>
+<p>Отдельно:</p>
+<div class="highlight"><pre><span></span><code>время до завершения всех worker горутины
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>время распространения отмены
+≠
+время полного завершения
+</code></pre></div>
+<hr/>
+<h1 id="176-8-done">176. Практика 8: ленивое создание <code>Done</code><a class="headerlink" href="#176-8-done" title="Permanent link">¶</a></h1>
+<p>Benchmark A:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+<span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>Benchmark B:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
+<span class="nx">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+<span class="nx">cancel</span><span class="p">()</span>
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>allocs/op
+B/op
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть стоимость материализации <code>Done</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="177-9-context">177. Практика 9: стандартный и пользовательский родительский <code>Context</code><a class="headerlink" href="#177-9-context" title="Permanent link">¶</a></h1>
+<p>Вариант A:</p>
+<div class="highlight"><pre><span></span><code>стандартный `cancelCtx` parent
+↓
+WithCancel child
+</code></pre></div>
+<p>Вариант B:</p>
+<div class="highlight"><pre><span></span><code>пользовательский `Context`
+↓
+custom Done
+↓
+WithCancel child
+</code></pre></div>
+<p>Создать много children.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>горутина count
+горутина profile
+allocations
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Доказать <code>parentCancelCtx</code> быстрый путь и резервная горутина.</p>
+</blockquote>
+<hr/>
+<h1 id="178-10-cancelfunc">178. Практика 10: забытый <code>CancelFunc</code><a class="headerlink" href="#178-10-cancelfunc" title="Permanent link">¶</a></h1>
+<p>Создавать:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+</code></pre></div>
+<p>в большом количестве.</p>
+<p>Сценарий A:</p>
+<div class="highlight"><pre><span></span><code>работа заканчивается быстро
+cancel вызывается
+</code></pre></div>
+<p>Сценарий B:</p>
+<div class="highlight"><pre><span></span><code>cancel забыли
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>heap
+горутины
+retained contexts
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Доказать ресурсный смысл <code>defer cancel()</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="179-11">179. Практика 11: трассировка массовой отмены<a class="headerlink" href="#179-11" title="Permanent link">¶</a></h1>
+<p>Workers:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">        </span><span class="k">return</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>10k–100k горутин.</p>
+<p>Вызвать root cancel.</p>
+<p>В trace увидеть:</p>
+<div class="highlight"><pre><span></span><code>много ожидающий
+↓
+массовое становление RUNNABLE
+↓
+очереди scheduler
+↓
+растянутое фактическое завершение
+</code></pre></div>
+<p>Связать <code>4.2</code> с уже прочитанным <code>Runtime deep</code>.</p>
+<hr/>
+<h1 id="180">180. Границы гарантий<a class="headerlink" href="#180" title="Permanent link">¶</a></h1>
+<p>Нужно снова разделить уровни.</p>
+<h2 id="_2">Язык гарантирует<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<ul>
+<li>семантику send / receive;</li>
+<li>буферизованный / небуферизованный каналы;</li>
+<li>блокирующий behavior;</li>
+<li><code>close</code>;</li>
+<li>receive из closed канал;</li>
+<li>panic при send в closed канал;</li>
+<li>семантику <code>select</code>;</li>
+<li>выбор одной готовый communication operation;</li>
+<li>поведение nil каналы.</li>
+</ul>
+<h2 id="context-api"><code>context</code> API гарантирует<a class="headerlink" href="#context-api" title="Permanent link">¶</a></h2>
+<ul>
+<li><code>Done</code>;</li>
+<li><code>Err</code>;</li>
+<li>семантику дедлайнов;</li>
+<li>распространение отмены cancellation для производных contexts;</li>
+<li>безопасный повторный вызов <code>CancelFunc</code>;</li>
+<li><code>Cause</code> для cause-aware API;</li>
+<li>контракт <code>AfterFunc</code>.</li>
+</ul>
+<hr/>
+<h1 id="181-go-127x">181. Что является текущей реализацией Go 1.27.x<a class="headerlink" href="#181-go-127x" title="Permanent link">¶</a></h1>
+<p>К детали реализации относятся:</p>
+<div class="highlight"><pre><span></span><code>hchan layout
+makechan allocation strategy
+sendx / recvx / qcount
+chansend
+chanrecv
+sendDirect / recvDirect
+typeBitsBulkBarrier
+closechan
+glist before goready
+waitq внутреннее устройство
+selectDone
+алгоритм `pollOrder`
+пирамидальная сортировка `lockOrder`
+selectgo реализация в три прохода
+selparkcommit
+cancelCtx fields
+atomic.Value for done / err
+shared closedchan
+parentCancelCtx
+`children` map
+AfterFunc branch
+stopCtx
+резервная горутина
+timerCtx
+</code></pre></div>
+<p>Это полезно понимать.</p>
+<p>Но прикладной код не должен зависеть от сохранения этих имен и деталей между версиями.</p>
+<hr/>
+<h1 id="182">182. Разрушаем последние плохие упрощения<a class="headerlink" href="#182" title="Permanent link">¶</a></h1>
+<h2 id="_3">«канал — просто потокобезопасная очередь»<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Небуферизованный канал вообще не имеет пользовательского буфер.</p>
+<p>прямая передача может писать значение прямо между стеками горутины.</p>
+<h2 id="_4">«Буферизованный канал всегда сначала кладет значение в буфер»<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Если получатель уже ждет:</p>
+<div class="highlight"><pre><span></span><code>отправитель → получатель прямойly
+</code></pre></div>
+<p>буфер обходится.</p>
+<h2 id="_5">«Получение из заполненного канала просто освобождает ячейку»<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
+<p>Не всегда.</p>
+<p>Если отправитель уже ожидающий:</p>
+<div class="highlight"><pre><span></span><code>головная ячейка → получатель
+отправитель → тот же slot
+</code></pre></div>
+<p>за одну критическую секцию.</p>
+<h2 id="closech-closedtrue">«<code>close(ch)</code> просто ставит <code>closed=true</code>»<a class="headerlink" href="#closech-closedtrue" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Он еще обходит очереди ожидания и подготавливает пробуждение всех waiters.</p>
+<h2 id="select-case">«<code>select</code> случайно проверяет <code>case</code>»<a class="headerlink" href="#select-case" title="Permanent link">¶</a></h2>
+<p>Слишком мало.</p>
+<p>Он строит:</p>
+<div class="highlight"><pre><span></span><code>pollOrder
++
+lockOrder
+</code></pre></div>
+<p>а блокирующий path проходит регистрацию, парковка protocol и очистка.</p>
+<h2 id="context">«Отмена <code>Context</code> — это горутина на каждого потомка»<a class="headerlink" href="#context" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Стандартный путь использует:</p>
+<div class="highlight"><pre><span></span><code>parent.children
+</code></pre></div>
+<p>Watcher горутина — резервный путь для неизвестных реализацияs.</p>
+<h2 id="cancel-done">«<code>cancel()</code> просто закрывает <code>Done</code>»<a class="headerlink" href="#cancel-done" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Он сохраняет состояние, закрывает <code>Done</code>, рекурсивно отменяет children, очищает связи и при необходимости удаляет себя из parent.</p>
+<hr/>
+<h1 id="183">183. Полная цепочка одной небуферизованной отправки<a class="headerlink" href="#183" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Gsender:
+ch &lt;- value
+↓
+chansend
+↓
+lock hchan
+↓
+recvq.dequeue
+↓
+нашли ожидающий получатель
+↓
+sendDirect
+↓
+typeBitsBulkBarrier
+↓
+memmove
+стек отправитель → стек получатель
+↓
+sg.success = true
+↓
+unlock
+↓
+goready(получатель)
+</code></pre></div>
+<hr/>
+<h1 id="184">184. Полная цепочка заблокированной буферизованной отправки<a class="headerlink" href="#184" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>ch &lt;- value
+↓
+chansend
+↓
+получатель нет
+↓
+буфер заполненный
+↓
+acquireSudog
+↓
+sg.elem → value
+↓
+sendq.добавить в очередь
+↓
+gopark
+↓
+G ожидающий
+
+позже получатель
+↓
+recv
+↓
+значение отправителя → буфер
+↓
+sg.success = true
+↓
+goready(отправитель)
+
+отправитель продолжает chansend
+↓
+releaseSudog
+↓
+возврат
+</code></pre></div>
+<hr/>
+<h1 id="185-select">185. Полная цепочка блокирующего <code>select</code><a class="headerlink" href="#185-select" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>select syntax
+↓
+compiler prepared s`case`/order memory
+↓
+selectgo
+↓
+remove nil `case`
+↓
+build pollOrder
+↓
+build lockOrder
+↓
+sellock
+
+проход 1
+↓
+готовый `case`?
+├── да → execute
+└── нет
+    ↓
+    блокирующий?
+    ├── нет → unlock + default
+    └── да
+        ↓
+        проход 2
+        ↓
+        N sudog
+        ↓
+        зарегистрировать все ожидания
+        ↓
+        gp.waiting
+        ↓
+        gopark(selparkcommit)
+        ↓
+        unlock каналы
+        ↓
+        G ожидающий
+
+канал event
+↓
+waitq.dequeue
+↓
+selectDone CAS
+↓
+победитель
+↓
+gp.param = winning sudog
+↓
+goready
+
+G resumes
+↓
+sellock
+↓
+проход 3
+↓
+удалить проигравшие `sudog`
+↓
+releaseSudog
+↓
+возврат winning `case`
+</code></pre></div>
+<hr/>
+<h1 id="186-withcancel">186. Полная цепочка <code>WithCancel</code><a class="headerlink" href="#186-withcancel" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>WithCancel(parent)
+↓
+new cancelCtx
+↓
+propagateCancel
+
+parent.Done == nil?
+├── да → возврат
+└── нет
+    ↓
+    родитель уже отменен?
+    ├── да → child.cancel
+    └── нет
+        ↓
+        parentCancelCtx?
+        ├── да
+        │   ↓
+        │   parent.children += child
+        │   ↓
+        │   no горутина
+        │
+        └── нет
+            ↓
+            AfterFunc?
+            ├── да
+            │   ↓
+            │   register функция обратного вызова
+            │   ↓
+            │   stopCtx
+            │
+            └── нет
+                ↓
+                горутина-наблюдатель
+</code></pre></div>
+<hr/>
+<h1 id="187">187. Полная цепочка отмены корневого контекста<a class="headerlink" href="#187" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>cancelRoot()
+↓
+root.mu
+↓
+err / cause
+↓
+close Done
+↓
+for child
+    child.cancel
+        ↓
+        close child Done
+        ↓
+        cancel grandchildren
+↓
+c.children = nil
+↓
+unlock
+↓
+removeFromParent if needed
+</code></pre></div>
+<p>Параллельно:</p>
+<div class="highlight"><pre><span></span><code>Done closures
+↓
+канал/select waiters become готовый
+↓
+scheduler sees runnable всплеск
+</code></pre></div>
+<p>Это мост обратно в <code>Runtime deep</code>.</p>
+<hr/>
+<h1 id="188">188. Что важно запомнить<a class="headerlink" href="#188" title="Permanent link">¶</a></h1>
+<ol>
+<li>Текущий <code>makechan</code> выбирает способ аллокации с учетом размера буфер и наличия Go-указателей в элементах.</li>
+<li><code>hchan</code> хранит кольцевой буфер, индексы, число элементов, очереди ожидания и внутренний лок.</li>
+<li><code>chansend</code> предпочитает уже ожидающего получатель, затем свободный ячейка буфера, затем блокирующий path.</li>
+<li>ожидающий получатель позволяет обойти буфер даже у буферизованный канал.</li>
+<li>Небуферизованная отправка/receive может копировать значение напрямую между стеками разных горутин.</li>
+<li>Для стек-to-стек copy текущий рантайм использует специальный путь с учетом барьера GC.</li>
+<li>Буферизованный канал использует <code>sendx</code>, <code>recvx</code> и <code>qcount</code>; элементы физически не сдвигаются.</li>
+<li>Если буфер заполненный и отправитель уже ждет, receive одновременно забирает head и кладет значение отправителя в освободившуюся физическую ячейку.</li>
+<li><code>closechan</code> обходит <code>recvq</code> и <code>sendq</code>, но делает G runnable только после освобождения лока канала.</li>
+<li>отправители после <code>close</code> просыпаются и завершают свою send operation через panic.</li>
+<li>Общий <code>selectgo</code> использует случайный <code>pollOrder</code> и детерминированный <code>lockOrder</code>.</li>
+<li><code>lockOrder</code> предотвращает deadlock между <code>select</code>, работающими с несколькими каналы.</li>
+<li>Проход 1 ищет уже готовую operation; проход 2 регистрирует waiters; проход 3 удаляет проигравшие регистрации.</li>
+<li><code>selparkcommit</code> нужен, чтобы корректно связать parking, отпускание локи каналов и перемещаемый стек.</li>
+<li><code>selectDone</code> гарантирует, что из нескольких потенциальных канал events один <code>select</code> получает ровно одного победителя.</li>
+<li>Стоимость блокирующий <code>select</code> растет с числом активных <code>case</code>.</li>
+<li><code>cancelCtx.Done()</code> создается лениво; отмененный до создания context может использовать общий закрытый канал.</li>
+<li>Стандартный <code>propagateCancel</code> обычно регистрирует child в <code>parent.children</code> без отдельной горутины.</li>
+<li>Если стандартный родительский <code>Context</code> недоступен, <code>propagateCancel</code> может использовать <code>AfterFunc</code>; горутина-наблюдатель — общий резервный путь.</li>
+<li><code>parentCancelCtx</code> дополнительно проверяет соответствие фактического <code>Done</code>, чтобы не обходить семантику пользовательская оберткаs.</li>
+<li><code>cancel()</code> — не простое изменение флага: он закрывает <code>Done</code>, рекурсивно отменяет потомков и очищает связи.</li>
+<li>Большой cancellation широкое ветвление имеет реальную стоимость и может создать массовый всплеск готовых к выполнению горутин.</li>
+<li><code>timerCtx</code> добавляет timer поверх обычного <code>cancelCtx</code>; ранний <code>cancel()</code> останавливает таймер и разрывает связи раньше дедлайна.</li>
+<li>Забытый <code>CancelFunc</code> — это не только стиль: он может дольше удерживать context, parent регистрация и timer.</li>
+<li>Конкретные функции и структуры этой лекции — детали Go 1.27.x, а не контракт языка.</li>
+</ol>
+<hr/>
+<h1 id="189">189. Финальная модель<a class="headerlink" href="#189" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                          GO-КОД
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+          ▼                  ▼                  ▼
+       канал             select            context
+          │                  │                  │
+          ▼                  ▼                  ▼
+        hchan             selectgo          cancelCtx
+          │                  │                  │
+    ┌─────┼─────┐       pollOrder      propagateCancel
+    │     │     │       lockOrder        │    │    │
+    ▼     ▼     ▼          │             │    │    │
+ прямой  буфер  wait      ▼             ▼    ▼    ▼
+ handoff path    очередь    проход 1       child AfterFunc резервный путь
+    │     │       │          │           map          горутина
+    │     │       │          ▼             \          /
+    │     │       │        проход 2            \        /
+    │     │       │          │                \      /
+    │     │       │          ▼                 cancel
+    │     │       │    selparkcommit             │
+    │     │       │          │                    ▼
+    │     │       │        ожидающий              Done
+    │     │       │          │                    │
+    │     │       │          ▼                    ▼
+    │     │       │      one победитель           потомков
+    │     │       │          │
+    │     │       │          ▼
+    │     │       │        проход 3
+    │     │       │
+    └─────┴───────┴───────────────→ scheduler / GC / CPU
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>Канал, <code>select</code> и <code>context</code> выглядят как компактные языковые и библиотечные конструкции, но под нагрузкой они превращаются в конкретную работу: типизированное копирование данных, локи, кольцевые буферы, очереди ожидания, несколько <code>sudog</code>, сортировку и регистрацию <code>select</code>, обход деревьев cancellation, таймеры и массовые wakeups.</p>
+<p>После этой лекции последний скрытый этаж остается уже не в рантайм, а <strong>перед ним</strong>: кто решил, что <code>ch &lt;- v</code> станет вызовом <code>chansend</code>, какие формы <code>select</code> вообще доходят до <code>selectgo</code>, где компилятор строит быстрые пути и как все это выглядит в SSA и машинном коде. Это <code>4.3</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="_6">Практическое продолжение темы<a class="headerlink" href="#_6" title="Permanent link">¶</a></h1>
+<p>После теории имеет смысл сделать одну общую лабораторную цепочку:</p>
+<div class="highlight"><pre><span></span><code>1. небуферизованный прямая передача
+↓
+2. буферизованная отправка
+↓
+3. заполненный буфер + ожидающий отправитель
+↓
+4. close с большим числом waiters
+↓
+5. select 2 → 128 `case`
+↓
+6. стандартный родительский `Context`
+↓
+7. пользовательский `Context` → горутина резервный путь
+↓
+8. cancellation широкое ветвление
+↓
+9. trace
+↓
+10. объяснить каждый увиденный симптом исходным механизмом
+</code></pre></div>
+<p>Практика должна не повторять определения, а доказать руками, что разные синтаксически одинаковые операции действительно проходят разные рантайм paths.</p>
+<hr/>
+<h1 id="_7">Основные источники для деталей, зависящих от версии<a class="headerlink" href="#_7" title="Permanent link">¶</a></h1>
+<ul>
+<li>Go рантайм source — каналы: <code>src/рантайм/chan.go</code></li>
+<li>Go рантайм source — select: <code>src/рантайм/select.go</code></li>
+<li>Go standard library source — context: <code>src/context/context.go</code></li>
+<li>Go specification — канал types, send/receive, close, select</li>
+<li>Go package documentation — <code>context</code></li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы" class="md-footer__link md-footer__link--prev" href="../4.1%20-%20Go%20structures%20deeper/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код" class="md-footer__link md-footer__link--next" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

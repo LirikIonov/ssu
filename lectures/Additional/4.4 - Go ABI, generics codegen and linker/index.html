@@ -1,0 +1,4105 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/" rel="canonical"/>
+<link href="../4.3%20-%20Go%20compiler%20under%20the%20hood/" rel="prev"/>
+<link href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>4.4. Go ABI, generics codegen и linker - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#44-go-abi-generics-codegen-linker">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              4.4. Go ABI, generics codegen и linker
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_5_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="44-go-abi-generics-codegen-linker">4.4. Go ABI, generics codegen и linker<a class="headerlink" href="#44-go-abi-generics-codegen-linker" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Материал ориентирован на Go 1.27.x.</p>
+<p>Это следующий слой после <code>4.3. Go compiler under the hood</code>.</p>
+<p>В <code>4.3</code> мы дошли до машинного кода отдельной функции.</p>
+<p>Теперь появляются три новых вопроса:</p>
+<div class="highlight"><pre><span></span><code>функция A вызывает функцию B
+→ как они договариваются о передаче аргументов?
+
+generic function работает с T
+→ какой именно код выполняется для конкретного типа?
+
+packages уже скомпилированы
+→ как из symbols и relocations получается один executable?
+</code></pre></div>
+<p>Ответы:</p>
+<div class="highlight"><pre><span></span><code>ABI
+↓
+generics codegen
+↓
+linker
+</code></pre></div>
+</blockquote>
+<hr/>
+<h1 id="_1">Зачем открывать этот слой<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>В прошлой лекции мы закончили примерно здесь:</p>
+<div class="highlight"><pre><span></span><code>Go source
+↓
+IR
+↓
+SSA
+↓
+lowering
+↓
+register allocation
+↓
+machine code
+</code></pre></div>
+<p>На первый взгляд:</p>
+<div class="highlight"><pre><span></span><code>готово
+</code></pre></div>
+<p>Но это машинный код <strong>отдельных функций и объектов компиляции</strong>.</p>
+<p>Программа еще должна решить:</p>
+<div class="highlight"><pre><span></span><code>где caller положит аргументы?
+где callee их найдет?
+кто хранит return value?
+как передать closure environment?
+как вызвать generic body?
+где взять конкретный runtime type для T?
+кто соединит CALL с реальным адресом функции?
+кто выбросит недостижимый код?
+откуда runtime берет function name для stack trace?
+</code></pre></div>
+<p>Пока эти вопросы не закрыты, путь:</p>
+<div class="highlight"><pre><span></span><code>Go source
+→ executable
+</code></pre></div>
+<p>не закончен.</p>
+<hr/>
+<h1 id="0">0. Граница лекции<a class="headerlink" href="#0" title="Permanent link">¶</a></h1>
+<p>Не превращаем тему в отдельный курс по системному программированию.</p>
+<p>Мы <strong>не разбираем глубоко</strong>:</p>
+<ul>
+<li>полную спецификацию ELF;</li>
+<li>Mach-O;</li>
+<li>PE;</li>
+<li>dynamic loader;</li>
+<li>PLT / GOT;</li>
+<li>все relocation types;</li>
+<li>cgo ABI;</li>
+<li>DWARF binary format;</li>
+<li>внутренности каждого build mode;</li>
+<li>алгоритмы linker layout;</li>
+<li>конкретный encoding object files.</li>
+</ul>
+<p>Нас интересует причинная цепочка:</p>
+<div class="highlight"><pre><span></span><code>вызов функции
+↓
+ABI contract
+↓
+generic specialization / dictionary
+↓
+symbols
+↓
+relocations
+↓
+reachability
+↓
+linker
+↓
+runtime metadata
+↓
+executable
+</code></pre></div>
+<hr/>
+<h1 id="i-go-abi">Часть I. Go ABI<a class="headerlink" href="#i-go-abi" title="Permanent link">¶</a></h1>
+<h1 id="1">1. Начнем с самой простой функции<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Для программиста:</p>
+<div class="highlight"><pre><span></span><code>a
+b
+↓
+add
+↓
+result
+</code></pre></div>
+<p>Для CPU нет понятий:</p>
+<div class="highlight"><pre><span></span><code>параметр a
+параметр b
+return value
+</code></pre></div>
+<p>CPU знает:</p>
+<div class="highlight"><pre><span></span><code>registers
+stack
+memory
+instruction pointer
+call / branch
+</code></pre></div>
+<p>Нужен контракт.</p>
+<hr/>
+<h1 id="2-abi">2. ABI — двоичный контракт между частями программы<a class="headerlink" href="#2-abi" title="Permanent link">¶</a></h1>
+<p>ABI — application binary interface.</p>
+<p>Для вызова функции он отвечает как минимум:</p>
+<div class="highlight"><pre><span></span><code>где передавать аргументы?
+↓
+какие registers?
+какие stack slots?
+↓
+где лежат результаты?
+↓
+какие registers можно испортить?
+↓
+где return address?
+↓
+как устроен stack frame?
+</code></pre></div>
+<p>Если caller и callee используют разные правила:</p>
+<div class="highlight"><pre><span></span><code>caller положил a в RAX
+callee ищет a на stack
+</code></pre></div>
+<p>Оба куска кода по отдельности могут выглядеть корректно.</p>
+<p>Вместе они не работают.</p>
+<hr/>
+<h1 id="3-api-abi">3. API и ABI — разные вещи<a class="headerlink" href="#3-api-abi" title="Permanent link">¶</a></h1>
+<p>API:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span>
+</code></pre></div>
+<p>говорит:</p>
+<div class="highlight"><pre><span></span><code>два int
+→ один int
+</code></pre></div>
+<p>ABI говорит:</p>
+<div class="highlight"><pre><span></span><code>первый int → конкретное физическое место
+второй int → конкретное физическое место
+result → конкретное физическое место
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>API
+→ логический контракт
+
+ABI
+→ физический двоичный контракт
+</code></pre></div>
+<hr/>
+<h1 id="4-go-abiinternal">4. Go имеет <code>ABIInternal</code><a class="headerlink" href="#4-go-abiinternal" title="Permanent link">¶</a></h1>
+<p>Текущий Go использует внутренний ABI:</p>
+<div class="highlight"><pre><span></span><code>ABIInternal
+</code></pre></div>
+<p>Все функции, определенные на Go, компилируются под него.</p>
+<p>Главное свойство:</p>
+<blockquote>
+<p><code>ABIInternal</code> — внутренний, нестабильный контракт toolchain.</p>
+</blockquote>
+<p>Он может меняться между версиями Go.</p>
+<p>Прикладной код не должен от него зависеть.</p>
+<hr/>
+<h1 id="5-abi0">5. И есть <code>ABI0</code><a class="headerlink" href="#5-abi0" title="Permanent link">¶</a></h1>
+<p>Для пользовательского Go assembler существует стабильный стековый ABI:</p>
+<div class="highlight"><pre><span></span><code>ABI0
+</code></pre></div>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>ABIInternal
+→ современный внутренний ABI Go
+
+ABI0
+→ стабильный стековый интерфейс для assembly boundary
+</code></pre></div>
+<p>Они могут взаимодействовать через wrappers.</p>
+<hr/>
+<h1 id="6-abi">6. Почему вообще понадобилось два ABI<a class="headerlink" href="#6-abi" title="Permanent link">¶</a></h1>
+<p>Исторически Go передавал аргументы в основном через stack.</p>
+<p>Это просто:</p>
+<div class="highlight"><pre><span></span><code>caller
+↓
+положить arguments в stack frame
+↓
+callee читает из stack
+</code></pre></div>
+<p>Но функция часто уже имеет нужные значения в CPU registers.</p>
+<p>Тогда получается:</p>
+<div class="highlight"><pre><span></span><code>value уже в register
+↓
+STORE в stack
+↓
+CALL
+↓
+LOAD из stack
+</code></pre></div>
+<p>Мы сделали лишний memory traffic только ради соглашения о вызове.</p>
+<hr/>
+<h1 id="7-register-based-calling-convention">7. Register-based calling convention<a class="headerlink" href="#7-register-based-calling-convention" title="Permanent link">¶</a></h1>
+<p>Современный <code>ABIInternal</code> старается передавать аргументы и результаты через registers, когда это возможно.</p>
+<p>Идеальная цепочка:</p>
+<div class="highlight"><pre><span></span><code>caller вычислил value в register
+↓
+этот register уже является argument register
+↓
+CALL
+↓
+callee использует register
+</code></pre></div>
+<p>Вместо:</p>
+<div class="highlight"><pre><span></span><code>register
+↓
+STORE
+↓
+stack
+↓
+LOAD
+↓
+register
+</code></pre></div>
+<hr/>
+<h1 id="8-arguments-registers">8. Но «arguments идут в registers» — слишком грубая модель<a class="headerlink" href="#8-arguments-registers" title="Permanent link">¶</a></h1>
+<p>Что делать с:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span>
+<span class="w">    </span><span class="nx">a</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">s</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">b</span><span class="w"> </span><span class="p">[]</span><span class="kt">byte</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">x</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">P</span><span class="w"> </span><span class="o">*</span><span class="nx">Node</span>
+<span class="w">        </span><span class="nx">N</span><span class="w"> </span><span class="kt">int</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="p">)</span><span class="w"> </span><span class="kt">error</span>
+</code></pre></div>
+<p><code>string</code> — два машинных компонента.</p>
+<p>Slice — три.</p>
+<p>Struct — несколько полей.</p>
+<p>Нужно общее правило разложения.</p>
+<hr/>
+<h1 id="9-abi">9. ABI работает с компонентами значений<a class="headerlink" href="#9-abi" title="Permanent link">¶</a></h1>
+<p>На высоком уровне current ABI assignment делает:</p>
+<div class="highlight"><pre><span></span><code>argument / result
+↓
+разложить тип на базовые компоненты
+↓
+попробовать назначить компоненты registers
+↓
+не помещается целиком?
+→ весь argument/result в stack
+</code></pre></div>
+<p>Ключевое слово:</p>
+<div class="highlight"><pre><span></span><code>целиком
+</code></pre></div>
+<hr/>
+<h1 id="10-registers-stack">10. Почему аргумент не хотят наполовину держать в registers, наполовину в stack<a class="headerlink" href="#10-registers-stack" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">S</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">A</span><span class="w"> </span><span class="kt">int64</span>
+<span class="w">    </span><span class="nx">B</span><span class="w"> </span><span class="kt">int64</span>
+<span class="w">    </span><span class="nx">C</span><span class="w"> </span><span class="kt">int64</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>A → register
+B → register
+C → stack
+</code></pre></div>
+<p>Потом callee делает:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">s</span>
+</code></pre></div>
+<p>Теперь <code>s</code> нужен как единый объект в обычной memory layout.</p>
+<p>Пришлось бы:</p>
+<div class="highlight"><pre><span></span><code>собрать register pieces
++
+stack piece
+↓
+новая contiguous memory representation
+</code></pre></div>
+<p>Цена и сложность.</p>
+<p>Поэтому current ABI предпочитает:</p>
+<div class="highlight"><pre><span></span><code>argument помещается в доступные registers целиком?
+├── да → register-assigned
+└── нет → весь argument на stack
+</code></pre></div>
+<hr/>
+<h1 id="11">11. Простые целые типы<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="kt">int64</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">uint32</span><span class="p">)</span>
+</code></pre></div>
+<p>На 64-bit architecture:</p>
+<div class="highlight"><pre><span></span><code>a
+→ integer argument register
+
+b
+→ следующий integer argument register
+</code></pre></div>
+<p>Маленький <code>uint32</code> не обязательно упаковывается рядом с другим значением в тот же register.</p>
+<p>Базовые values получают собственные register positions.</p>
+<hr/>
+<h1 id="12-uint32-64-bit-register">12. Почему не паковать два <code>uint32</code> в один 64-bit register<a class="headerlink" href="#12-uint32-64-bit-register" title="Permanent link">¶</a></h1>
+<p>Теоретически:</p>
+<div class="highlight"><pre><span></span><code>a uint32
+b uint32
+↓
+один register
+</code></pre></div>
+<p>Экономим register.</p>
+<p>Но потом caller/callee должны:</p>
+<div class="highlight"><pre><span></span><code>pack
+unpack
+mask
+shift
+</code></pre></div>
+<p>Registers на современных CPU обычно достаточно.</p>
+<p>Часто выгоднее:</p>
+<div class="highlight"><pre><span></span><code>простая схема
++
+меньше упаковки
+</code></pre></div>
+<hr/>
+<h1 id="13-pointer-like-types">13. Pointer-like types<a class="headerlink" href="#13-pointer-like-types" title="Permanent link">¶</a></h1>
+<p>Текущий ABI рассматривает как один pointer-sized component:</p>
+<div class="highlight"><pre><span></span><code>*T
+unsafe.Pointer
+map
+chan
+func
+</code></pre></div>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>map[K]V
+</code></pre></div>
+<p>в параметре функции физически передается как pointer-like runtime representation.</p>
+<p>Не вся hash table копируется в вызов.</p>
+<hr/>
+<h1 id="14-string">14. <code>string</code> раскладывается на два компонента<a class="headerlink" href="#14-string" title="Permanent link">¶</a></h1>
+<p>Мы уже знаем representation:</p>
+<div class="highlight"><pre><span></span><code>string
+├── data pointer
+└── len
+</code></pre></div>
+<p>ABI может передать эти компоненты отдельно:</p>
+<div class="highlight"><pre><span></span><code>data → integer register
+len  → integer register
+</code></pre></div>
+<p>если хватает register budget.</p>
+<hr/>
+<h1 id="15-slice">15. Slice раскладывается на три компонента<a class="headerlink" href="#15-slice" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>[]T
+├── data
+├── len
+└── cap
+</code></pre></div>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+</code></pre></div>
+<p>может использовать несколько registers только для одного логического аргумента <code>s</code>.</p>
+<p>Вот где representation из обычной лекции напрямую влияет на calling convention.</p>
+<hr/>
+<h1 id="16-interface">16. Interface тоже состоит из двух компонентов<a class="headerlink" href="#16-interface" title="Permanent link">¶</a></h1>
+<p>Из <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>empty interface
+→ Type + Data
+
+non-empty
+→ ITab + Data
+</code></pre></div>
+<p>ABI видит:</p>
+<div class="highlight"><pre><span></span><code>два pointer-sized components
+</code></pre></div>
+<p>Значит interface argument может потребовать два integer registers.</p>
+<hr/>
+<h1 id="17-struct">17. Struct разлагается рекурсивно<a class="headerlink" href="#17-struct" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">S</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">A</span><span class="w"> </span><span class="kt">int64</span>
+<span class="w">    </span><span class="nx">B</span><span class="w"> </span><span class="o">*</span><span class="nx">Node</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>ABI пробует:</p>
+<div class="highlight"><pre><span></span><code>A → integer register
+B → integer register
+</code></pre></div>
+<p>То есть struct не обязательно:</p>
+<div class="highlight"><pre><span></span><code>копируется целиком в stack
+</code></pre></div>
+<hr/>
+<h1 id="18-array">18. Но array — важное исключение<a class="headerlink" href="#18-array" title="Permanent link">¶</a></h1>
+<p>Текущий ABI специально различает arrays.</p>
+<div class="highlight"><pre><span></span><code>[0]T
+→ ничего
+
+[1]T
+→ можно рекурсивно разложить элемент
+
+[N]T, N &gt; 1
+→ register assignment fails
+→ array целиком идет в stack
+</code></pre></div>
+<p>Почему?</p>
+<hr/>
+<h1 id="19-non-trivial-array-stack">19. Почему non-trivial array оставляют в stack<a class="headerlink" href="#19-non-trivial-array-stack" title="Permanent link">¶</a></h1>
+<p>Array предполагает индексирование:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span>
+</code></pre></div>
+<p>Если элементы разложены по несмежным registers:</p>
+<div class="highlight"><pre><span></span><code>computed index
+→ какой register выбрать?
+</code></pre></div>
+<p>CPU не умеет динамически индексировать набор general-purpose registers как массив.</p>
+<p>В памяти:</p>
+<div class="highlight"><pre><span></span><code>base + i*sizeof(T)
+</code></pre></div>
+<p>естественно.</p>
+<p>Поэтому массивы длиной больше 1 текущий ABI оставляет stack-assigned.</p>
+<hr/>
+<h1 id="20-assignment">20. Важный принцип: assignment пробуется целиком<a class="headerlink" href="#20-assignment" title="Permanent link">¶</a></h1>
+<p>Пусть type рекурсивно разложился на 6 integer components.</p>
+<p>Доступно только 5 argument registers.</p>
+<p>Текущий ABI не делает:</p>
+<div class="highlight"><pre><span></span><code>5 в registers
+1 в stack
+</code></pre></div>
+<p>Он откатывает попытку:</p>
+<div class="highlight"><pre><span></span><code>весь argument → stack
+</code></pre></div>
+<hr/>
+<h1 id="21-arguments-results">21. Arguments и results используют один общий принцип<a class="headerlink" href="#21-arguments-results" title="Permanent link">¶</a></h1>
+<p>Caller передает arguments.</p>
+<p>Callee возвращает results.</p>
+<p>Но register counters для results начинаются заново.</p>
+<p>То есть одни и те же физические registers могут использоваться:</p>
+<div class="highlight"><pre><span></span><code>на входе
+→ для arguments
+
+на выходе
+→ для results
+</code></pre></div>
+<p>Это нормально.</p>
+<p>Call boundary разделяет эти моменты.</p>
+<hr/>
+<h1 id="22-stack-space-arguments-results">22. Но stack space arguments и results раздельный<a class="headerlink" href="#22-stack-space-arguments-results" title="Permanent link">¶</a></h1>
+<p>Stack frame содержит отдельные области:</p>
+<div class="highlight"><pre><span></span><code>stack-assigned arguments
+↓
+alignment
+↓
+stack-assigned results
+↓
+alignment
+↓
+spill area для register arguments
+</code></pre></div>
+<p>Это уже не просто:</p>
+<div class="highlight"><pre><span></span><code>все параметры подряд
+</code></pre></div>
+<hr/>
+<h1 id="23-spill-area-register-arguments">23. Spill area существует даже для register arguments<a class="headerlink" href="#23-spill-area-register-arguments" title="Permanent link">¶</a></h1>
+<p>Пусть argument передан в register.</p>
+<p>Caller все равно резервирует stack spill space для него.</p>
+<p>Но при обычном call это место может остаться неинициализированным.</p>
+<p>Зачем резервировать?</p>
+<hr/>
+<h1 id="24-stack-growth-spill-area">24. Stack growth объясняет spill area<a class="headerlink" href="#24-stack-growth-spill-area" title="Permanent link">¶</a></h1>
+<p>Callee входит в функцию.</p>
+<p>Выясняется:</p>
+<div class="highlight"><pre><span></span><code>текущего stack недостаточно
+</code></pre></div>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code>grow stack
+</code></pre></div>
+<p>Но аргументы сейчас находятся в registers.</p>
+<p>Stack growth machinery может понадобиться сохранить call state.</p>
+<p>Caller заранее зарезервировал home/spill area.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>register argument
+↓
+при необходимости spill
+↓
+stack growth
+↓
+restore
+</code></pre></div>
+<hr/>
+<h1 id="25-abi-stack-growth">25. Это связывает ABI с уже прочитанным stack growth<a class="headerlink" href="#25-abi-stack-growth" title="Permanent link">¶</a></h1>
+<p>В <code>Runtime deep</code> стек мог:</p>
+<div class="highlight"><pre><span></span><code>grow
+move
+</code></pre></div>
+<p>Теперь видно условие корректности:</p>
+<blockquote>
+<p>ABI должен позволять рантайму пережить stack growth посреди function entry, не потеряв аргументы.</p>
+</blockquote>
+<p>Это одна из причин, почему calling convention проектируется вместе с runtime.</p>
+<hr/>
+<h1 id="26-register-assigned-memory-representation">26. Адрес register-assigned аргумента тоже требует memory representation<a class="headerlink" href="#26-register-assigned-memory-representation" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">x</span>
+<span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">p</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>На входе <code>x</code> может быть:</p>
+<div class="highlight"><pre><span></span><code>register
+</code></pre></div>
+<p>Но оператор:</p>
+<div class="highlight"><pre><span></span><code><span class="o">&amp;</span><span class="nx">x</span>
+</code></pre></div>
+<p>требует адрес.</p>
+<p>Адрес register не существует в обычной Go memory model.</p>
+<p>Нужно:</p>
+<div class="highlight"><pre><span></span><code>spill x
+↓
+stack slot
+↓
+&amp;slot
+</code></pre></div>
+<p>Spill area дает удобное место.</p>
+<hr/>
+<h1 id="27-register-abi-stack">27. Значит register ABI не означает «аргументы никогда не попадают в stack»<a class="headerlink" href="#27-register-abi-stack" title="Permanent link">¶</a></h1>
+<p>Они могут попасть туда:</p>
+<ul>
+<li>из-за stack growth;</li>
+<li>если callee берет адрес;</li>
+<li>из-за register pressure;</li>
+<li>для traceback/debug needs;</li>
+<li>потому что сам аргумент не помещается в registers.</li>
+</ul>
+<p>Правильная модель:</p>
+<div class="highlight"><pre><span></span><code>registers — предпочтительный транспорт через call boundary
+</code></pre></div>
+<p>а не:</p>
+<div class="highlight"><pre><span></span><code>stack больше не нужен
+</code></pre></div>
+<hr/>
+<h1 id="28-amd64-integer-argumentresult-registers">28. amd64: текущий набор integer argument/result registers<a class="headerlink" href="#28-amd64-integer-argumentresult-registers" title="Permanent link">¶</a></h1>
+<p>На amd64 current <code>ABIInternal</code> использует последовательность:</p>
+<div class="highlight"><pre><span></span><code>RAX
+RBX
+RCX
+RDI
+RSI
+R8
+R9
+R10
+R11
+</code></pre></div>
+<p>То есть 9 integer registers для аргументов и результатов.</p>
+<p>Для floating-point используются:</p>
+<div class="highlight"><pre><span></span><code>X0–X14
+</code></pre></div>
+<p>Это <strong>деталь ABIInternal Go 1.27.x</strong>, не контракт языка.</p>
+<hr/>
+<h1 id="29-system-v-abi">29. Почему не используется обычный System V ABI напрямую<a class="headerlink" href="#29-system-v-abi" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>Мы на Linux amd64, значит Go обязан вызывать свои функции ровно по SysV ABI.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Go compiler и runtime — одна управляемая система.</p>
+<p>Им выгодно иметь собственный ABI, учитывающий:</p>
+<ul>
+<li>stack growth;</li>
+<li>goroutine pointer;</li>
+<li>closures;</li>
+<li>reflection;</li>
+<li>Go type layout;</li>
+<li>GC metadata.</li>
+</ul>
+<p>При boundary с C/platform ABI нужны отдельные механизмы.</p>
+<hr/>
+<h1 id="30-amd64-registers">30. amd64: специальные registers<a class="headerlink" href="#30-amd64-registers" title="Permanent link">¶</a></h1>
+<p>Current internal ABI резервирует специальные роли.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>RSP → stack pointer
+RBP → frame pointer
+RDX → closure context pointer
+R14 → current goroutine
+</code></pre></div>
+<p>Это еще один пример:</p>
+<div class="highlight"><pre><span></span><code>не все registers доступны allocator одинаково
+</code></pre></div>
+<hr/>
+<h1 id="31-g-register">31. <code>g</code> в отдельном register<a class="headerlink" href="#31-g-register" title="Permanent link">¶</a></h1>
+<p>Из runtime deep:</p>
+<div class="highlight"><pre><span></span><code>G
+→ текущая goroutine
+</code></pre></div>
+<p>На amd64 Go держит current goroutine pointer в:</p>
+<div class="highlight"><pre><span></span><code>R14
+</code></pre></div>
+<p>Это позволяет runtime/compiler быстро обращаться к состоянию G без обычного function argument.</p>
+<p>Еще один пример скрытого контракта между runtime и generated code.</p>
+<hr/>
+<h1 id="32-arm64-argument-registers">32. arm64: больше argument registers<a class="headerlink" href="#32-arm64-argument-registers" title="Permanent link">¶</a></h1>
+<p>Текущий arm64 <code>ABIInternal</code> использует:</p>
+<div class="highlight"><pre><span></span><code>R0–R15
+</code></pre></div>
+<p>для integer arguments/results.</p>
+<p>И:</p>
+<div class="highlight"><pre><span></span><code>F0–F15
+</code></pre></div>
+<p>для floating-point.</p>
+<p>То есть physical mapping отличается от amd64.</p>
+<hr/>
+<h1 id="33-arm64-link-register">33. arm64 имеет link register<a class="headerlink" href="#33-arm64-link-register" title="Permanent link">¶</a></h1>
+<p>На amd64 <code>CALL</code> кладет return PC в stack.</p>
+<p>На arm64:</p>
+<div class="highlight"><pre><span></span><code>R30
+</code></pre></div>
+<p>является link register.</p>
+<p>Function prologue при необходимости сохраняет его в frame.</p>
+<p>Значит даже такой базовый вопрос:</p>
+<div class="highlight"><pre><span></span><code>где return address?
+</code></pre></div>
+<p>зависит от ISA.</p>
+<hr/>
+<h1 id="34-abi-algorithm">34. Но общий ABI algorithm остается единым<a class="headerlink" href="#34-abi-algorithm" title="Permanent link">¶</a></h1>
+<p>Go старается иметь общую концепцию:</p>
+<div class="highlight"><pre><span></span><code>разложить values
+↓
+назначить integer/fp registers
+↓
+не поместилось?
+→ stack
+</code></pre></div>
+<p>А затем architecture определяет:</p>
+<div class="highlight"><pre><span></span><code>какие именно registers
+какой stack alignment
+какие special registers
+</code></pre></div>
+<hr/>
+<h1 id="35-16-registers-arm64">35. Почему 16 registers arm64 не означают автоматически «вызовы быстрее»<a class="headerlink" href="#35-16-registers-arm64" title="Permanent link">¶</a></h1>
+<p>Можно посчитать:</p>
+<div class="highlight"><pre><span></span><code>arm64 argument registers = 16
+amd64 = 9
+</code></pre></div>
+<p>и сделать вывод:</p>
+<blockquote>
+<p>arm64 ABI лучше.</p>
+</blockquote>
+<p>Слишком просто.</p>
+<p>Реальная цена зависит от:</p>
+<ul>
+<li>сигнатур функций;</li>
+<li>register pressure внутри callee;</li>
+<li>ISA;</li>
+<li>compiler lowering;</li>
+<li>microarchitecture;</li>
+<li>memory behavior.</li>
+</ul>
+<p>ABI registers — только один слой.</p>
+<hr/>
+<h1 id="36-return-values-registers">36. Return values тоже могут идти через registers<a class="headerlink" href="#36-return-values-registers" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">()</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span>
+</code></pre></div>
+<p>Results логически:</p>
+<div class="highlight"><pre><span></span><code>int
+string.data
+string.len
+</code></pre></div>
+<p>Compiler/ABI может назначить:</p>
+<div class="highlight"><pre><span></span><code>несколько result registers
+</code></pre></div>
+<p>и избежать memory round-trip.</p>
+<hr/>
+<h1 id="37-result-stack">37. Большой result может уйти в stack<a class="headerlink" href="#37-result-stack" title="Permanent link">¶</a></h1>
+<p>Если result не удается целиком назначить registers:</p>
+<div class="highlight"><pre><span></span><code>result stack area
+</code></pre></div>
+<p>Caller заранее знает, где callee запишет результат.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>callee writes
+↓
+caller-owned call frame area
+</code></pre></div>
+<hr/>
+<h1 id="38-heap-allocation-struct">38. Это не «heap allocation для возврата struct»<a class="headerlink" href="#38-heap-allocation-struct" title="Permanent link">¶</a></h1>
+<p>Очень важное разрушение.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">()</span><span class="w"> </span><span class="nx">BigStruct</span>
+</code></pre></div>
+<p>Большой result может передаваться через stack memory.</p>
+<p>Это не означает:</p>
+<div class="highlight"><pre><span></span><code>BigStruct обязательно heap
+</code></pre></div>
+<p>ABI stack result и Go heap allocation — разные понятия.</p>
+<hr/>
+<h1 id="39-closure">39. Closure вызывает новую проблему<a class="headerlink" href="#39-closure" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">makeAdder</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">y</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">y</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>При вызове closure нужны:</p>
+<div class="highlight"><pre><span></span><code>обычные arguments
++
+closed-over environment
+</code></pre></div>
+<p>Где передать environment?</p>
+<hr/>
+<h1 id="40-func-value-code-pointer">40. Func value — не просто code pointer<a class="headerlink" href="#40-func-value-code-pointer" title="Permanent link">¶</a></h1>
+<p>Полезная current ABI-модель:</p>
+<div class="highlight"><pre><span></span><code>func value
+↓
+closure object
+├── entry PC
+└── environment bytes / references
+</code></pre></div>
+<p>Call closure должен передать:</p>
+<div class="highlight"><pre><span></span><code>куда прыгнуть
++
+где лежит environment
+</code></pre></div>
+<hr/>
+<h1 id="41-closure-context-register">41. Closure context register<a class="headerlink" href="#41-closure-context-register" title="Permanent link">¶</a></h1>
+<p>Каждая architecture выделяет специальный register для closure context.</p>
+<p>Например current amd64:</p>
+<div class="highlight"><pre><span></span><code>RDX
+</code></pre></div>
+<p>arm64:</p>
+<div class="highlight"><pre><span></span><code>R26
+</code></pre></div>
+<p>Перед closure call:</p>
+<div class="highlight"><pre><span></span><code>closure object address
+→ closure context register
+</code></pre></div>
+<p>Обычные arguments продолжают идти по обычному ABI.</p>
+<hr/>
+<h1 id="42-environment">42. Почему environment не делать первым обычным аргументом<a class="headerlink" href="#42-environment" title="Permanent link">¶</a></h1>
+<p>Можно было бы концептуально переписать:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="p">(</span><span class="nx">y</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span>
+</code></pre></div>
+<p>в:</p>
+<div class="highlight"><pre><span></span><code>func(env *Closure, y int) int
+</code></pre></div>
+<p>Но dedicated register:</p>
+<ul>
+<li>отделяет hidden context от обычной сигнатуры;</li>
+<li>упрощает generated wrappers;</li>
+<li>не сдвигает обычное assignment аргументов.</li>
+</ul>
+<p>Это internal design choice.</p>
+<hr/>
+<h1 id="43-method-value-closure">43. Method value похож на closure<a class="headerlink" href="#43-method-value-closure" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">f</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">Method</span>
+<span class="nx">f</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Нужно сохранить:</p>
+<div class="highlight"><pre><span></span><code>receiver obj
+</code></pre></div>
+<p>в function value environment.</p>
+<p>То есть method value физически становится близок к closure:</p>
+<div class="highlight"><pre><span></span><code>entry code
++
+captured receiver
+</code></pre></div>
+<hr/>
+<h1 id="44-static-method-call-method-value-machine-paths">44. Static method call и method value — разные machine paths<a class="headerlink" href="#44-static-method-call-method-value-machine-paths" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">obj</span><span class="p">.</span><span class="nx">Method</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Compiler знает receiver прямо в call site.</p>
+<p>А:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">f</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">obj</span><span class="p">.</span><span class="nx">Method</span>
+<span class="nx">f</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>создает function value с captured receiver.</p>
+<p>Синтаксис похож.</p>
+<p>Физическая структура отличается.</p>
+<hr/>
+<h1 id="45-abi0">45. Теперь <code>ABI0</code><a class="headerlink" href="#45-abi0" title="Permanent link">¶</a></h1>
+<p>Пусть у нас Go assembly function.</p>
+<p>Stable assembly ABI исторически stack-based:</p>
+<div class="highlight"><pre><span></span><code>caller
+↓
+arguments in stack ABI layout
+↓
+assembly body
+</code></pre></div>
+<p>Но обычный Go caller работает через <code>ABIInternal</code>.</p>
+<p>Нужен переход.</p>
+<hr/>
+<h1 id="46-abi-wrapper">46. ABI wrapper<a class="headerlink" href="#46-abi-wrapper" title="Permanent link">¶</a></h1>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>ABIInternal caller
+↓
+wrapper
+├── взять register arguments
+├── разложить в ABI0 stack slots
+↓
+CALL ABI0 body
+↓
+взять stack results
+↓
+положить в ABIInternal result registers
+↓
+return
+</code></pre></div>
+<p>Wrapper — реальный код.</p>
+<p>Но toolchain старается делать это прозрачно.</p>
+<hr/>
+<h1 id="47-abi-boundary">47. Цена ABI boundary<a class="headerlink" href="#47-abi-boundary" title="Permanent link">¶</a></h1>
+<p>Если горячий код часто пересекает:</p>
+<div class="highlight"><pre><span></span><code>ABIInternal ↔ ABI0
+</code></pre></div>
+<p>может появиться:</p>
+<ul>
+<li>перекладывание аргументов;</li>
+<li>дополнительный wrapper call;</li>
+<li>stack traffic.</li>
+</ul>
+<p>Для обычного pure Go этого почти не замечаем.</p>
+<p>Для assembly/cgo boundaries это уже реальная стоимость.</p>
+<hr/>
+<h1 id="48-abiinternal">48. Почему ABIInternal нестабилен<a class="headerlink" href="#48-abiinternal" title="Permanent link">¶</a></h1>
+<p>Потому что Go team хочет иметь свободу менять:</p>
+<ul>
+<li>register assignment;</li>
+<li>stack conventions;</li>
+<li>special registers;</li>
+<li>optimizations;</li>
+<li>runtime coordination.</li>
+</ul>
+<p>Если бы user assembly напрямую зависел от ABIInternal навсегда:</p>
+<div class="highlight"><pre><span></span><code>любое улучшение ABI
+→ ломает ecosystem
+</code></pre></div>
+<p>Поэтому стабильный public assembly boundary отделен.</p>
+<hr/>
+<h1 id="49-abi">49. ABI как часть производительности<a class="headerlink" href="#49-abi" title="Permanent link">¶</a></h1>
+<p>Один function call под нагрузкой:</p>
+<div class="highlight"><pre><span></span><code>несколько register moves
+CALL
+RET
+</code></pre></div>
+<p>почти неинтересен.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code>500 млн calls/s
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>очень широкий signature
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>частые wrappers
+</code></pre></div>
+<p>Цена становится измеримой.</p>
+<p>Но начинаем все равно с профиля.</p>
+<hr/>
+<h1 id="50-abi">50. Что важно запомнить по ABI<a class="headerlink" href="#50-abi" title="Permanent link">¶</a></h1>
+<ol>
+<li>ABI — физический контракт caller/callee, а не API.</li>
+<li>Go source functions используют нестабильный <code>ABIInternal</code>.</li>
+<li>Go assembler опирается на стабильный <code>ABI0</code>.</li>
+<li>Current <code>ABIInternal</code> предпочитает registers, но stack никуда не исчез.</li>
+<li>Composite values рекурсивно раскладываются на ABI components.</li>
+<li>Argument/result либо целиком register-assigned, либо целиком stack-assigned.</li>
+<li>Arrays длиной больше 1 — важное current исключение: они идут на stack.</li>
+<li>Caller резервирует spill area для register arguments.</li>
+<li>Spill area связан со stack growth и возможностью взять адрес argument.</li>
+<li>amd64 и arm64 используют разные physical registers при общем ABI design.</li>
+<li>Closure environment передается через специальный closure-context register.</li>
+<li>ABI wrappers соединяют <code>ABIInternal</code> и <code>ABI0</code>.</li>
+<li>Все точные register numbers и layout rules — детали текущего Go, а не спецификации языка.</li>
+</ol>
+<hr/>
+<h1 id="ii-generics-codegen">Часть II. Generics codegen<a class="headerlink" href="#ii-generics-codegen" title="Permanent link">¶</a></h1>
+<h1 id="51-type-parameter">51. Теперь появляется type parameter<a class="headerlink" href="#51-type-parameter" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Identity</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>На уровне языка все понятно:</p>
+<div class="highlight"><pre><span></span><code>T
+→ какой-то type argument
+</code></pre></div>
+<p>Но машинный код требует конкретики:</p>
+<div class="highlight"><pre><span></span><code>сколько bytes в T?
+какие операции допустимы?
+есть ли pointers?
+как вернуть T?
+</code></pre></div>
+<p>Как компилировать тело, пока <code>T</code> неизвестен?</p>
+<hr/>
+<h1 id="52">52. Две крайние стратегии<a class="headerlink" href="#52" title="Permanent link">¶</a></h1>
+<p>Первая:</p>
+<div class="highlight"><pre><span></span><code>полная мономорфизация
+</code></pre></div>
+<p>Для каждого T:</p>
+<div class="highlight"><pre><span></span><code>Identity[int]
+Identity[string]
+Identity[User]
+Identity[*Node]
+...
+</code></pre></div>
+<p>отдельный machine code.</p>
+<hr/>
+<h1 id="53">53. Плюс полной мономорфизации<a class="headerlink" href="#53" title="Permanent link">¶</a></h1>
+<p>Compiler знает concrete type.</p>
+<p>Можно максимально специализировать:</p>
+<div class="highlight"><pre><span></span><code>sizeof(T)
+layout
+methods
+operations
+</code></pre></div>
+<p>И generated code может стать очень простым.</p>
+<hr/>
+<h1 id="54">54. Минус полной мономорфизации<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
+<p>Пусть generic function используется с:</p>
+<div class="highlight"><pre><span></span><code>500 type arguments
+</code></pre></div>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>500 copies of code
+</code></pre></div>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>binary size ↑
+compile time ↑
+instruction cache pressure потенциально ↑
+</code></pre></div>
+<hr/>
+<h1 id="55">55. Вторая крайность — одна полностью динамическая функция<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
+<p>Можно было бы сделать:</p>
+<div class="highlight"><pre><span></span><code>Identity(dynamicTypeInfo, pointerToValue)
+</code></pre></div>
+<p>для всех T.</p>
+<p>Кода мало.</p>
+<p>Но compiler потерял много static information.</p>
+<p>Цена:</p>
+<div class="highlight"><pre><span></span><code>runtime metadata loads
+indirection
+хуже inlining
+хуже specialization
+</code></pre></div>
+<hr/>
+<h1 id="56-go">56. Go использует промежуточную схему<a class="headerlink" href="#56-go" title="Permanent link">¶</a></h1>
+<p>Текущая реализация комбинирует:</p>
+<div class="highlight"><pre><span></span><code>shape types
++
+stenciled generic bodies
++
+runtime dictionaries
++
+wrappers
+</code></pre></div>
+<p>Не нужно запоминать все имена.</p>
+<p>Нужно понять, <strong>какую проблему решает каждый слой</strong>.</p>
+<hr/>
+<h1 id="57-type-instantiation">57. Сначала обычная type instantiation<a class="headerlink" href="#57-type-instantiation" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">Identity</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+</code></pre></div>
+<p>Type checker выводит:</p>
+<div class="highlight"><pre><span></span><code>T = int
+</code></pre></div>
+<p>На уровне языка функция теперь имеет конкретную инстанциацию:</p>
+<div class="highlight"><pre><span></span><code>Identity[int]
+</code></pre></div>
+<p>Но это еще не означает:</p>
+<blockquote>
+<p>Compiler обязательно сделает уникальное полностью специализированное тело только для <code>int</code>.</p>
+</blockquote>
+<hr/>
+<h1 id="58-type-checking-codegen">58. Type checking и codegen — разные стадии<a class="headerlink" href="#58-type-checking-codegen" title="Permanent link">¶</a></h1>
+<p>Type checker отвечает:</p>
+<div class="highlight"><pre><span></span><code>какой concrete type argument?
+валидна ли программа?
+</code></pre></div>
+<p>Codegen отвечает:</p>
+<div class="highlight"><pre><span></span><code>какое тело machine code использовать?
+какая runtime metadata нужна?
+</code></pre></div>
+<p>Эти вопросы нельзя смешивать.</p>
+<hr/>
+<h1 id="59-shape-type">59. Shape type<a class="headerlink" href="#59-shape-type" title="Permanent link">¶</a></h1>
+<p>Compiler имеет специальные:</p>
+<div class="highlight"><pre><span></span><code>shape types
+</code></pre></div>
+<p>Внутренний package для них называется:</p>
+<div class="highlight"><pre><span></span><code>go.shape
+</code></pre></div>
+<p>Сам compiler помечает shape как representation:</p>
+<div class="highlight"><pre><span></span><code>набора близко связанных типов
+</code></pre></div>
+<p>для generics implementation.</p>
+<hr/>
+<h1 id="60-shape-sizeoft">60. Плохое упрощение: shape = sizeof(T)<a class="headerlink" href="#60-shape-sizeoft" title="Permanent link">¶</a></h1>
+<p>Нет.</p>
+<p>Если два type имеют одинаковый size:</p>
+<div class="highlight"><pre><span></span><code>8 bytes
+</code></pre></div>
+<p>это не автоматически означает:</p>
+<div class="highlight"><pre><span></span><code>одна shape
+</code></pre></div>
+<p>Shape учитывает более глубокие representation constraints реализации.</p>
+<p>Правильно:</p>
+<blockquote>
+<p>Shape — внутренний compiler type для совместного codegen группы совместимых instantiations.</p>
+</blockquote>
+<hr/>
+<h1 id="61-shape">61. Зачем shape вообще нужна<a class="headerlink" href="#61-shape" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Zero</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">]()</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="nx">T</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">z</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если несколько type arguments могут использовать одинаковую code shape:</p>
+<div class="highlight"><pre><span></span><code>не нужно обязательно генерировать полностью независимое body для каждого
+</code></pre></div>
+<p>Можно:</p>
+<div class="highlight"><pre><span></span><code>несколько instantiations
+↓
+одно shaped implementation
+</code></pre></div>
+<hr/>
+<h1 id="62-shape-concrete-identity">62. Но shape теряет concrete identity типа<a class="headerlink" href="#62-shape-concrete-identity" title="Permanent link">¶</a></h1>
+<p>Внутри shaped body compiler знает:</p>
+<div class="highlight"><pre><span></span><code>representation shape
+</code></pre></div>
+<p>Но иногда программе нужна именно concrete runtime type identity.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Чтобы построить interface:</p>
+<div class="highlight"><pre><span></span><code>нужен *runtime type descriptor именно concrete T
+</code></pre></div>
+<p><code>go.shape.X</code> недостаточно.</p>
+<hr/>
+<h1 id="63">63. Значит нужен второй канал информации<a class="headerlink" href="#63" title="Permanent link">¶</a></h1>
+<p>Shaped function знает:</p>
+<div class="highlight"><pre><span></span><code>как работать с representation
+</code></pre></div>
+<p>Но должна получить:</p>
+<div class="highlight"><pre><span></span><code>какой concrete T вызвал эту instantiation?
+</code></pre></div>
+<p>Вот здесь появляется:</p>
+<div class="highlight"><pre><span></span><code>dictionary
+</code></pre></div>
+<hr/>
+<h1 id="64-dictionary-runtime-metadata">64. Dictionary — runtime metadata конкретной инстанциации<a class="headerlink" href="#64-dictionary-runtime-metadata" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>generic body for shape S
++
+dictionary[int]
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>generic body for shape S
++
+dictionary[MyType]
+</code></pre></div>
+<p>Один body.</p>
+<p>Разные dictionaries.</p>
+<hr/>
+<h1 id="65-dictionary">65. Что может лежать в dictionary<a class="headerlink" href="#65-dictionary" title="Permanent link">¶</a></h1>
+<p>Текущий runtime dictionary может содержать секции с информацией вроде:</p>
+<div class="highlight"><pre><span></span><code>runtime type descriptors
+itab pointers
+sub-dictionaries
+method expressions для type parameters
+</code></pre></div>
+<p>То есть dictionary не является:</p>
+<div class="highlight"><pre><span></span><code>одним type ID
+</code></pre></div>
+<p>Это таблица конкретных runtime данных, которые shaped body не может знать статически.</p>
+<hr/>
+<h1 id="66-runtime-type-descriptors">66. Runtime type descriptors<a class="headerlink" href="#66-runtime-type-descriptors" title="Permanent link">¶</a></h1>
+<p>Пусть generic body делает:</p>
+<div class="highlight"><pre><span></span><code><span class="k">return</span><span class="w"> </span><span class="kt">any</span><span class="p">(</span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Нужно сформировать:</p>
+<div class="highlight"><pre><span></span><code>Type + Data
+</code></pre></div>
+<p>из <code>4.1</code>.</p>
+<p><code>Data</code> можно построить по representation.</p>
+<p>Но <code>Type</code> должен указывать на:</p>
+<div class="highlight"><pre><span></span><code>concrete T
+</code></pre></div>
+<p>Dictionary дает соответствующий runtime type descriptor.</p>
+<hr/>
+<h1 id="67-itab-dictionary">67. <code>itab</code> в dictionary<a class="headerlink" href="#67-itab-dictionary" title="Permanent link">¶</a></h1>
+<p>Пусть операция требует interface conversion:</p>
+<div class="highlight"><pre><span></span><code>T → SomeInterface
+</code></pre></div>
+<p>В runtime representation нужен:</p>
+<div class="highlight"><pre><span></span><code>ITab(concrete T, interface)
+</code></pre></div>
+<p>Если concrete <code>T</code> известен только instantiation dictionary:</p>
+<div class="highlight"><pre><span></span><code>dictionary
+↓
+itab slot
+</code></pre></div>
+<p>может дать готовую связь.</p>
+<hr/>
+<h1 id="68-subdictionary">68. Subdictionary<a class="headerlink" href="#68-subdictionary" title="Permanent link">¶</a></h1>
+<p>Generic function может вызвать другую generic function:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Outer</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Inner</span><span class="p">[</span><span class="nx">T</span><span class="p">](</span><span class="nx">x</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>Outer</code> работает с dictionary для <code>T</code>.</p>
+<p><code>Inner[T]</code> тоже может требовать собственный dictionary.</p>
+<p>Значит:</p>
+<div class="highlight"><pre><span></span><code>dictionary Outer
+↓
+subdictionary Inner[T]
+</code></pre></div>
+<hr/>
+<h1 id="69-method-expression-type-parameter">69. Method expression для type parameter<a class="headerlink" href="#69-method-expression-type-parameter" title="Permanent link">¶</a></h1>
+<p>Generic body может обращаться к method information, зависящей от <code>T</code>.</p>
+<p>Опять:</p>
+<div class="highlight"><pre><span></span><code>shape
+</code></pre></div>
+<p>не всегда достаточно.</p>
+<p>Concrete method expression может быть одним из dictionary slots.</p>
+<hr/>
+<h1 id="70-dictionary-function">70. Как dictionary попадает в function<a class="headerlink" href="#70-dictionary-function" title="Permanent link">¶</a></h1>
+<p>Самая важная физическая модель:</p>
+<div class="highlight"><pre><span></span><code>source:
+F[T](x)
+
+generated shaped body:
+F[shape](dictionary, x)
+</code></pre></div>
+<p>Dictionary становится <strong>скрытым параметром</strong>.</p>
+<hr/>
+<h1 id="71-generics-abi">71. И вот здесь generics упираются в ABI<a class="headerlink" href="#71-generics-abi" title="Permanent link">¶</a></h1>
+<p>Hidden dictionary parameter тоже нужно передать:</p>
+<div class="highlight"><pre><span></span><code>через register
+или
+через stack
+</code></pre></div>
+<p>То есть generic codegen меняет фактическую generated signature.</p>
+<p>ABI должен назначить физическое место и dictionary, и обычным arguments.</p>
+<hr/>
+<h1 id="72-generic-function-call">72. Generic function call в полном виде<a class="headerlink" href="#72-generic-function-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>caller знает:
+T = int
+↓
+выбрать shaped implementation
+↓
+найти dictionary[int]
+↓
+ABI assignment:
+dictionary
+x
+other args
+↓
+CALL shaped body
+</code></pre></div>
+<p>Теперь generics перестают быть чисто type-system feature.</p>
+<hr/>
+<h1 id="73-dictionary-pointer-register-pressure-call-boundary">73. Dictionary pointer тоже создает register pressure на call boundary<a class="headerlink" href="#73-dictionary-pointer-register-pressure-call-boundary" title="Permanent link">¶</a></h1>
+<p>Обычная функция:</p>
+<div class="highlight"><pre><span></span><code>x, y
+</code></pre></div>
+<p>Generic shaped function:</p>
+<div class="highlight"><pre><span></span><code>dictionary, x, y
+</code></pre></div>
+<p>Появился дополнительный hidden argument.</p>
+<p>В большинстве функций это незаметно.</p>
+<p>Но физически он существует.</p>
+<hr/>
+<h1 id="74-stenciling">74. Stenciling<a class="headerlink" href="#74-stenciling" title="Permanent link">¶</a></h1>
+<p>Термин удобно понимать так:</p>
+<blockquote>
+<p>Compiler создает конкретное исполняемое тело generic declaration для определенной shape/instantiation context.</p>
+</blockquote>
+<p>Не обязательно:</p>
+<div class="highlight"><pre><span></span><code>один unique machine body на каждый T
+</code></pre></div>
+<p>И не:</p>
+<div class="highlight"><pre><span></span><code>один полностью dynamic body на все T мира
+</code></pre></div>
+<hr/>
+<h1 id="75-generated-generic-symbols">75. Имена generated generic symbols можно увидеть<a class="headerlink" href="#75-generated-generic-symbols" title="Permanent link">¶</a></h1>
+<p>В binary/object symbols появляются имена, связанные с:</p>
+<div class="highlight"><pre><span></span><code>go.shape...
+</code></pre></div>
+<p>и instantiations.</p>
+<p>Например через:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>./app
+</code></pre></div>
+<p>можно увидеть, что generic codegen — не магия, а реальные symbols и data.</p>
+<hr/>
+<h1 id="76-fint-fmyint">76. Почему <code>F[int]</code> и <code>F[MyInt]</code> могут не означать две полностью независимые функции<a class="headerlink" href="#76-fint-fmyint" title="Permanent link">¶</a></h1>
+<p>Если compiler считает их representation совместимой для shaped code:</p>
+<div class="highlight"><pre><span></span><code>общий shaped body
++
+разные dictionaries
+</code></pre></div>
+<p>может быть выгоднее полного duplication.</p>
+<p>Но exact shape sharing — деталь реализации и версии.</p>
+<hr/>
+<h1 id="77-performance-reasoning-type-arguments">77. Почему нельзя строить performance reasoning только на type arguments<a class="headerlink" href="#77-performance-reasoning-type-arguments" title="Permanent link">¶</a></h1>
+<p>Плохой вывод:</p>
+<blockquote>
+<p>Я вызвал generic с 100 типами, значит binary содержит ровно 100 полных копий функции.</p>
+</blockquote>
+<p>Не обязательно.</p>
+<p>Правильные инструменты:</p>
+<div class="highlight"><pre><span></span><code>go tool nm
+go tool objdump
+binary size
+</code></pre></div>
+<hr/>
+<h1 id="78-generic-constraints-codegen">78. Generic constraints тоже влияют на возможный codegen<a class="headerlink" href="#78-generic-constraints-codegen" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Add</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="p">~</span><span class="kt">int</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">~</span><span class="kt">int64</span><span class="p">](</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Constraint сообщает compiler:</p>
+<div class="highlight"><pre><span></span><code>операция + разрешена
+</code></pre></div>
+<p>Но concrete instruction width/shape все равно зависит от actual representation.</p>
+<hr/>
+<h1 id="79-generic-method-call">79. Generic method call<a class="headerlink" href="#79-generic-method-call" title="Permanent link">¶</a></h1>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Call</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="nx">SomeConstraint</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">x</span><span class="p">.</span><span class="nx">M</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>В обычном concrete code compiler хотел бы:</p>
+<div class="highlight"><pre><span></span><code>devirtualize
+↓
+direct call
+</code></pre></div>
+<p>Но receiver может быть:</p>
+<div class="highlight"><pre><span></span><code>shape type
+</code></pre></div>
+<hr/>
+<h1 id="80-shape">80. Почему shape мешает обычной девиртуализации<a class="headerlink" href="#80-shape" title="Permanent link">¶</a></h1>
+<p>Compiler знает:</p>
+<div class="highlight"><pre><span></span><code>shape
+</code></pre></div>
+<p>Но не всегда знает, какой dictionary нужен concrete method implementation.</p>
+<p>Текущий devirtualizer прямо имеет случаи:</p>
+<div class="highlight"><pre><span></span><code>receiver IsShape / HasShape
+↓
+не девиртуализировать обычным путем
+</code></pre></div>
+<p>потому что вызову может понадобиться dictionary argument.</p>
+<hr/>
+<h1 id="81-abstraction">81. Вот где abstraction имеет реальную цену<a class="headerlink" href="#81-abstraction" title="Permanent link">¶</a></h1>
+<p>Generic method path может сохранить:</p>
+<div class="highlight"><pre><span></span><code>dictionary dependency
+</code></pre></div>
+<p>там, где обычный concrete call мог бы стать:</p>
+<div class="highlight"><pre><span></span><code>direct call
+→ inline
+</code></pre></div>
+<p>Это не значит:</p>
+<div class="highlight"><pre><span></span><code>generics медленные
+</code></pre></div>
+<p>Это значит:</p>
+<div class="highlight"><pre><span></span><code>некоторые compiler proofs сложнее
+</code></pre></div>
+<hr/>
+<h1 id="82-inlining-dictionary-machinery">82. Но inlining может снова убрать часть dictionary machinery<a class="headerlink" href="#82-inlining-dictionary-machinery" title="Permanent link">¶</a></h1>
+<p>Если generic instantiation и call site достаточно concrete:</p>
+<div class="highlight"><pre><span></span><code>inline
+↓
+dictionary loads становятся constants
+↓
+dead code / redundant loads исчезают
+</code></pre></div>
+<p>То есть cost model снова зависит от optimization context.</p>
+<hr/>
+<h1 id="83-dictionary-overhead">83. Поэтому dictionary overhead нельзя оценивать из исходника<a class="headerlink" href="#83-dictionary-overhead" title="Permanent link">¶</a></h1>
+<p>Нужно смотреть:</p>
+<div class="highlight"><pre><span></span><code>generated body
+↓
+inline?
+↓
+dictionary slot load остался?
+↓
+method call direct/indirect?
+</code></pre></div>
+<hr/>
+<h1 id="84-generic-type-methods-wrappers">84. Generic type methods и wrappers<a class="headerlink" href="#84-generic-type-methods-wrappers" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">]</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">V</span><span class="w"> </span><span class="nx">T</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="p">])</span><span class="w"> </span><span class="nx">Get</span><span class="p">()</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">V</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Для concrete:</p>
+<div class="highlight"><pre><span></span><code>Box[int]
+</code></pre></div>
+<p>runtime method table / itab нужны concrete-looking methods.</p>
+<p>Но actual generic implementation может быть shaped.</p>
+<hr/>
+<h1 id="85-wrapper-concrete-method-table-shaped-body">85. Wrapper соединяет concrete method table и shaped body<a class="headerlink" href="#85-wrapper-concrete-method-table-shaped-body" title="Permanent link">¶</a></h1>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>method expected by itab:
+Box[int].Get
+↓
+wrapper
+↓
+подставить dictionary[int]
+↓
+CALL shaped Get implementation
+</code></pre></div>
+<p>Это очень похожая идея на ABI wrapper.</p>
+<p>Только здесь boundary:</p>
+<div class="highlight"><pre><span></span><code>concrete instantiated method
+↔
+generic shaped implementation
+</code></pre></div>
+<hr/>
+<h1 id="86-wrapper-itab">86. Почему wrapper нужен для <code>itab</code><a class="headerlink" href="#86-wrapper-itab" title="Permanent link">¶</a></h1>
+<p>Из <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>ITab.Fun[]
+</code></pre></div>
+<p>должен содержать function pointers.</p>
+<p>Runtime хочет:</p>
+<div class="highlight"><pre><span></span><code>обычную callable function
+с concrete receiver signature
+</code></pre></div>
+<p>Он не хочет каждый interface dispatch заново разбираться:</p>
+<div class="highlight"><pre><span></span><code>какой dictionary?
+какая shape?
+</code></pre></div>
+<p>Wrapper заранее адаптирует вызов.</p>
+<hr/>
+<h1 id="87-current-compiler-wrappers">87. Current compiler прямо генерирует такие wrappers<a class="headerlink" href="#87-current-compiler-wrappers" title="Permanent link">¶</a></h1>
+<p>Для instantiated generic types используются fully stenciled wrappers, которые вызывают shaped implementation с нужным dictionary.</p>
+<p>Учебная схема:</p>
+<div class="highlight"><pre><span></span><code>interface dispatch
+↓
+concrete wrapper
+↓
+dictionary
+↓
+generic body
+</code></pre></div>
+<hr/>
+<h1 id="88-generic-methods-go-127">88. Generic methods в Go 1.27<a class="headerlink" href="#88-generic-methods-go-127" title="Permanent link">¶</a></h1>
+<p>Go 1.27 разрешил concrete methods с собственными type parameters.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Mapper</span><span class="p">[</span><span class="nx">E</span><span class="w"> </span><span class="kt">any</span><span class="p">]</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Data</span><span class="w"> </span><span class="p">[]</span><span class="nx">E</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">m</span><span class="w"> </span><span class="nx">Mapper</span><span class="p">[</span><span class="nx">E</span><span class="p">])</span><span class="w"> </span><span class="nx">Map</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">f</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">E</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">[]</span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">out</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="nx">T</span><span class="p">,</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">m</span><span class="p">.</span><span class="nx">Data</span><span class="p">))</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">m</span><span class="p">.</span><span class="nx">Data</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">out</span><span class="p">[</span><span class="nx">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">out</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Теперь type parameters могут принадлежать не только function/type declaration, но и concrete method.</p>
+<hr/>
+<h1 id="89-generic-interface-methods">89. Но generic interface methods все еще запрещены<a class="headerlink" href="#89-generic-interface-methods" title="Permanent link">¶</a></h1>
+<p>Интерфейс не может объявить:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">I</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">M</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">T</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Почему это важное ограничение для codegen?</p>
+<hr/>
+<h1 id="90-interface-dispatch-method-set">90. Обычный interface dispatch имеет конечный method set<a class="headerlink" href="#90-interface-dispatch-method-set" title="Permanent link">¶</a></h1>
+<p>Из <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>interface type
+↓
+фиксированный набор methods
+↓
+ITab.Fun[]
+</code></pre></div>
+<p>Linker/runtime заранее могут подготовить:</p>
+<div class="highlight"><pre><span></span><code>function pointers
+</code></pre></div>
+<hr/>
+<h1 id="91-generic-interface-method-instantiations-dynamic-dispatch">91. Generic interface method потребовал бы новые instantiations после dynamic dispatch<a class="headerlink" href="#91-generic-interface-method-instantiations-dynamic-dispatch" title="Permanent link">¶</a></h1>
+<p>Если бы было:</p>
+<div class="highlight"><pre><span></span><code>i.M[int]()
+i.M[string]()
+</code></pre></div>
+<p>а concrete dynamic type <code>i</code> неизвестен до runtime:</p>
+<div class="highlight"><pre><span></span><code>какие concrete generic method instantiations нужны?
+</code></pre></div>
+<p>Ответ зависит одновременно от:</p>
+<div class="highlight"><pre><span></span><code>dynamic receiver type
++
+runtime-chosen interface value
++
+type arguments call site
+</code></pre></div>
+<p>Это намного сложнее closed-world compilation.</p>
+<hr/>
+<h1 id="92-go-127">92. Поэтому Go 1.27 проводит границу<a class="headerlink" href="#92-go-127" title="Permanent link">¶</a></h1>
+<p>Разрешено:</p>
+<div class="highlight"><pre><span></span><code>generic methods на concrete types
+</code></pre></div>
+<p>Не разрешено:</p>
+<div class="highlight"><pre><span></span><code>generic interface methods
+</code></pre></div>
+<p>И обычный generic method сам по себе не может реализовать hypothetical generic interface method.</p>
+<p>Это design boundary языка.</p>
+<hr/>
+<h1 id="93-code-size-trade-off">93. Code size trade-off<a class="headerlink" href="#93-code-size-trade-off" title="Permanent link">¶</a></h1>
+<p>Generics implementation балансирует:</p>
+<div class="highlight"><pre><span></span><code>больше specialization
+↓
+быстрее / больше optimization potential
+но
+binary size ↑
+
+больше sharing через shapes
+↓
+binary size ↓
+но
+dictionary machinery ↑
+</code></pre></div>
+<p>Это classic компромисс:</p>
+<div class="highlight"><pre><span></span><code>code size
+↔
+specialization
+</code></pre></div>
+<hr/>
+<h1 id="94-instruction-cache">94. Instruction cache тоже часть цены<a class="headerlink" href="#94-instruction-cache" title="Permanent link">¶</a></h1>
+<p>Если полностью размножить huge generic function для сотен T:</p>
+<div class="highlight"><pre><span></span><code>text segment ↑
+↓
+instruction working set ↑
+↓
+i-cache pressure потенциально ↑
+</code></pre></div>
+<p>Не только размер binary на диске.</p>
+<hr/>
+<h1 id="95-shared-generic-body">95. Но shared generic body тоже не бесплатен<a class="headerlink" href="#95-shared-generic-body" title="Permanent link">¶</a></h1>
+<p>Dictionary-based sharing может добавить:</p>
+<div class="highlight"><pre><span></span><code>hidden argument
+metadata load
+wrapper
+indirection
+</code></pre></div>
+<p>Какой вариант выгоднее — задача compiler design.</p>
+<hr/>
+<h1 id="96-go-compiler">96. Почему Go compiler имеет право менять эту стратегию<a class="headerlink" href="#96-go-compiler" title="Permanent link">¶</a></h1>
+<p>Language specification гарантирует:</p>
+<div class="highlight"><pre><span></span><code>семантику generics
+</code></pre></div>
+<p>Она не гарантирует:</p>
+<div class="highlight"><pre><span></span><code>shape name
+dictionary layout
+число generated functions
+wrapper strategy
+</code></pre></div>
+<p>Все это implementation detail.</p>
+<hr/>
+<h1 id="97-production-generics">97. Production: где generics реально могут проявиться<a class="headerlink" href="#97-production-generics" title="Permanent link">¶</a></h1>
+<p>CPU profile может показать:</p>
+<div class="highlight"><pre><span></span><code>generic wrapper
+shaped function
+interface path
+</code></pre></div>
+<p>Binary size может вырасти.</p>
+<p>Но расследуем:</p>
+<div class="highlight"><pre><span></span><code>конкретный hot instantiation
+</code></pre></div>
+<p>а не:</p>
+<blockquote>
+<p>В проекте есть generics, значит проблема в них.</p>
+</blockquote>
+<hr/>
+<h1 id="98-generics">98. Диагностика generics<a class="headerlink" href="#98-generics" title="Permanent link">¶</a></h1>
+<p>Минимальная цепочка:</p>
+<div class="highlight"><pre><span></span><code>benchmark / CPU profile
+↓
+go tool nm
+↓
+найти shape/instantiation symbols
+↓
+objdump
+↓
+есть dictionary loads?
+wrapper?
+indirect call?
+↓
+-m=2 / SSA при необходимости
+</code></pre></div>
+<hr/>
+<h1 id="99-generics-codegen">99. Что важно запомнить по generics codegen<a class="headerlink" href="#99-generics-codegen" title="Permanent link">¶</a></h1>
+<ol>
+<li>Type instantiation и code generation — разные стадии.</li>
+<li>Current Go использует shape types для совместного codegen близких instantiations.</li>
+<li>Shape — не просто <code>sizeof(T)</code>.</li>
+<li>Shaped body может терять concrete runtime identity <code>T</code>.</li>
+<li>Dictionary передает concrete runtime metadata инстанциации.</li>
+<li>Dictionary может содержать runtime types, itabs, subdictionaries и method-expression data.</li>
+<li>Dictionary физически становится скрытым argument generated function.</li>
+<li>Значит generics codegen напрямую связан с ABI.</li>
+<li>Generic method calls на shaped receivers сложнее девиртуализировать.</li>
+<li>Instantiated generic methods могут получать concrete wrappers для method tables/itabs.</li>
+<li>Inlining способен убрать часть dictionary overhead.</li>
+<li>Exact shape sharing, dictionary layout и generated symbols — детали current compiler.</li>
+<li>Go 1.27 добавил generic methods у concrete types, но не generic interface methods.</li>
+<li>Цена generics — компромисс specialization, code size и runtime metadata work.</li>
+<li>Диагноз ставится по generated code и профилю, а не по наличию <code>[...]</code> в исходнике.</li>
+</ol>
+<hr/>
+<h1 id="iii-linker">Часть III. Linker<a class="headerlink" href="#iii-linker" title="Permanent link">¶</a></h1>
+<h1 id="100-executable">100. Компилятор еще не создал executable целиком<a class="headerlink" href="#100-executable" title="Permanent link">¶</a></h1>
+<p>После компиляции отдельных packages у нас есть:</p>
+<div class="highlight"><pre><span></span><code>machine code fragments
+data
+runtime type metadata
+symbols
+relocations
+export data
+</code></pre></div>
+<p>Но пока нет одной окончательной карты:</p>
+<div class="highlight"><pre><span></span><code>что лежит по какому адресу в готовой программе
+</code></pre></div>
+<p>Этим занимается linker.</p>
+<hr/>
+<h1 id="101-symbol">101. Сначала разберемся с symbol<a class="headerlink" href="#101-symbol" title="Permanent link">¶</a></h1>
+<p>Учебно symbol — именованный объект, который linker должен уметь найти.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>main.main
+runtime.chansend
+mypkg.Process
+type:*mypkg.User
+go:string....
+dictionary...
+wrapper...
+</code></pre></div>
+<p>У symbol есть:</p>
+<div class="highlight"><pre><span></span><code>имя
+тип/класс
+данные или код
+размер
+references
+relocations
+attributes
+</code></pre></div>
+<hr/>
+<h1 id="102-function-name-symbol">102. Почему function name нужен как symbol<a class="headerlink" href="#102-function-name-symbol" title="Permanent link">¶</a></h1>
+<p>Package A содержит:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">F</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>Package B вызывает:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">A</span><span class="p">.</span><span class="nx">F</span><span class="p">()</span>
+</code></pre></div>
+<p>B при собственной компиляции может еще не знать:</p>
+<div class="highlight"><pre><span></span><code>финальный virtual address A.F в executable
+</code></pre></div>
+<p>Но он знает:</p>
+<div class="highlight"><pre><span></span><code>symbol A.F
+</code></pre></div>
+<p>Этого достаточно, чтобы оставить ссылку для linker.</p>
+<hr/>
+<h1 id="103-relocation">103. Relocation — отложенное связывание адреса<a class="headerlink" href="#103-relocation" title="Permanent link">¶</a></h1>
+<p>Представим machine code:</p>
+<div class="highlight"><pre><span></span><code>CALL ???
+</code></pre></div>
+<p>Compiler/assembler знает:</p>
+<div class="highlight"><pre><span></span><code>нужно вызвать symbol A.F
+</code></pre></div>
+<p>Но exact displacement/address станет известен после layout.</p>
+<p>Он оставляет relocation:</p>
+<div class="highlight"><pre><span></span><code>в этом месте
+↓
+после размещения symbols
+↓
+подставить reference на A.F
+</code></pre></div>
+<hr/>
+<h1 id="104-package">104. Почему адрес нельзя всегда знать при компиляции package<a class="headerlink" href="#104-package" title="Permanent link">¶</a></h1>
+<p>Потому что:</p>
+<div class="highlight"><pre><span></span><code>package A
+package B
+runtime
+standard library
+</code></pre></div>
+<p>компилируются раздельно.</p>
+<p>Linker позже решит:</p>
+<div class="highlight"><pre><span></span><code>какие symbols вообще войдут
+в каком порядке
+с каким alignment
+в какие sections
+</code></pre></div>
+<p>Адрес зависит от итоговой программы.</p>
+<hr/>
+<h1 id="105-relocation-call">105. Relocation — не только <code>CALL</code><a class="headerlink" href="#105-relocation-call" title="Permanent link">¶</a></h1>
+<p>Reference может быть:</p>
+<div class="highlight"><pre><span></span><code>адрес global data
+type descriptor
+string data
+method wrapper
+dictionary
+itab
+runtime metadata
+</code></pre></div>
+<p>То есть linker связывает не только control flow.</p>
+<p>Он связывает всю объектную граф-модель программы.</p>
+<hr/>
+<h1 id="106-linker-symbols">106. Очень полезная модель: программа до linker — граф symbols<a class="headerlink" href="#106-linker-symbols" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>main.main
+├── calls app.Run
+├── references type:Config
+└── references string:"start"
+
+app.Run
+├── calls runtime.chansend
+├── references type:Job
+└── calls generic wrapper
+
+generic wrapper
+├── references dictionary
+└── calls shaped body
+</code></pre></div>
+<p>Relocations — ребра графа.</p>
+<p>Symbols — вершины.</p>
+<hr/>
+<h1 id="107-linker">107. Linker сначала должен загрузить этот граф<a class="headerlink" href="#107-linker" title="Permanent link">¶</a></h1>
+<p>Object data из скомпилированных packages содержит:</p>
+<div class="highlight"><pre><span></span><code>symbols
++
+relocations
++
+metadata
+</code></pre></div>
+<p>Go linker имеет loader layer, который дает единое пространство symbols для дальнейших passes.</p>
+<p>Нас не интересует binary encoding object files.</p>
+<p>Нас интересует результат:</p>
+<div class="highlight"><pre><span></span><code>единый symbol graph
+</code></pre></div>
+<hr/>
+<h1 id="108-reachability-symbol">108. Reachability: нужен ли symbol программе вообще<a class="headerlink" href="#108-reachability-symbol" title="Permanent link">¶</a></h1>
+<p>Пусть package содержит:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Used</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">NeverCalled</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>Если <code>NeverCalled</code> никем не достижим:</p>
+<div class="highlight"><pre><span></span><code>зачем класть его machine code в executable?
+</code></pre></div>
+<p>Можно удалить.</p>
+<hr/>
+<h1 id="109-dead-code-elimination-linker">109. Dead-code elimination linker<a class="headerlink" href="#109-dead-code-elimination-linker" title="Permanent link">¶</a></h1>
+<p>Linker начинает с roots.</p>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>entry points
+runtime-required roots
+init tasks
+exported/runtime-required metadata
+</code></pre></div>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>mark root reachable
+↓
+пройти его relocations
+↓
+пометить referenced symbols
+↓
+повторять
+</code></pre></div>
+<p>Это graph traversal.</p>
+<hr/>
+<h1 id="110-text-symbols">110. Недостижимые text symbols можно выбросить<a class="headerlink" href="#110-text-symbols" title="Permanent link">¶</a></h1>
+<p>После reachability:</p>
+<div class="highlight"><pre><span></span><code>symbol reachable?
+├── да → оставить
+└── нет → не включать как живой код
+</code></pre></div>
+<p>Получаем linker dead-code elimination.</p>
+<p>Это отличается от compiler DCE из <code>4.3</code>.</p>
+<hr/>
+<h1 id="111-compiler-dce-linker-dce">111. Compiler DCE и linker DCE работают на разных масштабах<a class="headerlink" href="#111-compiler-dce-linker-dce" title="Permanent link">¶</a></h1>
+<p>Compiler DCE:</p>
+<div class="highlight"><pre><span></span><code>внутри функции / package compilation
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>мертвый basic block
+</code></pre></div>
+<p>Linker DCE:</p>
+<div class="highlight"><pre><span></span><code>между symbols всей программы
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>целая функция
+никогда не reachable из final program
+</code></pre></div>
+<hr/>
+<h1 id="112-package-import-package-binary">112. Почему package import не означает «весь package в binary»<a class="headerlink" href="#112-package-import-package-binary" title="Permanent link">¶</a></h1>
+<p>Импортировали library.</p>
+<p>В ней:</p>
+<div class="highlight"><pre><span></span><code>1000 functions
+</code></pre></div>
+<p>Используем:</p>
+<div class="highlight"><pre><span></span><code>5 functions
+</code></pre></div>
+<p>Reachability позволяет не тащить часть остальных.</p>
+<p>Но есть важные исключения и консервативные случаи.</p>
+<hr/>
+<h1 id="113-interfaces-direct-call-graph">113. Interfaces ломают простую модель direct call graph<a class="headerlink" href="#113-interfaces-direct-call-graph" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">w</span><span class="w"> </span><span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">someValue</span>
+<span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+</code></pre></div>
+<p>В binary call site содержит:</p>
+<div class="highlight"><pre><span></span><code>interface method Write
+</code></pre></div>
+<p>Но static graph может не иметь прямого:</p>
+<div class="highlight"><pre><span></span><code>CALL (*MyWriter).Write
+</code></pre></div>
+<p>Если linker смотрел бы только direct relocations:</p>
+<div class="highlight"><pre><span></span><code>метод выглядел бы unused
+</code></pre></div>
+<p>и мог бы быть удален ошибочно.</p>
+<hr/>
+<h1 id="114-linker-interface-method-usage">114. Linker отслеживает interface method usage<a class="headerlink" href="#114-linker-interface-method-usage" title="Permanent link">¶</a></h1>
+<p>Compiler оставляет специальные marker relocations / metadata:</p>
+<div class="highlight"><pre><span></span><code>этот concrete type используется как interface
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>этот interface method реально вызывается
+</code></pre></div>
+<p>Linker использует их для dead-method elimination.</p>
+<p>То есть:</p>
+<div class="highlight"><pre><span></span><code>compiler
+↔
+linker
+</code></pre></div>
+<p>снова имеют собственный скрытый контракт.</p>
+<hr/>
+<h1 id="115-itab">115. Это продолжение истории <code>ITab</code><a class="headerlink" href="#115-itab" title="Permanent link">¶</a></h1>
+<p>Из <code>4.1</code>:</p>
+<div class="highlight"><pre><span></span><code>ITab
+→ method pointers
+</code></pre></div>
+<p>Чтобы ITab содержал:</p>
+<div class="highlight"><pre><span></span><code>T.Write
+</code></pre></div>
+<p>method body должен остаться в executable.</p>
+<p>Linker должен понимать, какие methods потенциально нужны interface dispatch.</p>
+<hr/>
+<h1 id="116-generic-interfaces-linker">116. Generic interfaces усложняют linker еще сильнее<a class="headerlink" href="#116-generic-interfaces-linker" title="Permanent link">¶</a></h1>
+<p>Текущий linker отдельно отслеживает:</p>
+<div class="highlight"><pre><span></span><code>ifaceMethod
+genericIfaceMethod
+</code></pre></div>
+<p>Для generic interface call matching информации иногда меньше.</p>
+<p>Например shape-based type не дает exact concrete method signature на том же уровне.</p>
+<p>Linker вынужден использовать более консервативное matching.</p>
+<hr/>
+<h1 id="117-reflection-closed-direct-call-world">117. Reflection ломает closed direct-call world еще сильнее<a class="headerlink" href="#117-reflection-closed-direct-call-world" title="Permanent link">¶</a></h1>
+<p>Код может сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">reflect</span><span class="p">.</span><span class="nx">TypeOf</span><span class="p">(</span><span class="nx">x</span><span class="p">).</span><span class="nx">MethodByName</span><span class="p">(</span><span class="s">"Run"</span><span class="p">)</span>
+</code></pre></div>
+<p>Static call:</p>
+<div class="highlight"><pre><span></span><code>T.Run
+</code></pre></div>
+<p>в исходнике отсутствует.</p>
+<p>Но runtime reflection может потребовать method.</p>
+<p>Если linker удалит его как unreachable:</p>
+<div class="highlight"><pre><span></span><code>reflection сломается
+</code></pre></div>
+<hr/>
+<h1 id="118-reflection-methods">118. Поэтому reflection может удерживать больше methods<a class="headerlink" href="#118-reflection-methods" title="Permanent link">¶</a></h1>
+<p>Current linker отмечает факт использования reflection.</p>
+<p>После этого часть method reachability становится более консервативной.</p>
+<p>Инженерный вывод:</p>
+<div class="highlight"><pre><span></span><code>reflection
+→ меньше возможностей dead-code elimination
+→ binary size может вырасти
+</code></pre></div>
+<p>Но это не означает:</p>
+<div class="highlight"><pre><span></span><code>reflection всегда тащит вообще весь binary
+</code></pre></div>
+<p>Нужен конкретный graph.</p>
+<hr/>
+<h1 id="119-string-based-reflection">119. String-based reflection особенно неприятна для статического анализа<a class="headerlink" href="#119-string-based-reflection" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">MethodByName</span><span class="p">(</span><span class="nx">name</span><span class="p">)</span>
+</code></pre></div>
+<p>где <code>name</code> приходит:</p>
+<div class="highlight"><pre><span></span><code>из config
+из network
+из plugin-like registry
+</code></pre></div>
+<p>Compiler/linker не знают exact method заранее.</p>
+<p>Значит нужно сохранить потенциально более широкий набор.</p>
+<hr/>
+<h1 id="120-generics-linker">120. Generics снова встречаются с linker<a class="headerlink" href="#120-generics-linker" title="Permanent link">¶</a></h1>
+<p>После generics codegen появились:</p>
+<div class="highlight"><pre><span></span><code>shape bodies
+dictionaries
+wrappers
+runtime type descriptors
+instantiation-specific data
+</code></pre></div>
+<p>Это обычные linker symbols/data с references.</p>
+<p>Теперь reachability отвечает:</p>
+<div class="highlight"><pre><span></span><code>какие из них реально нужны final program?
+</code></pre></div>
+<hr/>
+<h1 id="121-dictionary-symboldata">121. Dictionary — тоже symbol/data<a class="headerlink" href="#121-dictionary-symboldata" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>F[int]
+</code></pre></div>
+<p>используется.</p>
+<p>Generated caller имеет reference:</p>
+<div class="highlight"><pre><span></span><code>.dict.F[int]
+</code></pre></div>
+<p>или эквивалентный внутренний symbol.</p>
+<p>Linker:</p>
+<div class="highlight"><pre><span></span><code>caller reachable
+↓
+relocation to dictionary
+↓
+dictionary reachable
+</code></pre></div>
+<hr/>
+<h1 id="122-dictionary-dependencies">122. Dictionary тянет свои dependencies<a class="headerlink" href="#122-dictionary-dependencies" title="Permanent link">¶</a></h1>
+<p>В dictionary лежат references:</p>
+<div class="highlight"><pre><span></span><code>runtime type T
+itab
+subdictionary
+method expression
+</code></pre></div>
+<p>Значит reachability идет дальше:</p>
+<div class="highlight"><pre><span></span><code>dictionary
+↓
+type metadata
+↓
+method wrapper
+↓
+другие symbols
+</code></pre></div>
+<p>Generics создают не только code.</p>
+<p>Они создают новый metadata graph.</p>
+<hr/>
+<h1 id="123-instantiated-generic-type-runtime-type-descriptor">123. Instantiated generic type тоже требует runtime type descriptor<a class="headerlink" href="#123-instantiated-generic-type-runtime-type-descriptor" title="Permanent link">¶</a></h1>
+<p>Даже если type существует только через generic instantiation:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Box</span><span class="p">[</span><span class="kt">int</span><span class="p">]</span>
+</code></pre></div>
+<p>runtime может понадобиться:</p>
+<div class="highlight"><pre><span></span><code>size
+pointer layout
+hash/equality
+methods
+reflection info
+</code></pre></div>
+<p>Compiler генерирует runtime type data.</p>
+<p>Linker затем включает reachable type metadata.</p>
+<hr/>
+<h1 id="124-type-descriptor-binary-size">124. Type descriptor — реальная часть binary size<a class="headerlink" href="#124-type-descriptor-binary-size" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<blockquote>
+<p>Binary состоит в основном из text машинных инструкций.</p>
+</blockquote>
+<p>Go executable содержит заметный объем:</p>
+<div class="highlight"><pre><span></span><code>runtime type metadata
+strings
+method data
+GC metadata
+pclntab
+debug data
+</code></pre></div>
+<p>Поэтому size расследуется по категориям, а не только по source LOC.</p>
+<hr/>
+<h1 id="125-typelinks">125. Typelinks<a class="headerlink" href="#125-typelinks" title="Permanent link">¶</a></h1>
+<p>Compiler может emit runtime type descriptions.</p>
+<p>Linker формирует таблицы, позволяющие runtime находить type descriptors.</p>
+<p>Эта metadata нужна:</p>
+<ul>
+<li>reflection;</li>
+<li>interface machinery;</li>
+<li>runtime type operations.</li>
+</ul>
+<p>То есть type metadata не является просто debug information.</p>
+<hr/>
+<h1 id="126-layout">126. Теперь layout<a class="headerlink" href="#126-layout" title="Permanent link">¶</a></h1>
+<p>После reachability linker уже лучше понимает:</p>
+<div class="highlight"><pre><span></span><code>какие symbols остаются
+</code></pre></div>
+<p>Нужно разместить:</p>
+<div class="highlight"><pre><span></span><code>code
+read-only data
+writable data
+runtime tables
+platform-specific sections
+</code></pre></div>
+<p>И назначить:</p>
+<div class="highlight"><pre><span></span><code>final addresses
+</code></pre></div>
+<hr/>
+<h1 id="127-layout-relocations">127. После layout можно применить relocations<a class="headerlink" href="#127-layout-relocations" title="Permanent link">¶</a></h1>
+<p>Теперь linker знает:</p>
+<div class="highlight"><pre><span></span><code>address(main.main)
+address(app.Run)
+address(type:User)
+...
+</code></pre></div>
+<p>Можно разрешить:</p>
+<div class="highlight"><pre><span></span><code>CALL target
+data pointer
+offset
+</code></pre></div>
+<p>в зависимости от relocation type и architecture.</p>
+<hr/>
+<h1 id="128-relocation-isa-object-format">128. Relocation зависит от ISA и object format<a class="headerlink" href="#128-relocation-isa-object-format" title="Permanent link">¶</a></h1>
+<p>На amd64:</p>
+<div class="highlight"><pre><span></span><code>relative CALL displacement
+</code></pre></div>
+<p>На arm64:</p>
+<div class="highlight"><pre><span></span><code>другой instruction encoding / range constraints
+</code></pre></div>
+<p>ELF/Mach-O/PE тоже имеют свои relocation forms.</p>
+<p>Мы сюда глубже не идем.</p>
+<p>Главная модель:</p>
+<div class="highlight"><pre><span></span><code>symbolic reference
+↓
+linker
+↓
+architecture/platform-specific patch
+</code></pre></div>
+<hr/>
+<h1 id="129-target">129. Что если target слишком далеко<a class="headerlink" href="#129-target" title="Permanent link">¶</a></h1>
+<p>Некоторые ISA branch instructions имеют ограниченный reach.</p>
+<p>Тогда linker/assembler может использовать:</p>
+<div class="highlight"><pre><span></span><code>trampoline
+</code></pre></div>
+<p>или другую последовательность.</p>
+<p>Вот почему linker — не просто:</p>
+<div class="highlight"><pre><span></span><code>найти адрес и записать integer
+</code></pre></div>
+<p>Он тоже знает architecture details.</p>
+<hr/>
+<h1 id="130-runtime-linker-pclntab">130. Теперь самый полезный runtime-слой linker: <code>pclntab</code><a class="headerlink" href="#130-runtime-linker-pclntab" title="Permanent link">¶</a></h1>
+<p>Программа выполняется.</p>
+<p>Возник:</p>
+<div class="highlight"><pre><span></span><code>panic
+</code></pre></div>
+<p>Runtime знает:</p>
+<div class="highlight"><pre><span></span><code>PC = 0x12345678
+</code></pre></div>
+<p>Но пользователь хочет:</p>
+<div class="highlight"><pre><span></span><code>mypkg.Process
+process.go:142
+</code></pre></div>
+<p>Кто сделал перевод?</p>
+<hr/>
+<h1 id="131-pclntab">131. <code>pclntab</code><a class="headerlink" href="#131-pclntab" title="Permanent link">¶</a></h1>
+<p>Linker строит таблицу:</p>
+<div class="highlight"><pre><span></span><code>runtime.pclntab
+</code></pre></div>
+<p>Она содержит данные о:</p>
+<div class="highlight"><pre><span></span><code>functions
+function names
+files
+PC ranges
+pcdata
+funcdata
+</code></pre></div>
+<p>Это runtime metadata, а не просто external debug info.</p>
+<hr/>
+<h1 id="132-pc-function">132. PC → function<a class="headerlink" href="#132-pc-function" title="Permanent link">¶</a></h1>
+<p>Учебно:</p>
+<div class="highlight"><pre><span></span><code>program counter
+↓
+find function range
+↓
+_function metadata
+↓
+function name
+</code></pre></div>
+<p>Так runtime может символизировать собственные stack frames.</p>
+<hr/>
+<h1 id="133-pc-fileline">133. PC → file:line<a class="headerlink" href="#133-pc-fileline" title="Permanent link">¶</a></h1>
+<p>Дополнительные PC tables позволяют получить:</p>
+<div class="highlight"><pre><span></span><code>PC
+↓
+source file
+↓
+line
+</code></pre></div>
+<p>Поэтому stack trace показывает:</p>
+<div class="highlight"><pre><span></span><code>main.worker()
+    /app/worker.go:73
+</code></pre></div>
+<hr/>
+<h1 id="134-stack-trace-delve">134. Вот почему stack trace работает без Delve<a class="headerlink" href="#134-stack-trace-delve" title="Permanent link">¶</a></h1>
+<p>Для обычного panic runtime не обязан запускать DWARF debugger.</p>
+<p>У него есть собственная metadata:</p>
+<div class="highlight"><pre><span></span><code>pclntab
+funcdata
+pcdata
+</code></pre></div>
+<p>Она встроена в Go executable.</p>
+<hr/>
+<h1 id="135-runtimecallers">135. <code>runtime.Callers</code> использует ту же общую идею<a class="headerlink" href="#135-runtimecallers" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">Callers</span><span class="p">(...)</span>
+</code></pre></div>
+<p>получает PCs.</p>
+<p>Дальше runtime machinery может превратить их в:</p>
+<div class="highlight"><pre><span></span><code>function/file/line
+</code></pre></div>
+<p>на основе metadata, собранной toolchain.</p>
+<hr/>
+<h1 id="136-pprof-pc">136. pprof тоже начинает с адресов/PC<a class="headerlink" href="#136-pprof-pc" title="Permanent link">¶</a></h1>
+<p>CPU sampling концептуально получает:</p>
+<div class="highlight"><pre><span></span><code>где CPU выполнялся?
+→ PC
+</code></pre></div>
+<p>Чтобы показать:</p>
+<div class="highlight"><pre><span></span><code>runtime.chansend
+mypkg.Handler
+</code></pre></div>
+<p>адреса нужно символизировать.</p>
+<p>Linker/compiler metadata становится частью observability.</p>
+<hr/>
+<h1 id="137-dwarf">137. Теперь DWARF<a class="headerlink" href="#137-dwarf" title="Permanent link">¶</a></h1>
+<p>Плохая модель:</p>
+<div class="highlight"><pre><span></span><code>pclntab = DWARF
+</code></pre></div>
+<p>Нет.</p>
+<p>Они решают пересекающиеся, но разные задачи.</p>
+<hr/>
+<h1 id="138-dwarf">138. DWARF нужен прежде всего внешним инструментам<a class="headerlink" href="#138-dwarf" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Delve
+gdb
+lldb
+</code></pre></div>
+<p>Нужно знать намного больше:</p>
+<ul>
+<li>source lines;</li>
+<li>types;</li>
+<li>variables;</li>
+<li>locations;</li>
+<li>scopes;</li>
+<li>inlining information.</li>
+</ul>
+<p>Это debug format layer.</p>
+<hr/>
+<h1 id="139-optimized-binary">139. Почему optimized binary трудно дебажить<a class="headerlink" href="#139-optimized-binary" title="Permanent link">¶</a></h1>
+<p>Compiler мог:</p>
+<div class="highlight"><pre><span></span><code>inline function
+удалить variable
+держать value только в register
+переместить value между registers/stack
+удалить dead code
+</code></pre></div>
+<p>DWARF должен попытаться описать связь:</p>
+<div class="highlight"><pre><span></span><code>source-level world
+↔
+optimized machine code
+</code></pre></div>
+<p>Это сложная задача.</p>
+<hr/>
+<h1 id="140-w-s">140. <code>-w</code> и <code>-s</code><a class="headerlink" href="#140-w-s" title="Permanent link">¶</a></h1>
+<p>Linker имеет flags:</p>
+<div class="highlight"><pre><span></span><code>-w
+→ не включать DWARF symbol table
+
+-s
+→ убрать symbol table и debug information
+</code></pre></div>
+<p><code>-s</code> включает эффект <code>-w</code>, если не переопределено отдельно.</p>
+<p>Это уменьшает binary.</p>
+<p>Но нужно понимать, <strong>какую metadata мы убрали</strong>.</p>
+<hr/>
+<h1 id="141-stripped-binary-runtime-function-names">141. Stripped binary не означает «runtime больше не знает function names»<a class="headerlink" href="#141-stripped-binary-runtime-function-names" title="Permanent link">¶</a></h1>
+<p>Go runtime все еще требует собственную metadata для:</p>
+<div class="highlight"><pre><span></span><code>stack traces
+runtime function lookup
+GC/runtime operations
+</code></pre></div>
+<p><code>pclntab</code> нельзя просто приравнять к removable DWARF.</p>
+<hr/>
+<h1 id="142-s-w-panic-stack-trace">142. Поэтому <code>-s -w</code> не обязаны убивать panic stack trace<a class="headerlink" href="#142-s-w-panic-stack-trace" title="Permanent link">¶</a></h1>
+<p>External debugging information и runtime-required function metadata — разные слои.</p>
+<p>Но конкретное качество tooling/symbolization может измениться.</p>
+<p>Проверяем практикой.</p>
+<hr/>
+<h1 id="143-internal-linking">143. Internal linking<a class="headerlink" href="#143-internal-linking" title="Permanent link">¶</a></h1>
+<p>Go имеет собственный linker.</p>
+<p>В простом pure-Go build он может сам:</p>
+<div class="highlight"><pre><span></span><code>прочитать Go object data
+разрешить symbols
+применить relocations
+сформировать ELF/Mach-O/PE
+</code></pre></div>
+<p>Это:</p>
+<div class="highlight"><pre><span></span><code>internal link mode
+</code></pre></div>
+<hr/>
+<h1 id="144-external-linking">144. External linking<a class="headerlink" href="#144-external-linking" title="Permanent link">¶</a></h1>
+<p>В некоторых build scenarios, особенно с cgo/platform objects:</p>
+<div class="highlight"><pre><span></span><code>нужен system linker
+</code></pre></div>
+<p>Go linker может подготовить object и передать финальную сборку внешнему linker.</p>
+<p>Это:</p>
+<div class="highlight"><pre><span></span><code>external link mode
+</code></pre></div>
+<hr/>
+<h1 id="145-linkmode">145. <code>-linkmode</code><a class="headerlink" href="#145-linkmode" title="Permanent link">¶</a></h1>
+<p>Linker поддерживает:</p>
+<div class="highlight"><pre><span></span><code>internal
+external
+auto
+</code></pre></div>
+<p><code>auto</code> выбирает подходящий режим по build context.</p>
+<p>Не нужно запоминать все условия выбора.</p>
+<p>Главная модель:</p>
+<div class="highlight"><pre><span></span><code>pure Go world
+→ Go linker способен закрыть большую часть процесса сам
+
+foreign/platform integration
+→ может понадобиться external linker
+</code></pre></div>
+<hr/>
+<h1 id="146-cgo">146. Почему cgo меняет линковку<a class="headerlink" href="#146-cgo" title="Permanent link">¶</a></h1>
+<p>C object files живут в мире:</p>
+<div class="highlight"><pre><span></span><code>platform ABI
+system object format
+system libraries
+external relocations
+</code></pre></div>
+<p>Go internal ABI недостаточно.</p>
+<p>Появляется boundary:</p>
+<div class="highlight"><pre><span></span><code>Go world
+↔
+C/platform world
+</code></pre></div>
+<p>И линковка становится сложнее.</p>
+<p>Глубже cgo ABI сейчас не идем.</p>
+<hr/>
+<h1 id="147-final-executable">147. Final executable — структурированный файл<a class="headerlink" href="#147-final-executable" title="Permanent link">¶</a></h1>
+<p>На Linux ELF, на macOS Mach-O, на Windows PE.</p>
+<p>Упрощенно внутри:</p>
+<div class="highlight"><pre><span></span><code>headers
+code
+read-only data
+writable data
+runtime metadata
+symbol/debug data
+platform tables
+</code></pre></div>
+<p>Это не:</p>
+<div class="highlight"><pre><span></span><code>один сплошной массив machine instructions
+</code></pre></div>
+<hr/>
+<h1 id="148-elf-sections">148. Почему нас не интересуют ELF sections прямо сейчас<a class="headerlink" href="#148-elf-sections" title="Permanent link">¶</a></h1>
+<p>Потому что цель текущей темы:</p>
+<div class="highlight"><pre><span></span><code>понять функцию linker
+</code></pre></div>
+<p>а не:</p>
+<div class="highlight"><pre><span></span><code>выучить ELF specification
+</code></pre></div>
+<p>Достаточно:</p>
+<div class="highlight"><pre><span></span><code>linker раскладывает разные классы symbols/data
+в format, который понимает OS loader
+</code></pre></div>
+<hr/>
+<h1 id="149-linker">149. Следующий технический слой начинается после linker<a class="headerlink" href="#149-linker" title="Permanent link">¶</a></h1>
+<p>Получили executable.</p>
+<p>Но он еще лежит на диске.</p>
+<p>Новый вопрос:</p>
+<div class="highlight"><pre><span></span><code>как OS превращает file
+в process address space?
+</code></pre></div>
+<p>Дальше:</p>
+<div class="highlight"><pre><span></span><code>execve
+ELF/Mach-O loader
+mmap segments
+dynamic linker
+entry point
+runtime startup
+</code></pre></div>
+<p>Это уже потенциальная <code>4.5</code>.</p>
+<p>Здесь останавливаемся.</p>
+<hr/>
+<h1 id="150-linker">150. Что важно запомнить по linker<a class="headerlink" href="#150-linker" title="Permanent link">¶</a></h1>
+<ol>
+<li>После compiler/assembler программа еще состоит из symbols, data и relocations, а не финальных адресов.</li>
+<li>Symbol — именованный кусок code/data/metadata.</li>
+<li>Relocation — отложенная ссылка, которую linker разрешает после размещения symbols.</li>
+<li>До linker программу полезно представлять как graph symbols и references.</li>
+<li>Linker делает reachability analysis всей программы.</li>
+<li>Недостижимые code symbols могут быть удалены linker dead-code elimination.</li>
+<li>Compiler DCE и linker DCE работают на разных масштабах.</li>
+<li>Interface dispatch требует специальной method reachability, потому что direct call graph недостаточен.</li>
+<li>Reflection может заставить linker сохранять более широкий набор methods.</li>
+<li>Generic bodies, dictionaries, wrappers и instantiated type metadata становятся обычными symbols графа linker.</li>
+<li>Dictionary может тянуть runtime types, itabs и subdictionaries через relocations.</li>
+<li>Runtime type metadata является функциональной частью Go binary, а не только debug-данными.</li>
+<li>Linker назначает final addresses и применяет architecture-specific relocations.</li>
+<li>Linker строит <code>pclntab</code>, нужную runtime для function/file/line lookup.</li>
+<li><code>pclntab</code> и DWARF — разные metadata systems.</li>
+<li><code>-w</code> убирает DWARF, <code>-s</code> убирает symbol table/debug information согласно linker flags, но runtime-required metadata остается отдельной категорией.</li>
+<li>Go поддерживает internal/external link modes.</li>
+<li>cgo/platform integration может потребовать external linker.</li>
+<li>Final executable имеет platform file format, но эта лекция не требует изучения ELF/Mach-O/PE internals.</li>
+<li>Следующий слой после linker — OS loader и запуск процесса.</li>
+</ol>
+<hr/>
+<h1 id="iv-abi-generics-linker">Часть IV. Собираем ABI + generics + linker<a class="headerlink" href="#iv-abi-generics-linker" title="Permanent link">¶</a></h1>
+<h1 id="151-function-call">151. Обычный function call целиком<a class="headerlink" href="#151-function-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">F</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="p">)</span>
+</code></pre></div>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>compiler
+↓
+ABI assignment
+↓
+a / b
+→ registers или stack
+↓
+CALL symbol F
+↓
+relocation на F
+↓
+linker
+↓
+final address F
+↓
+CPU CALL
+↓
+callee ABI
+↓
+result registers / stack
+</code></pre></div>
+<hr/>
+<h1 id="152-generic-function-call">152. Generic function call целиком<a class="headerlink" href="#152-generic-function-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">F</span><span class="p">[</span><span class="kt">int</span><span class="p">](</span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>type checker
+↓
+T = int
+↓
+compiler generics codegen
+↓
+shape
++
+dictionary[int]
+↓
+generated call:
+dictionary + x
+↓
+ABI assignment
+↓
+CALL shaped symbol
+↓
+linker resolves:
+shaped body
+dictionary
+runtime type refs
+↓
+machine code
+</code></pre></div>
+<hr/>
+<h1 id="153-generic-interface-method-path">153. Generic interface method path целиком<a class="headerlink" href="#153-generic-interface-method-path" title="Permanent link">¶</a></h1>
+<p>Пусть concrete instantiated generic type реализует обычный interface method.</p>
+<div class="highlight"><pre><span></span><code>interface call
+↓
+ITab.Fun
+↓
+concrete wrapper
+↓
+wrapper supplies dictionary
+↓
+shaped generic method body
+</code></pre></div>
+<p>Linker должен сохранить:</p>
+<div class="highlight"><pre><span></span><code>ITab-related method
+wrapper
+dictionary
+shaped body
+</code></pre></div>
+<p>Если они reachable через interface semantics.</p>
+<hr/>
+<h1 id="154-closure-call">154. Closure call целиком<a class="headerlink" href="#154-closure-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">f</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">makeAdder</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="nx">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</code></pre></div>
+<p>Цепочка:</p>
+<div class="highlight"><pre><span></span><code>closure object
+├── entry PC
+└── captured x=10
+↓
+call
+↓
+closure context register
++
+ordinary argument registers
+↓
+ABIInternal
+↓
+entry symbol
+</code></pre></div>
+<p>Linker:</p>
+<div class="highlight"><pre><span></span><code>closure entry symbol reachable
+↓
+resolve address
+</code></pre></div>
+<hr/>
+<h1 id="155-stack-trace">155. Stack trace целиком<a class="headerlink" href="#155-stack-trace" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>function machine code
+↓
+CALLs / return PCs
+↓
+panic
+↓
+runtime walks stack
+↓
+PCs
+↓
+pclntab
+↓
+function names
+↓
+file:line
+↓
+читаемый stack trace
+</code></pre></div>
+<p>Здесь участвуют:</p>
+<div class="highlight"><pre><span></span><code>compiler
++
+ABI
++
+linker
++
+runtime
+</code></pre></div>
+<p>Одной подсистемы недостаточно.</p>
+<hr/>
+<h1 id="156-cpu-profile">156. CPU profile целиком<a class="headerlink" href="#156-cpu-profile" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>hardware/software sampling
+↓
+PC
+↓
+stack unwind
+↓
+runtime/tool metadata
+↓
+symbolization
+↓
+function names
+↓
+profile
+</code></pre></div>
+<p>Когда читаем pprof, мы уже используем результаты работы ABI/compiler/linker.</p>
+<hr/>
+<h1 id="157-linker-dead-code-binary-size-runtime-memory-">157. Почему linker dead code влияет на binary size, но не всегда на runtime memory один-в-один<a class="headerlink" href="#157-linker-dead-code-binary-size-runtime-memory-" title="Permanent link">¶</a></h1>
+<p>Удалили:</p>
+<div class="highlight"><pre><span></span><code>10 MiB unreachable text
+</code></pre></div>
+<p>Binary file уменьшился.</p>
+<p>Но RSS процесса зависит от:</p>
+<div class="highlight"><pre><span></span><code>какие pages реально mapped/resident
+какой code реально touched
+file-backed mapping behavior
+</code></pre></div>
+<p>Из лекции про VM уже знаем:</p>
+<div class="highlight"><pre><span></span><code>file size
+≠
+RSS
+</code></pre></div>
+<hr/>
+<h1 id="158-generic-code-size-proportional-rss">158. Почему generic code size тоже не равен proportional RSS<a class="headerlink" href="#158-generic-code-size-proportional-rss" title="Permanent link">¶</a></h1>
+<p>Binary может получить дополнительные:</p>
+<div class="highlight"><pre><span></span><code>generic text
+dictionaries
+metadata
+</code></pre></div>
+<p>Но пока pages не активны:</p>
+<div class="highlight"><pre><span></span><code>resident set может вести себя иначе
+</code></pre></div>
+<p>Опять:</p>
+<div class="highlight"><pre><span></span><code>binary layout
+→ virtual mapping
+→ residency
+</code></pre></div>
+<p>Это мост к OS memory.</p>
+<hr/>
+<h1 id="159-abi-cache">159. ABI и cache<a class="headerlink" href="#159-abi-cache" title="Permanent link">¶</a></h1>
+<p>Передача arguments через registers уменьшает часть stack traffic.</p>
+<p>Это потенциально уменьшает:</p>
+<div class="highlight"><pre><span></span><code>loads/stores
+cache pressure
+</code></pre></div>
+<p>Но large stack-assigned values все равно создают memory traffic.</p>
+<hr/>
+<h1 id="160-generics-instruction-cache">160. Generics и instruction cache<a class="headerlink" href="#160-generics-instruction-cache" title="Permanent link">¶</a></h1>
+<p>Много generated specialized code:</p>
+<div class="highlight"><pre><span></span><code>text working set ↑
+</code></pre></div>
+<p>Под нагрузкой:</p>
+<div class="highlight"><pre><span></span><code>i-cache misses потенциально ↑
+front-end stalls ↑
+</code></pre></div>
+<p>Но это не универсальный эффект.</p>
+<p>Сначала:</p>
+<div class="highlight"><pre><span></span><code>binary / profile / perf
+</code></pre></div>
+<p>потом диагноз.</p>
+<hr/>
+<h1 id="161-linker-cold-code">161. Linker и cold code<a class="headerlink" href="#161-linker-cold-code" title="Permanent link">¶</a></h1>
+<p>Reachable code может быть:</p>
+<div class="highlight"><pre><span></span><code>почти никогда не исполняемый
+</code></pre></div>
+<p>Linker все равно обязан оставить его, если correctness требует reachability.</p>
+<p>Dead-code elimination отвечает:</p>
+<div class="highlight"><pre><span></span><code>может ли понадобиться вообще?
+</code></pre></div>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>горячий ли это code?
+</code></pre></div>
+<hr/>
+<h1 id="162-pgo-linker-optimization-levels">162. PGO и linker — разные optimization levels<a class="headerlink" href="#162-pgo-linker-optimization-levels" title="Permanent link">¶</a></h1>
+<p>PGO compiler:</p>
+<div class="highlight"><pre><span></span><code>какие paths hot?
+как devirtualize?
+что inline?
+</code></pre></div>
+<p>Linker reachability:</p>
+<div class="highlight"><pre><span></span><code>может symbol понадобиться вообще?
+</code></pre></div>
+<p>Не смешиваем:</p>
+<div class="highlight"><pre><span></span><code>hotness
+и
+reachability
+</code></pre></div>
+<hr/>
+<h1 id="163-reflection-cpu">163. Почему reflection мешает не CPU напрямую, а возможностям статического доказательства<a class="headerlink" href="#163-reflection-cpu" title="Permanent link">¶</a></h1>
+<p>Reflection:</p>
+<div class="highlight"><pre><span></span><code>method selected by string/runtime type
+</code></pre></div>
+<p>Compiler/linker знают меньше заранее.</p>
+<p>Следствие может быть:</p>
+<div class="highlight"><pre><span></span><code>больше metadata
+больше retained methods
+больше dynamic work
+</code></pre></div>
+<p>Но конкретная цена зависит от использования.</p>
+<hr/>
+<h1 id="164-generic-heavy">164. Что происходит при большом generic-heavy проекте<a class="headerlink" href="#164-generic-heavy" title="Permanent link">¶</a></h1>
+<p>Ограниченные ресурсы:</p>
+<div class="highlight"><pre><span></span><code>compile time
+link time
+binary size
+instruction cache
+runtime metadata
+</code></pre></div>
+<p>Симптомы могут быть разными.</p>
+<p>Не нужно сводить все к:</p>
+<div class="highlight"><pre><span></span><code>CPU application
+</code></pre></div>
+<hr/>
+<h1 id="165-linker-cpu">165. Linker сам тоже потребляет CPU и память<a class="headerlink" href="#165-linker-cpu" title="Permanent link">¶</a></h1>
+<p>Большой monorepo / binary:</p>
+<div class="highlight"><pre><span></span><code>много symbols
+много relocations
+много type metadata
+много generics
+</code></pre></div>
+<p>Link step может стать заметным:</p>
+<div class="highlight"><pre><span></span><code>build latency
+CI resource usage
+</code></pre></div>
+<p>Это production не request-path, а delivery-path.</p>
+<hr/>
+<h1 id="166-binary">166. Диагностика размера binary<a class="headerlink" href="#166-binary" title="Permanent link">¶</a></h1>
+<p>Начинаем:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>app<span class="w"> </span>.
+ls<span class="w"> </span>-lh<span class="w"> </span>app
+</code></pre></div>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>-size<span class="w"> </span>app
+</code></pre></div>
+<p>Смотрим крупные symbols.</p>
+<p>Не начинаем с догадки:</p>
+<blockquote>
+<p>Наверное runtime огромный.</p>
+</blockquote>
+<hr/>
+<h1 id="167-go-tool-nm">167. <code>go tool nm</code><a class="headerlink" href="#167-go-tool-nm" title="Permanent link">¶</a></h1>
+<p>Полезно для:</p>
+<div class="highlight"><pre><span></span><code>какие symbols вошли?
+какие generic shapes видны?
+есть wrapper?
+какой размер symbol?
+</code></pre></div>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>-size<span class="w"> </span>./app
+</code></pre></div>
+<hr/>
+<h1 id="168-go-tool-objdump">168. <code>go tool objdump</code><a class="headerlink" href="#168-go-tool-objdump" title="Permanent link">¶</a></h1>
+<p>После <code>nm</code> нашли конкретный symbol.</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>objdump<span class="w"> </span>-s<span class="w"> </span><span class="s1">'mypkg\.F'</span><span class="w"> </span>./app
+</code></pre></div>
+<p>Смотрим:</p>
+<div class="highlight"><pre><span></span><code>ABI register movement
+dictionary argument
+CALL target
+wrapper
+</code></pre></div>
+<hr/>
+<h1 id="169-nm-s">169. Почему <code>nm</code> после <code>-s</code> может дать меньше информации<a class="headerlink" href="#169-nm-s" title="Permanent link">¶</a></h1>
+<p>Если linker убрал symbol table:</p>
+<div class="highlight"><pre><span></span><code>обычные external symbol tools
+</code></pre></div>
+<p>получат меньше names.</p>
+<p>Это ожидаемый trade-off stripping.</p>
+<p>Runtime stack metadata — другой слой.</p>
+<hr/>
+<h1 id="170-linux-readelf">170. Linux: <code>readelf</code> как дополнительный инструмент<a class="headerlink" href="#170-linux-readelf" title="Permanent link">¶</a></h1>
+<p>Для ELF binary:</p>
+<div class="highlight"><pre><span></span><code>readelf<span class="w"> </span>-h<span class="w"> </span>./app
+readelf<span class="w"> </span>-S<span class="w"> </span>./app
+readelf<span class="w"> </span>-s<span class="w"> </span>./app
+</code></pre></div>
+<p>Можно увидеть:</p>
+<div class="highlight"><pre><span></span><code>ELF header
+sections
+symbol table
+</code></pre></div>
+<p>Но это дополнительный слой.</p>
+<p>Для основной лекции достаточно <code>go tool nm/objdump</code>.</p>
+<hr/>
+<h1 id="171-macos-otool">171. macOS: <code>otool</code><a class="headerlink" href="#171-macos-otool" title="Permanent link">¶</a></h1>
+<p>На macOS:</p>
+<div class="highlight"><pre><span></span><code>otool<span class="w"> </span>-l<span class="w"> </span>./app
+</code></pre></div>
+<p>помогает посмотреть Mach-O load commands.</p>
+<p>Но опять:</p>
+<div class="highlight"><pre><span></span><code>это мост к 4.5
+</code></pre></div>
+<p>а не ядро <code>4.4</code>.</p>
+<hr/>
+<h1 id="v">Часть V. Практика<a class="headerlink" href="#v" title="Permanent link">¶</a></h1>
+<h1 id="172-1-register-abi">172. Практика 1: register ABI руками<a class="headerlink" href="#172-1-register-abi" title="Permanent link">¶</a></h1>
+<p>Написать:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">add</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">b</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-gcflags<span class="o">=</span><span class="s1">'-S'</span><span class="w"> </span>.
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>где a
+где b
+где result
+</code></pre></div>
+<p>На amd64 сопоставить с current <code>ABIInternal</code> register order.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Доказать, что параметры обычной Go-функции действительно проходят через register ABI.</p>
+</blockquote>
+<hr/>
+<h1 id="173-2-string-slice-abi-components">173. Практика 2: <code>string</code> и slice как несколько ABI components<a class="headerlink" href="#173-2-string-slice-abi-components" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="p">[]</span><span class="kt">byte</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="nx">b</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Найти в assembler:</p>
+<div class="highlight"><pre><span></span><code>string data / len
+slice data / len / cap
+</code></pre></div>
+<p>И увидеть:</p>
+<div class="highlight"><pre><span></span><code>один Go parameter
+→ несколько physical registers
+</code></pre></div>
+<hr/>
+<h1 id="174-3-array-stack">174. Практика 3: array уходит в stack<a class="headerlink" href="#174-3-array-stack" title="Permanent link">¶</a></h1>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">one</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="kt">uintptr</span><span class="p">)</span><span class="w"> </span><span class="kt">uintptr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">two</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">uintptr</span><span class="p">)</span><span class="w"> </span><span class="kt">uintptr</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Смотреть ABI placement.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Руками доказать current special rule: <code>[1]T</code> можно разложить, <code>[2]T</code> уже stack-assigned.</p>
+</blockquote>
+<hr/>
+<h1 id="175-4-struct">175. Практика 4: широкий struct<a class="headerlink" href="#175-4-struct" title="Permanent link">¶</a></h1>
+<p>Сделать struct:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Big</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">A</span><span class="p">,</span><span class="w"> </span><span class="nx">B</span><span class="p">,</span><span class="w"> </span><span class="nx">C</span><span class="p">,</span><span class="w"> </span><span class="nx">D</span><span class="p">,</span><span class="w"> </span><span class="nx">E</span><span class="p">,</span><span class="w"> </span><span class="nx">F</span><span class="p">,</span><span class="w"> </span><span class="nx">G</span><span class="p">,</span><span class="w"> </span><span class="nx">H</span><span class="p">,</span><span class="w"> </span><span class="nx">I</span><span class="p">,</span><span class="w"> </span><span class="nx">J</span><span class="w"> </span><span class="kt">int</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Передать в <code>//go:noinline</code> function.</p>
+<p>Сравнить на:</p>
+<div class="highlight"><pre><span></span><code>amd64
+arm64
+</code></pre></div>
+<p>Цель:</p>
+<div class="highlight"><pre><span></span><code>одна signature
+↓
+разный register budget
+↓
+разное ABI assignment
+</code></pre></div>
+<hr/>
+<h1 id="176-5">176. Практика 5: взятие адреса аргумента<a class="headerlink" href="#176-5" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">f</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>escape analysis
+stack/heap decision
+argument home/spill behavior
+</code></pre></div>
+<p>Важно не сделать плохой вывод:</p>
+<div class="highlight"><pre><span></span><code>ABI spill
+=
+heap allocation
+</code></pre></div>
+<p>Это разные механизмы.</p>
+<hr/>
+<h1 id="177-6-closure-context">177. Практика 6: closure context<a class="headerlink" href="#177-6-closure-context" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">makeAdder</span><span class="p">(</span><span class="nx">x</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">y</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">y</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Через objdump найти:</p>
+<div class="highlight"><pre><span></span><code>closure function
+closure context register
+captured x
+</code></pre></div>
+<p>На amd64 проверить роль <code>RDX</code>.</p>
+<hr/>
+<h1 id="178-7-generic-shape">178. Практика 7: generic shape<a class="headerlink" href="#178-7-generic-shape" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">Id</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Вызвать с несколькими types.</p>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>./app<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'shape|Id'</span>
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>какие shaped symbols реально появились
+</code></pre></div>
+<p>Не предполагать заранее число.</p>
+<hr/>
+<h1 id="179-8-dictionary">179. Практика 8: dictionary<a class="headerlink" href="#179-8-dictionary" title="Permanent link">¶</a></h1>
+<p>Generic:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Вызвать:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">Box</span><span class="p">[</span><span class="kt">int</span><span class="p">](</span><span class="mi">42</span><span class="p">)</span>
+<span class="nx">Box</span><span class="p">[</span><span class="kt">string</span><span class="p">](</span><span class="s">"x"</span><span class="p">)</span>
+</code></pre></div>
+<p>Через <code>nm</code>/<code>objdump</code> искать:</p>
+<div class="highlight"><pre><span></span><code>dictionary-related symbols
+runtime type references
+shaped body
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Связать interface conversion с dictionary runtime type slot.</p>
+</blockquote>
+<hr/>
+<h1 id="180-9-generic-nested-call">180. Практика 9: generic nested call<a class="headerlink" href="#180-9-generic-nested-call" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">Inner</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">x</span>
+<span class="p">}</span>
+
+<span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">Outer</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">](</span><span class="nx">x</span><span class="w"> </span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">Inner</span><span class="p">[</span><span class="nx">T</span><span class="p">](</span><span class="nx">x</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Найти:</p>
+<div class="highlight"><pre><span></span><code>Outer dictionary
+Inner dictionary / subdictionary relation
+</code></pre></div>
+<p>На уровне symbols и generated calls.</p>
+<hr/>
+<h1 id="181-10-generic-method-wrapper">181. Практика 10: generic method wrapper<a class="headerlink" href="#181-10-generic-method-wrapper" title="Permanent link">¶</a></h1>
+<p>Generic type с method:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="w"> </span><span class="kt">any</span><span class="p">]</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">V</span><span class="w"> </span><span class="nx">T</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">b</span><span class="w"> </span><span class="nx">Box</span><span class="p">[</span><span class="nx">T</span><span class="p">])</span><span class="w"> </span><span class="nx">String</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Sprint</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">V</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Использовать <code>Box[int]</code> как:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">fmt</span><span class="p">.</span><span class="nx">Stringer</span>
+</code></pre></div>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>itab
+concrete wrapper
+generic shaped body
+dictionary
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Доказать цепочку interface dispatch → wrapper → generic implementation.</p>
+</blockquote>
+<hr/>
+<h1 id="182-11-generic-method-go-127">182. Практика 11: generic method Go 1.27<a class="headerlink" href="#182-11-generic-method-go-127" title="Permanent link">¶</a></h1>
+<p>Сделать concrete generic method с собственным type parameter.</p>
+<p>Потом:</p>
+<div class="highlight"><pre><span></span><code>nm
+objdump
+</code></pre></div>
+<p>Посмотреть, какие generated symbols появились.</p>
+<p>Цель:</p>
+<blockquote>
+<p>Показать, что новая языковая возможность все равно заканчивается обычными symbols, dictionaries и ABI calls.</p>
+</blockquote>
+<hr/>
+<h1 id="183-12-linker-dead-code">183. Практика 12: linker dead code<a class="headerlink" href="#183-12-linker-dead-code" title="Permanent link">¶</a></h1>
+<p>Добавить:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">Used</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">println</span><span class="p">(</span><span class="s">"used"</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c1">//go:noinline</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">NeverCalled</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">println</span><span class="p">(</span><span class="s">"never"</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Вызвать только <code>Used</code>.</p>
+<p>После build:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>./app
+</code></pre></div>
+<p>Проверить:</p>
+<div class="highlight"><pre><span></span><code>есть ли NeverCalled
+</code></pre></div>
+<hr/>
+<h1 id="184-13-interface-method">184. Практика 13: interface удерживает method<a class="headerlink" href="#184-13-interface-method" title="Permanent link">¶</a></h1>
+<p>Создать type:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">T</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">Run</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+<span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="nx">Unused</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span>
+</code></pre></div>
+<p>Interface:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Runner</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">Run</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Использовать <code>T</code> через <code>Runner</code>.</p>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>какие method symbols остались
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, что linker понимает interface method reachability не как обычный direct CALL.</p>
+</blockquote>
+<hr/>
+<h1 id="185-14-reflection-reachability">185. Практика 14: reflection меняет reachability<a class="headerlink" href="#185-14-reflection-reachability" title="Permanent link">¶</a></h1>
+<p>Добавить reflection path, который получает method по имени.</p>
+<p>Сравнить binary:</p>
+<div class="highlight"><pre><span></span><code>без reflection
+с reflection
+</code></pre></div>
+<p>Через:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>tool<span class="w"> </span>nm<span class="w"> </span>-size
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Увидеть, что динамический method lookup может уменьшить возможности dead-method elimination.</p>
+</blockquote>
+<p>Конкретный эффект зависит от программы и current compiler/linker — не обещаем заранее конкретное число methods.</p>
+<hr/>
+<h1 id="186-15-stripped-binary">186. Практика 15: stripped binary<a class="headerlink" href="#186-15-stripped-binary" title="Permanent link">¶</a></h1>
+<p>Собрать:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>app-normal<span class="w"> </span>.
+go<span class="w"> </span>build<span class="w"> </span>-ldflags<span class="o">=</span><span class="s1">'-s -w'</span><span class="w"> </span>-o<span class="w"> </span>app-stripped<span class="w"> </span>.
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>file size
+go tool nm
+panic stack trace
+debug tooling
+</code></pre></div>
+<p>Цель:</p>
+<blockquote>
+<p>Разделить runtime metadata, symbol/debug information и DWARF.</p>
+</blockquote>
+<hr/>
+<h1 id="187-16-pclntab">187. Практика 16: <code>pclntab</code><a class="headerlink" href="#187-16-pclntab" title="Permanent link">¶</a></h1>
+<p>Сделать программу:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">deep</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">panic</span><span class="p">(</span><span class="s">"boom"</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Получить stack trace.</p>
+<p>Потом через:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">Callers</span>
+<span class="nx">runtime</span><span class="p">.</span><span class="nx">CallersFrames</span>
+</code></pre></div>
+<p>получить function/file/line вручную.</p>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>PC
+↓
+runtime metadata
+↓
+symbolic frame
+</code></pre></div>
+<hr/>
+<h1 id="188-17-binary-size-generics">188. Практика 17: binary size generics<a class="headerlink" href="#188-17-binary-size-generics" title="Permanent link">¶</a></h1>
+<p>Сценарий A:</p>
+<div class="highlight"><pre><span></span><code>generic function instantiated для 1 type
+</code></pre></div>
+<p>Сценарий B:</p>
+<div class="highlight"><pre><span></span><code>для десятков разных types
+</code></pre></div>
+<p>Измерить:</p>
+<div class="highlight"><pre><span></span><code>binary size
+number/size shape symbols
+dictionary data
+</code></pre></div>
+<p>Не предполагать линейный рост.</p>
+<hr/>
+<h1 id="189-18-amd64-vs-arm64">189. Практика 18: amd64 vs arm64<a class="headerlink" href="#189-18-amd64-vs-arm64" title="Permanent link">¶</a></h1>
+<p>Собрать одну программу:</p>
+<div class="highlight"><pre><span></span><code>GOOS=linux GOARCH=amd64
+GOOS=linux GOARCH=arm64
+</code></pre></div>
+<p>Сравнить:</p>
+<div class="highlight"><pre><span></span><code>ABI register placement
+symbol set
+binary size
+assembly
+</code></pre></div>
+<p>Семантика одна.</p>
+<p>Physical code различается.</p>
+<hr/>
+<h1 id="vi-production">Часть VI. Production и диагностика<a class="headerlink" href="#vi-production" title="Permanent link">¶</a></h1>
+<h1 id="190-binary">190. Инцидент: после рефакторинга вырос binary<a class="headerlink" href="#190-binary" title="Permanent link">¶</a></h1>
+<p>Первый вопрос:</p>
+<div class="highlight"><pre><span></span><code>что выросло?
+</code></pre></div>
+<p>Не:</p>
+<blockquote>
+<p>Go compiler раздул binary.</p>
+</blockquote>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>nm -size
+generic symbols?
+runtime type metadata?
+reflection?
+embedded data?
+debug info?
+</code></pre></div>
+<hr/>
+<h1 id="191-generic-refactor-cpu">191. Инцидент: generic refactor ухудшил CPU<a class="headerlink" href="#191-generic-refactor-cpu" title="Permanent link">¶</a></h1>
+<p>Гипотезы:</p>
+<div class="highlight"><pre><span></span><code>потерялась devirtualization
+появился wrapper
+dictionary load остался hot
+inline перестал работать
+code layout / i-cache изменились
+</code></pre></div>
+<p>Порядок:</p>
+<div class="highlight"><pre><span></span><code>benchmark
+↓
+profile
+↓
+-m=2
+↓
+nm / objdump
+</code></pre></div>
+<hr/>
+<h1 id="192-call-stack-traffic">192. Инцидент: обычный call неожиданно делает много stack traffic<a class="headerlink" href="#192-call-stack-traffic" title="Permanent link">¶</a></h1>
+<p>Гипотезы:</p>
+<div class="highlight"><pre><span></span><code>аргумент слишком большой
+register budget закончился
+argument содержит non-trivial array
+address taken → spill
+register pressure
+ABI wrapper
+</code></pre></div>
+<p>Не надо сразу оптимизировать все signatures проекта.</p>
+<hr/>
+<h1 id="193-stack-trace-stripping">193. Инцидент: stack trace потерял часть понятности после stripping<a class="headerlink" href="#193-stack-trace-stripping" title="Permanent link">¶</a></h1>
+<p>Нужно разделить:</p>
+<div class="highlight"><pre><span></span><code>runtime stack trace
+external debugger
+symbol table
+DWARF
+</code></pre></div>
+<p>Проверить:</p>
+<div class="highlight"><pre><span></span><code>какой именно инструмент потерял информацию
+</code></pre></div>
+<p>а не говорить:</p>
+<blockquote>
+<p>Symbols удалены вообще все.</p>
+</blockquote>
+<hr/>
+<h1 id="194-link-step-ci">194. Инцидент: link step CI стал долгим<a class="headerlink" href="#194-link-step-ci" title="Permanent link">¶</a></h1>
+<p>Смотреть:</p>
+<div class="highlight"><pre><span></span><code>binary size trend
+package graph
+generics explosion?
+大量 symbols/relocations?
+debug info?
+cgo/external linking?
+</code></pre></div>
+<p>Linker — тоже программа с ограниченными CPU/RAM.</p>
+<hr/>
+<h1 id="195-reflection-binary">195. Инцидент: приложение использует reflection и binary огромный<a class="headerlink" href="#195-reflection-binary" title="Permanent link">¶</a></h1>
+<p>Не выводим:</p>
+<blockquote>
+<p>Удалить reflection.</p>
+</blockquote>
+<p>Сначала:</p>
+<div class="highlight"><pre><span></span><code>какие symbols удерживаются?
+</code></pre></div>
+<p>Если reflection реально заставляет сохранить большой method set:</p>
+<div class="highlight"><pre><span></span><code>можно менять архитектуру registry
+</code></pre></div>
+<p>Но только после доказательства.</p>
+<hr/>
+<h1 id="196">196. Что является ограниченным ресурсом здесь<a class="headerlink" href="#196" title="Permanent link">¶</a></h1>
+<p>ABI:</p>
+<div class="highlight"><pre><span></span><code>registers
+stack bandwidth
+code around wrappers
+</code></pre></div>
+<p>Generics:</p>
+<div class="highlight"><pre><span></span><code>code size
+dictionary metadata
+compiler optimization visibility
+</code></pre></div>
+<p>Linker:</p>
+<div class="highlight"><pre><span></span><code>build CPU
+build memory
+binary size
+symbol graph
+runtime metadata
+</code></pre></div>
+<hr/>
+<h1 id="197-request-path-build-path">197. Под нагрузкой request path и build path нужно разделять<a class="headerlink" href="#197-request-path-build-path" title="Permanent link">¶</a></h1>
+<p>Generics/linker могут ударить:</p>
+<div class="highlight"><pre><span></span><code>request latency
+</code></pre></div>
+<p>через generated code.</p>
+<p>Или только:</p>
+<div class="highlight"><pre><span></span><code>compile/link time
+binary artifact size
+</code></pre></div>
+<p>Это разные production metrics.</p>
+<hr/>
+<h1 id="198-abi-overhead">198. ABI overhead обычно микроскопичен, пока не умножили<a class="headerlink" href="#198-abi-overhead" title="Permanent link">¶</a></h1>
+<p>Один extra move:</p>
+<div class="highlight"><pre><span></span><code>почти ничто
+</code></pre></div>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>миллиарды tiny calls
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>hot wrapper boundary
+</code></pre></div>
+<p>могут сделать его видимым.</p>
+<p>Опять:</p>
+<div class="highlight"><pre><span></span><code>профиль
+→ потом ABI
+</code></pre></div>
+<hr/>
+<h1 id="199-generics-codegen">199. Generics codegen обычно не нужно вручную «оптимизировать»<a class="headerlink" href="#199-generics-codegen" title="Permanent link">¶</a></h1>
+<p>Idiomatic generic code сначала оцениваем как обычный код.</p>
+<p>Только если профиль показывает:</p>
+<div class="highlight"><pre><span></span><code>hot shaped function / wrapper / interface path
+</code></pre></div>
+<p>открываем этот слой.</p>
+<p>Иначе это преждевременная оптимизация.</p>
+<hr/>
+<h1 id="200-linker-internals-runtime-latency">200. Linker internals почти никогда не лечат runtime latency напрямую<a class="headerlink" href="#200-linker-internals-runtime-latency" title="Permanent link">¶</a></h1>
+<p>Но они нужны для:</p>
+<ul>
+<li>binary size;</li>
+<li>startup artifact;</li>
+<li>symbol/debug behavior;</li>
+<li>link latency;</li>
+<li>reflection/method retention;</li>
+<li>understanding stack traces.</li>
+</ul>
+<p>То есть это production engineering, просто другой lifecycle.</p>
+<hr/>
+<h1 id="201-go-language">201. Границы гарантий: Go language<a class="headerlink" href="#201-go-language" title="Permanent link">¶</a></h1>
+<p>Язык гарантирует:</p>
+<ul>
+<li>function call semantics;</li>
+<li>parameters/results;</li>
+<li>closures;</li>
+<li>generics semantics;</li>
+<li>interface semantics;</li>
+<li>generic methods, разрешенные спецификацией.</li>
+</ul>
+<p>Язык <strong>не гарантирует</strong>:</p>
+<ul>
+<li>конкретный calling convention;</li>
+<li>register numbers;</li>
+<li>shape types;</li>
+<li>dictionaries;</li>
+<li>wrappers;</li>
+<li>symbol names;</li>
+<li>linker reachability implementation.</li>
+</ul>
+<hr/>
+<h1 id="202-toolchain">202. Границы гарантий: toolchain<a class="headerlink" href="#202-toolchain" title="Permanent link">¶</a></h1>
+<p>Current implementation:</p>
+<div class="highlight"><pre><span></span><code>ABIInternal
+ABI0 wrappers
+register assignment algorithm
+go.shape
+runtime dictionaries
+generic wrappers
+specific linker marker relocations
+deadcode pass
+pclntab layout
+</code></pre></div>
+<p>Это можно глубоко понимать.</p>
+<p>Но нельзя превращать в source-level contract приложения.</p>
+<hr/>
+<h1 id="203-abiinternal">203. <code>ABIInternal</code> специально нестабилен<a class="headerlink" href="#203-abiinternal" title="Permanent link">¶</a></h1>
+<p>Это важно повторить отдельно.</p>
+<p>Если вы пишете:</p>
+<div class="highlight"><pre><span></span><code>обычный Go
+</code></pre></div>
+<p>toolchain сам согласует все sides.</p>
+<p>Если вы вручную лезете в internal ABI:</p>
+<div class="highlight"><pre><span></span><code>вы зависите от version-specific implementation
+</code></pre></div>
+<p>Для user assembly используем документированный ABI boundary/toolchain conventions.</p>
+<hr/>
+<h1 id="204-shapedictionary-generics">204. Shape/dictionary — тоже не спецификация generics<a class="headerlink" href="#204-shapedictionary-generics" title="Permanent link">¶</a></h1>
+<p>Спецификация говорит:</p>
+<div class="highlight"><pre><span></span><code>что значит generic program
+</code></pre></div>
+<p>Не:</p>
+<div class="highlight"><pre><span></span><code>как его компилировать
+</code></pre></div>
+<p>Будущая Go может изменить codegen strategy, не меняя semantics.</p>
+<hr/>
+<h1 id="205-linker-symbol-names-api">205. Linker symbol names — диагностический инструмент, не API<a class="headerlink" href="#205-linker-symbol-names-api" title="Permanent link">¶</a></h1>
+<p>Мы можем в <code>nm</code> увидеть:</p>
+<div class="highlight"><pre><span></span><code>go.shape...
+.dict....
+wrapper...
+</code></pre></div>
+<p>Это полезно для расследования.</p>
+<p>Но прикладной код не должен искать эти names и строить на них correctness.</p>
+<hr/>
+<h1 id="206">206. Разрушаем плохие упрощения<a class="headerlink" href="#206" title="Permanent link">¶</a></h1>
+<h2 id="abi-stack">«ABI = где лежат аргументы в stack»<a class="headerlink" href="#abi-stack" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Current Go использует registers + stack и специальные hidden contexts.</p>
+<h2 id="register-abi-stack">«Register ABI означает stack больше не нужен»<a class="headerlink" href="#register-abi-stack" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Stack нужен для frames, spills, large args, stack growth, results и metadata.</p>
+<h2 id="struct-pointer">«Struct всегда передается по pointer»<a class="headerlink" href="#struct-pointer" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Small struct может быть рекурсивно разложен по registers.</p>
+<h2 id="return-value-heap-allocation">«Большой return value = heap allocation»<a class="headerlink" href="#return-value-heap-allocation" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Он может быть stack-assigned по ABI.</p>
+<h2 id="generics">«Generics = полная мономорфизация как в шаблонах»<a class="headerlink" href="#generics" title="Permanent link">¶</a></h2>
+<p>Слишком грубо.</p>
+<p>Current Go использует shapes + dictionaries + stenciling/wrappers.</p>
+<h2 id="dictionary">«Dictionary = таблица методов»<a class="headerlink" href="#dictionary" title="Permanent link">¶</a></h2>
+<p>Слишком узко.</p>
+<p>Там могут быть runtime types, itabs, subdictionaries и method expressions.</p>
+<h2 id="generic-call">«Generic call всегда медленнее»<a class="headerlink" href="#generic-call" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Inlining/constant propagation могут убрать часть machinery.</p>
+<h2 id="imported-package-binary">«Imported package целиком попадает в binary»<a class="headerlink" href="#imported-package-binary" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Linker делает reachability/dead-code elimination.</p>
+<h2 id="direct-call-graph-reachability">«Direct call graph полностью определяет reachability»<a class="headerlink" href="#direct-call-graph-reachability" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Interfaces и reflection требуют дополнительной metadata.</p>
+<h2 id="-s-w-stack-trace">«<code>-s -w</code> удаляет всю информацию, нужную stack trace»<a class="headerlink" href="#-s-w-stack-trace" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Runtime metadata вроде pclntab — отдельный слой.</p>
+<h2 id="linker">«Linker просто склеивает файлы»<a class="headerlink" href="#linker" title="Permanent link">¶</a></h2>
+<p>Нет.</p>
+<p>Он решает reachability, layout, relocations, runtime metadata и platform output.</p>
+<hr/>
+<h1 id="207">207. Полная цепочка: обычная функция<a class="headerlink" href="#207" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go source
+↓
+compiler
+↓
+machine function symbol
+↓
+ABIInternal signature
+↓
+caller relocation
+↓
+linker assigns address
+↓
+patch CALL
+↓
+CPU executes caller
+↓
+arguments in registers/stack
+↓
+callee
+↓
+results
+</code></pre></div>
+<hr/>
+<h1 id="208-generic-function">208. Полная цепочка: generic function<a class="headerlink" href="#208-generic-function" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>Go:
+F[int](x)
+↓
+type instantiation
+↓
+shape
+↓
+dictionary[int]
+↓
+shaped function symbol
+↓
+dictionary symbol
+↓
+ABI assigns hidden + explicit args
+↓
+relocations
+↓
+linker reachability
+↓
+final executable
+↓
+CALL
+</code></pre></div>
+<hr/>
+<h1 id="209-interface-generic-wrapper">209. Полная цепочка: interface + generic wrapper<a class="headerlink" href="#209-interface-generic-wrapper" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>interface value
+↓
+ITab
+↓
+method function pointer
+↓
+instantiated wrapper
+↓
+dictionary pointer
+↓
+shaped generic implementation
+↓
+result
+</code></pre></div>
+<hr/>
+<h1 id="210-panic-stack-trace">210. Полная цепочка: panic stack trace<a class="headerlink" href="#210-panic-stack-trace" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>machine code
+↓
+return PCs
+↓
+runtime stack walk
+↓
+PC
+↓
+pclntab
+↓
+function metadata
+↓
+file / line
+↓
+stack trace
+</code></pre></div>
+<hr/>
+<h1 id="211-dead-code">211. Полная цепочка: dead code<a class="headerlink" href="#211-dead-code" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>compiler emitted symbol F
+↓
+object data contains F
+↓
+linker roots
+↓
+no reachable relocation leads to F
+↓
+interface/reflection rules also do not require F
+↓
+F remains unreachable
+↓
+F discarded from live final program
+</code></pre></div>
+<hr/>
+<h1 id="212">212. Что важно запомнить<a class="headerlink" href="#212" title="Permanent link">¶</a></h1>
+<ol>
+<li>ABI физически соединяет caller и callee.</li>
+<li><code>ABIInternal</code> — нестабильный внутренний Go ABI; <code>ABI0</code> — стабильный stack-based boundary для Go assembler.</li>
+<li>Current ABI передает values через registers, если весь argument/result может быть размещен там целиком.</li>
+<li>String, slice, interface и struct раскладываются на ABI components.</li>
+<li>Non-trivial arrays — важное исключение current ABI и проходят через stack.</li>
+<li>Register-assigned arguments имеют reserved spill/home area.</li>
+<li>Spill area нужен в том числе для stack growth и address-taking.</li>
+<li>amd64 current ABI использует 9 integer argument/result registers, arm64 — 16; exact mapping зависит от architecture.</li>
+<li>Closure вызывает функцию с дополнительным hidden closure-context register.</li>
+<li>ABI wrappers адаптируют <code>ABIInternal</code> и <code>ABI0</code>.</li>
+<li>Generic type instantiation не равна обязательной полной мономорфизации.</li>
+<li>Current compiler использует <code>go.shape</code> для shared shaped implementations.</li>
+<li>Dictionary возвращает shaped body concrete runtime information, потерянную при shape abstraction.</li>
+<li>Dictionary становится hidden argument и поэтому является частью фактической ABI signature generated function.</li>
+<li>Runtime dictionary может ссылаться на runtime types, itabs, subdictionaries и method expressions.</li>
+<li>Shaped receivers могут ограничивать обычную devirtualization из-за необходимости dictionary.</li>
+<li>Concrete wrappers адаптируют instantiated generic methods для itab/method-table calls.</li>
+<li>Go 1.27 поддерживает generic methods concrete types, но не generic interface methods.</li>
+<li>Generics codegen балансирует specialization и code size.</li>
+<li>После compiler code еще содержит symbolic references, которые должен разрешить linker.</li>
+<li>Symbol — вершина program graph; relocation — reference edge.</li>
+<li>Linker reachability удаляет недостижимый code на уровне всей программы.</li>
+<li>Interfaces и reflection усложняют reachability и dead-method elimination.</li>
+<li>Generic dictionaries/wrappers/type descriptors входят в linker symbol graph как обычные code/data dependencies.</li>
+<li>Linker назначает final addresses и применяет relocations.</li>
+<li><code>pclntab</code> — runtime metadata для function/file/line lookup и не равна DWARF.</li>
+<li>DWARF в первую очередь нужен внешним debug tools.</li>
+<li><code>-w</code> и <code>-s</code> управляют debug/symbol information, но runtime-required metadata — отдельная категория.</li>
+<li>Internal и external linking решают одну финальную задачу разными средствами.</li>
+<li>Главный диагностический набор темы: <code>-S</code>, <code>go tool nm</code>, <code>go tool objdump</code>, размер binary и профиль.</li>
+<li>Implementation details ABI/generics/linker не являются контрактом языка.</li>
+<li>Правильный инженерный путь всегда начинается с измеренного вопроса, а не с ручного чтения linker/compiler internals.</li>
+</ol>
+<hr/>
+<h1 id="213">213. Финальная модель<a class="headerlink" href="#213" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>                           GO SOURCE
+                               │
+                               ▼
+                           compiler
+                               │
+               ┌───────────────┴───────────────┐
+               │                               │
+               ▼                               ▼
+          обычная function                 generic code
+               │                               │
+               ▼                               ▼
+          machine body                       shape
+               │                               │
+               │                         dictionary
+               │                               │
+               └───────────────┬───────────────┘
+                               ▼
+                         ABIInternal
+                               │
+                     arguments / results
+                    registers + stack
+                               │
+                               ▼
+                         object symbols
+                               │
+                    ┌──────────┴──────────┐
+                    ▼                     ▼
+                 code/data            metadata
+                    │                     │
+                    └──────────┬──────────┘
+                               ▼
+                           relocations
+                               │
+                               ▼
+                             linker
+                    ┌──────────┼──────────┐
+                    ▼          ▼          ▼
+              reachability   layout    pclntab
+                    │          │          │
+                    ▼          ▼          ▼
+                dead code   addresses   runtime
+                 removed      │       symbolization
+                    │          │          │
+                    └──────────┴──────────┘
+                               ▼
+                          executable
+                               │
+                               ▼
+                         OS loader
+                               │
+                               ▼
+                            process
+</code></pre></div>
+<p>Главный инженерный вывод:</p>
+<blockquote>
+<p>После <code>4.3</code> мы знали, как одна Go-функция превращается в машинный код. <code>4.4</code> закрывает пространство между функциями и между packages. ABI объясняет физический вызов, generics codegen — откуда берутся shaped bodies, dictionaries и wrappers, linker — как все эти code/data symbols становятся одной исполняемой программой.</p>
+<p>Поэтому даже простой <code>F[int](x)</code> в конечном счете является цепочкой из type instantiation, compiler-generated representation, скрытых ABI arguments, symbols, relocations и final linker layout. А привычные stack traces и pprof поверх этого работают только потому, что toolchain дополнительно построил runtime metadata.</p>
+</blockquote>
+<hr/>
+<h1 id="_2">Практическое продолжение темы<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>ABI
+↓
+посмотреть int/string/slice/array arguments
+↓
+closure context
+↓
+ABI wrapper
+
+generics
+↓
+shape symbols
+↓
+dictionary
+↓
+nested generic call
+↓
+method wrapper / itab
+
+linker
+↓
+nm
+↓
+dead code
+↓
+interface method reachability
+↓
+reflection
+↓
+stripping
+↓
+pclntab / stack trace
+</code></pre></div>
+<p>Практика должна руками доказать три тезиса:</p>
+<div class="highlight"><pre><span></span><code>логическая сигнатура Go
+≠
+физическая calling convention
+
+generic instantiation
+≠
+обязательно отдельная полная копия code
+
+скомпилированная функция
+≠
+автоматически часть final executable
+</code></pre></div>
+<hr/>
+<h1 id="go-127x">Основные источники для деталей Go 1.27.x<a class="headerlink" href="#go-127x" title="Permanent link">¶</a></h1>
+<ul>
+<li>Go internal ABI specification — <code>src/cmd/compile/abi-internal</code></li>
+<li>Compiler type/shape implementation — <code>src/cmd/compile/internal/types</code></li>
+<li>Unified IR generics reader/dictionaries — <code>src/cmd/compile/internal/noder/reader.go</code></li>
+<li>Generic method wrappers/runtime type metadata — <code>src/cmd/compile/internal/reflectdata/reflect.go</code></li>
+<li>Devirtualization and shaped receivers — <code>src/cmd/compile/internal/devirtualize/devirtualize.go</code></li>
+<li>Go 1.27 release notes — generic methods</li>
+<li>Go linker loader/relocations — <code>src/cmd/link/internal/loader</code>, <code>src/cmd/link/internal/ld</code></li>
+<li>Linker dead-code pass — <code>src/cmd/link/internal/ld/deadcode.go</code></li>
+<li>Runtime function tables / pclntab generation — <code>src/cmd/link/internal/ld/pcln.go</code></li>
+<li>Linker command documentation — <code>cmd/link</code></li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код" class="md-footer__link md-footer__link--prev" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking" class="md-footer__link md-footer__link--next" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

@@ -5,7 +5,7 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <link href="https://lirikonov.github.io/ssu/lectures/4%20-%20Go%20under%20the%20hood/" rel="canonical"/>
 <link href="../3%20-%20Memory/" rel="prev"/>
-<link href="../Additional/1%20-%20CPU%20architecture/" rel="next"/>
+<link href="../Additional/1.1%20-%20CPU%20architecture/" rel="next"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
 <title>4. Go под капотом - Go</title>
@@ -217,7 +217,7 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/1%20-%20CPU%20architecture/">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
 <span class="md-ellipsis">
     
   
@@ -229,7 +229,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/2%20-%20Go%20Runtime%20deep/">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20Runtime%20deep/">
 <span class="md-ellipsis">
     
   
@@ -241,7 +241,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/3%20-%20GC%20deep/">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
 <span class="md-ellipsis">
     
   
@@ -253,7 +253,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/3.1%20-%20OS%20Virtual%20Memory/">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
 <span class="md-ellipsis">
     
   
@@ -265,7 +265,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/3.2%20-%20Linux%20memory%20reclaim/">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
 <span class="md-ellipsis">
     
   
@@ -277,7 +277,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/3.3%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
 <span class="md-ellipsis">
     
   
@@ -289,7 +289,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/3.4%20-%20Linux%20storage%20path/">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
 <span class="md-ellipsis">
     
   
@@ -301,11 +301,71 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../Additional/4%20-%20Go%20under%20the%20hood/">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
 <span class="md-ellipsis">
     
   
-    4. Go под капотом
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
   
 
     
@@ -404,11 +464,35 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
 <span class="md-ellipsis">
     
   
     2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
   
 
     
@@ -428,6 +512,66 @@
 </a>
 </li>
 <li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
 <a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
 <span class="md-ellipsis">
     
@@ -440,11 +584,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../slides/I%20-%20CPU%20Architecture/">
+<a class="md-nav__link" href="../../slides/4.1%20-%20Go%20structures%20deeper/">
 <span class="md-ellipsis">
     
   
-    I - CPU Architecture
+    4.1 - Go structures deeper
   
 
     
@@ -452,11 +596,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../slides/II%20-%20CAS%20Cache%20Coherence/">
+<a class="md-nav__link" href="../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
 <span class="md-ellipsis">
     
   
-    II - CAS Cache Coherence
+    4.2 - Channels, select and context deeper
   
 
     
@@ -464,11 +608,47 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../slides/III%20-%20GC%20%2B%20memory%20internals/">
+<a class="md-nav__link" href="../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
 <span class="md-ellipsis">
     
   
-    III - GC + memory internals
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
   
 
     
@@ -506,49 +686,141 @@
 <p>Куда именно пишет <code>append</code>? Почему один срез иногда меняет другой, а после следующего <code>append</code> они внезапно начинают жить независимо?</p>
 <p>Как <code>map</code> находит один ключ среди миллиона?</p>
 <p>Почему <code>nil</code>-указатель внутри <code>error</code> может дать <code>err != nil</code>?</p>
-<p>Почему отправка в канал иногда заканчивается сразу, а иногда goroutine исчезает из выполнения?</p>
-<p>Как <code>select</code> ждёт сразу несколько каналов, если goroutine одна?</p>
+<p>Почему отправка в канал иногда заканчивается сразу, а иногда горутина исчезает из выполнения?</p>
+<p>Как <code>select</code> ждет сразу несколько каналов, если горутина одна?</p>
 <p>И что реально происходит внутри <code>context</code>, когда один <code>cancel()</code> должен отменить тысячи дочерних операций?</p>
 <p>Вот здесь абстракции начинают протекать.</p>
 <p>Главная идея лекции:</p>
 <blockquote>
-<p>Удобный синтаксис Go часто скрывает небольшой дескриптор или объект рантайма, а уже под ним находятся память, хеш-таблицы, очереди ожидания, атомарные операции, блокировки и планировщик.</p>
+<p>Удобный синтаксис Go скрывает разные модели хранения и выполнения. Иногда значение содержит сами данные. Иногда — только дескриптор общей памяти. Иногда — ссылку на объект рантайма. А иногда одна строка может припарковать горутину и отдать поток ОС планировщику для другой работы.</p>
 </blockquote>
-<p>Пойдём по цепочке:</p>
+<p>Поэтому идем не по каталогу типов, а по вопросам, которые возникают один из другого.</p>
+<p>Сначала самый простой случай:</p>
 <div class="highlight"><pre><span></span><code>массив
 ↓
-срез
+значение содержит данные
+</code></pre></div>
+<p>Потом модель ломается:</p>
+<div class="highlight"><pre><span></span><code>срез
 ↓
-базовый массив
+дескриптор
+↓
+общий базовый массив
 ↓
 append
 ↓
-map
+возможная смена базового массива
+</code></pre></div>
+<p>Теперь новый вопрос:</p>
+<blockquote>
+<p>Как Go хранит структуру, размер которой заранее неизвестен и где доступ идет по ключу?</p>
+</blockquote>
+<p>Так появляется:</p>
+<div class="highlight"><pre><span></span><code>map
+↓
+хеш
 ↓
 Swiss Tables
-↓
-sync.Map
-↓
-интерфейс
-↓
-канал
-↓
-select
-↓
-контекст
 </code></pre></div>
-<p>Каждый следующий механизм появляется потому, что предыдущая простая модель уже перестаёт что-то объяснять.</p>
+<p>Следующий разрыв:</p>
+<blockquote>
+<p>Как одна переменная может содержать значения разных конкретных типов?</p>
+</blockquote>
+<p>Появляются интерфейсы.</p>
+<p>Потом меняем задачу с хранения на ожидание:</p>
+<div class="highlight"><pre><span></span><code>chan
+↓
+очереди ожидания
+↓
+парковка
+↓
+планировщик
+</code></pre></div>
+<p>Один канал понятен. Но как одна горутина ждет сразу несколько событий?</p>
+<div class="highlight"><pre><span></span><code>select
+</code></pre></div>
+<p>И последний вопрос:</p>
+<blockquote>
+<p>Как протянуть жизненный цикл одной бэкенд-операции через дерево горутин, запросов к БД и внешних RPC?</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code>контекст
+</code></pre></div>
+<p>Итоговая цепочка:</p>
+<div class="highlight"><pre><span></span><code>значение
+↓
+дескриптор / объект рантайма
+↓
+общая память
+↓
+структура под управлением рантайма
+↓
+динамический тип
+↓
+синхронизация
+↓
+парковка / пробуждение
+↓
+распространение жизненного цикла
+</code></pre></div>
+<p>Так лекция естественно связывается с предыдущими блоками по памяти и рантайму: мы уже знаем, что такое хип, планировщик, парковка и GC, а теперь смотрим, какие обычные конструкции Go заставляют эти механизмы работать.</p>
+<p>Но у этой лекции есть сознательная граница.</p>
+<p>Здесь наша задача — построить <strong>правильную рабочую модель обычного Go-кода</strong>. Мы спускаемся достаточно глубоко, чтобы объяснить поведение, цену и диагностику, но останавливаемся за один шаг до чтения конкретных алгоритмов рантайма и кода компилятора.</p>
+<p>Дальше этот материал раскроется в трех углубленных темах:</p>
+<div class="highlight"><pre><span></span><code>4. Go под капотом
+→ рабочая модель конструкций языка
+
+4.1. Структуры Go глубже
+→ growslice
+→ Swiss Table до битовых операций
+→ рост map
+→ HashTrieMap
+→ ABI интерфейсов
+
+4.2. Каналы, select и context глубже
+→ chansend / chanrecv
+→ closechan
+→ selectgo
+→ propagateCancel
+
+4.3. Компилятор Go под капотом
+→ lowering
+→ SSA
+→ оптимизации
+→ вызов функции рантайма или встроенный быстрый путь
+→ машинный код
+</code></pre></div>
+<p>Поэтому дальше периодически будем доходить до вопроса, на который <strong>сегодня уже можно правильно ответить на уровне модели</strong>, но точный алгоритм сознательно оставим следующей лекции.</p>
 <hr/>
-<h1 id="1">1. Сначала разделим типы по модели хранения<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
-<p>Возьмём:</p>
+<h1 id="1">1. Что именно считаем достаточной глубиной сегодня<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<p>Для каждой конструкции нам нужны пять ответов:</p>
+<div class="highlight"><pre><span></span><code>что хранится в значении?
+↓
+на какую внутреннюю структуру оно опирается?
+↓
+что происходит на быстром и медленном пути?
+↓
+какой ограниченный ресурс появляется под нагрузкой?
+↓
+чем диагностировать проблему?
+</code></pre></div>
+<p>Но сегодня мы не обязаны еще знать:</p>
+<div class="highlight"><pre><span></span><code>какая конкретно битовая маска используется?
+какая функция рантайма вызывается?
+какой SSA-блок построил компилятор?
+какая инструкция получилась на amd64/arm64?
+</code></pre></div>
+<p>Это не пробел. Это следующая глубина.</p>
+<hr/>
+<h1 id="2">2. Сначала разделим типы по модели хранения<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
+<p>Возьмем:</p>
 <div class="highlight"><pre><span></span><code>[N]T
 []T
 map[K]V
-интерфейс
+interface
 chan T
 context.Context
 </code></pre></div>
-<p>Синтаксически всё это просто переменные.</p>
+<p>Синтаксически все это просто переменные.</p>
 <p>Но копирование такой переменной означает совершенно разное.</p>
 <table>
 <thead>
@@ -584,9 +856,9 @@ context.Context
 </tr>
 </tbody>
 </table>
-<p>Из этой разницы вырастает почти всё интересное дальше.</p>
+<p>Из этой разницы вырастает почти все интересное дальше.</p>
 <hr/>
-<h1 id="2">2. Массив: самая честная структура в этой лекции<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
+<h1 id="3">3. Массив: самая честная структура в этой лекции<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">}</span>
 </code></pre></div>
 <p>Ментальная модель:</p>
@@ -597,13 +869,13 @@ context.Context
 └────┴────┴────┴────┘
 </code></pre></div>
 <p>Массив содержит фиксированное количество элементов одного типа.</p>
-<p>Причём длина входит в тип:</p>
+<p>Причем длина входит в тип:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">int</span>
 <span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="kt">int</span>
 </code></pre></div>
 <p><code>[4]int</code> и <code>[5]int</code> — разные типы.</p>
 <hr/>
-<h1 id="3">3. Копирование массива копирует его значение<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
+<h1 id="4">4. Копирование массива копирует его значение<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">}</span>
 <span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span>
 
@@ -628,13 +900,13 @@ b = [100 2 3]
 <p>Отсюда следствие:</p>
 <div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">process</span><span class="p">(</span><span class="nx">a</span><span class="w"> </span><span class="p">[</span><span class="mi">1_000_000</span><span class="p">]</span><span class="kt">int</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
 </code></pre></div>
-<p>Параметр передаётся по значению.</p>
-<p>Компилятор может оптимизировать конкретный машинный код, но семантика языка остаётся той же: функция получает собственное значение массива.</p>
+<p>Параметр передается по значению.</p>
+<p>Компилятор может оптимизировать конкретный машинный код, но семантика языка остается той же: функция получает собственное значение массива.</p>
 <hr/>
-<h1 id="4">4. Срез: вот здесь простая модель ломается<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
+<h1 id="5">5. Срез: вот здесь простая модель ломается<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
 <p>Популярное упрощение:</p>
 <blockquote>
-<p>Срез (срез) — динамический массив.</p>
+<p>Срез (slice) — динамический массив.</p>
 </blockquote>
 <p>Для первого знакомства терпимо.</p>
 <p>Дальше начинает мешать.</p>
@@ -650,10 +922,10 @@ b = [100 2 3]
 <span class="p">}</span>
 </code></pre></div>
 <p>Это учебная модель.</p>
-<p>На 64-битной архитектуре такой дескриптор обычно состоит из трёх машинных слов.</p>
+<p>На 64-битной архитектуре такой дескриптор обычно состоит из трех машинных слов.</p>
 <p>Самих элементов внутри него нет.</p>
 <hr/>
-<h1 id="5">5. Базовый массив<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
+<h1 id="6">6. Базовый массив<a class="headerlink" href="#6" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">}</span>
 </code></pre></div>
 <p>Нужно видеть две сущности.</p>
@@ -696,13 +968,13 @@ b = [100 2 3]
 <p>изменит данные, которые видит и <code>s</code>.</p>
 <p>Фраза:</p>
 <blockquote>
-<p>срез передаётся по значению</p>
+<p>срез передается по значению</p>
 </blockquote>
 <p>технически верна.</p>
 <p>Но по значению копируется дескриптор.</p>
 <p>Базовый массив может остаться общим.</p>
 <hr/>
-<h1 id="6-len-cap">6. <code>len</code> и <code>cap</code><a class="headerlink" href="#6-len-cap" title="Permanent link">¶</a></h1>
+<h1 id="7-len-cap">7. <code>len</code> и <code>cap</code><a class="headerlink" href="#7-len-cap" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">}</span>
 <span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
 </code></pre></div>
@@ -726,10 +998,10 @@ cap = 5
 <p>может просто изменить дескриптор.</p>
 <p>Новая память здесь не нужна.</p>
 <hr/>
-<h1 id="7-append">7. <code>append</code>: одна строка, два принципиально разных сценария<a class="headerlink" href="#7-append" title="Permanent link">¶</a></h1>
+<h1 id="8-append">8. <code>append</code>: одна строка, два принципиально разных сценария<a class="headerlink" href="#8-append" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">)</span>
 </code></pre></div>
-<p>Сценарий №1: ёмкости хватает.</p>
+<p>Сценарий №1: емкости хватает.</p>
 <div class="highlight"><pre><span></span><code>len = 3
 cap = 8
 </code></pre></div>
@@ -741,7 +1013,7 @@ cap = 8
 </code></pre></div>
 <p>Нового массива нет.</p>
 <hr/>
-<h1 id="8">8. Ёмкость закончилась<a class="headerlink" href="#8" title="Permanent link">¶</a></h1>
+<h1 id="9">9. Емкость закончилась<a class="headerlink" href="#9" title="Permanent link">¶</a></h1>
 <p>Теперь:</p>
 <div class="highlight"><pre><span></span><code>len = 4
 cap = 4
@@ -767,20 +1039,20 @@ cap = 4
 </code></pre></div>
 <p>Старый дескриптор сам не узнает, что данные переехали.</p>
 <hr/>
-<h1 id="9-cap">9. Не стройте логику на точном росте <code>cap</code><a class="headerlink" href="#9-cap" title="Permanent link">¶</a></h1>
+<h1 id="10-cap">10. Не стройте логику на точном росте <code>cap</code><a class="headerlink" href="#10-cap" title="Permanent link">¶</a></h1>
 <p>Иногда говорят:</p>
 <blockquote>
-<p>срез всегда растёт в два раза.</p>
+<p>срез всегда растет в два раза.</p>
 </blockquote>
 <p>Это слишком грубое правило.</p>
-<p>Текущий рантайм использует собственную стратегию роста. Она зависит от старой ёмкости, необходимого размера и округления распределителем памяти.</p>
+<p>Текущий рантайм использует собственную стратегию роста. Она зависит от старой емкости, необходимого размера и округления распределителем памяти.</p>
 <p>Go гарантирует семантику <code>append</code>.</p>
 <p>Go не гарантирует:</p>
 <div class="highlight"><pre><span></span><code>newCap == oldCap * 2
 </code></pre></div>
-<p>Если бизнес-логика зависит от точного значения новой ёмкости, модель уже сломана.</p>
+<p>Если бизнес-логика зависит от точного значения новой емкости, модель уже сломана.</p>
 <hr/>
-<h1 id="10">10. Самая неприятная часть срезов — совместное использование массива<a class="headerlink" href="#10" title="Permanent link">¶</a></h1>
+<h1 id="11">11. Самая неприятная часть срезов — совместное использование массива<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span>
 <span class="nx">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
 <span class="nx">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
@@ -791,7 +1063,7 @@ cap = 4
 <span class="nx">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
 </code></pre></div>
 <p>Что стало с <code>a</code>?</p>
-<p>У <code>b</code> хватает ёмкости.</p>
+<p>У <code>b</code> хватает емкости.</p>
 <p>Значит <code>append</code> пишет в тот же базовый массив.</p>
 <div class="highlight"><pre><span></span><code>до:
 
@@ -808,9 +1080,9 @@ cap = 4
 <p><code>a</code> теперь видит:</p>
 <div class="highlight"><pre><span></span><code>[1 2 100]
 </code></pre></div>
-<p>Вот здесь модель «срез = динамический массив» окончательно перестаёт помогать.</p>
+<p>Вот здесь модель «срез = динамический массив» окончательно перестает помогать.</p>
 <hr/>
-<h1 id="11">11. Как ограничить ёмкость дочернего среза<a class="headerlink" href="#11" title="Permanent link">¶</a></h1>
+<h1 id="12">12. Как ограничить емкость дочернего среза<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span><span class="p">[:</span><span class="mi">2</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>
 </code></pre></div>
 <p>Теперь:</p>
@@ -821,7 +1093,7 @@ cap(b) = 2
 <p>Рантайм будет вынужден получить другой базовый массив.</p>
 <p>Это полезно, когда дочерний срез не должен случайно писать за пределы своего логического диапазона.</p>
 <hr/>
-<h1 id="12">12. Срез может удерживать огромный массив<a class="headerlink" href="#12" title="Permanent link">¶</a></h1>
+<h1 id="13">13. Срез может удерживать огромный массив<a class="headerlink" href="#13" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">data</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">([]</span><span class="kt">byte</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="o">&lt;&lt;</span><span class="mi">20</span><span class="p">)</span>
 <span class="nx">header</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">data</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span>
 <span class="k">return</span><span class="w"> </span><span class="nx">header</span>
@@ -852,19 +1124,55 @@ cap(b) = 2
 <p>Выигрыш — старый большой массив может стать недостижимым.</p>
 <p>Иногда копирование экономит память.</p>
 <hr/>
-<h1 id="13">13. Что важно запомнить про срезы<a class="headerlink" href="#13" title="Permanent link">¶</a></h1>
+<h1 id="14">14. Что важно запомнить про срезы<a class="headerlink" href="#14" title="Permanent link">¶</a></h1>
 <ol>
 <li>Срез не содержит сами элементы.</li>
 <li>Значение среза — дескриптор <code>указатель + len + cap</code>.</li>
 <li>Копирование среза копирует дескриптор.</li>
 <li>Несколько срезов могут ссылаться на один базовый массив.</li>
-<li><code>append</code> иногда пишет в старый массив, иногда создаёт новый.</li>
+<li><code>append</code> иногда пишет в старый массив, иногда создает новый.</li>
 <li>После перевыделения старые срезы продолжают ссылаться на старый массив.</li>
 <li>Маленький срез способен удерживать большой массив.</li>
 <li>Точный алгоритм роста <code>cap</code> не является контрактом языка.</li>
 </ol>
+<p>На этом уровне модель среза для прикладного кода закончена.</p>
+<p>Но теперь у нас остались хорошие вопросы:</p>
+<div class="highlight"><pre><span></span><code>cap закончился
+↓
+как именно выбирается новый cap?
+↓
+почему фактическая емкость может отличаться от расчетной?
+↓
+сколько байт реально просит growslice?
+↓
+как меняется путь для []byte и []*Node?
+</code></pre></div>
+<p>На них отвечает <code>4.1</code>: там откроем <code>growslice</code>, <code>nextslicecap</code>, связь с уже знакомыми size classes аллокатора и реальную стоимость копирования.</p>
+<p>А в <code>4.3</code> вернемся к той же строке:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">x</span><span class="p">)</span>
+</code></pre></div>
+<p>и посмотрим, где компилятор оставляет быстрый путь прямо в сгенерированном коде, а где появляется вызов <code>runtime.growslice</code>.</p>
 <hr/>
-<h1 id="14-map">14. <code>map</code>: как найти ключ среди миллиона элементов<a class="headerlink" href="#14-map" title="Permanent link">¶</a></h1>
+<h1 id="15-map">15. От среза к <code>map</code>: дескриптор уже недостаточно<a class="headerlink" href="#15-map" title="Permanent link">¶</a></h1>
+<p>Со срезом мы получили модель:</p>
+<div class="highlight"><pre><span></span><code>указатель + len + cap
+↓
+непрерывный базовый массив
+</code></pre></div>
+<p>Но теперь нужен доступ:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="p">[</span><span class="s">"user:42"</span><span class="p">]</span>
+</code></pre></div>
+<p>Числового индекса больше нет, а хранить элементы подряд по ключу бессмысленно.</p>
+<p>Значит прежняя модель перестала объяснять доступ.</p>
+<p>Нужен новый механизм:</p>
+<div class="highlight"><pre><span></span><code>ключ
+↓
+быстро выбрать небольшую область поиска
+↓
+найти точный ключ
+</code></pre></div>
+<p>Так естественно появляется хеш-таблица.</p>
+<h1 id="16-map">16. <code>map</code>: как найти ключ среди миллиона элементов<a class="headerlink" href="#16-map" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span>
 <span class="w">    </span><span class="s">"alice"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span>
 <span class="w">    </span><span class="s">"bob"</span><span class="p">:</span><span class="w">   </span><span class="mi">20</span><span class="p">,</span>
@@ -885,7 +1193,7 @@ cap(b) = 2
 ↓
 значение
 </code></pre></div>
-<p>Средний поиск в нормально заполненной хеш-таблице близок к O(1).</p>
+<p>Средний поиск у нормальной хеш-таблицы близок к O(1).</p>
 <p>Но реальная цена включает:</p>
 <div class="highlight"><pre><span></span><code>вычисление хеша
 +
@@ -897,9 +1205,9 @@ cap(b) = 2
 +
 сравнение ключей
 </code></pre></div>
-<p>Вот здесь Big O перестаёт быть всей историей.</p>
+<p>Вот здесь Big O перестает быть всей историей.</p>
 <hr/>
-<h1 id="15-map">15. Копирование <code>map</code> не копирует всю таблицу<a class="headerlink" href="#15-map" title="Permanent link">¶</a></h1>
+<h1 id="17-map">17. Копирование <code>map</code> не копирует всю таблицу<a class="headerlink" href="#17-map" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">{</span><span class="s">"x"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">}</span>
 <span class="nx">b</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">a</span>
 
@@ -909,9 +1217,9 @@ cap(b) = 2
 <div class="highlight"><pre><span></span><code><span class="nx">a</span><span class="p">[</span><span class="s">"x"</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <p><code>a</code> и <code>b</code> работают с одной внутренней структурой <code>map</code>.</p>
-<p>Это ссылочная семантика значения <code>map</code>.</p>
+<p>Копируется значение <code>map</code>, но обе переменные продолжают ссылаться на одну внутреннюю таблицу.</p>
 <hr/>
-<h1 id="16-nil-map">16. <code>nil</code>-map<a class="headerlink" href="#16-nil-map" title="Permanent link">¶</a></h1>
+<h1 id="18-nil-map">18. <code>nil</code>-map<a class="headerlink" href="#18-nil-map" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">m</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span>
 </code></pre></div>
 <p>Читать можно:</p>
@@ -925,9 +1233,9 @@ cap(b) = 2
 <p>даст panic:</p>
 <div class="highlight"><pre><span></span><code>assignment to entry in nil map
 </code></pre></div>
-<p><code>nil</code>-map ведёт себя как пустая при чтении, но не имеет хранилища для добавления элементов.</p>
+<p><code>nil</code>-map ведет себя как пустая при чтении, но не имеет хранилища для добавления элементов.</p>
 <hr/>
-<h1 id="17-map">17. Старая и текущая реализации <code>map</code> — разные<a class="headerlink" href="#17-map" title="Permanent link">¶</a></h1>
+<h1 id="19-map">19. Старая и текущая реализации <code>map</code> — разные<a class="headerlink" href="#19-map" title="Permanent link">¶</a></h1>
 <p>Здесь легко попасть в ловушку старых статей.</p>
 <p>До Go 1.24 встроенная <code>map</code> использовала модель с бакетами:</p>
 <div class="highlight"><pre><span></span><code>hmap
@@ -941,7 +1249,7 @@ nevacuate
 <p>Семантика языка осталась.</p>
 <p>Внутренний алгоритм поменялся сильно.</p>
 <hr/>
-<h1 id="18">18. Зачем помнить старую модель<a class="headerlink" href="#18" title="Permanent link">¶</a></h1>
+<h1 id="20">20. Зачем помнить старую модель<a class="headerlink" href="#20" title="Permanent link">¶</a></h1>
 <p>Она хорошо показывает проблему, которую потом решали.</p>
 <p>При коллизиях структура могла выглядеть так:</p>
 <div class="highlight"><pre><span></span><code>бакет
@@ -961,7 +1269,7 @@ nevacuate
 </code></pre></div>
 <p>Современному CPU такое не нравится.</p>
 <hr/>
-<h1 id="19-map">19. Почему старый <code>map</code> рос постепенно<a class="headerlink" href="#19-map" title="Permanent link">¶</a></h1>
+<h1 id="21-map">21. Почему старый <code>map</code> рос постепенно<a class="headerlink" href="#21-map" title="Permanent link">¶</a></h1>
 <p>Если полностью переносить огромную таблицу за одну операцию:</p>
 <div class="highlight"><pre><span></span><code>одна запись
 ↓
@@ -982,11 +1290,11 @@ nevacuate
 <p>Большую O(N) работу часто выгодно распределить по множеству операций, чтобы не создавать один огромный всплеск задержки.</p>
 </blockquote>
 <hr/>
-<h1 id="20-swiss-tables-map">20. Swiss Tables: новая модель <code>map</code><a class="headerlink" href="#20-swiss-tables-map" title="Permanent link">¶</a></h1>
+<h1 id="22-swiss-tables-map">22. Swiss Tables: новая модель <code>map</code><a class="headerlink" href="#22-swiss-tables-map" title="Permanent link">¶</a></h1>
 <p>Текущая реализация использует идею Swiss Table.</p>
 <p>Главная смена:</p>
 <div class="highlight"><pre><span></span><code>раньше:
-бакеты + цепочки переполнения
+бакет + цепочки бакет переполненияов
 
 сейчас:
 группы + открытая адресация + компактные метаданные
@@ -1006,12 +1314,12 @@ nevacuate
 </code></pre></div>
 <p>Метаданные позволяют быстро отбросить неподходящие ячейки до полного сравнения ключей.</p>
 <hr/>
-<h1 id="21">21. Зачем делить хеш на части<a class="headerlink" href="#21" title="Permanent link">¶</a></h1>
+<h1 id="23">23. Зачем делить хеш на части<a class="headerlink" href="#23" title="Permanent link">¶</a></h1>
 <p>Текущая реализация использует разные части хеша для разных задач.</p>
-<p>Упрощённо:</p>
+<p>Упрощенно:</p>
 <div class="highlight"><pre><span></span><code>хеш
 ├── H1 → навигация по таблице
-└── H2 → короткий отпечаток ячейки
+└── H2 → 7-битный отпечаток хеша
 </code></pre></div>
 <p>Ищем ключ.</p>
 <p>Сначала сравниваем короткий <code>H2</code> с метаданными группы.</p>
@@ -1025,12 +1333,12 @@ nevacuate
 <p>Полное сравнение ключа нужно только для двух кандидатов.</p>
 <p>Идея простая:</p>
 <blockquote>
-<p>Сначала дешёвой метаданной отсеиваем большинство вариантов, потом трогаем дорогие данные.</p>
+<p>Сначала дешевой метаданной отсеиваем большинство вариантов, потом трогаем дорогие данные.</p>
 </blockquote>
 <hr/>
-<h1 id="22-h2">22. Совпадение H2 ещё не означает равенство ключей<a class="headerlink" href="#22-h2" title="Permanent link">¶</a></h1>
+<h1 id="24-h2">24. Совпадение H2 еще не означает равенство ключей<a class="headerlink" href="#24-h2" title="Permanent link">¶</a></h1>
 <p><code>H2</code> короткий.</p>
-<p>Разные хеши могут иметь одинаковый отпечаток.</p>
+<p>У разных ключей может совпасть этот короткий отпечаток.</p>
 <p>Поэтому:</p>
 <div class="highlight"><pre><span></span><code>H2 совпал?
 ├── нет → пропускаем ячейку
@@ -1040,10 +1348,10 @@ nevacuate
     ├── не равен → коллизия
     └── равен → нашли
 </code></pre></div>
-<p>Отпечаток — фильтр.</p>
+<p>H2 — только быстрый фильтр кандидатов.</p>
 <p>Не доказательство равенства ключей.</p>
 <hr/>
-<h1 id="23">23. Пробирование<a class="headerlink" href="#23" title="Permanent link">¶</a></h1>
+<h1 id="25">25. Пробирование<a class="headerlink" href="#25" title="Permanent link">¶</a></h1>
 <p>Swiss Table использует открытую адресацию.</p>
 <p>Если нужный ключ не найден в первой группе, алгоритм проверяет следующие группы по последовательности пробирования.</p>
 <div class="highlight"><pre><span></span><code>начальная группа
@@ -1060,7 +1368,7 @@ nevacuate
 <li>или встретили настоящую пустую ячейку, которая доказывает, что дальше по этой последовательности ключа быть не должно.</li>
 </ul>
 <hr/>
-<h1 id="24">24. Почему удаление не может просто сделать ячейку пустой<a class="headerlink" href="#24" title="Permanent link">¶</a></h1>
+<h1 id="26">26. Почему удаление не может просто сделать ячейку пустой<a class="headerlink" href="#26" title="Permanent link">¶</a></h1>
 <p>Представим:</p>
 <div class="highlight"><pre><span></span><code>A
 ↓ коллизия
@@ -1070,7 +1378,7 @@ C
 </code></pre></div>
 <p>Ключ оказался в <code>C</code>.</p>
 <p>Удаляем элемент из <code>B</code>.</p>
-<p>Если просто поставить там <code>пусто</code>, поиск дойдёт до <code>B</code> и решит:</p>
+<p>Если просто поставить там <code>пусто</code>, поиск дойдет до <code>B</code> и решит:</p>
 <blockquote>
 <p>дальше искать бессмысленно.</p>
 </blockquote>
@@ -1081,7 +1389,7 @@ C
 поиск обязан продолжиться
 </code></pre></div>
 <hr/>
-<h1 id="25-100">25. Почему таблицу нельзя забить до 100%<a class="headerlink" href="#25-100" title="Permanent link">¶</a></h1>
+<h1 id="27-100">27. Почему таблицу нельзя забить до 100%<a class="headerlink" href="#27-100" title="Permanent link">¶</a></h1>
 <p>Чем выше заполнение:</p>
 <div class="highlight"><pre><span></span><code>коэффициент заполнения ↑
 ↓
@@ -1095,7 +1403,7 @@ C
 <p>Конкретный коэффициент заполнения текущего рантайма — деталь реализации.</p>
 <p>Причинная связь важнее числа.</p>
 <hr/>
-<h1 id="26-map">26. Как растёт текущая <code>map</code><a class="headerlink" href="#26-map" title="Permanent link">¶</a></h1>
+<h1 id="28-map">28. Как растет текущая <code>map</code><a class="headerlink" href="#28-map" title="Permanent link">¶</a></h1>
 <p>Одна огромная Swiss Table с полным перераспределением всех элементов снова дала бы большие всплески задержки.</p>
 <p>Поэтому текущая Go <code>map</code> использует каталог и несколько таблиц.</p>
 <div class="highlight"><pre><span></span><code>`map`
@@ -1107,11 +1415,11 @@ C
 └── ...
 </code></pre></div>
 <p>Часть хеша помогает выбрать таблицу.</p>
-<p>Внутри неё уже работает пробирование Swiss Table.</p>
+<p>Внутри нее уже работает пробирование Swiss Table.</p>
 <p>Отдельные таблицы могут расти и разделяться независимо.</p>
 <p>Так стоимость роста распределяется лучше, чем при полном переносе одной гигантской таблицы.</p>
 <hr/>
-<h1 id="27-swiss-tables">27. Почему Swiss Tables быстрее<a class="headerlink" href="#27-swiss-tables" title="Permanent link">¶</a></h1>
+<h1 id="29-swiss-tables">29. Почему Swiss Tables быстрее<a class="headerlink" href="#29-swiss-tables" title="Permanent link">¶</a></h1>
 <p>Не потому, что асимптотика внезапно стала другой.</p>
 <p>И старая, и новая реализация в среднем дают O(1).</p>
 <p>Выигрыш находится в константах:</p>
@@ -1129,7 +1437,7 @@ C
 </code></pre></div>
 <p>Вот здесь структура данных встречается с реальным кешем CPU.</p>
 <hr/>
-<h1 id="28-makemap-hint">28. <code>make(map, hint)</code><a class="headerlink" href="#28-makemap-hint" title="Permanent link">¶</a></h1>
+<h1 id="30-makemap-hint">30. <code>make(map, hint)</code><a class="headerlink" href="#30-makemap-hint" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">m</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">100_000</span><span class="p">)</span>
 </code></pre></div>
 <p><code>100_000</code> — подсказка о начальном размере.</p>
@@ -1139,10 +1447,10 @@ C
 <p>и не:</p>
 <div class="highlight"><pre><span></span><code>ровно 100000 ячеек
 </code></pre></div>
-<p><code>map</code> всё равно может расти.</p>
+<p><code>map</code> все равно может расти.</p>
 <p>Но хороший ориентир позволяет уменьшить количество промежуточных расширений и выделений памяти.</p>
 <hr/>
-<h1 id="29-map">29. Обычная <code>map</code> не становится потокобезопасной<a class="headerlink" href="#29-map" title="Permanent link">¶</a></h1>
+<h1 id="31-map">31. Обычная <code>map</code> не становится потокобезопасной<a class="headerlink" href="#31-map" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">m</span><span class="p">[</span><span class="s">"x"</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
 <span class="p">}()</span>
@@ -1155,34 +1463,34 @@ C
 <p>Рантайм умеет обнаруживать часть опасных конкурентных операций с <code>map</code> и может аварийно завершить программу.</p>
 <p>Но это диагностика.</p>
 <p>Не синхронизация.</p>
-<p>Если <code>map</code> разделяется между goroutine, обычно нужна:</p>
+<p>Если <code>map</code> разделяется между горутинами, обычно нужна:</p>
 <div class="highlight"><pre><span></span><code>map + Mutex/RWMutex
 </code></pre></div>
 <p>или архитектура с одним владельцем.</p>
 <p>Либо специализированный <code>sync.Map</code>.</p>
 <hr/>
-<h1 id="30-syncmap">30. <code>sync.Map</code>: ещё одна ловушка версий<a class="headerlink" href="#30-syncmap" title="Permanent link">¶</a></h1>
+<h1 id="32-syncmap">32. <code>sync.Map</code>: еще одна ловушка версий<a class="headerlink" href="#32-syncmap" title="Permanent link">¶</a></h1>
 <p>Старые материалы объясняют <code>sync.Map</code> через:</p>
 <div class="highlight"><pre><span></span><code>read
 dirty
-промахи
-mutex
+misses
+мьютекс
 </code></pre></div>
 <p>Это действительно была реализация стандартной библиотеки.</p>
 <p>В Go 1.26/1.27 <code>sync.Map</code> использует <code>internal/sync.HashTrieMap</code>.</p>
 <p>Публичный API сохранился.</p>
 <p>Внутренний механизм изменился.</p>
 <hr/>
-<h1 id="31-syncmap">31. Что было в старом <code>sync.Map</code><a class="headerlink" href="#31-syncmap" title="Permanent link">¶</a></h1>
+<h1 id="33-syncmap">33. Что было в старом <code>sync.Map</code><a class="headerlink" href="#33-syncmap" title="Permanent link">¶</a></h1>
 <p>Историческая модель:</p>
 <div class="highlight"><pre><span></span><code>sync.Map
 ├── read   → быстрые чтения
 ├── dirty  → новые/изменяемые записи
 ├── misses
-└── mutex
+└── мьютекс
 </code></pre></div>
-<p>Частые чтения могли обходиться без общего mutex.</p>
-<p>Если ключ постоянно приходилось искать через более дорогой путь, накапливался счётчик <code>misses</code>.</p>
+<p>Частые чтения могли обходиться без общего мьютекса.</p>
+<p>Если ключ постоянно приходилось искать через более дорогой путь, накапливались <code>misses</code>.</p>
 <p>Когда стоимость этого пути становилась достаточно большой, структура перестраивалась.</p>
 <p>Интересная идея:</p>
 <blockquote>
@@ -1190,10 +1498,10 @@ mutex
 </blockquote>
 <p>Сама внутренняя структура сегодня уже историческая.</p>
 <hr/>
-<h1 id="32-syncmap-">32. Текущий <code>sync.Map</code>: хеш-дерево<a class="headerlink" href="#32-syncmap-" title="Permanent link">¶</a></h1>
+<h1 id="34-syncmap-">34. Текущий <code>sync.Map</code>: хеш-дерево<a class="headerlink" href="#34-syncmap-" title="Permanent link">¶</a></h1>
 <p>Текущая реализация основана на <code>HashTrieMap</code>.</p>
 <p>Путь определяется частями хеша.</p>
-<p>Упрощённо:</p>
+<p>Упрощенно:</p>
 <div class="highlight"><pre><span></span><code>хеш:
 1011 0010 1111 0100 ...
 │    │    │
@@ -1202,12 +1510,12 @@ mutex
 └──────────→ дочерний узел корня
 </code></pre></div>
 <p>Чтение проходит по дереву через атомарные загрузки указателей.</p>
-<p>Для нагрузки с преобладанием чтения это позволяет не использовать один глобальный mutex на всю структуру.</p>
+<p>Для нагрузки с преобладанием чтения это позволяет не использовать один глобальный мьютекс на всю структуру.</p>
 <hr/>
-<h1 id="33-hashtriemap">33. Изменение <code>HashTrieMap</code><a class="headerlink" href="#33-hashtriemap" title="Permanent link">¶</a></h1>
-<p>Изменение структуры всё равно требует синхронизации.</p>
+<h1 id="35-hashtriemap">35. Изменение <code>HashTrieMap</code><a class="headerlink" href="#35-hashtriemap" title="Permanent link">¶</a></h1>
+<p>Изменение структуры все равно требует синхронизации.</p>
 <p>Но блокировка локализуется ближе к изменяемому узлу.</p>
-<p>Упрощённо:</p>
+<p>Упрощенно:</p>
 <div class="highlight"><pre><span></span><code>найти место
 ↓
 заблокировать нужный узел
@@ -1218,14 +1526,14 @@ mutex
 ↓
 разблокировать
 </code></pre></div>
-<p>Это более мелкая область конкуренции за ресурс, чем один mutex на всю таблицу.</p>
+<p>Блокировка локализована на отдельном узле, поэтому независимые ключи реже мешают друг другу.</p>
 <hr/>
-<h1 id="34-syncmap">34. Когда нужен <code>sync.Map</code><a class="headerlink" href="#34-syncmap" title="Permanent link">¶</a></h1>
+<h1 id="36-syncmap">36. Когда нужен <code>sync.Map</code><a class="headerlink" href="#36-syncmap" title="Permanent link">¶</a></h1>
 <p><code>sync.Map</code> специализирован.</p>
 <p>Типичные подходящие сценарии:</p>
 <ul>
-<li>запись создаётся редко, потом много читается;</li>
-<li>разные goroutine в основном работают с разными ключами.</li>
+<li>запись создается редко, потом много читается;</li>
+<li>разные горутины в основном работают с разными ключами.</li>
 </ul>
 <p>Но обычная:</p>
 <div class="highlight"><pre><span></span><code><span class="kt">map</span><span class="p">[</span><span class="nx">K</span><span class="p">]</span><span class="nx">V</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">RWMutex</span>
@@ -1242,8 +1550,53 @@ mutex
 </code></pre></div>
 <p><code>sync.Map</code> синхронизирует операции над самой структурой.</p>
 <p>Она не превращает несколько бизнес-действий в одну атомарную операцию.</p>
+<p>Для обычной лекции нам достаточно следующей модели:</p>
+<div class="highlight"><pre><span></span><code>обычная map
+→ Swiss Table
+→ группы
+→ H1/H2
+→ пробирование
+→ directory / tables
+
+sync.Map
+→ HashTrieMap
+→ путь по частям хеша
+→ атомарные чтения
+→ локализованные изменения
+</code></pre></div>
+<p>Но под этой моделью остается еще один слой, который сегодня намеренно не открываем.</p>
+<p>Для обычной <code>map</code>:</p>
+<div class="highlight"><pre><span></span><code>как восемь control bytes сравниваются с H2 сразу?
+как из маски находится конкретный slot?
+какая точная последовательность probing?
+как localDepth/globalDepth управляют split таблиц?
+сколько реально стоит hash длинного string key?
+</code></pre></div>
+<p>Для <code>sync.Map</code>:</p>
+<div class="highlight"><pre><span></span><code>как устроен node HashTrieMap?
+почему берутся части хеша фиксированной ширины?
+как опубликованы дочерние указатели?
+где именно нужен лок при Store?
+</code></pre></div>
+<p>Это уже <code>4.1</code>. Там текущая схема перестанет быть картинкой и превратится в алгоритм.</p>
 <hr/>
-<h1 id="35">35. Интерфейс: как одна переменная хранит разные типы<a class="headerlink" href="#35" title="Permanent link">¶</a></h1>
+<h1 id="37">37. От контейнеров данных к интерфейсу: где теперь лежит тип<a class="headerlink" href="#37" title="Permanent link">¶</a></h1>
+<p>До сих пор компилятор заранее знал тип данных:</p>
+<div class="highlight"><pre><span></span><code>[]int
+map[string]int
+</code></pre></div>
+<p>Но бэкенд-код постоянно делает:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">Handler</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span>
+</code></pre></div>
+<p>Одна переменная может содержать значения разных конкретных типов.</p>
+<p>Новая проблема:</p>
+<blockquote>
+<p>Одних данных уже недостаточно. Рантайм должен еще понимать, что это за динамический тип и как с ним работать.</p>
+</blockquote>
+<p>Вот здесь появляется внутреннее представление интерфейса в рантайме.</p>
+<h1 id="38">38. Интерфейс: как одна переменная хранит разные типы<a class="headerlink" href="#38" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
 </code></pre></div>
 <p>Как <code>any</code> может хранить:</p>
@@ -1267,7 +1620,7 @@ http.Handler
 └──────────────┘
 </code></pre></div>
 <hr/>
-<h1 id="36">36. Статический и динамический тип<a class="headerlink" href="#36" title="Permanent link">¶</a></h1>
+<h1 id="39">39. Статический и динамический тип<a class="headerlink" href="#39" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="kt">any</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
 </code></pre></div>
 <p>Здесь:</p>
@@ -1276,16 +1629,16 @@ http.Handler
 динамическое значение = 42
 </code></pre></div>
 <p>Статический тип известен компилятору.</p>
-<p>Динамический тип хранится во внутреннем представлении интерфейса.</p>
+<p>Динамический тип хранится во внутреннем представлении интерфейса в рантайме.</p>
 <p>Это разные уровни.</p>
 <hr/>
-<h1 id="37-itab">37. Непустой интерфейс и <code>ITab</code><a class="headerlink" href="#37-itab" title="Permanent link">¶</a></h1>
+<h1 id="40-itab">40. Непустой интерфейс и <code>ITab</code><a class="headerlink" href="#40-itab" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Writer</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">Write</span><span class="p">([]</span><span class="kt">byte</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>рантайму нужно знать не только конкретный тип значения.</p>
-<p>Нужно ещё понимать:</p>
+<p>Рантайм нужно знать не только конкретный тип значения.</p>
+<p>Нужно еще понимать:</p>
 <blockquote>
 <p>Как этот тип реализует именно этот интерфейс?</p>
 </blockquote>
@@ -1301,9 +1654,9 @@ http.Handler
 <p>При:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">w</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
 </code></pre></div>
-<p>Рантайм использует эту информацию для вызова нужного метода.</p>
+<p>рантайм использует эту информацию для вызова нужного метода.</p>
 <hr/>
-<h1 id="38">38. Преобразование к интерфейсу не означает хип автоматически<a class="headerlink" href="#38" title="Permanent link">¶</a></h1>
+<h1 id="41">41. Преобразование к интерфейсу не означает автоматическую аллокацию в хипе<a class="headerlink" href="#41" title="Permanent link">¶</a></h1>
 <p>Популярное упрощение:</p>
 <blockquote>
 <p>Положили значение в интерфейс — получили выделение памяти.</p>
@@ -1313,7 +1666,7 @@ http.Handler
 <ul>
 <li>конкретного типа;</li>
 <li>представления значения;</li>
-<li>эскейп-анализ;</li>
+<li>результатов эскейп-анализа;</li>
 <li>времени жизни;</li>
 <li>оптимизаций компилятора.</li>
 </ul>
@@ -1323,7 +1676,7 @@ go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-b
 </code></pre></div>
 <p>А не угадываем по синтаксису.</p>
 <hr/>
-<h1 id="39-nil-">39. <code>nil</code>-интерфейс<a class="headerlink" href="#39-nil-" title="Permanent link">¶</a></h1>
+<h1 id="42-nil-">42. <code>nil</code>-интерфейс<a class="headerlink" href="#42-nil-" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">nil</span>
 <span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span>
 </code></pre></div>
@@ -1336,7 +1689,7 @@ go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-b
 </code></pre></div>
 <p>Интерфейс действительно пуст.</p>
 <hr/>
-<h1 id="40-nil">40. Типизированный <code>nil</code><a class="headerlink" href="#40-nil" title="Permanent link">¶</a></h1>
+<h1 id="43-nil">43. Типизированный <code>nil</code><a class="headerlink" href="#43-nil" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">MyError</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
 
 <span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">MyError</span><span class="p">)</span><span class="w"> </span><span class="nx">Error</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
@@ -1360,7 +1713,7 @@ go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-b
 <p>Тип уже есть.</p>
 <p>Значит интерфейс не <code>nil</code>.</p>
 <hr/>
-<h1 id="41-nil">41. Реальная ошибка с типизированным <code>nil</code><a class="headerlink" href="#41-nil" title="Permanent link">¶</a></h1>
+<h1 id="44-nil">44. Реальная ошибка с типизированным <code>nil</code><a class="headerlink" href="#44-nil" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">findUser</span><span class="p">()</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">*</span><span class="nx">MyError</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span>
@@ -1375,12 +1728,12 @@ go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-b
 </code></pre></div>
 <p>Поэтому:</p>
 <div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">findUser</span><span class="p">();</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="c1">// зайдём сюда</span>
+<span class="w">    </span><span class="c1">// зайдем сюда</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>Это вполне реальная ошибка бэкенд-кода.</p>
 <hr/>
-<h1 id="42">42. Утверждение типа<a class="headerlink" href="#42" title="Permanent link">¶</a></h1>
+<h1 id="45-xt">45. <code>x.(T)</code>: проверяем динамический тип<a class="headerlink" href="#45-xt" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="p">,</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">x</span><span class="p">.(</span><span class="kt">string</span><span class="p">)</span>
 </code></pre></div>
 <p>Мы спрашиваем рантайм:</p>
@@ -1400,18 +1753,53 @@ ok = false
 <p>несовместимый тип приводит к <code>panic</code>.</p>
 <p>На внешних границах API обычно безопаснее двухрезультатная форма.</p>
 <hr/>
-<h1 id="43">43. Что важно запомнить про интерфейсы<a class="headerlink" href="#43" title="Permanent link">¶</a></h1>
+<h1 id="46">46. Что важно запомнить про интерфейсы<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
 <ol>
 <li>Интерфейс хранит информацию о динамическом типе и данные.</li>
 <li>Статический и динамический тип — разные понятия.</li>
 <li>Интерфейс с методами использует структуру рантайма <code>ITab</code>.</li>
 <li><code>nil</code>-интерфейс не имеет ни динамического типа, ни значения.</li>
 <li>Типизированный <code>nil</code> внутри интерфейса обычно не равен <code>nil</code>.</li>
-<li>Преобразование к интерфейсу не гарантирует выделение в хип.</li>
-<li>Утверждение типа использует информацию о динамическом типе.</li>
+<li>Преобразование к интерфейсу не означает обязательную аллокацию в хипе.</li>
+<li>Операция <code>x.(T)</code> использует информацию о динамическом типе.</li>
 </ol>
+<p>Для обычного кода этого достаточно.</p>
+<p>Мы умеем объяснить:</p>
+<div class="highlight"><pre><span></span><code>почему interface может хранить разные типы
+почему typed nil != nil
+зачем нужен ITab
+что проверяет x.(T)
+</code></pre></div>
+<p>Но пока остаются закрытыми более низкие вопросы:</p>
+<div class="highlight"><pre><span></span><code>как именно представлены empty и non-empty interface?
+когда данные лежат непосредственно в interface representation,
+а когда через косвенную ссылку?
+как находится и кешируется ITab?
+как выглядит вызов метода через interface?
+когда компилятор вообще убирает динамический вызов?
+</code></pre></div>
+<p>Первые четыре вопроса — <code>4.1</code>.</p>
+<p>Последний приводит нас уже в <code>4.3</code>: devirtualization, inlining, SSA и машинный код.</p>
 <hr/>
-<h1 id="44">44. Канал: это не просто очередь<a class="headerlink" href="#44" title="Permanent link">¶</a></h1>
+<h1 id="47">47. От представления данных к ожиданию<a class="headerlink" href="#47" title="Permanent link">¶</a></h1>
+<p>Массивы, срезы, <code>map</code> и интерфейсы в основном отвечали:</p>
+<blockquote>
+<p>Как представлены данные?</p>
+</blockquote>
+<p>Теперь две горутины должны обменяться значением.</p>
+<p>Если получатель еще не готов, что делать отправителю?</p>
+<div class="highlight"><pre><span></span><code>крутиться в цикле
+→ тратить CPU
+
+заблокировать поток ОС
+→ слишком дорого при тысячах горутин
+
+остановить только горутина
+→ нужна помощь планировщика
+</code></pre></div>
+<p>Вот поэтому канал — уже не просто структура хранения.</p>
+<p>Он соединяет данные, синхронизацию и планировщик.</p>
+<h1 id="48">48. Канал: это не просто очередь<a class="headerlink" href="#48" title="Permanent link">¶</a></h1>
 <p>Фраза:</p>
 <blockquote>
 <p>канал — потокобезопасная очередь</p>
@@ -1427,19 +1815,19 @@ ok = false
 <p>Полезная модель:</p>
 <div class="highlight"><pre><span></span><code>hchan
 ├── буфер
-├── qcount
-├── ёмкость
-├── индекс отправки
-├── индекс получения
-├── очередь ожидающих отправителей
-├── очередь ожидающих получателей
+├── qcount — сколько элементов сейчас в буфере
+├── емкость
+├── sendx — позиция следующей записи
+├── recvx — позиция следующего чтения
+├── sendq — очередь ожидающих отправителей
+├── recvq — очередь ожидающих получателей
 ├── признак закрытия
-└── внутренняя блокировка
+└── внутренний лок
 </code></pre></div>
 <p>Названия полей — детали реализации.</p>
 <p>Механика важнее.</p>
 <hr/>
-<h1 id="45">45. Буферизованный канал<a class="headerlink" href="#45" title="Permanent link">¶</a></h1>
+<h1 id="49">49. Буферизованный канал<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span>
 </code></pre></div>
 <p>Буфер работает как кольцевая очередь:</p>
@@ -1451,16 +1839,16 @@ recvx     sendx
 </code></pre></div>
 <p>Индексы циклически двигаются по буферу.</p>
 <hr/>
-<h1 id="46">46. Отправка: три сценария<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<h1 id="50">50. Отправка: три сценария<a class="headerlink" href="#50" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
 </code></pre></div>
-<h3 id="_1">Получатель уже ждёт<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
-<p>Рантайм может согласовать отправку непосредственно с ним.</p>
+<h3 id="_1">Получатель уже ждет<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Если получатель уже ждет, рантайм передает значение ему сразу, не дожидаясь места в буфере.</p>
 <h3 id="_2">Получателя нет, буфер не заполнен<a class="headerlink" href="#_2" title="Permanent link">¶</a></h3>
 <p>Значение помещается в буфер.</p>
 <h3 id="_3">Буфер заполнен<a class="headerlink" href="#_3" title="Permanent link">¶</a></h3>
 <p>Отправка сейчас невозможна.</p>
-<p>Goroutine становится ожидающей:</p>
+<p>Горутина не может продолжить выполнение и паркуется:</p>
 <div class="highlight"><pre><span></span><code>отправитель
 ↓
 sendq
@@ -1469,12 +1857,12 @@ sendq
 ↓
 WAITING
 </code></pre></div>
-<p>Вот здесь канал соединяется с планировщиком.</p>
+<p>Вот здесь канал напрямую выходит на планировщик.</p>
 <hr/>
-<h1 id="47">47. Получение устроено симметрично<a class="headerlink" href="#47" title="Permanent link">¶</a></h1>
+<h1 id="51">51. Получение устроено симметрично<a class="headerlink" href="#51" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
 </code></pre></div>
-<p>Если отправитель уже ждёт — операции встречаются.</p>
+<p>Если отправитель уже ждет, получатель сразу забирает его значение.</p>
 <p>Если в буфере есть данные — забираем следующий элемент.</p>
 <p>Если данных нет:</p>
 <div class="highlight"><pre><span></span><code>получатель
@@ -1485,25 +1873,35 @@ recvq
 ↓
 WAITING
 </code></pre></div>
-<p>Канал может приостановить конкретную goroutine.</p>
-<p>поток ОС при этом не обязан ждать вместе с ней.</p>
+<p>Канал может приостановить конкретную горутину.</p>
+<p>Поток ОС при этом не обязан ждать вместе с ней.</p>
 <hr/>
-<h1 id="48-sudog">48. <code>sudog</code>: зачем отдельная запись ожидания<a class="headerlink" href="#48-sudog" title="Permanent link">¶</a></h1>
-<p>Очереди канала хранят ожидания через <code>sudog</code>.</p>
-<p>Упрощённо:</p>
-<div class="highlight"><pre><span></span><code>hchan.recvq
-
-sudog → sudog → sudog
-  │       │       │
-  ▼       ▼       ▼
-  G       G       G
+<h1 id="52-sudog">52. <code>sudog</code>: здесь используем уже знакомый механизм<a class="headerlink" href="#52-sudog" title="Permanent link">¶</a></h1>
+<p>В углубленной лекции по рантайму мы уже разбирали, зачем существует <code>sudog</code>, как одна G может иметь несколько записей ожидания и как парковка переводит горутину в ожидание.</p>
+<p>Поэтому здесь не открываем этот механизм заново.</p>
+<p>Нам нужен только результат:</p>
+<div class="highlight"><pre><span></span><code>hchan.sendq / hchan.recvq
+↓
+sudog
+↓
+конкретная G
 </code></pre></div>
-<p><code>sudog</code> связывает конкретную goroutine с конкретным объектом синхронизации.</p>
-<p>Почему не хранить просто <code>*g</code>?</p>
-<p>Потому что одна G через <code>select</code> может одновременно присутствовать в нескольких очередях ожидания.</p>
-<p>Это связь «многие ко многим».</p>
+<p>Это позволяет каналу хранить очередь ожиданий, а <code>select</code> — зарегистрировать одну G сразу на нескольких каналах.</p>
+<p>Все, что происходит дальше:</p>
+<div class="highlight"><pre><span></span><code>регистрация ожидания
+↓
+gopark
+↓
+WAITING
+↓
+goready
+↓
+RUNNABLE
+</code></pre></div>
+<p>считаем уже известным из <code>Runtime deep</code>.</p>
+<p>В <code>4.2</code> мы пойдем <strong>не в sudog еще раз</strong>, а в новый слой: как <code>chansend</code>, <code>chanrecv</code> и <code>selectgo</code> выбирают конкретный путь до того, как используют уже известный механизм парковки.</p>
 <hr/>
-<h1 id="49">49. Небуферизованный канал — встреча сторон<a class="headerlink" href="#49" title="Permanent link">¶</a></h1>
+<h1 id="53">53. Небуферизованный канал: отправитель и получатель должны встретиться<a class="headerlink" href="#53" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span>
 </code></pre></div>
 <p><code>cap(ch) == 0</code>.</p>
@@ -1512,31 +1910,31 @@ sudog → sudog → sudog
 <p>Получение — когда есть отправитель.</p>
 <div class="highlight"><pre><span></span><code>G-отправитель
    │
-   │ значение
+   │ value
    ▼
 G-получатель
 </code></pre></div>
-<p>Модель встреча сторон объясняет это лучше, чем фраза «очередь длины ноль».</p>
+<p>Полезная модель здесь не «очередь длины ноль», а синхронный обмен: отправитель и получатель должны одновременно быть готовы к операции.</p>
 <hr/>
-<h1 id="50">50. Канал потокобезопасный. Бесплатным он от этого не стал<a class="headerlink" href="#50" title="Permanent link">¶</a></h1>
+<h1 id="54">54. Канал безопасен для конкурентного использования. Бесплатным он от этого не стал<a class="headerlink" href="#54" title="Permanent link">¶</a></h1>
 <p>Если:</p>
-<div class="highlight"><pre><span></span><code>100 goroutines
+<div class="highlight"><pre><span></span><code>100 горутин
 ↓
 один горячий канал
 </code></pre></div>
 <p>можно получить:</p>
 <div class="highlight"><pre><span></span><code>конкуренция за внутреннюю блокировку
 ↓
-трафик линии кеша
+перетаскивание кеш-линии между ядрами
 ↓
 парковка / пробуждение
 ↓
 работа планировщика
 </code></pre></div>
-<p>Потокобезопасность гарантирует корректность.</p>
+<p>Корректность конкурентного доступа гарантируется.</p>
 <p>Не бесконечную масштабируемость.</p>
 <hr/>
-<h1 id="51">51. Буфер не создаёт пропускную способность<a class="headerlink" href="#51" title="Permanent link">¶</a></h1>
+<h1 id="55">55. Буфер не создает пропускную способность<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
 <p>Пусть:</p>
 <div class="highlight"><pre><span></span><code>производитель = 10 000 сообщ./с
 потребитель = 1 000 сообщ./с
@@ -1552,7 +1950,7 @@ G-получатель
 </ul>
 <p>Он не делает потребителя быстрее.</p>
 <hr/>
-<h1 id="52-closech">52. <code>close(ch)</code><a class="headerlink" href="#52-closech" title="Permanent link">¶</a></h1>
+<h1 id="56-closech">56. <code>close(ch)</code><a class="headerlink" href="#56-closech" title="Permanent link">¶</a></h1>
 <p>После:</p>
 <div class="highlight"><pre><span></span><code><span class="nb">close</span><span class="p">(</span><span class="nx">ch</span><span class="p">)</span>
 </code></pre></div>
@@ -1565,7 +1963,7 @@ G-получатель
 <p>Закрытие канала — событие синхронизации.</p>
 <p>Это не просто изменение одного логического флага.</p>
 <hr/>
-<h1 id="53-nil-">53. <code>nil</code>-канал<a class="headerlink" href="#53-nil-" title="Permanent link">¶</a></h1>
+<h1 id="57-nil-">57. <code>nil</code>-канал<a class="headerlink" href="#57-nil-" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
 </code></pre></div>
 <p>Отправка в него никогда не становится готовой.</p>
@@ -1573,7 +1971,27 @@ G-получатель
 <p>На первый взгляд странно.</p>
 <p>Но в <code>select</code> это превращается в удобный способ выключить ветку.</p>
 <hr/>
-<h1 id="54-select-goroutine">54. <code>select</code>: одна goroutine ждёт сразу несколько событий<a class="headerlink" href="#54-select-goroutine" title="Permanent link">¶</a></h1>
+<h1 id="58-select">58. От одного канала к нескольким: почему нужен <code>select</code><a class="headerlink" href="#58-select" title="Permanent link">¶</a></h1>
+<p>Для одного канала модель уже понятна:</p>
+<div class="highlight"><pre><span></span><code>операция готова
+→ выполняем
+
+операция не готова
+→ регистрируем ожидание
+→ парковка
+</code></pre></div>
+<p>Но бэкенд часто ждет сразу несколько событий:</p>
+<div class="highlight"><pre><span></span><code>результат
+ИЛИ
+новое сообщение
+ИЛИ
+тайм-аут
+ИЛИ
+отмена
+</code></pre></div>
+<p>Нужен механизм, который зарегистрирует одну горутину сразу на нескольких потенциальных событиях.</p>
+<p>Так появляется <code>select</code>.</p>
+<h1 id="59-select">59. <code>select</code>: одна горутина ждет сразу несколько событий<a class="headerlink" href="#59-select" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
 <span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
 <span class="w">    </span><span class="nx">use</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
@@ -1591,15 +2009,15 @@ G-получатель
 </blockquote>
 <p>Но теперь новый вопрос.</p>
 <p>Что делать, если готовы сразу несколько?</p>
-<p>Спецификация не задаёт приоритет по порядку <code>case</code>.</p>
+<p>Спецификация не задает приоритет по порядку <code>case</code>.</p>
 <p>Одна из готовых операций выбирается псевдослучайно.</p>
 <p>То есть:</p>
-<div class="highlight"><pre><span></span><code>первая ветка в тексте
+<div class="highlight"><pre><span></span><code>первый case в тексте
 ≠
 высший приоритет
 </code></pre></div>
 <hr/>
-<h1 id="55">55. Если ничего не готово, начинается самое интересное<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
+<h1 id="60">60. Если ничего не готово, начинается самое интересное<a class="headerlink" href="#60" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
 <span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">a</span><span class="p">:</span>
 <span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">b</span><span class="p">:</span>
@@ -1607,26 +2025,26 @@ G-получатель
 <span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">d</span><span class="p">:</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Goroutine одна.</p>
+<p>Горутина одна.</p>
 <p>Ждать нужно четыре канала.</p>
 <p>Она не может четыре раза отдельно «уснуть» на каждом канале.</p>
 <p>Рантайм должен зарегистрировать одно выполнение сразу во всех нужных очередях ожидания.</p>
 <p>Вот здесь снова появляется <code>sudog</code>.</p>
 <hr/>
-<h1 id="56-select">56. Почему <code>select</code> сначала перемешивает проверки<a class="headerlink" href="#56-select" title="Permanent link">¶</a></h1>
+<h1 id="61-select">61. Почему <code>select</code> сначала перемешивает проверки<a class="headerlink" href="#61-select" title="Permanent link">¶</a></h1>
 <p>Если рантайм всегда проверял бы:</p>
 <div class="highlight"><pre><span></span><code>a
 потом b
 потом c
 </code></pre></div>
-<p>первая готовая ветка получала бы систематическое преимущество.</p>
+<p>первый готовый канал получал бы систематическое преимущество.</p>
 <p>Поэтому текущая реализация формирует псевдослучайный порядок проверки.</p>
 <p>Это уменьшает постоянный перекос.</p>
-<p>Но строгой справедливости спецификация всё равно не обещает.</p>
+<p>Но строгой гарантии справедливого выбора спецификация все равно не дает.</p>
 <hr/>
-<h1 id="57">57. Почему внутренние блокировки каналов нужно брать в одном порядке<a class="headerlink" href="#57" title="Permanent link">¶</a></h1>
+<h1 id="62">62. Почему внутренние блокировки каналов нужно брать в одном порядке<a class="headerlink" href="#62" title="Permanent link">¶</a></h1>
 <p><code>select</code> может работать сразу с несколькими каналами.</p>
-<p>Представим две goroutine.</p>
+<p>Представим две горутины.</p>
 <p>Первая:</p>
 <div class="highlight"><pre><span></span><code>лок A
 лок B
@@ -1635,8 +2053,8 @@ G-получатель
 <div class="highlight"><pre><span></span><code>лок B
 лок A
 </code></pre></div>
-<p>Получили классическую взаимную блокировку из-за разного порядка захвата блокировок.</p>
-<p>Поэтому рантайм задаёт согласованный порядок внутренних блокировок каналов.</p>
+<p>Получили дедлок: каждая горутина держит один лок и ждет второй.</p>
+<p>Поэтому рантайм задает согласованный порядок внутренних блокировок каналов.</p>
 <p>Модель:</p>
 <div class="highlight"><pre><span></span><code>набор каналов
 ↓
@@ -1645,8 +2063,8 @@ G-получатель
 захватываем внутренние локи одинаково
 </code></pre></div>
 <hr/>
-<h1 id="58-select">58. Упрощённый алгоритм <code>select</code><a class="headerlink" href="#58-select" title="Permanent link">¶</a></h1>
-<p>Если убрать детали конкретной реализации, остаётся понятная последовательность.</p>
+<h1 id="63-select">63. Упрощенный алгоритм <code>select</code><a class="headerlink" href="#63-select" title="Permanent link">¶</a></h1>
+<p>Если убрать детали конкретной реализации, остается понятная последовательность.</p>
 <h3 id="1_1">Шаг 1. Проверить ветки<a class="headerlink" href="#1_1" title="Permanent link">¶</a></h3>
 <p>Для получения:</p>
 <div class="highlight"><pre><span></span><code>есть ожидающий отправитель?
@@ -1658,19 +2076,19 @@ G-получатель
 есть место в буфере?
 канал закрыт?
 </code></pre></div>
-<p>Если ветка готова — выполняем её.</p>
+<p>Если ветка готова — выполняем ее.</p>
 <h3 id="2-default">Шаг 2. Если есть <code>default</code><a class="headerlink" href="#2-default" title="Permanent link">¶</a></h3>
 <p>Ничего не готово:</p>
 <div class="highlight"><pre><span></span><code>default
 ↓
 возврат без ожидания
 </code></pre></div>
-<p>Goroutine не приостанавливается.</p>
+<p>Горутина не паркуется.</p>
 <h3 id="3-default">Шаг 3. Если <code>default</code> нет<a class="headerlink" href="#3-default" title="Permanent link">¶</a></h3>
 <p>Нужно ждать.</p>
-<p>Рантайм создаёт нужные <code>sudog</code>, регистрирует их в очередях каналов и приостанавливает одну G.</p>
+<p>Рантайм создает нужные <code>sudog</code>, регистрирует их в очередях каналов и приостанавливает одну G.</p>
 <hr/>
-<h1 id="59-g-sudog">59. Одна G — несколько <code>sudog</code><a class="headerlink" href="#59-g-sudog" title="Permanent link">¶</a></h1>
+<h1 id="64-g-sudog">64. Одна G — несколько <code>sudog</code><a class="headerlink" href="#64-g-sudog" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code>канал A recvq ──→ sudog ──┐
 канал B recvq ──→ sudog ──┤
 канал C sendq ──→ sudog ──┤
@@ -1680,10 +2098,10 @@ G-получатель
 <p>Теперь событие может произойти на любом канале.</p>
 <p>Допустим, победил <code>B</code>.</p>
 <p>G становится RUNNABLE.</p>
-<p>Но регистрации в <code>A</code> и <code>C</code> ещё нужно удалить.</p>
+<p>Но регистрации в <code>A</code> и <code>C</code> еще нужно удалить.</p>
 <p>Вот почему <code>select</code> значительно сложнее обычного <code>if</code>.</p>
 <hr/>
-<h1 id="60-nil-">60. <code>nil</code>-канал как выключенная ветка<a class="headerlink" href="#60-nil-" title="Permanent link">¶</a></h1>
+<h1 id="65-nil-">65. <code>nil</code>-канал как выключенная ветка<a class="headerlink" href="#65-nil-" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
@@ -1701,11 +2119,11 @@ G-получатель
 <p>То есть:</p>
 <div class="highlight"><pre><span></span><code>nil-канал
 =
-отключённая ветка `select`
+отключенная ветка `select`
 </code></pre></div>
-<p>Это удобный приём для конечных автоматов.</p>
+<p>Это удобный прием для конечных автоматов.</p>
 <hr/>
-<h1 id="61-select-default">61. <code>select</code> + <code>default</code>: как случайно получить активный цикл<a class="headerlink" href="#61-select-default" title="Permanent link">¶</a></h1>
+<h1 id="66-select-default">66. <code>select</code> + <code>default</code>: как случайно получить активный цикл<a class="headerlink" href="#66-select-default" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span><span class="p">:</span>
@@ -1728,53 +2146,93 @@ default
 ↓
 ...
 </code></pre></div>
-<p>Goroutine не приостанавливается.</p>
+<p>Горутина не паркуется.</p>
 <p>Она постоянно выполняется и съедает CPU.</p>
 <p>Получаем:</p>
 <div class="highlight"><pre><span></span><code>«ничего не делает»
 +
-100% одного ядра CPU
+100% одного ядра
 </code></pre></div>
-<p><code>default</code> превращает ожидание в активный опрос.</p>
+<p><code>default</code> превращает блокирующее ожидание в активный опрос.</p>
 <p>Это должен быть осознанный выбор.</p>
 <hr/>
-<h1 id="62-select">62. <code>select</code> не является планировщиком приоритетов<a class="headerlink" href="#62-select" title="Permanent link">¶</a></h1>
+<h1 id="67-select">67. <code>select</code> не задает приоритеты между ветками<a class="headerlink" href="#67-select" title="Permanent link">¶</a></h1>
 <p>Если готовы несколько веток, нельзя обещать:</p>
 <div class="highlight"><pre><span></span><code>обслуживаем строго по очереди
 </code></pre></div>
 <p>или:</p>
 <div class="highlight"><pre><span></span><code>верхняя ветка важнее нижней
 </code></pre></div>
-<p>Если нужен настоящий приоритет, циклическое обслуживание или веса — такую политику строят отдельно.</p>
+<p>Если нужен настоящий приоритет, циклическое обслуживание (round-robin) или веса — такую политику строят отдельно.</p>
 <p><code>select</code> решает другую задачу:</p>
 <blockquote>
 <p>Подождать одну из нескольких операций обмена.</p>
 </blockquote>
 <hr/>
-<h1 id="63-select">63. Диагностика проблем каналов и <code>select</code><a class="headerlink" href="#63-select" title="Permanent link">¶</a></h1>
+<h1 id="68-select">68. Диагностика проблем каналов и <code>select</code><a class="headerlink" href="#68-select" title="Permanent link">¶</a></h1>
 <p>Сервис начинает «висеть».</p>
-<p>Число goroutine растёт.</p>
-<p>В профиле goroutine видим:</p>
+<p>Число горутин растет.</p>
+<p>В профиле горутин видим:</p>
 <div class="highlight"><pre><span></span><code>[chan send]
 [chan receive]
 [select]
 </code></pre></div>
-<p>Теперь задаём конкретные вопросы:</p>
+<p>Теперь задаем конкретные вопросы:</p>
 <div class="highlight"><pre><span></span><code>кто производитель?
 кто потребитель?
-какова ёмкость буфера?
+какова емкость буфера?
 какова реальная скорость сторон?
 кто перестал читать?
 кто отвечает за закрытие канала?
 как заканчивается жизненный цикл?
 </code></pre></div>
 <p>Для времени ожидания полезны:</p>
-<div class="highlight"><pre><span></span><code>профиль блокировок
+<div class="highlight"><pre><span></span><code>профиль блокировок (`block profile`)
 go tool trace
 </code></pre></div>
 <p>То есть проблема канала диагностируется через очередь и жизненный цикл, а не только через строку <code>ch &lt;- x</code>.</p>
+<p>Для обычной лекции модель каналов и <code>select</code> на этом закончена:</p>
+<div class="highlight"><pre><span></span><code>channel
+→ hchan
+→ буфер или ожидающая сторона
+→ sendq / recvq
+→ при невозможности продолжать работу — парковка
+
+select
+→ проверить несколько операций
+→ если одна готова — выполнить
+→ иначе зарегистрировать ожидания
+→ припарковать одну G
+→ после пробуждения убрать проигравшие ожидания
+</code></pre></div>
+<p>Но здесь мы специально не отвечали на вопросы:</p>
+<div class="highlight"><pre><span></span><code>как `runtime.chansend` выбирает один из возможных путей?
+как устроена прямая передача значения от отправителя ожидающему получателю?
+что именно происходит с кольцевым буфером при `chanrecv`?
+как `closechan` обрабатывает ожидающих получателей и отправителей?
+как selectgo строит pollOrder и lockOrder?
+почему у selectgo несколько проходов?
+</code></pre></div>
+<p>Это <code>4.2</code>.</p>
+<p>Обрати внимание: <code>4.2</code> не повторяет парковку, <code>sudog</code> и планировщик. Эти механизмы уже известны. Там мы читаем <strong>конкретные алгоритмы каналов и <code>select</code> поверх уже знакомого фундамента рантайма</strong>.</p>
 <hr/>
-<h1 id="64">64. Контекст: магии опять не будет<a class="headerlink" href="#64" title="Permanent link">¶</a></h1>
+<h1 id="69">69. От ожидания события к жизненному циклу операции<a class="headerlink" href="#69" title="Permanent link">¶</a></h1>
+<p><code>select</code> уже умеет ждать сигнал отмены.</p>
+<p>Но кто создает этот сигнал и как он проходит через весь бэкенд?</p>
+<div class="highlight"><pre><span></span><code>HTTP-запрос
+↓
+обработчик
+├── запрос к БД
+├── исходящий HTTP-запрос
+└── воркеры
+</code></pre></div>
+<p>Клиент ушел.</p>
+<p>Теперь все дочерние операции должны узнать:</p>
+<div class="highlight"><pre><span></span><code>результат больше никому не нужен
+</code></pre></div>
+<p>Один канал не описывает дерево владения работой.</p>
+<p>Так появляется <code>context</code>.</p>
+<h1 id="70-context">70. Контекст (<code>context</code>): магии опять не будет<a class="headerlink" href="#70-context" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span>
 <span class="w">    </span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">(),</span>
 <span class="w">    </span><span class="mi">2</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">,</span>
@@ -1783,7 +2241,7 @@ go tool trace
 </code></pre></div>
 <p>Популярное упрощение:</p>
 <blockquote>
-<p>контекст — специальный механизм рантайма, который умеет останавливать goroutine.</p>
+<p>Контекст — специальный механизм рантайма, который умеет останавливать горутину.</p>
 </blockquote>
 <p>Нет.</p>
 <p><code>context.Context</code> — обычный интерфейс:</p>
@@ -1794,14 +2252,14 @@ go tool trace
 <span class="w">    </span><span class="nx">Value</span><span class="p">(</span><span class="nx">key</span><span class="w"> </span><span class="kt">any</span><span class="p">)</span><span class="w"> </span><span class="kt">any</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>А отмена остаётся кооперативной.</p>
+<p>А отмена остается кооперативной.</p>
 <p>Контекст сообщает:</p>
 <blockquote>
 <p>Эта работа больше не нужна.</p>
 </blockquote>
 <p>Код должен этот сигнал заметить.</p>
 <hr/>
-<h1 id="65">65. Контекст — цепочка объектов<a class="headerlink" href="#65" title="Permanent link">¶</a></h1>
+<h1 id="71">71. Контекст — цепочка объектов<a class="headerlink" href="#71" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">()</span>
 
 <span class="nx">ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithValue</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">requestIDKey</span><span class="p">,</span><span class="w"> </span><span class="nx">requestID</span><span class="p">)</span>
@@ -1823,11 +2281,11 @@ backgroundCtx
 <p>Поэтому <code>context</code> — не одна большая <code>map</code>.</p>
 <p>Это цепочка объектов.</p>
 <hr/>
-<h1 id="66">66. Отмена образует дерево<a class="headerlink" href="#66" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code><span class="nx">корень</span><span class="p">,</span><span class="w"> </span><span class="nx">cancelRoot</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
+<h1 id="72">72. Отмена образует дерево<a class="headerlink" href="#72" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">root</span><span class="p">,</span><span class="w"> </span><span class="nx">cancelRoot</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
 
-<span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">корень</span><span class="p">)</span>
-<span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">корень</span><span class="p">)</span>
+<span class="nx">a</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">root</span><span class="p">)</span>
+<span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">root</span><span class="p">)</span>
 
 <span class="nx">a1</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
 <span class="nx">a2</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">a</span><span class="p">)</span>
@@ -1845,10 +2303,10 @@ backgroundCtx
 <p>Отмена распространяется вниз по дереву.</p>
 <p>Контекст переносит жизненный цикл родительской операции в дочерние.</p>
 <hr/>
-<h1 id="67">67. Что концептуально находится внутри отменяемого контекста<a class="headerlink" href="#67" title="Permanent link">¶</a></h1>
+<h1 id="73">73. Что концептуально находится внутри отменяемого контекста<a class="headerlink" href="#73" title="Permanent link">¶</a></h1>
 <p>Текущая реализация <code>cancelCtx</code> содержит примерно такие компоненты:</p>
-<div class="highlight"><pre><span></span><code>родительский контекст
-mutex
+<div class="highlight"><pre><span></span><code>родительский Context
+мьютекс
 Done
 дочерние контексты
 ошибка
@@ -1860,13 +2318,13 @@ Done
 +
 нужно хранить состояние отмены
 +
-нужно безопасно работать из нескольких goroutine
+нужно безопасно работать из нескольких горутин
 </code></pre></div>
 <p>Поэтому внутри появляются <code>Mutex</code>, атомарные операции и канал.</p>
 <hr/>
-<h1 id="68-done">68. <code>Done()</code> использует канал как широковещательный сигнал<a class="headerlink" href="#68-done" title="Permanent link">¶</a></h1>
+<h1 id="74-done">74. Почему <code>Done()</code> закрывают, а не отправляют в него значение<a class="headerlink" href="#74-done" title="Permanent link">¶</a></h1>
 <p>Нужно уведомить:</p>
-<div class="highlight"><pre><span></span><code>100 goroutines
+<div class="highlight"><pre><span></span><code>100 горутин
 </code></pre></div>
 <p>Если отправить одно значение:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">done</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}{}</span>
@@ -1878,13 +2336,13 @@ Done
 <p>делает получение готовым для всех текущих и будущих получателей.</p>
 <p>Вот почему <code>ctx.Done()</code> естественно реализуется через закрытие канала.</p>
 <hr/>
-<h1 id="69-done">69. <code>Done</code> создаётся лениво<a class="headerlink" href="#69-done" title="Permanent link">¶</a></h1>
+<h1 id="75-done">75. <code>Done</code> создается лениво<a class="headerlink" href="#75-done" title="Permanent link">¶</a></h1>
 <p>Не каждый контекст вообще вызывает:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
 </code></pre></div>
 <p>Зачем тогда сразу создавать канал?</p>
-<p>Текущий <code>cancelCtx</code> создаёт его только при необходимости.</p>
-<p>Упрощённо:</p>
+<p>Текущий <code>cancelCtx</code> создает его только при необходимости.</p>
+<p>Упрощенно:</p>
 <div class="highlight"><pre><span></span><code>WithCancel
 ↓
 создали контекст
@@ -1898,13 +2356,13 @@ Done() не вызывали
 <p>Не платить за механизм, который конкретный объект не использует.</p>
 </blockquote>
 <hr/>
-<h1 id="70">70. Как дочерний контекст подключается к родителю<a class="headerlink" href="#70" title="Permanent link">¶</a></h1>
+<h1 id="76">76. Как дочерний контекст подключается к родителю<a class="headerlink" href="#76" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">child</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithCancel</span><span class="p">(</span><span class="nx">parent</span><span class="p">)</span>
 </code></pre></div>
 <p>Стандартная библиотека должна обеспечить:</p>
-<div class="highlight"><pre><span></span><code>родитель отменён
+<div class="highlight"><pre><span></span><code>родитель отменен
 ↓
-дочерний контекст отменён
+дочерний контекст отменен
 </code></pre></div>
 <p>Если родитель — обычный отменяемый контекст стандартной библиотеки, дочерний контекст регистрируется среди его потомков.</p>
 <div class="highlight"><pre><span></span><code>parent
@@ -1914,11 +2372,11 @@ Done() не вызывали
 </code></pre></div>
 <p>Теперь родитель знает, кому распространять отмену.</p>
 <hr/>
-<h1 id="71-cancel">71. Что реально делает <code>cancel()</code><a class="headerlink" href="#71-cancel" title="Permanent link">¶</a></h1>
-<p>Упрощённо:</p>
+<h1 id="77-cancel">77. Что реально делает <code>cancel()</code><a class="headerlink" href="#77-cancel" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
 <div class="highlight"><pre><span></span><code>записать ошибку / причину
 ↓
-закрыть Done
+закрыть канал `Done`
 ↓
 отменить дочерние контексты
 ↓
@@ -1931,7 +2389,7 @@ Done() не вызывали
 </code></pre></div>
 <p>может превратиться в обход целого дерева.</p>
 <hr/>
-<h1 id="72-goroutine">72. Отмена не убивает goroutine<a class="headerlink" href="#72-goroutine" title="Permanent link">¶</a></h1>
+<h1 id="78">78. Отмена не убивает горутину<a class="headerlink" href="#78" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">doCPUWork</span><span class="p">()</span>
@@ -1943,7 +2401,7 @@ Done() не вызывали
 </code></pre></div>
 <p>Что случится?</p>
 <p>Ничего.</p>
-<p>Goroutine не читает контекст.</p>
+<p>Горутина вообще не проверяет сигнал отмены.</p>
 <p>Чтобы отмена работала, код должен сотрудничать:</p>
 <div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">{</span>
@@ -1962,53 +2420,53 @@ Done() не вызывали
 <span class="nx">req</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">req</span><span class="p">.</span><span class="nx">WithContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span>
 </code></pre></div>
 <p>Модель:</p>
-<div class="highlight"><pre><span></span><code>контекст подаёт сигнал
+<div class="highlight"><pre><span></span><code>контекст подает сигнал
 ↓
 код замечает сигнал
 ↓
 код прекращает ненужную работу
 </code></pre></div>
 <hr/>
-<h1 id="73-withtimeout">73. <code>WithTimeout</code> добавляет таймер<a class="headerlink" href="#73-withtimeout" title="Permanent link">¶</a></h1>
+<h1 id="79-withtimeout">79. <code>WithTimeout</code> добавляет таймер<a class="headerlink" href="#79-withtimeout" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
 </code></pre></div>
 <p>Концептуально:</p>
 <div class="highlight"><pre><span></span><code>таймер
 ↓
-срок истёк
+срок истек
 ↓
 отмена дочернего контекста
 ↓
-Done закрывается
+канал `Done` закрывается
 ↓
-отмена идёт дальше по дереву
+отмена идет дальше по дереву
 </code></pre></div>
 <p>То есть тайм-аут — это отмена, запланированная по времени.</p>
 <hr/>
-<h1 id="74-cancelfunc">74. Почему <code>CancelFunc</code> нужно вызывать вручную<a class="headerlink" href="#74-cancelfunc" title="Permanent link">¶</a></h1>
+<h1 id="80-cancelfunc">80. Почему <code>CancelFunc</code> нужно вызывать вручную<a class="headerlink" href="#80-cancelfunc" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
 <span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
 </code></pre></div>
 <p>Можно подумать:</p>
 <blockquote>
-<p>Через минуту тайм-аут всё равно сработает.</p>
+<p>Через минуту тайм-аут все равно сработает.</p>
 </blockquote>
 <p>Да.</p>
-<p>Но если работа завершилась через 20 ms, зачем ещё почти минуту держать ненужный таймер и связи дерева контекстов?</p>
+<p>Но если работа завершилась через 20 ms, зачем еще почти минуту держать ненужный таймер и связи дерева контекстов?</p>
 <p>Под нагрузкой:</p>
-<div class="highlight"><pre><span></span><code>100 000 запросы
+<div class="highlight"><pre><span></span><code>100 000 запросов
 ↓
 создали контексты с тайм-аутом
 ↓
 работа закончилась быстро
 ↓
-cancel забыли
+забыли вызвать cancel
 ↓
 лишние контексты и таймеры живут до дедлайна
 </code></pre></div>
 <p>Поэтому своевременный <code>cancel()</code> — часть управления ресурсами.</p>
 <hr/>
-<h1 id="75-value-map">75. <code>Value</code> — цепочка, а не бесплатная <code>map</code><a class="headerlink" href="#75-value-map" title="Permanent link">¶</a></h1>
+<h1 id="81-value-map">81. <code>Value</code> — цепочка, а не бесплатная <code>map</code><a class="headerlink" href="#81-value-map" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithValue</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="nx">key</span><span class="p">,</span><span class="w"> </span><span class="nx">value</span><span class="p">)</span>
 </code></pre></div>
 <p>Концептуально:</p>
@@ -2020,21 +2478,21 @@ valueCtx(key1)
 ↓
 корень
 </code></pre></div>
-<p>Поиск значения идёт вверх по цепочке, пока не встретится нужный ключ.</p>
+<p>Поиск значения идет вверх по цепочке, пока не встретится нужный ключ.</p>
 <p>Поэтому значения контекста предназначены прежде всего для метаданных конкретного запроса.</p>
 <p>Это плохой универсальный контейнер зависимостей.</p>
 <p>Проблема здесь чаще архитектурная: зависимости становятся неявными.</p>
 <hr/>
-<h1 id="76-context">76. Пользовательская реализация <code>Context</code> может сделать распространение отмены дороже<a class="headerlink" href="#76-context" title="Permanent link">¶</a></h1>
-<p>Если стандартная библиотека не может напрямую присоединиться к обычному <code>cancelCtx</code> родителя, ей всё равно нужно обеспечить:</p>
+<h1 id="82-context">82. Пользовательская реализация <code>Context</code> может сделать распространение отмены дороже<a class="headerlink" href="#82-context" title="Permanent link">¶</a></h1>
+<p>Если стандартная библиотека не может напрямую присоединиться к обычному <code>cancelCtx</code> родителя, ей все равно нужно обеспечить:</p>
 <div class="highlight"><pre><span></span><code>parent.Done()
 ↓
 отмена child
 </code></pre></div>
-<p>В запасном варианте может понадобиться отдельная goroutine, ожидающая отмену родителя или дочернего контекста.</p>
+<p>В запасном варианте может понадобиться отдельная горутина, ожидающая отмену родителя или дочернего контекста.</p>
 <p>Один и тот же публичный API может иметь разные внутренние пути в зависимости от конкретной реализации.</p>
 <hr/>
-<h1 id="77">77. Массовая отмена под нагрузкой<a class="headerlink" href="#77" title="Permanent link">¶</a></h1>
+<h1 id="83">83. Массовая отмена под нагрузкой<a class="headerlink" href="#83" title="Permanent link">¶</a></h1>
 <p>Представим:</p>
 <div class="highlight"><pre><span></span><code>корень
 ├── 3000 задачи
@@ -2048,18 +2506,18 @@ valueCtx(key1)
 <p>Физически:</p>
 <div class="highlight"><pre><span></span><code>обойти потомков
 ↓
-закрыть Done
+закрыть канал `Done`
 ↓
-разбудить тысячи goroutines
+разбудить тысячи горутин
 ↓
 тысячи G становятся RUNNABLE
 ↓
 планировщик получает всплеск работы
 </code></pre></div>
 <p>Логическое состояние меняется быстро.</p>
-<p>Последствия всё равно должны быть исполнены реальными goroutine на реальном CPU.</p>
+<p>Но последствия этой отмены все равно должны выполнить реальные горутины на реальных ядрах CPU.</p>
 <hr/>
-<h1 id="78-http-">78. Контекст HTTP-запроса: вот где механизм становится полезен бэкенду<a class="headerlink" href="#78-http-" title="Permanent link">¶</a></h1>
+<h1 id="84-http-">84. Контекст HTTP-запроса: вот где механизм становится полезен бэкенду<a class="headerlink" href="#84-http-" title="Permanent link">¶</a></h1>
 <p>Типичный запрос:</p>
 <div class="highlight"><pre><span></span><code>контекст HTTP-запроса
 │
@@ -2069,7 +2527,7 @@ valueCtx(key1)
 └── воркер B
 </code></pre></div>
 <p>Клиент разорвал соединение:</p>
-<div class="highlight"><pre><span></span><code>контекст запроса отменён
+<div class="highlight"><pre><span></span><code>контекст запроса отменен
 ↓
 запрос к БД получает сигнал отмены
 ↓
@@ -2081,32 +2539,32 @@ valueCtx(key1)
 </code></pre></div>
 <p>Контекст переносит жизненный цикл одной операции через несколько уровней бэкенда.</p>
 <hr/>
-<h1 id="79">79. Как контекст ломают<a class="headerlink" href="#79" title="Permanent link">¶</a></h1>
+<h1 id="85">85. Как контекст ломают<a class="headerlink" href="#85" title="Permanent link">¶</a></h1>
 <div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">handler</span><span class="p">(</span><span class="nx">w</span><span class="w"> </span><span class="nx">http</span><span class="p">.</span><span class="nx">ResponseWriter</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">*</span><span class="nx">http</span><span class="p">.</span><span class="nx">Request</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">process</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">())</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>HTTP-запрос закончился.</p>
-<p>Клиент ушёл.</p>
+<p>Клиент ушел.</p>
 <p>Но <code>process</code> получил <code>Background()</code>.</p>
 <p>Связь жизненного цикла разорвана:</p>
-<div class="highlight"><pre><span></span><code>запрос отменён
+<div class="highlight"><pre><span></span><code>запрос отменен
 ↓
 фоновая работа продолжает выполняться
 </code></pre></div>
 <p>Иногда это правильно.</p>
 <p>Но тогда это должна быть осознанная фоновая операция со своим жизненным циклом.</p>
 <hr/>
-<h1 id="80">80. Дочерний дедлайн не расширяет более ранний родительский<a class="headerlink" href="#80" title="Permanent link">¶</a></h1>
+<h1 id="86">86. Дочерний срок выполнения (дедлайн) не расширяет более ранний родительский<a class="headerlink" href="#86" title="Permanent link">¶</a></h1>
 <p>Пусть у родительского контекста осталось две секунды.</p>
 <p>Внутри:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
 </code></pre></div>
 <p>Дочерний контекст не получает дополнительные десять секунд поверх родительского.</p>
-<p>Родительская отмена всё равно отменит его раньше.</p>
-<p>То есть время жизни дочерней операции ограничено временем жизни родительской, если мы явно не отсоединили её.</p>
+<p>Родительская отмена все равно отменит его раньше.</p>
+<p>То есть время жизни дочерней операции ограничено временем жизни родительской, если мы явно не отсоединили ее.</p>
 <hr/>
-<h1 id="81">81. Контекст сам по себе не создаёт обратное давление<a class="headerlink" href="#81" title="Permanent link">¶</a></h1>
+<h1 id="87">87. Контекст сам по себе не ограничивает поток работы<a class="headerlink" href="#87" title="Permanent link">¶</a></h1>
 <p>Контекст ограничивает время жизни работы.</p>
 <p>Он не ограничивает количество одновременно начатых операций.</p>
 <p>Но отмена помогает не выполнять работу, которая уже никому не нужна.</p>
@@ -2135,8 +2593,73 @@ cancel
 ресурсы освобождаются
 </code></pre></div>
 <p>Под перегрузкой разница может быть огромной.</p>
+<p>Для обычной лекции <code>context</code> на этом можно считать понятным:</p>
+<div class="highlight"><pre><span></span><code>Context
+→ цепочка оберток
+
+отменяемый Context
+→ связь parent / children
+→ Done
+→ распространение отмены
+
+WithTimeout
+→ таймер
+→ cancel
+</code></pre></div>
+<p>Но текущая модель еще скрывает конкретный алгоритм подключения дочернего контекста.</p>
+<p>Следующие вопросы оставляем <code>4.2</code>:</p>
+<div class="highlight"><pre><span></span><code>что реально делает propagateCancel?
+как стандартный cancelCtx подключает child без отдельной goroutine?
+когда используется AfterFunc?
+когда нужен fallback с отдельной goroutine?
+в каком порядке cancel закрывает Done, обходит children и удаляется из parent?
+как timerCtx связывает timer с cancel?
+</code></pre></div>
+<p>Здесь уже не будет нового объяснения, что такое дерево отмены. Мы просто откроем исходный механизм под уже знакомой моделью.</p>
 <hr/>
-<h1 id="82">82. Собираем всю лекцию в одну картину<a class="headerlink" href="#82" title="Permanent link">¶</a></h1>
+<h1 id="88">88. Еще один скрытый слой: кто вообще вызывает все эти механизмы<a class="headerlink" href="#88" title="Permanent link">¶</a></h1>
+<p>До сих пор мы рассуждали так:</p>
+<div class="highlight"><pre><span></span><code>append
+→ при необходимости новый массив
+
+поиск в map
+→ хеш / Swiss Table
+
+вызов через интерфейс
+→ ITab
+
+отправка в канал
+→ hchan
+</code></pre></div>
+<p>Но в исходном коде нет вызовов:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">growslice</span><span class="p">(...)</span>
+<span class="nx">runtime</span><span class="p">.</span><span class="nx">chansend</span><span class="p">(...)</span>
+</code></pre></div>
+<p>которые мы пишем руками.</p>
+<p>Значит между синтаксисом Go и рантаймом есть еще один слой:</p>
+<div class="highlight"><pre><span></span><code>исходный Go-код
+↓
+компилятор
+↓
+SSA / оптимизации
+↓
+преобразование конструкций (lowering)
+↓
+встроенный быстрый путь или вызов функции рантайма
+↓
+машинный код
+</code></pre></div>
+<p>И здесь появляется последний набор вопросов:</p>
+<div class="highlight"><pre><span></span><code>когда append остается быстрым кодом без growslice?
+во что компилятор превращает поиск в `map`?
+как выглядит вызов метода через интерфейс?
+когда вызов через интерфейс девиртуализируется?
+во что компилятор превращает `ch &lt;- value`?
+</code></pre></div>
+<p>На этой лекции мы только фиксируем существование слоя.</p>
+<p><code>4.3</code> будет посвящена именно ему: SSA, преобразованию конструкций (lowering), инлайнингу, девиртуализации, вызовам функций рантайма и чтению ассемблера.</p>
+<hr/>
+<h1 id="89">89. Собираем всю лекцию в одну картину<a class="headerlink" href="#89" title="Permanent link">¶</a></h1>
 <h2 id="_4">Массив<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code>[N]T
 ↓
@@ -2173,7 +2696,7 @@ append
 <h2 id="_6">Интерфейс<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
 <div class="highlight"><pre><span></span><code>интерфейс
 ↓
-динамический тип / itab
+динамический тип / `itab`
 +
 данные
 </code></pre></div>
@@ -2208,20 +2731,49 @@ hchan
 очистка остальных ожиданий
 </code></pre></div>
 <h2 id="_8">Контекст<a class="headerlink" href="#_8" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code>контекст
+<div class="highlight"><pre><span></span><code>Context
 ↓
 cancelCtx / timerCtx / valueCtx
 ↓
 дерево родительских и дочерних контекстов
 ↓
-закрытие Done
+закрытие `Done`
 ↓
-пробуждение goroutine
+пробуждение горутин
 ↓
 освобождение ресурсов
 </code></pre></div>
 <hr/>
-<h1 id="83">83. Что происходит под нагрузкой<a class="headerlink" href="#83" title="Permanent link">¶</a></h1>
+<h1 id="90">90. Что объединяет все эти конструкции под нагрузкой<a class="headerlink" href="#90" title="Permanent link">¶</a></h1>
+<p>На уровне исходного кода мы видим:</p>
+<div class="highlight"><pre><span></span><code>append
+поиск в map
+вызов через интерфейс
+отправка в канал
+select
+cancel
+</code></pre></div>
+<p>Но под ними повторяются одни и те же ограниченные ресурсы:</p>
+<div class="highlight"><pre><span></span><code>память
+кеш CPU
+аллокатор
+локи
+очереди выполнения
+пробуждения горутин
+таймеры
+</code></pre></div>
+<p>Поэтому инженерный вопрос под нагрузкой для каждой конструкции один:</p>
+<div class="highlight"><pre><span></span><code>какой скрытый механизм?
+↓
+какой ресурс он потребляет?
+↓
+что произойдет, если операций станет в 1000 раз больше?
+↓
+какой симптом увидим?
+↓
+чем это измерить?
+</code></pre></div>
+<h1 id="91">91. Что происходит под нагрузкой<a class="headerlink" href="#91" title="Permanent link">¶</a></h1>
 <p>Простая строка:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">append</span><span class="p">(</span><span class="nx">results</span><span class="p">,</span><span class="w"> </span><span class="nx">item</span><span class="p">)</span>
 </code></pre></div>
@@ -2272,18 +2824,18 @@ sendq
 <p>может означать:</p>
 <div class="highlight"><pre><span></span><code>обход дерева отмены
 ↓
-закрытие Done
+закрытие `Done`
 ↓
-тысячи goroutines становятся RUNNABLE
+тысячи горутин становятся RUNNABLE
 ↓
 всплеск работы планировщика
 </code></pre></div>
 <p>Вот на этом уровне конструкции языка превращаются в механику бэкенда под нагрузкой.</p>
 <hr/>
-<h1 id="84">84. Диагностика<a class="headerlink" href="#84" title="Permanent link">¶</a></h1>
+<h1 id="92">92. Диагностика<a class="headerlink" href="#92" title="Permanent link">¶</a></h1>
 <h2 id="_9">Срезы и удержание памяти<a class="headerlink" href="#_9" title="Permanent link">¶</a></h2>
 <p>Симптом:</p>
-<div class="highlight"><pre><span></span><code>хип неожиданно растёт
+<div class="highlight"><pre><span></span><code>хип неожиданно растет
 </code></pre></div>
 <p>Смотрим профиль хипа.</p>
 <p>Ищем:</p>
@@ -2305,17 +2857,17 @@ sendq
 <li>операции с <code>map</code>;</li>
 <li>выделения памяти;</li>
 <li>GC;</li>
-<li>конкуренцию вокруг внешнего mutex.</li>
+<li>конкуренцию вокруг внешнего мьютекса.</li>
 </ul>
 <p>Сложный ключ тоже имеет цену: его нужно хешировать и сравнивать.</p>
 <h2 id="select_1">Каналы и <code>select</code><a class="headerlink" href="#select_1" title="Permanent link">¶</a></h2>
 <p>Симптом:</p>
 <div class="highlight"><pre><span></span><code>задержка ↑
-goroutines ↑
+горутины ↑
 </code></pre></div>
 <p>Смотрим:</p>
 <ul>
-<li>профиль goroutine;</li>
+<li>профиль горутин;</li>
 <li>профиль блокировок;</li>
 <li><code>go tool trace</code>.</li>
 </ul>
@@ -2327,7 +2879,7 @@ select
 <p>Потом восстанавливаем жизненный цикл производителей и потребителей.</p>
 <h2 id="_10">Контекст<a class="headerlink" href="#_10" title="Permanent link">¶</a></h2>
 <p>Симптом:</p>
-<div class="highlight"><pre><span></span><code>работа продолжает жить после завершения запрос
+<div class="highlight"><pre><span></span><code>работа продолжает жить после завершения запроса
 </code></pre></div>
 <p>Ищем:</p>
 <ul>
@@ -2335,10 +2887,10 @@ select
 <li><code>context.Background()</code> внутри пути обработки запроса;</li>
 <li>операции, которые игнорируют <code>ctx.Done()</code>;</li>
 <li>забытые <code>CancelFunc</code>;</li>
-<li>фоновые goroutine без собственного жизненного цикла.</li>
+<li>фоновые горутины без собственного жизненного цикла.</li>
 </ul>
 <hr/>
-<h1 id="85">85. Границы гарантий<a class="headerlink" href="#85" title="Permanent link">¶</a></h1>
+<h1 id="93">93. Границы гарантий<a class="headerlink" href="#93" title="Permanent link">¶</a></h1>
 <p>Важно не смешивать уровни.</p>
 <h2 id="api">Язык и API гарантируют<a class="headerlink" href="#api" title="Permanent link">¶</a></h2>
 <ul>
@@ -2366,34 +2918,114 @@ select
 <p>Эти детали полезны для понимания и диагностики.</p>
 <p>Но прикладной код не должен зависеть от их неизменности.</p>
 <hr/>
-<h1 id="_12">Что важно запомнить<a class="headerlink" href="#_12" title="Permanent link">¶</a></h1>
+<h1 id="_12">Куда идем дальше<a class="headerlink" href="#_12" title="Permanent link">¶</a></h1>
+<p>После этой лекции у нас есть средний слой:</p>
+<div class="highlight"><pre><span></span><code>синтаксис
+↓
+правильная ментальная модель
+↓
+ключевая структура рантайма
+↓
+поведение под нагрузкой
+</code></pre></div>
+<p>Теперь можно углубляться без повторения основ.</p>
+<h2 id="41-go">4.1. Структуры Go глубже<a class="headerlink" href="#41-go" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>slice
+→ growslice / nextslicecap
+
+map
+→ управляющее слово / маски H2
+→ probing
+→ каталог / разделение таблиц
+→ hashing
+
+sync.Map
+→ внутреннее устройство HashTrieMap
+
+интерфейс
+→ ABI
+→ преобразование
+→ проверка типа
+→ вызов метода
+</code></pre></div>
+<p>Здесь главный вопрос:</p>
+<blockquote>
+<p>Как конкретный алгоритм реализует уже понятную нам структуру?</p>
+</blockquote>
+<h2 id="42-select-context">4.2. Каналы, <code>select</code> и <code>context</code> глубже<a class="headerlink" href="#42-select-context" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>channel
+→ `chansend` / `chanrecv` / `closechan`
+
+select
+→ `selectgo`
+→ `pollOrder` / `lockOrder`
+→ проходы алгоритма
+
+context
+→ `propagateCancel`
+→ внутренний алгоритм `cancel`
+→ timerCtx
+</code></pre></div>
+<p><code>gopark</code>, <code>goready</code>, <code>sudog</code> и планировщик здесь не повторяем — это уже фундамент из лекции по рантайму.</p>
+<h2 id="43-go">4.3. Компилятор Go под капотом<a class="headerlink" href="#43-go" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>исходный Go-код
+↓
+SSA
+↓
+оптимизации
+↓
+преобразование конструкций (lowering)
+↓
+вызов функции рантайма / встроенный путь
+↓
+ассемблер
+</code></pre></div>
+<p>Здесь главный вопрос:</p>
+<blockquote>
+<p>Как конструкция языка превращается в тот runtime-механизм, который мы уже научились понимать?</p>
+</blockquote>
+<p>После <code>4.3</code> цепочка замкнется:</p>
+<div class="highlight"><pre><span></span><code>исходный код
+↓
+компилятор
+↓
+структура / runtime
+↓
+аллокатор / планировщик / GC
+↓
+CPU и память
+</code></pre></div>
+<hr/>
+<h1 id="_13">Что важно запомнить<a class="headerlink" href="#_13" title="Permanent link">¶</a></h1>
 <ol>
 <li>Массив содержит элементы и копируется как значение.</li>
 <li>Срез — дескриптор над базовым массивом; несколько срезов могут разделять одни данные.</li>
-<li><code>append</code> иногда пишет в старый массив, иногда создаёт новый, поэтому <code>cap</code> и совместное использование памяти имеют реальные последствия.</li>
+<li><code>append</code> иногда пишет в старый массив, иногда создает новый, поэтому <code>cap</code> и совместное использование памяти имеют реальные последствия.</li>
 <li>Маленький срез способен удерживать огромный базовый массив.</li>
 <li>Текущий встроенный <code>map</code> использует Swiss Tables; выигрыш связан прежде всего с плотными метаданными и локальностью памяти.</li>
 <li>Обычная <code>map</code> не потокобезопасна. Сложность рантайма не заменяет синхронизацию.</li>
-<li>Текущий <code>sync.Map</code> использует <code>HashTrieMap</code> и остаётся специализированным инструментом.</li>
+<li>Текущий <code>sync.Map</code> использует <code>HashTrieMap</code> и остается специализированным инструментом.</li>
 <li>Интерфейс хранит динамический тип и данные; поэтому типизированный <code>nil</code> может быть <code>!= nil</code>.</li>
-<li>Канал — объект синхронизации с буфером и очередями ожидания; небуферизованный канал лучше понимать как встреча сторон.</li>
-<li>Горячий канал способен стать точкой конкуренции за ресурс; большой буфер не создаёт пропускную способность.</li>
-<li><code>select</code> регистрирует одну goroutine сразу в нескольких очередях ожидания и не гарантирует строгий приоритет веток.</li>
-<li><code>nil</code>-канал полезен как отключённая ветка <code>select</code>.</li>
+<li>Канал — объект синхронизации с буфером и очередями ожидания; в небуферизованном канале отправитель и получатель должны встретиться.</li>
+<li>Горячий канал может стать точкой конкуренции за внутренний лок; большой буфер не создает пропускную способность.</li>
+<li><code>select</code> регистрирует одну горутину сразу в нескольких очередях ожидания и не гарантирует строгий приоритет веток.</li>
+<li><code>nil</code>-канал полезен как отключенная ветка <code>select</code>.</li>
 <li><code>context.Context</code> — интерфейс и цепочка объектов; отмена распространяется по дереву.</li>
-<li>Отмена кооперативна: <code>cancel()</code> не останавливает произвольную goroutine силой.</li>
+<li>Отмена кооперативна: <code>cancel()</code> не останавливает произвольную горутину силой.</li>
 <li>Забытый <code>CancelFunc</code> и потерянная цепочка отмены могут удерживать ресурсы и продолжать уже ненужную работу.</li>
-<li>Под нагрузкой важно видеть не только синтаксис, но и скрытые выделения памяти, хеширование, блокировки, очереди ожидания, приостановку и пробуждение goroutine.</li>
+<li>Под нагрузкой важно видеть не только синтаксис, но и скрытые выделения памяти, хеширование, блокировки, очереди ожидания, приостановку и пробуждение горутин.</li>
 </ol>
 <hr/>
-<h1 id="_13">Финальная модель<a class="headerlink" href="#_13" title="Permanent link">¶</a></h1>
-<div class="highlight"><pre><span></span><code>синтаксис
+<h1 id="_14">Финальная модель<a class="headerlink" href="#_14" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code>синтаксис Go
+↓
+рабочая модель конструкции
 ↓
 дескриптор / объект рантайма
 ↓
-устройство памяти
+конкретный алгоритм
 ↓
-выделение памяти / хеширование / синхронизация
+аллокатор / хеширование / синхронизация
 ↓
 планировщик / GC / кеш CPU
 ↓
@@ -2405,7 +3037,8 @@ select
 </code></pre></div>
 <p>Главный инженерный вывод:</p>
 <blockquote>
-<p>Удобные конструкции Go специально скрывают большую часть механики. Пока нагрузка маленькая, это экономит мышление. Под нагрузкой скрытые детали становятся наблюдаемыми: срез начинает удерживать память, <code>map</code> упирается в хеширование и локальность, канал превращается в очередь ожидания, <code>select</code> — в регистрацию нескольких ожиданий, а один <code>cancel()</code> — в массовое пробуждение goroutine. Поэтому хорошая ментальная модель должна начинаться с синтаксиса, но не заканчиваться на нём.</p>
+<p>Удобные конструкции Go специально скрывают большую часть механики. Пока нагрузка маленькая, это экономит мышление. Под нагрузкой скрытые детали становятся наблюдаемыми: срез удерживает базовый массив и иногда копирует его, <code>map</code> платит за хеширование и пробирование, интерфейс несет динамический тип, канал превращается в объект синхронизации, <code>select</code> регистрирует одно выполнение на нескольких событиях, а <code>cancel()</code> распространяет жизненный цикл по дереву.</p>
+<p>На этом уровне нам уже достаточно модели, чтобы писать код и диагностировать большинство прикладных проблем. Но теперь у каждого блока появился конкретный следующий вопрос: <strong>какой именно алгоритм это делает и какой код для него генерирует компилятор?</strong> Этим вопросам посвящены <code>4.1</code>, <code>4.2</code> и <code>4.3</code>. Обычная лекция заканчивается там, где правильная ментальная модель уже построена, а чтение конкретной реализации только начинается.</p>
 </blockquote>
 </article>
 </div>
@@ -2431,7 +3064,7 @@ select
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 1. Архитектура процессора, память и NUMA" class="md-footer__link md-footer__link--next" href="../Additional/1%20-%20CPU%20architecture/">
+<a aria-label="Вперед: 1. Архитектура процессора, память и NUMA" class="md-footer__link md-footer__link--next" href="../Additional/1.1%20-%20CPU%20architecture/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
