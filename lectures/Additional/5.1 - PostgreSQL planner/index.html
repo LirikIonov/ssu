@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="https://lirikonov.github.io/ssu/lectures/Additional/5.3%20-%20PostgreSQL%20planner/" rel="canonical"/>
-<link href="../5.2%20-%20PostgreSQL%20cost%20model/" rel="prev"/>
-<link href="../../../practice/1%20-%20task/" rel="next"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/5.1%20-%20PostgreSQL%20planner/" rel="canonical"/>
+<link href="../4.6%20-%20Go%20runtime%20startup%20deeper/" rel="prev"/>
+<link href="../6.1%20-%20Join%20Planner/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>05.3. PostgreSQL Planner Internals - Go</title>
+<title>05.1. Внутреннее устройство планировщика PostgreSQL - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#053-postgresql-planner-internals">
+<a class="md-skip" href="#051-postgresql">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              05.3. PostgreSQL Planner Internals
+              05.1. Внутреннее устройство планировщика PostgreSQL
             
           </span>
 </div>
@@ -193,7 +193,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20explain/">
+<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20Explain/">
 <span class="md-ellipsis">
     
   
@@ -204,9 +204,21 @@
   </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 6. PostgreSQL: алгоритмы соединения таблиц
+  
+
+    
+  </span>
+</a>
+</li>
 <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_6" type="checkbox"/>
-<label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="0">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
 <span class="md-ellipsis">
     
   
@@ -217,8 +229,8 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="true" aria-labelledby="__nav_2_6_label" class="md-nav" data-md-level="2">
-<label class="md-nav__title" for="__nav_2_6">
+<nav aria-expanded="true" aria-labelledby="__nav_2_7_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_7">
 <span class="md-nav__icon md-icon"></span>
             
   
@@ -383,37 +395,13 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../5.1%20-%20PostgreSQL%20cardinality/">
-<span class="md-ellipsis">
-    
-  
-    05.1. Внутреннее устройство планировщика PostgreSQL
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../5.2%20-%20PostgreSQL%20cost%20model/">
-<span class="md-ellipsis">
-    
-  
-    05.2. PostgreSQL Cost Model
-  
-
-    
-  </span>
-</a>
-</li>
 <li class="md-nav__item md-nav__item--active">
 <input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
 <label class="md-nav__link md-nav__link--active" for="__toc">
 <span class="md-ellipsis">
     
   
-    05.3. PostgreSQL Planner Internals
+    05.1. Внутреннее устройство планировщика PostgreSQL
   
 
     
@@ -424,7 +412,7 @@
 <span class="md-ellipsis">
     
   
-    05.3. PostgreSQL Planner Internals
+    05.1. Внутреннее устройство планировщика PostgreSQL
   
 
     
@@ -437,61 +425,70 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#_1">
+<a class="md-nav__link" href="#1-rows">
 <span class="md-ellipsis">
       
-        Навигация по лекции
+        Блок 1. Оценка количества строк — от статистики к показателю rows
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#1-cardinality-estimation-rows">
+<a class="md-nav__link" href="#052-postgresql-cost-model">
 <span class="md-ellipsis">
       
-        Блок 1. Cardinality Estimation — от статистики к rows
+        05.2. PostgreSQL Cost Model
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#2-postgresql-cost-model-rows">
+<a class="md-nav__link" href="#051-postgresql-planner-internals">
 <span class="md-ellipsis">
       
-        Блок 2. PostgreSQL Cost Model — от rows к стоимости
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#3-path-order-by-limit">
-<span class="md-ellipsis">
-      
-        Блок 3. Выбор Path, ORDER BY и LIMIT
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#postgresql-18">
-<span class="md-ellipsis">
-      
-        Итоговая модель планировщика PostgreSQL 18
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#_12">
-<span class="md-ellipsis">
-      
-        Источники и границы точности
+        05.1. PostgreSQL Planner Internals
       
     </span>
 </a>
 </li>
 </ul>
 </nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    06.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    06.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
 </li>
 </ul>
 </nav>
@@ -789,35 +786,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.1%20-%20PostgreSQL%20cardinality/">
+<a class="md-nav__link" href="../../../slides/5.1%20-%20PostgreSQL%20Plan/">
 <span class="md-ellipsis">
     
   
-    5.1 - PostgreSQL cardinality
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.2%20-%20PostgreSQL%20cost%20Model/">
-<span class="md-ellipsis">
-    
-  
-    5.2 - PostgreSQL cost Model
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.3%20-%20PostgreSQL%20path%20selection%20limit/">
-<span class="md-ellipsis">
-    
-  
-    5.3 - PostgreSQL path selection limit
+    5.1 - PostgreSQL Plan
   
 
     
@@ -842,55 +815,28 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#_1">
+<a class="md-nav__link" href="#1-rows">
 <span class="md-ellipsis">
       
-        Навигация по лекции
+        Блок 1. Оценка количества строк — от статистики к показателю rows
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#1-cardinality-estimation-rows">
+<a class="md-nav__link" href="#052-postgresql-cost-model">
 <span class="md-ellipsis">
       
-        Блок 1. Cardinality Estimation — от статистики к rows
+        05.2. PostgreSQL Cost Model
       
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#2-postgresql-cost-model-rows">
+<a class="md-nav__link" href="#051-postgresql-planner-internals">
 <span class="md-ellipsis">
       
-        Блок 2. PostgreSQL Cost Model — от rows к стоимости
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#3-path-order-by-limit">
-<span class="md-ellipsis">
-      
-        Блок 3. Выбор Path, ORDER BY и LIMIT
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#postgresql-18">
-<span class="md-ellipsis">
-      
-        Итоговая модель планировщика PostgreSQL 18
-      
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#_12">
-<span class="md-ellipsis">
-      
-        Источники и границы точности
+        05.1. PostgreSQL Planner Internals
       
     </span>
 </a>
@@ -902,44 +848,25 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="053-postgresql-planner-internals">05.3. PostgreSQL Planner Internals<a class="headerlink" href="#053-postgresql-planner-internals" title="Permanent link">¶</a></h1>
+<h1 id="051-postgresql">05.1. Внутреннее устройство планировщика PostgreSQL<a class="headerlink" href="#051-postgresql" title="Permanent link">¶</a></h1>
 <blockquote>
-<p><strong>Углубленная теоретическая лекция для магистратуры.</strong> Технический ориентир — <strong>PostgreSQL 18</strong> (<code>REL_18_STABLE</code>). Основная тема — планирование запросов к одной таблице: оценка количества строк, расчет условной стоимости, сохранение альтернатив и влияние <code>ORDER BY</code> / <code>LIMIT</code>. Отдельная лекция №6 посвящена <code>JOIN</code> и здесь не рассматривается.</p>
-<p><strong>Формат:</strong> механизм → математическая модель → числовой расчет → ограничения → инженерный вывод. SQL используется как иллюстрация. Лабораторных заданий нет.</p>
-<p><strong>Важное различие:</strong> публичные гарантии SQL и <code>EXPLAIN</code>, детали планировщика PostgreSQL 18, статистические допущения и специально упрощенные учебные формулы отмечены отдельно там, где это влияет на точность вывода.</p>
+<p><strong>Единая лекция по PostgreSQL 18.</strong> Три исходных материала сведены в один последовательный текст: оценка количества строк → модель стоимости → выбор пути и ограничения планировщика. Сохранены все объяснения, формулы, числовые примеры, SQL-фрагменты, итоговые выводы и списки источников. Между главами добавлены связующие пояснения.</p>
 </blockquote>
-<h2 id="_1">Навигация по лекции<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
-<table>
-<thead>
-<tr>
-<th>Блок</th>
-<th>Разделы</th>
-<th>Главный вопрос</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>1. Cardinality Estimation</strong></td>
-<td>1–6</td>
-<td>Откуда PostgreSQL берет <code>rows</code> до выполнения запроса?</td>
-</tr>
-<tr>
-<td><strong>2. PostgreSQL Cost Model</strong></td>
-<td>7–12</td>
-<td>Почему он считает разные способы доступа дешевыми или дорогими?</td>
-</tr>
-<tr>
-<td><strong>3. Выбор Path и LIMIT</strong></td>
-<td>13–15</td>
-<td>Как из рассчитанных альтернатив выбирается итоговый план?</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Основная причинно-следственная цепочка:</strong> <code>ANALYZE</code> → <code>pg_statistic</code> → selectivity → estimated rows → стоимость альтернатив (<code>startup_cost</code>, <code>total_cost</code>) → <code>Path</code>/<code>pathkeys</code> → выбор → <code>Plan</code> → измерение реального выполнения.</p>
+<p><strong>Маршрут по разделам:</strong></p>
+<ul>
+<li><strong>Блок 1, главы 1–6:</strong> от <code>pg_class</code> и <code>ANALYZE</code> через MCV, гистограммы и многоколоночную статистику к оценке <code>rows</code>.</li>
+<li><strong>Блок 2, главы 7–12:</strong> от коэффициентов стоимости к расчетам <code>Seq Scan</code>, <code>Index Scan</code>, <code>Bitmap Heap Scan</code> и <code>Sort</code>.</li>
+<li><strong>Блок 3, главы 13–15:</strong> от конкурирующих <code>Path</code> и <code>pathkeys</code> к <code>LIMIT</code>, <code>ORDER BY</code>, <code>OFFSET</code> и пределам оптимизатора.</li>
+</ul>
+<p><strong>Сквозной вопрос:</strong> как PostgreSQL получает прогноз данных, превращает его в стоимость допустимых способов чтения и выбирает итоговый план без предварительного выполнения всех вариантов?</p>
+<h2 id="1-rows">Блок 1. Оценка количества строк — от статистики к показателю <code>rows</code><a class="headerlink" href="#1-rows" title="Permanent link">¶</a></h2>
+<blockquote>
+<p><strong>Техническая лекция.</strong> Ориентир — PostgreSQL 18; поведение отдельных внутренних эвристик зависит от версии. Тема ограничена оценкой количества строк одной таблицы, условиями <code>WHERE</code> и расширенной статистикой. Алгоритмы <code>JOIN</code> и формулы стоимости путей выполнения будут разобраны отдельно.</p>
+<p><strong>Формат:</strong> объяснение механизмов, математические выкладки и короткие иллюстративные SQL-фрагменты. Практических заданий нет.</p>
+<p><strong>Главный вопрос:</strong> PostgreSQL еще не выполнил SQL-запрос. Почему он уже пишет в плане <code>rows=...</code> — и откуда берутся ошибки в десятки, сотни и тысячи раз?</p>
+</blockquote>
 <hr/>
-<h2 id="1-cardinality-estimation-rows">Блок 1. Cardinality Estimation — от статистики к <code>rows</code><a class="headerlink" href="#1-cardinality-estimation-rows" title="Permanent link">¶</a></h2>
-<p>Планировщик еще не выполнил запрос, однако уже оценивает число его выходных строк. Сначала разберем, на каких данных и математических предположениях стоит этот прогноз.</p>
-<h3 id="1-cardinality-selectivity">1. Оценка количества строк: cardinality и selectivity<a class="headerlink" href="#1-cardinality-selectivity" title="Permanent link">¶</a></h3>
+<h3 id="1">1. Оценка количества строк и селективность<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
 <h4 id="11">1.1. Сначала запрос, который выглядит слишком простым<a class="headerlink" href="#11" title="Permanent link">¶</a></h4>
 <p>Представим таблицу <code>orders</code> с миллионом заказов:</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">total_amount</span>
@@ -951,29 +878,25 @@
 <p>Поэтому PostgreSQL опирается на заранее собранную статистику и оценивает количество строк.</p>
 <p>Два понятия:</p>
 <ul>
-<li><strong>Cardinality</strong> — количество строк (мощность набора данных). В этой лекции чаще всего это оценка числа строк в таблице или на выходе операции.</li>
-<li><strong>Selectivity</strong> — доля строк, удовлетворяющих условию, от <code>0</code> до <code>1</code>.</li>
+<li><strong>Количество строк</strong> — мощность набора данных, то есть количество строк. В этой лекции чаще всего это оценка числа строк в таблице или на выходе операции.</li>
+<li><strong>Селективность</strong> — доля строк, удовлетворяющих условию, от <code>0</code> до <code>1</code>.</li>
 </ul>
 <p>Для одной таблицы и одного фильтра учебная формула выглядит так:</p>
-<p>[
-\hat N_{out}=\hat N_{base}\cdot\hat s
-]</p>
-<p>Здесь <code>^</code> обозначает <strong>оценку</strong>: </p>
+<p><code>N̂_out = N̂_base × ŝ</code></p>
+<p>Знак над буквой (например, <code>N̂</code>) обозначает <strong>статистическую оценку</strong>: </p>
 <ul>
-<li>(\hat N_{base}) — оцененное количество строк исходной таблицы;</li>
-<li>(\hat s) — оцененная селективность предиката;</li>
-<li>(\hat N_{out}) — оцененное количество строк на выходе фильтра.</li>
+<li><code>N̂_base</code> — оцененное количество строк исходной таблицы;</li>
+<li><code>ŝ</code> — оцененная селективность предиката;</li>
+<li><code>N̂_out</code> — оцененное количество строк на выходе фильтра.</li>
 </ul>
 <p>Если планировщик считает, что таблица содержит 1 000 000 строк, а условие пропускает 0,2%:</p>
-<p>[
-\hat N_{out}=1\,000\,000\cdot0.002=2\,000.
-]</p>
+<p><code>N̂_out = 1 000 000 × 0.002 = 2 000</code></p>
 <p>Никакой магии пока нет. Вся сложность спрятана в двух оценках: <strong>откуда миллион и откуда 0,002?</strong></p>
 <blockquote>
 <p><strong>Граница модели.</strong> Это формула для обычной фильтрации одной таблицы. Уточнения возникают для пустых таблиц, выражений, ограничений, партиций, уникальности, специфических предикатов и разных типов узлов. <code>rows</code> в <code>EXPLAIN</code> — целочисленная оценка на выходе конкретного узла; исполнитель может вернуть другое число.</p>
 </blockquote>
 <h4 id="12-pg_class">1.2. <code>pg_class</code>: что известно о размере таблицы<a class="headerlink" href="#12-pg_class" title="Permanent link">¶</a></h4>
-<p>Сначала PostgreSQL использует сведения о размере отношения (<em>relation</em> — таблицы, индекса и других объектов хранения), в том числе поля системного каталога <code>pg_class</code>:</p>
+<p>Сначала PostgreSQL использует сведения о размере отношения (таблицы, индекса или другого объекта хранения), в том числе поля системного каталога <code>pg_class</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">relkind</span><span class="p">,</span><span class="w"> </span><span class="n">reltuples</span><span class="p">,</span><span class="w"> </span><span class="n">relpages</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span>
 <span class="k">WHERE</span><span class="w"> </span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
@@ -983,7 +906,7 @@
 <li><code>relpages</code> — оценка количества страниц отношения;</li>
 <li><code>relkind</code> — вид отношения (<code>r</code> для обычной таблицы, <code>i</code> для обычного индекса и т. д.).</li>
 </ul>
-<p>Страница heap обычно равна 8 КиБ в стандартной сборке PostgreSQL, хотя размер страницы может задаваться при сборке сервера.</p>
+<p>Страница таблицы обычно равна 8 КиБ в стандартной сборке PostgreSQL, хотя размер страницы может задаваться при сборке сервера.</p>
 <p>Возможное состояние каталога:</p>
 <div class="highlight"><pre><span></span><code>relname | reltuples | relpages
 --------+-----------+---------
@@ -993,16 +916,12 @@ orders  | 1000000   | 10000
 <p>Сведения обновляются операциями обслуживания, включая <code>VACUUM</code>, <code>ANALYZE</code> и отдельные DDL-операции. Между обновлениями они могут устаревать.</p>
 <h4 id="13">1.3. Как оценка строк масштабируется по размеру файла<a class="headerlink" href="#13" title="Permanent link">¶</a></h4>
 <p>Теперь предположим, что после последнего анализа таблица выросла с 10 000 до 15 000 страниц. Число страниц PostgreSQL способен получить сравнительно дешево, без чтения каждой строки. Поэтому он может скорректировать старую оценку плотности:</p>
-<p>[
-\hat d=\frac{1\,000\,000}{10\,000}=100\quad\text{строк/страницу}
-]</p>
-<p>[
-\hat N_{current}\approx \hat d\cdot15\,000=1\,500\,000.
-]</p>
+<p><code>d̂ = 1 000 000 / 10 000 = 100 строк на страницу</code></p>
+<p><code>N̂_current ≈ d̂ × 15 000 = 1 500 000</code></p>
 <p>Это <strong>упрощение логики масштабирования</strong>, которое документировано для планировщика. Детали учета размера зависят от вида отношения и состояния статистики.</p>
 <p>Но здесь модель сразу ломается.</p>
 <p>Допустим, первые миллион строк были короткими, а после обновления приложение начало хранить в каждой строке существенно более длинный JSON. Число страниц выросло, количество логических строк могло остаться примерно прежним. Использование старой плотности переоценит число строк.</p>
-<p>Или массово удалили данные. Физические страницы heap не обязаны сразу исчезнуть, а количество актуальных строк изменилось. Физический размер и логическая мощность связаны, но между ними нет постоянного коэффициента.</p>
+<p>Или массово удалили данные. Физические страницы таблицы не обязаны сразу исчезнуть, а количество актуальных строк изменилось. Физический размер и логическая мощность связаны, но между ними нет постоянного коэффициента.</p>
 <p><strong>Инженерный вывод:</strong> <code>reltuples</code> и <code>relpages</code> — не точные счетчики. Масштабирование помогает пережить умеренные изменения, но плохо объясняет изменение плотности хранения, массовые удаления и сильные структурные изменения данных.</p>
 <h4 id="14-rows">1.4. <code>rows</code> — результат оценки, а не обещание<a class="headerlink" href="#14-rows" title="Permanent link">¶</a></h4>
 <p>Рассмотрим гипотетический план:</p>
@@ -1022,15 +941,16 @@ orders  | 1000000   | 10000
 </code></pre></div>
 <p>Сравнение <code>rows=2000</code> и <code>actual rows=1800</code> говорит, что оценка близка к реальности. Но если фактически оказалось <code>180000</code>, мы обнаружили ошибку примерно в 90 раз.</p>
 <p>В дальнейшем нам понадобится ответить, <strong>почему возникла ошибка</strong>, а не просто зафиксировать ее величину.</p>
-<h4 id="1">Что важно запомнить после раздела 1<a class="headerlink" href="#1" title="Permanent link">¶</a></h4>
+<h4 id="1_1">Что важно запомнить после раздела 1<a class="headerlink" href="#1_1" title="Permanent link">¶</a></h4>
 <ol>
 <li>Планировщик должен оценить объем результата <strong>до</strong> выполнения запроса.</li>
-<li>Для простой фильтрации ключевая модель — (\hat N_{out}=\hat N_{base}\hat s).</li>
+<li>Для простой фильтрации ключевая модель — <code>N̂_out = N̂_baseŝ</code>.</li>
 <li><code>pg_class</code> дает приблизительный размер таблицы, а не актуальный <code>COUNT(*)</code>.</li>
 <li>Физический размер помогает масштабировать старые оценки, но изменение плотности хранения нарушает простую модель.</li>
 <li>Крупное расхождение <code>rows</code> и <code>actual rows</code> — повод искать источник ошибки в оценках исходного размера или селективности.</li>
 </ol>
 <hr/>
+<p>Мы разобрались, что <code>rows</code> начинается с оценки размера таблицы и селективности условия. Но пока это только готовые числа. Кто их вычисляет и почему PostgreSQL согласен использовать приблизительную статистику вместо точного подсчета перед каждым запросом? Чтобы ответить, разберем <code>ANALYZE</code> — механизм, от которого зависит качество всех последующих оценок.</p>
 <h3 id="2-analyze">2. Как устроен <code>ANALYZE</code>: получить модель, не прочитав все строки<a class="headerlink" href="#2-analyze" title="Permanent link">¶</a></h3>
 <h4 id="21">2.1. Зачем вообще нужен отдельный процесс сбора статистики?<a class="headerlink" href="#21" title="Permanent link">¶</a></h4>
 <p>Представим, что для каждого запроса планировщик обязан был бы выполнить:</p>
@@ -1040,7 +960,7 @@ orders  | 1000000   | 10000
 <p>Команда:</p>
 <div class="highlight"><pre><span></span><code><span class="k">ANALYZE</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
 </code></pre></div>
-<p>собирает статистику содержимого таблицы. <code>VACUUM (ANALYZE)</code> тоже может обновлять ее. В обычной конфигурации PostgreSQL автоматически инициирует анализ через autovacuum/auto-analyze при достаточном числе изменений.</p>
+<p>собирает статистику содержимого таблицы. <code>VACUUM (ANALYZE)</code> тоже может обновлять ее. В обычной конфигурации PostgreSQL автоматически инициирует анализ через autovacuum, запускающий автоматический <code>ANALYZE</code> при достаточном числе изменений.</p>
 <p>Здесь три разных временных масштаба:</p>
 <ol>
 <li><code>INSERT/UPDATE/DELETE</code> меняют реальные данные.</li>
@@ -1050,8 +970,8 @@ orders  | 1000000   | 10000
 <p>Между пунктами 1 и 2 всегда возможно расхождение.</p>
 <h4 id="22-analyze">2.2. Почему <code>ANALYZE</code> обычно использует выборку<a class="headerlink" href="#22-analyze" title="Permanent link">¶</a></h4>
 <p>Пусть в таблице миллиард строк. Полное вычисление всех распределений после каждой серии изменений было бы слишком дорогим.</p>
-<p>Поэтому <code>ANALYZE</code> для большой обычной таблицы формирует <strong>статистическую выборку</strong> (<em>sample</em>) — набор строк, по которому пытается восстановить свойства всей таблицы.</p>
-<p>Внутри исходного кода PostgreSQL используется отбор страниц и строк с элементами резервуарной выборки (<em>reservoir sampling</em>). Смысл такого подхода: получить достаточно представительную совокупность значений, не сохраняя и не пересчитывая все строки.</p>
+<p>Поэтому <code>ANALYZE</code> для большой обычной таблицы формирует <strong>статистическую выборку</strong> — набор строк, по которому пытается восстановить свойства всей таблицы.</p>
+<p>Внутри исходного кода PostgreSQL используется отбор страниц и строк с элементами резервуарной выборки. Смысл такого подхода: получить достаточно представительную совокупность значений, не сохраняя и не пересчитывая все строки.</p>
 <p>Схематично:</p>
 <div class="highlight"><pre><span></span><code>Физические страницы таблицы
       ↓ отбор страниц
@@ -1075,30 +995,22 @@ pg_statistic / pg_statistic_ext_data
 <span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">customer_id</span>
 <span class="k">SET</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
 </code></pre></div>
-<p>На уровне реализации для обычной статистики часто используется ориентир порядка <strong>300 × target</strong> выбираемых строк: при <code>target=100</code> получается около 30 000 строк, при <code>target=1000</code> — около 300 000. Это характеристика текущего алгоритма сбора статистики, а не обязательная гарантия API: итоговая выборка может быть меньше, а отдельные типы статистики и обработчики устроены по-своему.</p>
+<p>На уровне реализации для обычной статистики часто используется ориентир порядка <strong>300 × целевой уровень статистики</strong> выбираемых строк: при <code>target=100</code> получается около 30 000 строк, при <code>target=1000</code> — около 300 000. Это характеристика текущего алгоритма сбора статистики, а не обязательная гарантия API: итоговая выборка может быть меньше, а отдельные типы статистики и обработчики устроены по-своему.</p>
 <p>Зачем увеличивать цель? Чтобы точнее оценивать сложное распределение с большим количеством различных значений, пиками частоты и узкими диапазонами.</p>
 <p>Но цена очевидна: больше работы <code>ANALYZE</code>, больше памяти/места для статистики и потенциально больше работы планировщика с расширенными данными.</p>
 <p><strong>Неправильное упрощение:</strong> «Поставим <code>SET STATISTICS 10000</code>, и оценки станут точными». Выборка даже большого размера не устраняет логические ошибки модели и не гарантирует обнаружение очень редких значений.</p>
 <h4 id="24">2.4. Математика погрешности выборки<a class="headerlink" href="#24" title="Permanent link">¶</a></h4>
-<p>Возьмем упрощенную вероятностную модель: независимая равновероятная выборка (n) строк, условию удовлетворяет доля (p) таблицы.</p>
-<p>Оценка доли (\hat p) имеет стандартную ошибку порядка:</p>
-<p>[
-SE(\hat p)\approx\sqrt{\frac{p(1-p)}{n}}.
-]</p>
-<p>Для частого значения (p=0.1), выборка (n=30\,000):</p>
-<p>[
-SE\approx\sqrt{\frac{0.1\cdot0.9}{30000}}\approx0.00173.
-]</p>
+<p>Возьмем упрощенную вероятностную модель: независимая равновероятная выборка <code>n</code> строк, условию удовлетворяет доля <code>p</code> таблицы.</p>
+<p>Оценка доли <code>p̂</code> имеет стандартную ошибку порядка:</p>
+<p><code>SE(p̂) ≈ √(p × (1 − p) / n)</code></p>
+<p>Для частого значения <code>p = 0.1</code>, выборка <code>n = 30 000</code>:</p>
+<p><code>SE ≈ √(0.1 × 0.9 / 30 000) ≈ 0.00173</code></p>
 <p>Это около <strong>0,17 процентного пункта</strong> стандартной ошибки. Приблизительная ошибка в несколько десятых процентного пункта для популярного значения часто приемлема.</p>
-<p>Теперь редкое значение (p=10^{-5}): один случай на 100 000 строк.</p>
+<p>Теперь редкое значение <code>p = 10⁻⁵</code>: один случай на 100 000 строк.</p>
 <p>Среднее количество его попаданий в выборку:</p>
-<p>[
-E[X]=np=30\,000\cdot10^{-5}=0.3.
-]</p>
+<p><code>E[X] = n × p = 30 000 × 10⁻⁵ = 0.3</code></p>
 <p>При той же простой модели вероятность вообще не увидеть значение:</p>
-<p>[
-P(X=0)=(1-p)^n\approx e^{-np}=e^{-0.3}\approx0.741.
-]</p>
+<p><code>P(X = 0) = (1 − p)ⁿ ≈ e^(-n × p) = e^(-0.3) ≈ 0.741</code></p>
 <p>То есть <strong>примерно 74% вероятности</strong>, что редкое значение отсутствует в конкретной выборке. Само значение при этом существует в таблице.</p>
 <p>Необходимо оговорить: эти формулы описывают идеализированную случайную выборку. Реальное страничное семплирование и неоднородное размещение строк дают дополнительные эффекты. Но главную причину ошибок они показывают правильно.</p>
 <p><strong>Инженерный вывод:</strong> статистика очень хорошо описывает крупные массивы популярных значений и может недостаточно точно отражать редкие события. Для сильно асимметричных данных один и тот же <code>customer_id</code> нельзя оценивать так же уверенно, как массовый статус <code>PAID</code>.</p>
@@ -1116,21 +1028,17 @@ P(X=0)=(1-p)^n\approx e^{-np}=e^{-0.3}\approx0.741.
 </code></pre></div>
 <p><code>pg_stats</code> показывает статистику в читаемом виде и ограничивает видимость данными таблиц, которые пользователь имеет право читать. Непосредственный доступ к <code>pg_statistic</code> ограничен строже: статистика способна раскрывать значения из пользовательских таблиц.</p>
 <p>Новая модель появляется <strong>после</strong> <code>ANALYZE</code>. Создание таблицы или нового статистического объекта само по себе не означает, что уже существуют актуальные сведения о его значениях.</p>
-<h4 id="26-auto-analyze">2.6. Когда срабатывает auto-analyze<a class="headerlink" href="#26-auto-analyze" title="Permanent link">¶</a></h4>
+<h4 id="26">2.6. Когда срабатывает автоматический анализ<a class="headerlink" href="#26" title="Permanent link">¶</a></h4>
 <p>Автоматический анализ не запускается после каждого измененного заказа. В PostgreSQL для него используется пороговая модель:</p>
-<p>[
-T_{analyze}=T_{base}+\alpha N,
-]</p>
+<p><code>T_analyze = T_base + α × N</code></p>
 <p>где:</p>
 <ul>
-<li>(T_{base}) — <code>autovacuum_analyze_threshold</code> (стандартно <code>50</code>);</li>
-<li>(\alpha) — <code>autovacuum_analyze_scale_factor</code> (стандартно <code>0.1</code>);</li>
-<li>(N) — оценка числа строк таблицы (<code>reltuples</code>).</li>
+<li><code>T_base</code> — <code>autovacuum_analyze_threshold</code> (стандартно <code>50</code>);</li>
+<li><code>α</code> — <code>autovacuum_analyze_scale_factor</code> (стандартно <code>0.1</code>);</li>
+<li><code>N</code> — оценка числа строк таблицы (<code>reltuples</code>).</li>
 </ul>
 <p>Для миллиона строк:</p>
-<p>[
-T_{analyze}=50+0.1\cdot1\,000\,000=100\,050.
-]</p>
+<p><code>T_analyze = 50 + 0.1 × 1 000 000 = 100 050</code></p>
 <p>То есть при стандартной настройке может потребоваться порядка <strong>100 тысяч</strong> изменений, учитываемых механизмом автосбора статистики, прежде чем таблица станет кандидатом на новый анализ.</p>
 <p>Это не означает немедленного запуска в момент достижения порога: существуют периодическая проверка, очередность работ и ограничения фоновых процессов.</p>
 <p>А теперь проблемный случай. Приложение загрузило 40 000 новых заказов, причем все они относятся к одному ранее редкому клиенту. Общий процент изменений невелик, но распределение именно <code>customer_id</code> изменилось резко.</p>
@@ -1146,9 +1054,10 @@ T_{analyze}=50+0.1\cdot1\,000\,000=100\,050.
 <li>Для больших таблиц используется выборка; случайная погрешность сохраняется даже сразу после анализа.</li>
 <li><code>default_statistics_target</code> регулирует детализацию, а вместе с ней стоимость сбора и хранения статистики.</li>
 <li>Частое значение легко обнаружить в образце; очень редкое может в него вообще не попасть.</li>
-<li>Auto-analyze учитывает объем изменений и потому может запаздывать относительно изменения распределения критически важной колонки.</li>
+<li>Автоматический анализ учитывает объем изменений и потому может запаздывать относительно изменения распределения критически важной колонки.</li>
 </ol>
 <hr/>
+<p>Теперь понятно, как PostgreSQL получает статистическую выборку и почему ее своевременность не гарантирована. Следующий вопрос: какие именно сведения можно извлечь из выбранных строк? Среднее число значений еще не описывает распределение. Разберем статистические структуры, которыми планировщик заменяет полную картину таблицы.</p>
 <h3 id="3">3. Статистика распределения значений: что означает каждый показатель<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
 <h4 id="31">3.1. Почему среднее количество строк на значение мало что объясняет<a class="headerlink" href="#31" title="Permanent link">¶</a></h4>
 <p>Пусть в таблице миллион заказов и три возможных статуса:</p>
@@ -1178,7 +1087,7 @@ T_{analyze}=50+0.1\cdot1\,000\,000=100\,050.
 </tr>
 </tbody>
 </table>
-<p>Если знать только <code>n_distinct=3</code>, возникает соблазн оценивать каждое равенство как (1/3). Для <code>PAID</code> это ошибка более чем вдвое, а для <code>CANCELLED</code> — более чем в шесть раз.</p>
+<p>Если знать только <code>n_distinct=3</code>, возникает соблазн оценивать каждое равенство как <code>1/3</code>. Для <code>PAID</code> это ошибка более чем вдвое, а для <code>CANCELLED</code> — более чем в шесть раз.</p>
 <p>Нам нужно описание <strong>формы распределения</strong>. PostgreSQL использует несколько взаимодополняющих статистик.</p>
 <h4 id="32-null_frac">3.2. <code>null_frac</code>: часть данных, которая не проходит обычные сравнения<a class="headerlink" href="#32-null_frac" title="Permanent link">¶</a></h4>
 <p>Если:</p>
@@ -1190,9 +1099,7 @@ T_{analyze}=50+0.1\cdot1\,000\,000=100\,050.
 </code></pre></div>
 <p>строки с <code>amount IS NULL</code> не удовлетворяют условию: обычное сравнение с <code>NULL</code> дает SQL <code>UNKNOWN</code>, а <code>WHERE</code> отбирает только <code>TRUE</code>.</p>
 <p>Поэтому общая доля, доступная для сравнения ненулевых значений, примерно:</p>
-<p>[
-P(amount\ne NULL)=1-null_frac=0.92.
-]</p>
+<p><code>P(amount IS NOT NULL) ≈ 1 − null_frac = 0.92</code></p>
 <p>Это потребуется в формулах для MCV и остаточного распределения.</p>
 <p>При этом <code>IS NULL</code> — отдельное условие, для которого <code>null_frac</code> является непосредственным полезным источником оценки.</p>
 <h4 id="33-n_distinct">3.3. <code>n_distinct</code>: сколько разных значений существует<a class="headerlink" href="#33-n_distinct" title="Permanent link">¶</a></h4>
@@ -1204,9 +1111,7 @@ P(amount\ne NULL)=1-null_frac=0.92.
 <li><code>n_distinct = -1</code> — характерная оценка уникального столбца: примерно столько же различных значений, сколько строк.</li>
 </ul>
 <p>Для таблицы на миллион строк:</p>
-<p>[
-n_distinct=-0.25\Rightarrow\hat D\approx250\,000.
-]</p>
+<p><code>n_distinct = -0.25 ⇒ D̂ ≈ 250 000</code></p>
 <p>Зачем нужны отрицательные значения? Колонка со статусом заказа обычно имеет относительно фиксированное множество состояний, даже если число заказов выросло в десять раз. А в колонке <code>external_request_id</code> практически каждый новый заказ может приносить новое значение. Одно и то же фиксированное число уникальных значений плохо отражает такой рост.</p>
 <p>Важно: значение <code>-1</code> — статистическая модель зависимости от размера, а не SQL-ограничение <code>UNIQUE</code>. Гарантии ограничения и оценки статистики — разные источники информации.</p>
 <h4 id="34-most_common_vals-most_common_freqs">3.4. <code>most_common_vals</code> и <code>most_common_freqs</code>: самые популярные значения<a class="headerlink" href="#34-most_common_vals-most_common_freqs" title="Permanent link">¶</a></h4>
@@ -1219,7 +1124,7 @@ most_common_freqs = {0.80,0.15,0.05}
 <p>Но здесь важно не допустить нового упрощения: <strong>MCV содержит частоту, полученную из выборки</strong>, а не абсолютно точную частоту во всей таблице. «Точное совпадение с записью MCV» означает, что оценщик использует ее частоту непосредственно, без предположения равномерности по остальным значениям.</p>
 <p>Если список ограничен, в него попадают только наиболее информативные значения. Остальные моделируются иначе.</p>
 <h4 id="35-histogram_bounds-x">3.5. <code>histogram_bounds</code>: не равные интервалы по оси X<a class="headerlink" href="#35-histogram_bounds-x" title="Permanent link">¶</a></h4>
-<p>Гистограмма PostgreSQL для подходящих упорядочиваемых типов хранит <strong>границы приблизительно равных по наполнению интервалов</strong> (<em>equi-depth histogram</em>).</p>
+<p>Гистограмма PostgreSQL для подходящих упорядочиваемых типов хранит <strong>границы приблизительно равных по наполнению интервалов</strong> — это равночастотная гистограмма.</p>
 <p>Пусть без MCV осталось 100 000 значений, и мы построили пять интервалов:</p>
 <div class="highlight"><pre><span></span><code>0 ─── 100 ─── 200 ─── 400 ─── 1000 ─── 5000
   20%     20%     20%      20%       20%
@@ -1239,20 +1144,20 @@ most_common_freqs = {0.80,0.15,0.05}
 <p>У второго запроса выходная строка шире. Для последующих операций это может означать больший объем памяти, копирования и передачи данных. В плане это отражается через <code>width</code> и стоимость вышестоящих операций.</p>
 <p>Однако <code>avg_width</code> не следует отождествлять с размером строки на диске. На физическое представление влияют заголовки, выравнивание, <code>NULL</code>, переменные поля, TOAST и другие механизмы. Отдельную модель физического хранения разбирать здесь не требуется.</p>
 <h4 id="37-correlation">3.7. <code>correlation</code>: связь порядка значений с физическим размещением<a class="headerlink" href="#37-correlation" title="Permanent link">¶</a></h4>
-<p><code>correlation</code> принимает значения от <code>-1</code> до <code>+1</code> и описывает статистическую связь порядка значений в столбце с физическим порядком строк в heap.</p>
+<p><code>correlation</code> принимает значения от <code>-1</code> до <code>+1</code> и описывает статистическую связь порядка значений в столбце с физическим порядком строк в таблице.</p>
 <ul>
 <li>Около <code>+1</code>: значения растут вместе с физическим порядком.</li>
 <li>Около <code>-1</code>: значения убывают вместе с физическим порядком.</li>
 <li>Около <code>0</code>: сильного упорядоченного соответствия нет.</li>
 </ul>
 <p>Например, в таблице, заполняемой хронологически, <code>created_at</code> часто обладает высокой корреляцией с физическим порядком строк. После многочисленных вставок со старыми датами или перестроений расположение может стать менее упорядоченным.</p>
-<p>Почему это важно? Если индексный диапазон ведет к близко расположенным страницам heap, чтение этих строк часто дешевле, чем обращения к совершенно разрозненным страницам.</p>
+<p>Почему это важно? Если индексный диапазон ведет к близко расположенным страницам таблицы, чтение этих строк часто дешевле, чем обращения к совершенно разрозненным страницам.</p>
 <p><strong>Не путать два вида связи:</strong></p>
 <ul>
-<li><code>correlation</code> в <code>pg_stats</code> — <strong>одна колонка ↔ физический порядок heap</strong>;</li>
+<li><code>correlation</code> в <code>pg_stats</code> — <strong>одна колонка ↔ физический порядок строк таблицы</strong>;</li>
 <li>зависимости из <code>CREATE STATISTICS</code> — <strong>значения нескольких колонок ↔ друг другу</strong>.</li>
 </ul>
-<p>Их используют для разных оценок. Внутреннюю формулу учета correlation в <code>cost_index</code> разберем во втором блоке лекции 05.1.</p>
+<p>Их используют для разных оценок. Внутреннюю формулу учета корреляции в <code>cost_index</code> разберем во втором блоке лекции 05.1.</p>
 <h4 id="38">3.8. Почему статистика хранится несколькими структурами<a class="headerlink" href="#38" title="Permanent link">¶</a></h4>
 <p>Можно спросить: зачем столько полей — нельзя ли сохранить один огромный словарь «значение → частота»?</p>
 <p>Для <code>status</code> это действительно удобно. Но для <code>request_id</code>, <code>timestamp</code> или непрерывного <code>amount</code> число различных значений может быть огромным.</p>
@@ -1262,7 +1167,7 @@ most_common_freqs = {0.80,0.15,0.05}
 <li>массу <code>NULL</code> отдельно;</li>
 <li>популярные значения как MCV;</li>
 <li>остальные значения как более грубое распределение, в том числе гистограмму и <code>n_distinct</code>;</li>
-<li>физическую упорядоченность через correlation.</li>
+<li>физическую упорядоченность через показатель корреляции.</li>
 </ol>
 <p>Это компромисс <strong>точность ↔ размер статистики ↔ стоимость <code>ANALYZE</code> ↔ скорость планирования</strong>.</p>
 <h4 id="3_1">Что важно запомнить после раздела 3<a class="headerlink" href="#3_1" title="Permanent link">¶</a></h4>
@@ -1274,6 +1179,7 @@ most_common_freqs = {0.80,0.15,0.05}
 <li><code>correlation</code> описывает физическую локальность в таблице и не равен зависимости двух колонок.</li>
 </ol>
 <hr/>
+<p>Размер таблицы, частые значения, доля <code>NULL</code>, гистограмма и корреляция нам уже известны. Но в <code>EXPLAIN</code> отображается одно конкретное число <code>rows</code>. Пора проследить, как статистические сведения превращаются в селективность реальных условий <code>WHERE</code> и какие допущения скрываются в этой математике.</p>
 <h3 id="4-rows">4. Математика селективности: как получаются числа <code>rows</code><a class="headerlink" href="#4-rows" title="Permanent link">¶</a></h3>
 <p>Теперь у нас есть статистическая модель. Пора пройти по формулам.</p>
 <h4 id="41-mcv">4.1. Оценка <code>=</code>: значение найдено в MCV<a class="headerlink" href="#41-mcv" title="Permanent link">¶</a></h4>
@@ -1282,12 +1188,8 @@ most_common_freqs = {0.80,0.15,0.05}
 status = 'PAID' встречается с частотой 0.60
 </code></pre></div>
 <p>Если <code>PAID</code> обнаружен в MCV и соответствующая частота равна <code>0.60</code>:</p>
-<p>[
-\hat s(status=\text{'PAID'})=0.60,
-]</p>
-<p>[
-\hat N_{out}=1\,000\,000\cdot0.60=600\,000.
-]</p>
+<p><code>ŝ(status = 'PAID') = 0.60</code></p>
+<p><code>N̂_out = 1 000 000 × 0.60 = 600 000</code></p>
 <p>Обратите внимание на слово «оценка». Число может немного отличаться от реального из-за семплирования.</p>
 <h4 id="42-mcv">4.2. Оценка <code>=</code>: значения <strong>нет</strong> в MCV<a class="headerlink" href="#42-mcv" title="Permanent link">¶</a></h4>
 <p>Пусть теперь статистика по <code>status</code> устроена иначе:</p>
@@ -1306,16 +1208,10 @@ MCV frequencies = {0.60, 0.25}
 <li>остаток содержит примерно 10 различных значений.</li>
 </ul>
 <p>Для неизвестного в MCV значения <code>CANCELLED</code> грубая оценка при допущении равномерности остатка:</p>
-<p>[
-\hat s =\frac{1-f_{NULL}-\sum f_{MCV}}{D-K},
-]</p>
-<p>где (D) — <code>n_distinct</code>, (K) — число элементов MCV.</p>
-<p>[
-\hat s=\frac{1-0.05-(0.60+0.25)}{12-2}=\frac{0.10}{10}=0.01.
-]</p>
-<p>[
-\hat N_{out}=1\,000\,000\cdot0.01=10\,000.
-]</p>
+<p><code>ŝ ≈ (1 − f_NULL − Σ f_MCV) / (D − K)</code></p>
+<p>где <code>D</code> — <code>n_distinct</code>, <code>K</code> — число элементов MCV.</p>
+<p><code>ŝ = (1 − 0.05 − (0.60 + 0.25)) / (12 − 2) = 0.10 / 10 = 0.01</code></p>
+<p><code>N̂_out = 1 000 000 × 0.01 = 10 000</code></p>
 <p>А теперь вопрос: что если <code>CANCELLED</code> реально встречается только в 20 строках, а остальные 99 980 строк остатка приходятся на другие значения?</p>
 <p>Планировщик, не располагая этой информацией, оценит <code>CANCELLED</code> как примерно 10 000 строк. Ошибка — <strong>500 раз</strong>.</p>
 <p>В реальном <code>eqsel</code> есть дополнительные проверки, ограничения оценки и специальные случаи, поэтому приведенная формула — ключевая статистическая модель, а не полная построчная реализация функции. Она соответствует принципу, описанному в официальном разборе оценки строк PostgreSQL.</p>
@@ -1337,18 +1233,14 @@ EXPLAIN ANALYZE: actual rows=0
 <div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">250</span>
 </code></pre></div>
 <p>Весь первый интервал <code>0–100</code> подходит. Весь второй <code>100–200</code> тоже. Для третьего интервала <code>200–400</code> граница <code>250</code> находится на четверти числового расстояния:</p>
-<p>[
-q=\frac{250-200}{400-200}=\frac{50}{200}=0.25.
-]</p>
+<p><code>q = (250 − 200) / (400 − 200) = 50 / 200 = 0.25</code></p>
 <p>Если для оценки внутри интервала принять приблизительную линейную интерполяцию:</p>
-<p>[
-\hat s\approx\frac{2+0.25}{5}=0.45.
-]</p>
+<p><code>ŝ ≈ (2 + 0.25) / 5 = 0.45</code></p>
 <p>Для миллиона строк получим 450 000.</p>
 <p>Но что будет, если почти все значения третьего интервала сосредоточены между 390 и 400? Тогда линейная интерполяция преувеличит долю значений ниже 250.</p>
 <p><strong>Гистограмма хранит положение границ и массу интервалов, но не полное распределение внутри каждого интервала.</strong> Это ее фундаментальное ограничение.</p>
 <p>Также стоит помнить, что сравнение может быть целочисленным, строковым или временным. Интерполяция и поправки зависят от типа, доступных операторов и внутренних функций оценки. Для некоторых типов есть специфические эвристики; универсальная формула числовой линейной интерполяции — учебная модель.</p>
-<h4 id="45-mcv-null-histogram">4.5. Когда одновременно есть MCV, <code>NULL</code> и histogram<a class="headerlink" href="#45-mcv-null-histogram" title="Permanent link">¶</a></h4>
+<h4 id="45-mcv-null">4.5. Когда одновременно есть MCV, <code>NULL</code> и гистограмма<a class="headerlink" href="#45-mcv-null" title="Permanent link">¶</a></h4>
 <p>Теперь более реалистичная ситуация:</p>
 <div class="highlight"><pre><span></span><code>null_frac = 0.05
 сумма частот всех MCV = 0.30
@@ -1360,17 +1252,9 @@ q=\frac{250-200}{400-200}=\frac{50}{200}=0.25.
 <li>гистограмма оставшейся части оценивает долю удовлетворяющих условию в <code>0.45</code>.</li>
 </ul>
 <p>Тогда:</p>
-<p>[
-\hat s=\underbrace{0.20}<em _text_остальная="\text{остальная" масса="масса">{\text{подходящие MCV}}
-+\underbrace{0.65}</em>\cdot
-\underbrace{0.45}_{\text{доля по histogram}}.
-]}</p>
-<p>[
-\hat s=0.4925.
-]</p>
-<p>[
-\hat N_{out}=492\,500.
-]</p>
+<p><code>ŝ = 0.20 [частые значения] + 0.65 [остаток] × 0.45 [доля по гистограмме]</code></p>
+<p><code>ŝ = 0.4925</code></p>
+<p><code>N̂_out = 492 500</code></p>
 <p>Гистограмма описывает <strong>только</strong> оставшиеся 65% ненулевых данных. Она не должна повторно оценивать популярные значения и <code>NULL</code>.</p>
 <p>Этот расчет демонстрирует общую модель, описанную в официальной документации: отдельно оценить MCV, отдельно остаток, затем объединить.</p>
 <h4 id="46-between">4.6. <code>BETWEEN</code>: почему две границы сложнее одной<a class="headerlink" href="#46-between" title="Permanent link">¶</a></h4>
@@ -1381,61 +1265,41 @@ q=\frac{250-200}{400-200}=\frac{50}{200}=0.25.
 <div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">500</span>
 </code></pre></div>
 <p>Хочется просто умножить селективности двух сравнений. Но это <strong>не независимые события</strong>: попадание в условие <code>&gt;= 100</code> меняет вероятность условия <code>&lt;= 500</code>.</p>
-<p>Если известна приближенная функция распределения (F(x)=P(X\le x)), то для непрерывной учебной модели:</p>
-<p>[
-P(100\le X\le500)\approx F(500)-F(100).
-]</p>
-<p>Для дискретных значений нужна корректировка границ: математически точное выражение — (F(500)-P(X&lt;100)). PostgreSQL использует специализированную логику для пар противоположно направленных диапазонных условий, чтобы избежать наивного независимого перемножения.</p>
+<p>Если известна приближенная функция распределения <code>F(x) = P(X ≤ x)</code>, то для непрерывной учебной модели:</p>
+<p><code>P(100 ≤ X ≤ 500) ≈ F(500) − F(100)  [непрерывная модель]</code></p>
+<p>Для дискретных значений нужна корректировка границ: математически точное выражение — <code>F(500)-P(X&lt;100)</code>. PostgreSQL использует специализированную логику для пар противоположно направленных диапазонных условий, чтобы избежать наивного независимого перемножения.</p>
 <p>Например, если:</p>
-<p>[
-P(X\ge100)=0.9,\quad P(X\le500)=0.4,
-]</p>
-<p>то независимое перемножение даст (0.9\cdot0.4=0.36). Однако при непрерывной модели без массы в граничных точках диапазонная селективность ближе к:</p>
-<p>[
-0.9+0.4-1=0.3.
-]</p>
+<p><code>P(X ≥ 100) = 0.9, P(X ≤ 500) = 0.4</code></p>
+<p>то независимое перемножение даст <code>0.9 × 0.4 = 0.36</code>. Однако при непрерывной модели без массы в граничных точках диапазонная селективность ближе к:</p>
+<p><code>0.9 + 0.4 − 1 = 0.3</code></p>
 <p>Эта разница влияет на <code>rows</code> еще до выбора способа доступа.</p>
 <h4 id="47-and-or">4.7. Условия <code>AND</code> и <code>OR</code>: базовая вероятностная модель<a class="headerlink" href="#47-and-or" title="Permanent link">¶</a></h4>
-<p>Для двух независимых условий (A), (B):</p>
-<p>[
-P(A\land B)=P(A)P(B).
-]</p>
+<p>Для двух независимых условий <code>A</code>, <code>B</code>:</p>
+<p><code>P(A ∧ B) = P(A) × P(B)</code></p>
 <p>Например:</p>
 <div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
 <span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5000</span>
 </code></pre></div>
-<p>Если (s_A=0.2), (s_B=0.1), независимая оценка:</p>
-<p>[
-\hat s=0.2\cdot0.1=0.02.
-]</p>
+<p>Если <code>s_A = 0.2</code>, <code>s_B = 0.1</code>, независимая оценка:</p>
+<p><code>ŝ = 0.2 × 0.1 = 0.02</code></p>
 <p>Миллион строк превращается в 20 000.</p>
 <p>Для <code>OR</code> при независимости:</p>
-<p>[
-P(A\lor B)=P(A)+P(B)-P(A)P(B).
-]</p>
+<p><code>P(A ∨ B) = P(A) + P(B) − P(A) × P(B)</code></p>
 <p>С теми же долями:</p>
-<p>[
-\hat s=0.2+0.1-0.02=0.28.
-]</p>
+<p><code>ŝ = 0.2 + 0.1 − 0.02 = 0.28</code></p>
 <p>Получаем 280 000.</p>
 <p>Умножение и сложение работают только при соответствующих допущениях. PostgreSQL применяет и специальные оценки для известных сочетаний условий, и расширенную статистику; выводить точную механику любого SQL из двух школьных формул было бы неверно.</p>
 <h4 id="48">4.8. Вероятности условные, а планировщик часто знает только безусловные<a class="headerlink" href="#48" title="Permanent link">¶</a></h4>
 <p>Точная формула совместной селективности:</p>
-<p>[
-P(A\land B)=P(A)P(B\mid A).
-]</p>
+<p><code>P(A ∧ B) = P(A) × P(B | A)</code></p>
 <p>Независимость означает особый случай:</p>
-<p>[
-P(B\mid A)=P(B).
-]</p>
+<p><code>P(B | A) = P(B)</code></p>
 <p>А теперь предположим, что каждый заказ со статусом <code>PAID</code> обязательно относится к каналу <code>APP</code>. Тогда:</p>
-<p>[
-P(APP\mid PAID)=1.
-]</p>
-<p>При (P(PAID)=0.1) и (P(APP)=0.1):</p>
+<p><code>P(APP | PAID) = 1</code></p>
+<p>При <code>P(PAID) = 0.1</code> и <code>P(APP) = 0.1</code>:</p>
 <ul>
-<li>независимая оценка: (0.1\cdot0.1=0.01);</li>
-<li>реальная совместная доля: (0.1\cdot1=0.1).</li>
+<li>независимая оценка: <code>0.1 × 0.1 = 0.01</code>;</li>
+<li>реальная совместная доля: <code>0.1 × 1 = 0.1</code>.</li>
 </ul>
 <p>Мы получили ошибку ровно в десять раз. Следующий раздел объясняет, какой механизм PostgreSQL использует для таких случаев.</p>
 <h4 id="4">Что важно запомнить после раздела 4<a class="headerlink" href="#4" title="Permanent link">¶</a></h4>
@@ -1447,7 +1311,8 @@ P(APP\mid PAID)=1.
 <li>Специализированная оценка <code>BETWEEN</code> полезнее наивного перемножения нижней и верхней границ.</li>
 </ol>
 <hr/>
-<h3 id="5-extended-statistics">5. Extended Statistics: когда независимость колонок разрушает оценку<a class="headerlink" href="#5-extended-statistics" title="Permanent link">¶</a></h3>
+<p>Предыдущие формулы работают убедительно, пока можно считать условия независимыми или корректно оценивать их по отдельности. Теперь возьмем столбцы, значения которых связаны между собой: произведение отдельных селективностей перестает описывать действительность. Отсюда возникает необходимость в многоколоночной статистике.</p>
+<h3 id="5">5. Расширенная статистика: когда независимость колонок разрушает оценку<a class="headerlink" href="#5" title="Permanent link">¶</a></h3>
 <h4 id="51">5.1. Один и тот же запрос, ошибка в сто раз<a class="headerlink" href="#51" title="Permanent link">¶</a></h4>
 <p>Рассмотрим таблицу на 10 000 строк с двумя числовыми колонками:</p>
 <div class="highlight"><pre><span></span><code>a = i % 100
@@ -1460,23 +1325,13 @@ b = i % 100
 <span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
 </code></pre></div>
 <p>Для каждого одиночного условия:</p>
-<p>[
-P(a=1)=0.01,\quad P(b=1)=0.01.
-]</p>
+<p><code>P(a = 1) = 0.01, P(b = 1) = 0.01</code></p>
 <p>По независимой модели:</p>
-<p>[
-\hat s=0.01\cdot0.01=0.0001,
-]</p>
-<p>[
-\hat N=10\,000\cdot0.0001=1.
-]</p>
+<p><code>ŝ = 0.01 × 0.01 = 0.0001</code></p>
+<p><code>N̂ = 10 000 × 0.0001 = 1</code></p>
 <p>Но реально <code>a=1</code> автоматически означает <code>b=1</code>. Следовательно:</p>
-<p>[
-P(a=1\land b=1)=0.01,
-]</p>
-<p>[
-N_{actual}=100.
-]</p>
+<p><code>P(a = 1 ∧ b = 1) = 0.01</code></p>
+<p><code>N_actual = 100</code></p>
 <p>Оценка в <strong>сто раз меньше</strong> реальности.</p>
 <p>Этот пример соответствует опубликованному демонстрационному случаю в документации PostgreSQL 18, где план первоначально содержит <code>rows=1</code>, а после сбора многоколоночной статистики — <code>rows=100</code>.</p>
 <h4 id="52">5.2. Почему обычная статистика двух колонок не спасает<a class="headerlink" href="#52" title="Permanent link">¶</a></h4>
@@ -1484,8 +1339,8 @@ N_{actual}=100.
 <div class="highlight"><pre><span></span><code>n_distinct = 100
 для значения 1 частота = 0.01
 </code></pre></div>
-<p>Но это две <strong>маргинальные</strong> частоты: (P(a=1)) и (P(b=1)).</p>
-<p>По ним нельзя однозначно восстановить совместную вероятность (P(a=1,b=1)).</p>
+<p>Но это две <strong>частоты отдельных столбцов</strong>: <code>P(a = 1)</code> и <code>P(b = 1)</code>.</p>
+<p>По ним нельзя однозначно восстановить совместную вероятность <code>P(a = 1,b = 1)</code>.</p>
 <p>Две таблицы могут иметь одинаковые распределения каждого столбца в отдельности и совершенно разное совместное распределение:</p>
 <ul>
 <li>в первой колонке <code>b</code> всегда равна <code>a</code>;</li>
@@ -1508,36 +1363,27 @@ N_{actual}=100.
 <p>Объекты регистрируются в <code>pg_statistic_ext</code>, сами расширенные данные — в <code>pg_statistic_ext_data</code>. Для просмотра существует <code>pg_stats_ext</code>; содержимое многоколоночной MCV можно раскрыть функцией <code>pg_mcv_list_items</code>.</p>
 <p>Рассмотрим три вида статистики по отдельности.</p>
 <h4 id="54-dependencies">5.4. <code>dependencies</code>: функциональные зависимости<a class="headerlink" href="#54-dependencies" title="Permanent link">¶</a></h4>
-<p>Говорят, что (A\to B), если значение A определяет значение B. Классический пример: корректный ZIP-код может определять город, хотя один город может содержать несколько ZIP-кодов.</p>
+<p>Говорят, что <code>A → B</code>, если значение A определяет значение B. Классический пример: корректный ZIP-код может определять город, хотя один город может содержать несколько ZIP-кодов.</p>
 <p>Для совпадающих колонок <code>a</code> и <code>b</code> степень зависимости близка к 1.</p>
-<p>Коэффициент (f) в статистике зависимостей отражает, насколько хорошо выполняется связь. Он может быть между 0 и 1:</p>
+<p>Коэффициент <code>f</code> в статистике зависимостей отражает, насколько хорошо выполняется связь. Он может быть между 0 и 1:</p>
 <ul>
-<li>(f=1): полная функциональная зависимость;</li>
-<li>(f\approx0): сильной зависимости нет;</li>
+<li><code>f = 1</code>: полная функциональная зависимость;</li>
+<li><code>f ≈ 0</code>: сильной зависимости нет;</li>
 <li>промежуточные значения: связь частичная.</li>
 </ul>
 <p>В документируемой модели PostgreSQL для двух подходящих условий исходная идея:</p>
-<p>[
-P(A,B)\approx fP(A)+(1-f)P(A)P(B).
-]</p>
+<p><code>P(A,B) ≈ f × P(A) + (1 − f) × P(A) × P(B)</code></p>
 <p>Однако <strong>реальная реализация использует уточнение</strong>, чтобы совместная селективность не превысила отдельную селективность каждого условия:</p>
-<p>[
-\boxed{\hat s_{AB}\approx f\min(s_A,s_B)+(1-f)s_As_B.}
-]</p>
+<p><code>ŝ_AB ≈ f × min(s_A, s_B) + (1 − f) × s_A × s_B</code></p>
 <p>Именно это выражение описано в исходниках <code>src/backend/statistics/dependencies.c</code> (при более чем двух условиях используется более сложное последовательное применение зависимостей).</p>
 <p>Подставим:</p>
-<p>[
-s_A=0.1,\quad s_B=0.2,\quad f=0.75.
-]</p>
-<p>[
-\hat s_{AB}=0.75\cdot0.1+0.25\cdot(0.1\cdot0.2)
-=0.075+0.005=0.08.
-]</p>
+<p><code>s_A = 0.1, s_B = 0.2, f = 0.75</code></p>
+<p><code>ŝ_AB = 0.75 × 0.1 + 0.25 × (0.1 × 0.2) = 0.075 + 0.005 = 0.08</code></p>
 <p>Для миллиона строк это оценка 80 000.</p>
 <p>Проверьте крайние случаи мысленно:</p>
 <ul>
-<li>при (f=0) получим независимую модель: (0.02), или 20 000 строк;</li>
-<li>при (f=1) получим (\min(0.1,0.2)=0.1), или 100 000 строк.</li>
+<li>при <code>f = 0</code> получим независимую модель: <code>0.02</code>, или 20 000 строк;</li>
+<li>при <code>f = 1</code> получим <code>min(0.1,0.2) = 0.1</code>, или 100 000 строк.</li>
 </ul>
 <p>Чем сильнее зависимость, тем меньше второе условие считается способным дополнительно уменьшить результат.</p>
 <h4 id="55-dependencies-f1">5.5. Почему dependencies могут ошибаться даже при <code>f=1</code><a class="headerlink" href="#55-dependencies-f1" title="Permanent link">¶</a></h4>
@@ -1555,7 +1401,7 @@ s_A=0.1,\quad s_B=0.2,\quad f=0.75.
 <span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">city</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'Los Angeles'</span>
 </code></pre></div>
 <p>Если данные непротиворечивы, результат пустой.</p>
-<p>Но статистика <code>dependencies</code> описывает <strong>силу общей зависимости</strong>, не полное отображение каждого ZIP-кода в каждый город. Она может трактовать оба условия как совместимые и давать положительную оценку.</p>
+<p>Но статистика функциональных зависимостей (<code>dependencies</code>) описывает <strong>силу общей зависимости</strong>, не полное отображение каждого ZIP-кода в каждый город. Она может трактовать оба условия как совместимые и давать положительную оценку.</p>
 <p>Здесь становится понятно ограничение этого метода: <strong>знание, что B зависит от A, не раскрывает, какому именно B соответствует конкретное A</strong>.</p>
 <p>Дополнительные ограничения в PostgreSQL 18: функциональные зависимости применяются прежде всего к простым условиям равенства колонки константе и подходящим <code>IN</code> со списками констант. Они не являются универсальным механизмом коррекции произвольных диапазонов, <code>LIKE</code>, сложных выражений или сравнений двух колонок.</p>
 <h4 id="56-mcv">5.6. Многоколоночные MCV: хранить конкретные сочетания<a class="headerlink" href="#56-mcv" title="Permanent link">¶</a></h4>
@@ -1612,20 +1458,14 @@ n_distinct(b) = 100
 <p><strong>Важная граница:</strong> <code>ndistinct</code> не следует считать главным средством исправления селективности произвольного <code>WHERE a=... AND b=...</code>. Для совместных фильтров обычно важнее <code>dependencies</code> и многоколоночная <code>mcv</code>. Иначе легко получить красивый объект статистики, который не влияет на искомую оценку.</p>
 <h4 id="58-postgresql">5.8. Почему PostgreSQL не строит статистику для всех комбинаций автоматически<a class="headerlink" href="#58-postgresql" title="Permanent link">¶</a></h4>
 <p>Для таблицы с 30 столбцами количество пар:</p>
-<p>[
-C(30,2)=\frac{30\cdot29}{2}=435.
-]</p>
+<p><code>C(30,2) = (30 × 29) / 2 = 435</code></p>
 <p>Количество троек:</p>
-<p>[
-C(30,3)=4060.
-]</p>
+<p><code>C(30,3) = 4060</code></p>
 <p>Количество всех непустых сочетаний:</p>
-<p>[
-2^{30}-1=1\,073\,741\,823.
-]</p>
+<p><code>2³⁰ − 1 = 1 073 741 823</code></p>
 <p>Разумеется, далеко не все сочетания нужны реальным запросам. Автоматически собирать и поддерживать статистику для миллиарда возможных наборов колонок абсурдно.</p>
 <p>Поэтому пользователь явно выбирает значимые группы через <code>CREATE STATISTICS</code>. Это разумный компромисс между временем анализа, объемом каталога и качеством оценок для <strong>действительно используемых</strong> предикатов.</p>
-<h4 id="5">Что важно запомнить после раздела 5<a class="headerlink" href="#5" title="Permanent link">¶</a></h4>
+<h4 id="5_1">Что важно запомнить после раздела 5<a class="headerlink" href="#5_1" title="Permanent link">¶</a></h4>
 <ol>
 <li>Две точные одно-колоночные статистики не определяют совместное распределение двух столбцов.</li>
 <li><code>dependencies</code> оценивает силу функциональной зависимости; она может не распознать несовместимые конкретные значения.</li>
@@ -1634,21 +1474,17 @@ C(30,3)=4060.
 <li>Расширенная статистика не появляется сама по себе: объект нужно создать, затем собрать данные через <code>ANALYZE</code>.</li>
 </ol>
 <hr/>
-<h3 id="6-cardinality-estimation">6. Ошибки Cardinality Estimation: когда статистическая модель оказывается недостаточной<a class="headerlink" href="#6-cardinality-estimation" title="Permanent link">¶</a></h3>
+<p>Мы научились улучшать модель распределения за счет функциональных зависимостей и частых сочетаний значений. Но даже расширенная статистика не знает всех данных. Теперь соберем ситуации, в которых оценки <code>rows</code> расходятся с реальностью, и разберем, какие именно предположения нарушаются.</p>
+<h3 id="6">6. Ошибки оценки количества строк: когда статистическая модель оказывается недостаточной<a class="headerlink" href="#6" title="Permanent link">¶</a></h3>
 <h4 id="61">6.1. Как измерять ошибку и не обманывать себя<a class="headerlink" href="#61" title="Permanent link">¶</a></h4>
 <p>Пусть:</p>
 <div class="highlight"><pre><span></span><code>estimated rows = 100
 actual rows    = 100000
 </code></pre></div>
 <p>Оценка занижена в:</p>
-<p>[
-\frac{100\,000}{100}=1000\text{ раз}.
-]</p>
+<p><code>100 000 / 100 = 1 000 раз</code></p>
 <p>Для ненулевых значений можно вводить показатель кратности ошибки:</p>
-<p>[
-q=\max\left(\frac{N_{actual}}{N_{estimated}},
-\frac{N_{estimated}}{N_{actual}}\right).
-]</p>
+<p><code>q = max(N_actual / N_estimated, N_estimated / N_actual)</code></p>
 <p>Он показывает величину расхождения независимо от направления. Но направление тоже важно:</p>
 <ul>
 <li><code>actual &gt; estimated</code> — <strong>недооценка</strong>, опасна при выборе операций, рассчитанных на маленький объем;</li>
@@ -1658,9 +1494,7 @@ q=\max\left(\frac{N_{actual}}{N_{estimated}},
 <p>В <code>EXPLAIN ANALYZE</code> следует сравнивать оценки и фактические строки <strong>одного и того же узла</strong>. Если узел выполнялся многократно, <code>actual rows</code> обычно показывает среднее на запуск, поэтому без учета <code>loops</code> нельзя интерпретировать абсолютный объем работы.</p>
 <h4 id="62">6.2. Сценарий А: неравномерность внутри неизвестного остатка<a class="headerlink" href="#62" title="Permanent link">¶</a></h4>
 <p>Вернемся к оценке значения, отсутствующего в MCV:</p>
-<p>[
-\hat s=\frac{\text{остаточная масса}}{\text{число остальных значений}}.
-]</p>
+<p><code>ŝ = (остаточная масса) / (число остальных значений)</code></p>
 <p>Это ровно то место, где планировщик вынужден предполагать приблизительную равномерность остатка.</p>
 <p>Если одна редкая категория стала очень популярной, но не попала в статистическую выборку или не получила индивидуальной записи в MCV, оценка будет неверной.</p>
 <p><strong>Симптом:</strong> два запроса с одной колонкой и разными конкретными значениями имеют похожие <code>rows</code> в планах, но фактическое количество строк резко различается.</p>
@@ -1674,16 +1508,14 @@ q=\max\left(\frac{N_{actual}}{N_{estimated}},
 <p>может оказаться вне диапазона старой гистограммы. Теперь планировщику приходится использовать эвристику для области, которую статистика плохо описывает.</p>
 <p>Новая часть распределения могла содержать 10 строк или миллион строк. По старым границам это не установить.</p>
 <p><strong>Симптом:</strong> запросы к «самым свежим» данным оцениваются хуже, чем запросы к историческому диапазону.</p>
-<p><strong>Причинная цепочка:</strong> монотонно растущий столбец → статистика отстает → новые значения вне старых histogram bounds → ошибочная оценка диапазона.</p>
+<p><strong>Причинная цепочка:</strong> монотонно растущий столбец → статистика отстает → новые значения вне прежних границ гистограммы → ошибочная оценка диапазона.</p>
 <h4 id="64">6.4. Сценарий В: статистика свежая, но условия зависимы<a class="headerlink" href="#64" title="Permanent link">¶</a></h4>
 <p>В таблице <code>status='PAID'</code> и <code>channel='APP'</code> имеют селективности по <code>0.1</code>, но встречаются строго вместе.</p>
 <p>Даже только что выполненный <code>ANALYZE</code> по отдельным колонкам может дать:</p>
-<p>[
-0.1\cdot0.1=0.01
-]</p>
-<p>вместо фактических (0.1).</p>
+<p><code>0.1 × 0.1 = 0.01</code></p>
+<p>вместо фактических <code>0.1</code>.</p>
 <p><strong>Симптом:</strong> одиночные условия оцениваются корректно, совместное <code>AND</code> — сильно неверно.</p>
-<p><strong>Причинная цепочка:</strong> верные маргинальные распределения → ошибочное предположение независимости → недооценка комбинации → необходимость extended statistics.</p>
+<p><strong>Причинная цепочка:</strong> верные маргинальные распределения → ошибочное предположение независимости → недооценка комбинации → необходимость расширенной статистики.</p>
 <p>Это принципиально другая проблема, чем устаревшая статистика. Повторять обычный <code>ANALYZE</code> здесь недостаточно: нужно изменить <strong>сам набор доступных сведений</strong>.</p>
 <h4 id="65">6.5. Сценарий Г: выборка не видит редкое значение<a class="headerlink" href="#65" title="Permanent link">¶</a></h4>
 <p>Миллионные таблицы часто содержат «тяжелых» клиентов, крупные группы событий, всплески аномальных статусов.</p>
@@ -1718,17 +1550,17 @@ q=\max\left(\frac{N_{actual}}{N_{estimated}},
 </tr>
 <tr>
 <td>Недостаточная выборка</td>
-<td>Повысить statistics target для нужной колонки</td>
-<td>Глобально завысить target всем столбцам</td>
+<td>Повысить целевой уровень статистики нужного столбца</td>
+<td>Глобально повысить целевой уровень статистики для всех столбцов</td>
 </tr>
 <tr>
 <td>Зависимые колонки</td>
 <td><code>CREATE STATISTICS (mcv/dependencies)</code> + <code>ANALYZE</code></td>
-<td>Повторять обычный <code>ANALYZE</code> без extended stats</td>
+<td>Повторять обычный <code>ANALYZE</code> без расширенной статистики</td>
 </tr>
 <tr>
 <td>Неудачная оценка диапазона</td>
-<td>Улучшить актуальность и разрешение histogram; исследовать форму данных</td>
+<td>Улучшить актуальность и детализацию гистограммы; исследовать форму данных</td>
 <td>Считать <code>BETWEEN</code> независимыми сравнениями</td>
 </tr>
 <tr>
@@ -1748,13 +1580,13 @@ q=\max\left(\frac{N_{actual}}{N_{estimated}},
 <p>Предположим, <code>rows</code> вычислен точно. Все равно остаются вопросы:</p>
 <ul>
 <li>сколько страниц таблицы понадобится прочитать;</li>
-<li>насколько строки разбросаны по heap;</li>
+<li>насколько строки разбросаны по таблице;</li>
 <li>находятся ли нужные страницы в кеше;</li>
 <li>какова стоимость обработки каждого кандидата;</li>
 <li>сколько памяти потребуется сортировке.</li>
 </ul>
-<p>Ответы превращают оценку <code>rows</code> в <strong>cost model</strong>. Это содержание блока 2 лекции 05.1.</p>
-<p>Для завершения текущей темы нам важно другое: если <code>rows</code> ошибочны, то все последующие расчеты получают неверные исходные данные. Поэтому оценка cardinality — фундамент, на котором строится дальнейший выбор плана.</p>
+<p>Ответы превращают оценку <code>rows</code> в <strong>модель стоимости</strong>. Это содержание блока 2 лекции 05.1.</p>
+<p>Для завершения текущей темы нам важно другое: если <code>rows</code> ошибочны, то все последующие расчеты получают неверные исходные данные. Поэтому оценка количества строк — фундамент, на котором строится дальнейший выбор плана.</p>
 <h4 id="69-sql">6.9. Единый разбор от SQL до оценки<a class="headerlink" href="#69-sql" title="Permanent link">¶</a></h4>
 <p>Сведем все в один пример.</p>
 <p>Есть миллион строк. Планировщик знает:</p>
@@ -1769,17 +1601,11 @@ P(channel='APP') = 0.10
 <span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'APP'</span><span class="p">;</span>
 </code></pre></div>
 <p><strong>Модель 1. Только одно-колоночная статистика.</strong></p>
-<p>[
-\hat N=1\,000\,000\cdot0.10\cdot0.10=10\,000.
-]</p>
+<p><code>N̂ = 1 000 000 × 0.10 × 0.10 = 10 000</code></p>
 <p><strong>Факт.</strong> Все оплаченные заказы приходят через приложение, поэтому действительное количество — 100 000.</p>
 <p><strong>Модель 2. Известна полная функциональная зависимость.</strong></p>
-<p>[
-f=1,\qquad \hat s=\min(0.10,0.10)=0.10.
-]</p>
-<p>[
-\hat N=100\,000.
-]</p>
+<p><code>f = 1; ŝ = min(0.10, 0.10) = 0.10</code></p>
+<p><code>N̂ = 100 000</code></p>
 <p><strong>Модель 3. Известна совместная MCV-пара.</strong></p>
 <p>Для <code>(PAID, APP)</code> в расширенной MCV оценена частота <code>0.10</code>, а <code>base_frequency=0.01</code>. Планировщик получает основание корректировать наивное перемножение.</p>
 <p>На этом завершена цепочка:</p>
@@ -1797,7 +1623,7 @@ extended statistics для зависимых условий
          ↓
 [следующий блок: cost model и выбор пути]
 </code></pre></div>
-<h4 id="6">Что важно запомнить после раздела 6<a class="headerlink" href="#6" title="Permanent link">¶</a></h4>
+<h4 id="6_1">Что важно запомнить после раздела 6<a class="headerlink" href="#6_1" title="Permanent link">¶</a></h4>
 <ol>
 <li>Ошибка <code>rows</code> возникает либо в оценке размера исходной таблицы, либо в селективности, либо в сочетании обоих факторов.</li>
 <li>Свежая статистика может быть недостаточной по <strong>составу</strong>, даже если она актуальна по времени.</li>
@@ -1806,8 +1632,45 @@ extended statistics для зависимых условий
 <li>Правильные <code>rows</code> еще не гарантируют правильный <code>cost</code>, но неправильные <code>rows</code> дают плохую основу для всей дальнейшей оптимизации.</li>
 </ol>
 <hr/>
-<h2 id="2-postgresql-cost-model-rows">Блок 2. PostgreSQL Cost Model — от <code>rows</code> к стоимости<a class="headerlink" href="#2-postgresql-cost-model-rows" title="Permanent link">¶</a></h2>
-<p>Блок 1 дал оценку количества строк. Но у получения одних и тех же 10 000 строк может быть принципиально разная цена: все страницы таблицы, множество отдельных heap-обращений, построение bitmap или сортировка после чтения. Теперь разберем расчетную модель каждой альтернативы — без смешения формул реального кода с учебными приближениями.</p>
+<h3 id="_1">Заключение: какая модель должна остаться у студента<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Планировщик PostgreSQL строит <strong>приближенную картину данных</strong>, потому что полная проверка содержимого таблицы до выполнения каждого запроса недопустимо дорога.</p>
+<p>Эта картина устроена многослойно:</p>
+<ol>
+<li><strong>Размер:</strong> сколько строк в отношении примерно существует (<code>pg_class</code>).</li>
+<li><strong>Маргинальное распределение:</strong> сколько <code>NULL</code>, сколько разных значений, какие значения частые, как распределен остаток (<code>pg_statistic</code>).</li>
+<li><strong>Математика условия:</strong> какая доля строк, по ожиданию, удовлетворит конкретному <code>WHERE</code>.</li>
+<li><strong>Многоколоночная связь:</strong> можно ли заменить ошибочное предположение независимости более точной моделью (<code>CREATE STATISTICS</code>).</li>
+<li><strong>Оценка выхода:</strong> итоговое <code>rows</code> в дереве выполнения.</li>
+</ol>
+<p>Главная инженерная мысль: <strong>первым делом нужно выяснить, что именно планировщик неправильно предполагает о данных.</strong> И только после этого обсуждать изменение индексов и параметров производительности.</p>
+<h4 id="_2">Следующий слой (не разворачиваем в этой лекции)<a class="headerlink" href="#_2" title="Permanent link">¶</a></h4>
+<p><strong>Блок 2 — модель стоимости PostgreSQL.</strong> Почему одинаковое <code>rows</code> может привести к выбору разных способов чтения? Как число строк, страниц, корреляция и параметры <code>seq_page_cost</code>/<code>random_page_cost</code> участвуют в формулах <code>cost_seqscan</code>, <code>cost_index</code>, <code>cost_bitmap_heap_scan</code> и <code>cost_sort</code>? Ответ потребует открыть <code>costsize.c</code> и связать сегодняшние оценки с ценой реальных операций.</p>
+<p>Именно там продолжится расследование:</p>
+<p><strong>статистика → селективность → <code>rows</code> → стоимость альтернатив → выбранный путь выполнения.</strong></p>
+<hr/>
+<h3 id="_3">Источники и статус утверждений<a class="headerlink" href="#_3" title="Permanent link">¶</a></h3>
+<p><strong>Основной ориентир — PostgreSQL 18.</strong> Формулы и числовые иллюстрации в тексте разделены по уровню: статистические тождества и вероятностные модели; упрощения для преподавания; документированное поведение планировщика; конкретные детали исходного кода. Числа в учебных примерах сконструированы для объяснения, они не являются протоколами реального запуска СУБД.</p>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/planner-stats.html">PostgreSQL 18: Статистика, используемая планировщиком</a> — <code>pg_class</code>, статистика по колонкам, расширенные статистики и ограничения.</li>
+<li><a href="https://www.postgresql.org/docs/18/row-estimation-examples.html">PostgreSQL 18: Примеры оценки количества строк</a> — расчеты по MCV, остаточной частоте, гистограмме и сочетаниям условий.</li>
+<li><a href="https://www.postgresql.org/docs/18/multivariate-statistics-examples.html">PostgreSQL 18: Примеры многоколоночной статистики</a> — пример ошибки в 100 раз, функциональные зависимости, <code>ndistinct</code>, многоколоночные MCV.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-analyze.html">PostgreSQL 18: ANALYZE</a> — выборка, настройка статистики, ограничения и стоимость сбора.</li>
+<li><a href="https://www.postgresql.org/docs/18/view-pg-stats.html">PostgreSQL 18: <code>pg_stats</code></a> и <a href="https://www.postgresql.org/docs/18/catalog-pg-statistic.html"><code>pg_statistic</code></a> — точная семантика полей.</li>
+<li><a href="https://www.postgresql.org/docs/18/view-pg-stats-ext.html">PostgreSQL 18: <code>pg_stats_ext</code></a>, <a href="https://www.postgresql.org/docs/18/functions-statistics.html">Statistics Information Functions</a> — частоты комбинаций и <code>base_frequency</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/routine-vacuuming.html">PostgreSQL 18: Регулярное обслуживание таблиц</a> — автообновление статистики и порог срабатывания.</li>
+<li><a href="https://doxygen.postgresql.org/dependencies_8c_source.html">Исходный код PostgreSQL: <code>dependencies.c</code></a> — уточненная формула функциональных зависимостей с <code>min(P(A),P(B))</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/analyze.c">Исходный код PostgreSQL: <code>analyze.c</code></a> — сбор выборки и формирование статистики (ветка PostgreSQL 18).</li>
+</ol>
+<p><strong>Граница следующей лекции:</strong> SQL <code>JOIN</code> и алгоритмы его исполнения здесь намеренно не рассматриваются.</p>
+<hr/>
+<h2 id="052-postgresql-cost-model">05.2. PostgreSQL Cost Model<a class="headerlink" href="#052-postgresql-cost-model" title="Permanent link">¶</a></h2>
+<blockquote>
+<p><strong>Техническая лекция.</strong> Основной ориентир — PostgreSQL 18, с проверкой по документации и исходникам ветки <code>REL_18_STABLE</code>. Рассматриваются оценка стоимости способов чтения <strong>одной таблицы</strong> и сортировки: <code>cost_seqscan</code>, <code>cost_index</code>, <code>cost_bitmap_heap_scan</code>, <code>cost_sort</code>/<code>cost_tuplesort</code>.</p>
+<p><strong>Границы:</strong> без алгоритмов JOIN, порядка соединений и стоимости соединений. Без лабораторных заданий: только причинно-следственные объяснения, формулы, числовые расчеты и короткие иллюстративные SQL-запросы.</p>
+<p><strong>Продолжение блока 1:</strong> там PostgreSQL превратил статистику и условия <code>WHERE</code> в оценку <code>rows</code>. Теперь надо объяснить, почему из одного и того же набора строк можно прийти к разным планам и почему наличие индекса еще ничего не гарантирует.</p>
+</blockquote>
+<hr/>
+<p>В первой части мы получили оценку <code>rows</code>, научились читать статистику и обнаруживать ошибки селективности. Теперь поставим следующий вопрос: даже при одинаковом количестве подходящих строк почему один план читает таблицу целиком, другой обращается к индексу, а третий строит битовую карту? Ответ требует связать предполагаемый объем данных со стоимостью физических операций.</p>
 <h3 id="7-postgresql">7. Модель стоимости PostgreSQL<a class="headerlink" href="#7-postgresql" title="Permanent link">¶</a></h3>
 <h4 id="71-rows">7.1. У нас уже есть <code>rows</code>. Почему этого недостаточно?<a class="headerlink" href="#71-rows" title="Permanent link">¶</a></h4>
 <p>Представим таблицу <code>orders</code>, в которой миллион строк. После анализа статистики планировщик ожидает, что условие вернет десять тысяч строк:</p>
@@ -1853,17 +1716,11 @@ B. Seq Scan + Sort
 <p>Числа условные.</p>
 <p>Если клиенту нужны все строки, B выглядит дешевле. Но если требуется только первая строка, у A может быть преимущество. Сортировка без ограничений часто должна сначала прочитать и упорядочить входные данные.</p>
 <p>В <code>costsize.c</code> прямо описано приближение для стоимости получения части результата:</p>
-<p>[
-C_{\text{partial}}=C_{\text{startup}}+
-\left(C_{\text{total}}-C_{\text{startup}}\right)
-\frac{N_{\text{needed}}}{N_{\text{path}}}.
-]</p>
+<p><code>C_partial = C_startup + (C_total − C_startup) × (N_needed / N_path)</code></p>
 <p>Это <strong>оценочная интерполяция</strong>, применяемая там, где планировщик может ожидать неполное потребление результата. Она не обещает, что любой узел физически умеет остановиться пропорционально числу строк. <code>LIMIT</code> подробно разберем в блоке 3, а здесь важно понять причину существования двух <code>cost</code>.</p>
 <h4 id="74">7.4. Аддитивная модель: что складывается<a class="headerlink" href="#74" title="Permanent link">¶</a></h4>
 <p>Упрощенно стоимость полного пути можно выразить так:</p>
-<p>[
-C_{\text{total}} = C_{\text{startup}} + C_{\text{I/O}} + C_{\text{CPU}} + C_{\text{other}}.
-]</p>
+<p><code>C_total = C_startup + C_(I/O) + C_CPU + C_other</code></p>
 <p>Слагаемые зависят от способа выполнения.</p>
 <p>Для сканирования таблицы могут учитываться:</p>
 <ul>
@@ -1883,10 +1740,7 @@ C_{\text{total}} = C_{\text{startup}} + C_{\text{I/O}} + C_{\text{CPU}} + C_{\te
 </code></pre></div>
 <p><code>Sort</code> получает строки от дочернего <code>Seq Scan</code>. Стоимость дочернего пути уже включена в стоимость родителя. Сложив <code>30250 + 20000</code>, мы посчитаем чтение таблицы дважды.</p>
 <p>Правильная модель:</p>
-<p>[
-C_{\text{Sort,total}} =
-C_{\text{input,total}} + C_{\text{sorting}} + C_{\text{output}}.
-]</p>
+<p><code>C_Sort,total = C_input,total + C_sorting + C_output</code></p>
 <p>Это объясняет, почему верхний узел дерева может иметь самую высокую стоимость, даже если его собственные операции относительно дешевы.</p>
 <h4 id="76">7.6. Какие данные реально поступают в функции стоимости<a class="headerlink" href="#76" title="Permanent link">¶</a></h4>
 <p>В исходниках PostgreSQL ключевые структуры следующие:</p>
@@ -1936,6 +1790,7 @@ C_{\text{input,total}} + C_{\text{sorting}} + C_{\text{output}}.
 <li>Базовая единица стоимости выбрана для сравнения планов, поэтому перевод <code>cost → миллисекунды</code> без калибровки некорректен.</li>
 </ol>
 <hr/>
+<p>Мы выяснили, что PostgreSQL сравнивает способы выполнения по условной стоимости и различает работу до первой строки и до завершения всего результата. Но откуда берутся сами условные единицы? Чтобы начать считать конкретные планы, нужно познакомиться с коэффициентами стоимости страниц, строк и операторов.</p>
 <h3 id="8-cpu">8. Коэффициенты стоимости: от страниц к CPU<a class="headerlink" href="#8-cpu" title="Permanent link">¶</a></h3>
 <h4 id="81">8.1. Почему планировщик вообще задает цену операции константой?<a class="headerlink" href="#81" title="Permanent link">¶</a></h4>
 <p>Рассмотрим один и тот же SQL на разных серверах.</p>
@@ -2006,25 +1861,15 @@ Index Scan и другие пути с индексным доступом вы�
 <div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
 </code></pre></div>
 <p>учебная модель одной проверки:</p>
-<p>[
-C_{\text{CPU per tuple}} \approx
-C_{\text{tuple}} + C_{\text{operator}}
-= 0.01 + 0.0025 = 0.0125.
-]</p>
+<p><code>C_CPU_per_tuple ≈ C_tuple + C_operator = 0.01 + 0.0025 = 0.0125</code></p>
 <p>А если условие содержит несколько операторов и вызовы функций, стоимость выражения будет выше. PostgreSQL использует <code>cost_qual_eval()</code> и связанные механизмы для расчета <code>QualCost</code>.</p>
 <p>Стоимость функций не всегда сводится к <code>cpu_operator_cost</code>: функции могут иметь заданную стоимость через механизм <code>pg_proc.procost</code>, и планировщик учитывает эту информацию. Поэтому умножение числа символов <code>&gt;</code> и <code>=</code> на <code>0.0025</code> не является общей формулой SQL.</p>
 <h4 id="84-cpu_index_tuple_cost-cpu_tuple_cost">8.4. Как <code>cpu_index_tuple_cost</code> соотносится с <code>cpu_tuple_cost</code><a class="headerlink" href="#84-cpu_index_tuple_cost-cpu_tuple_cost" title="Permanent link">¶</a></h4>
 <p>При <code>Index Scan</code> PostgreSQL может обрабатывать записи индекса, а потом соответствующие строки heap. В модели присутствуют обе категории работы.</p>
 <p>Для B-tree-кандидата на поиск по одному условию упрощенный фрагмент оценки индексного метода доступа имеет вид:</p>
-<p>[
-C_{\text{index CPU}} \approx
-N_{\text{index entries}}
-\left(C_{\text{index tuple}} + C_{\text{operator}}\right).
-]</p>
+<p><code>C_index_CPU ≈ N_index_entries × (C_index_tuple + C_operator)</code></p>
 <p>Для 10 000 найденных индексных записей:</p>
-<p>[
-10000(0.005+0.0025)=75.
-]</p>
+<p><code>10 000 × (0.005 + 0.0025) = 75</code></p>
 <p>Но это <strong>еще не</strong> полная стоимость <code>Index Scan</code>. Остались стоимость страниц индекса, посещений heap, обработки heap-кортежей и дополнительных фильтров.</p>
 <p>Вот почему фраза «индекс читает только 10 000 строк» слишком груба: физически могут быть тысячи страниц и две структуры хранения.</p>
 <h4 id="85-effective_cache_size">8.5. <code>effective_cache_size</code>: самый частый неверный вывод<a class="headerlink" href="#85-effective_cache_size" title="Permanent link">¶</a></h4>
@@ -2067,6 +1912,7 @@ N_{\text{index entries}}
 <li>Глобальная настройка влияет на большое количество потенциальных планов, поэтому ее нельзя бездумно подбирать под один запрос.</li>
 </ol>
 <hr/>
+<p>Коэффициенты стоимости определены. Теперь проверим, как они складываются в число, которое PostgreSQL показывает у самого простого способа чтения — <code>Seq Scan</code>. Он станет отправной точкой для сравнения с индексными и битовыми сканированиями.</p>
 <h3 id="9-seq-scan">9. Математика <code>Seq Scan</code>: теперь считаем стоимость руками<a class="headerlink" href="#9-seq-scan" title="Permanent link">¶</a></h3>
 <h4 id="91">9.1. Одна учебная таблица для всех следующих разделов<a class="headerlink" href="#91" title="Permanent link">¶</a></h4>
 <p>Чтобы при сравнении методов чтения не менять исходные данные посреди рассуждения, зададим одну модель.</p>
@@ -2083,7 +1929,7 @@ N_{\text{index entries}}
 <tr>
 <td><code>N</code></td>
 <td style="text-align: right;"><code>1 000 000</code></td>
-<td>Оцененное число кортежей для расчета обработки полного сканирования</td>
+<td>Версий строк, которые модель ожидает обработать при полном сканировании</td>
 </tr>
 <tr>
 <td><code>T</code></td>
@@ -2127,7 +1973,6 @@ N_{\text{index entries}}
 </tr>
 </tbody>
 </table>
-<p>Здесь <code>N</code> соответствует статистической оценке <code>baserel-&gt;tuples</code>, а не точному количеству физически существующих версий строк: в heap могут оставаться мертвые версии, создающие дополнительную реальную работу до очистки.</p>
 <p>Последнее число нужно только для <strong>учебного приближения</strong> стоимости чтения B-tree. В реальной системе индекс имеет собственную статистику, структуру, глубину и параметры метода доступа.</p>
 <p>Предположим, что <code>SELECT</code> требует столбец <code>payload</code>, которого нет в индексе. Тогда обычный <code>Index Only Scan</code> для этого запроса не подходит: при индексном способе доступа придется обращаться к heap.</p>
 <p>Проверяем условие:</p>
@@ -2157,13 +2002,12 @@ N_{\text{index entries}}
 </code></pre></div>
 <p>Это <strong>сокращенный, объясняющий фрагмент</strong>, без веток параллельного исполнения и прочих деталей. Смысловые слагаемые соответствуют исходникам PostgreSQL 18.</p>
 <p>В математической форме для обычного непараллельного случая:</p>
-<p>[
-C_{\text{seq,total}} =
-C_{\text{qual,start}} + C_{\text{target,start}}
-+ T P_{\text{seq}}
-+ N\left(C_{\text{tuple}} + C_{\text{qual/tuple}}\right)
-+ N_{out} C_{\text{target/tuple}}.
-]</p>
+<div class="highlight"><pre><span></span><code>C_seq,total =
+    C_qual,start + C_target,start
+  + T × P_seq
+  + N × (C_tuple + C_qual/tuple)
+  + N_out × C_target/tuple
+</code></pre></div>
 <p>Здесь:</p>
 <ul>
 <li><code>N</code> — все строки, которые сканирование предполагает обработать;</li>
@@ -2175,25 +2019,16 @@ C_{\text{qual,start}} + C_{\text{target,start}}
 <p><strong>Критическая деталь:</strong> CPU на проверку <code>WHERE</code> умножается на <strong><code>N</code></strong>, а стоимость выходных выражений — на <strong><code>N_out</code></strong>.</p>
 <h4 id="93">9.3. Ручной расчет: страницы<a class="headerlink" href="#93" title="Permanent link">¶</a></h4>
 <p>Стоимость последовательного получения страниц:</p>
-<p>[
-C_{\text{I/O}}=T\cdot P_{\text{seq}}
-=10000\cdot1=10000.
-]</p>
+<p><code>C_(I/O) = T × P_seq = 10000 × 1 = 10000</code></p>
 <p>Почему берутся все <code>10 000</code> страниц, хотя условию соответствуют лишь <code>10 000</code> строк?</p>
 <p>Потому что без другого способа локализовать значения условие придется проверять при сканировании всей таблицы. Доля подходящих строк не освобождает <code>Seq Scan</code> от чтения страниц, содержащих неподходящие строки.</p>
 <h4 id="94-cpu">9.4. Ручной расчет: CPU<a class="headerlink" href="#94-cpu" title="Permanent link">¶</a></h4>
 <p>Условная цена обработки одной просмотренной строки:</p>
-<p>[
-C_{\text{CPU/tuple}}=0.01+0.0025=0.0125.
-]</p>
+<p><code>C_CPU_per_tuple = 0.01 + 0.0025 = 0.0125</code></p>
 <p>Для миллиона строк:</p>
-<p>[
-C_{\text{CPU}}=1\,000\,000\cdot0.0125=12\,500.
-]</p>
+<p><code>C_CPU = 1 000 000 × 0.0125 = 12 500</code></p>
 <p>Если вычисление целевого списка в этой учебной модели дополнительно ничего не стоит, получаем:</p>
-<p>[
-\boxed{C_{\text{seq,total}}=10000+12500=22500.}
-]</p>
+<p><code>C_seq,total = 10 000 + 12 500 = 22 500</code></p>
 <p>При нулевых startup-затратах выражений:</p>
 <div class="highlight"><pre><span></span><code>Seq Scan on orders  (cost=0.00..22500.00 rows=10000 width=...)
 </code></pre></div>
@@ -2237,13 +2072,9 @@ C_{\text{CPU}}=1\,000\,000\cdot0.0125=12\,500.
 <h4 id="96">9.6. Как дорогая функция меняет картину<a class="headerlink" href="#96" title="Permanent link">¶</a></h4>
 <p>Предположим, в <code>WHERE</code> появился дорогой предикат, которому планировщик назначил стоимость <code>0.2</code> условных единицы на строку вместо <code>0.0025</code>.</p>
 <p>Тогда:</p>
-<p>[
-C_{\text{CPU}}=1\,000\,000\cdot(0.01+0.2)=210\,000.
-]</p>
+<p><code>C_CPU = 1 000 000 × (0.01 + 0.2) = 210 000</code></p>
 <p>И всего:</p>
-<p>[
-C_{\text{seq}}=10000+210000=220000.
-]</p>
+<p><code>C_seq = 10 000 + 210 000 = 220 000</code></p>
 <p>Теперь на стоимость сильнее влияет CPU, чем число страниц.</p>
 <p>Но есть тонкость: PostgreSQL может переставлять допустимые условия и использовать короткое вычисление логических выражений. Не каждое условие обязательно вычисляется для каждой строки, поэтому это числовое сравнение показывает <strong>порядок влияния стоимости</strong>, а не гарантированную инструкционную последовательность для любого <code>WHERE</code>.</p>
 <h4 id="97">9.7. Где здесь физическая реальность<a class="headerlink" href="#97" title="Permanent link">¶</a></h4>
@@ -2266,6 +2097,7 @@ C_{\text{seq}}=10000+210000=220000.
 <li>Из исходников следует проверяемая формула: страничная часть + CPU по <code>baserel-&gt;tuples</code> + выходные выражения по <code>path-&gt;rows</code>.</li>
 </ol>
 <hr/>
+<p>Мы посчитали цену последовательного сканирования и увидели важное ограничение: даже редкий результат может требовать чтения всех страниц. Индекс обещает сузить поиск. Однако он добавляет собственную структуру и обращения к строкам таблицы. Разберем, как эта дополнительная работа попадает в <code>cost_index()</code>.</p>
 <h3 id="10-index-scan">10. Математика <code>Index Scan</code>: стоимость индекса — только начало<a class="headerlink" href="#10-index-scan" title="Permanent link">¶</a></h3>
 <h4 id="101-heap">10.1. Простая модель ломается на обращениях к heap<a class="headerlink" href="#101-heap" title="Permanent link">¶</a></h4>
 <p>Вернемся к нашему SQL:</p>
@@ -2288,13 +2120,7 @@ C_{\text{seq}}=10000+210000=220000.
       формирование результата
 </code></pre></div>
 <p>Цена складывается минимум из трех частей:</p>
-<p>[
-C_{\text{Index Scan}} \approx
-C_{\text{index AM}} +
-C_{\text{heap I/O}} +
-C_{\text{heap CPU}} +
-C_{\text{other}}.
-]</p>
+<p><code>C_Index_Scan ≈ C_index_AM + C_heap_IO + C_heap_CPU + C_other</code></p>
 <p>Здесь <strong>index AM</strong> — метод доступа к индексу (<em>index access method</em>). Для B-tree у PostgreSQL есть собственная функция оценки стоимости. Другие индексные методы могут использовать другие оценщики.</p>
 <h4 id="102-cost_index">10.2. Что действительно делает <code>cost_index()</code><a class="headerlink" href="#102-cost_index" title="Permanent link">¶</a></h4>
 <p>На уровне реализации PostgreSQL 18 <code>cost_index()</code> сначала обращается к <code>amcostestimate</code> конкретного индексного метода. Для B-tree используется оценщик <code>btcostestimate()</code> из <code>selfuncs.c</code>, который опирается на общую логику <code>genericcostestimate()</code> и дополнительные сведения о B-tree.</p>
@@ -2308,7 +2134,7 @@ C_{\text{other}}.
 <p>Смысл:</p>
 <ul>
 <li><code>indexStartupCost</code> — часть стоимости индексного поиска до начала выдачи результата;</li>
-<li><code>indexTotalCost</code> — стоимость работы индексного метода доступа, без стоимости чтения всех требуемых страниц heap;</li>
+<li><code>indexTotalCost</code> — стоимость самого индексного пути, без полной стоимости чтения heap;</li>
 <li><code>indexSelectivity</code> — доля строк таблицы, к которым придется обращаться из-за индексных ограничений;</li>
 <li><code>indexCorrelation</code> — насколько порядок ключей индекса связан с физическим порядком строк heap;</li>
 <li><code>indexPages</code> — оценка страниц индекса, затрагиваемых поиском.</li>
@@ -2361,77 +2187,38 @@ C_{\text{other}}.
 <li><code>b</code> — рассчитанная эффективная доля кеша, доступная этому отношению.</li>
 </ul>
 <p>Сначала доля кеша приближенно распределяется по отношению к общему объему рассматриваемых данных:</p>
-<p>[
-b\approx\left\lceil
-\frac{C_{\text{effective cache}}\cdot T}
-     {T_{\text{relations}}+I_{\text{considered}}}
-\right\rceil.
-]</p>
+<p><code>b ≈ ⌈(C_effective_cache × T) / (T_relations + I_considered)⌉</code></p>
 <p>В коде используются <code>root-&gt;total_table_pages</code> и <code>index_pages</code> с защитой от нулевых значений. Здесь упрощено только обозначение.</p>
 <p>Если <code>b &gt;= T</code>, используется ветка:</p>
-<p>[
-\boxed{
-F_{\text{uncorr}}(n,T)=
-\min\left(T,\left\lceil\frac{2Tn}{2T+n}\right\rceil\right).
-}
-]</p>
+<p><code>F_uncorr(n, T) = min(T, ⌈2 × T × n / (2 × T + n)⌉)</code></p>
 <p>Это <strong>не точное число различных страниц</strong>, найденное из фактических TID. Это приближение количества обращений, построенное на предположениях о распределении данных и кешировании.</p>
 <h4 id="105-mackertlohman">10.5. Ручной расчет Mackert–Lohman<a class="headerlink" href="#105-mackertlohman" title="Permanent link">¶</a></h4>
 <p>Возьмем данные нашей таблицы:</p>
-<p>[
-T=10000,\qquad n=10000.
-]</p>
+<p><code>T = 10000, n = 10000</code></p>
 <p>Пусть кешевой бюджет достаточно велик, чтобы в используемой формуле выполнялось <code>b &gt;= T</code>.</p>
 <p>Тогда:</p>
-<p>[
-F_{\text{uncorr}}=
-\left\lceil\frac{2\cdot10000\cdot10000}{20000+10000}\right\rceil
-=\lceil6666.\overline{6}\rceil
-=6667.
-]</p>
+<p><code>F_uncorr = ⌈(2 × 10 000 × 10 000) / (20 000 + 10 000)⌉ = 6 667</code></p>
 <p>Получается примерно <strong>6 667 обращений к страницам heap</strong> для 10 000 кандидатов.</p>
 <p>Если доступ к таким страницам оценивается как непоследовательный:</p>
-<p>[
-C_{\text{heap I/O,max}} = 6667\cdot4=26668.
-]</p>
+<p><code>C_heap_IO,max = 6 667 × 4 = 26 668</code></p>
 <p>Сравним с <code>Seq Scan</code> из предыдущего раздела:</p>
-<p>[
-C_{\text{seq,total}}=22500.
-]</p>
+<p><code>C_seq,total = 22 500</code></p>
 <p>Индексный способ <strong>уже проигрывает по одной только стоимости heap I/O</strong>, до учета чтения самого B-tree и CPU на обработку строк.</p>
 <p>Вот почему даже при селективности 1% индекс может проигрывать последовательному сканированию. Важна локальность ссылок.</p>
 <h4 id="106">10.6. А что, если кеша не хватает? Вторая ветка модели<a class="headerlink" href="#106" title="Permanent link">¶</a></h4>
 <p>Для небольшого кешевого бюджета <code>b &lt; T</code> в исходниках применяется кусочная формула.</p>
 <p>Введем границу:</p>
-<p>[
-L=\frac{2Tb}{2T-b}.
-]</p>
+<p><code>L = (2 × T × b) / (2 × T − b)</code></p>
 <p>Тогда до этой границы используется прежнее выражение:</p>
-<p>[
-F(n)=\left\lceil\frac{2Tn}{2T+n}\right\rceil,
-\qquad n\le L.
-]</p>
+<p><code>F(n) = ⌈2 × T × n / (2 × T + n)⌉  при n ≤ L</code></p>
 <p>После границы:</p>
-<p>[
-\boxed{
-F(n)=\left\lceil b+(n-L)\frac{T-b}{T}\right\rceil,
-\qquad n&gt;L.
-}
-]</p>
+<p><code>F(n) = ⌈b + (n − L) × (T − b) / T⌉  при n &gt; L</code></p>
 <p>Смысл этой ветки: часть ранее прочитанных страниц уже могла быть вытеснена из эффективного кеша, поэтому будущие обращения могут потребовать повторных получений страниц.</p>
 <p>Разберем отдельно:</p>
-<p>[
-T=10000,\quad b=2000,\quad n=10000.
-]</p>
-<p>[
-L=\frac{2\cdot10000\cdot2000}{20000-2000}
-=\frac{40000000}{18000}\approx2222.22.
-]</p>
+<p><code>T = 10000, b = 2000, n = 10000</code></p>
+<p><code>L = (2 × 10 000 × 2 000) / (20 000 − 2 000) ≈ 2 222.22</code></p>
 <p>Поскольку <code>n &gt; L</code>:</p>
-<p>[
-F\approx\left\lceil2000+(10000-2222.22)\cdot0.8\right\rceil
-=\lceil8222.22\rceil=8223.
-]</p>
+<p><code>F ≈ ⌈2 000 + (10 000 − 2 222.22) × 0.8⌉ = 8 223</code></p>
 <p>Оценка выше, чем <code>6667</code> при большом кеше.</p>
 <p>Получается, снижение доступного кеша делает индексный путь менее привлекательным, хотя SQL, число подходящих строк и сам индекс не изменились.</p>
 <p><strong>Ограничение:</strong> <code>F</code> отражает модель ожидаемой работы с буферами при выбранных допущениях. Нельзя автоматически приравнивать это число к показателю <code>shared read</code> или физическим чтениям SSD из реального <code>EXPLAIN ANALYZE</code>.</p>
@@ -2442,22 +2229,13 @@ F\approx\left\lceil2000+(10000-2222.22)\cdot0.8\right\rceil
 <p>Оба индекса содержат те же ключи. Количество подходящих строк по-прежнему 10 000.</p>
 <p>Но в состоянии B соседние ключи B-tree обычно ссылаются на близкие страницы heap. По этой причине посещение heap дешевле в модели.</p>
 <p>Для предельной корреляции PostgreSQL оценивает число затронутых страниц приближенно как:</p>
-<p>[
-F_{\text{corr}}=\left\lceil sT\right\rceil.
-]</p>
+<p><code>F_corr = ⌈s × T⌉</code></p>
 <p>При <code>s = 0.01</code>:</p>
-<p>[
-F_{\text{corr}}=\lceil0.01\cdot10000\rceil=100.
-]</p>
+<p><code>F_corr = ⌈0.01 × 10 000⌉ = 100</code></p>
 <p>Если страниц больше нуля, стоимость рассчитывается как одно непоследовательное получение и последовательное чтение остальных:</p>
-<p>[
-C_{\text{heap I/O,min}}=
-P_{\text{rand}}+(F_{\text{corr}}-1)P_{\text{seq}}.
-]</p>
+<p><code>C_heap_IO,min = P_rand + (F_corr − 1) × P_seq</code></p>
 <p>Подставим:</p>
-<p>[
-C_{\text{heap I/O,min}}=4+(100-1)\cdot1=103.
-]</p>
+<p><code>C_heap_IO,min = 4 + (100 − 1) × 1 = 103</code></p>
 <p>Мы получили два сценария для тех же десяти тысяч строк:</p>
 <table>
 <thead>
@@ -2480,12 +2258,7 @@ C_{\text{heap I/O,min}}=4+(100-1)\cdot1=103.
 <p><strong>Разница более чем в 250 раз только для страничной части модели.</strong> Это не обещание такого ускорения реального запроса: CPU и обход индекса остаются, фактическое время зависит от кеширования и других расходов.</p>
 <h4 id="108">10.8. Почему используется квадрат корреляции<a class="headerlink" href="#108" title="Permanent link">¶</a></h4>
 <p>В PostgreSQL расчет между крайними случаями интерполируется по <strong>квадрату</strong> <code>indexCorrelation</code>:</p>
-<p>[
-\boxed{
-C_{\text{heap I/O}} =
-C_{\max}+r^2(C_{\min}-C_{\max}),
-}
-]</p>
+<p><code>C_heap_IO = C_max + r² × (C_min − C_max)</code></p>
 <p>где <code>r = indexCorrelation</code>, обычно в диапазоне от <code>-1</code> до <code>+1</code>.</p>
 <p>Пояснение:</p>
 <ul>
@@ -2494,40 +2267,23 @@ C_{\max}+r^2(C_{\min}-C_{\max}),
 <li>если <code>r=0.5</code>, доля интерполяции равна <code>0.25</code>, поскольку <code>0.5² = 0.25</code>.</li>
 </ul>
 <p>При наших значениях:</p>
-<p>[
-C_{\max}=26668,\qquad C_{\min}=103.
-]</p>
+<p><code>C_max = 26 668; C_min = 103</code></p>
 <p>Для <code>r=0.5</code>:</p>
-<p>[
-C_{\text{heap I/O}}=
-26668+0.25(103-26668)
-=20026.75.
-]</p>
+<p><code>C_heap_IO = 26 668 + 0.25 × (103 − 26 668) = 20 026.75</code></p>
 <p>Для <code>r=0.9</code>:</p>
-<p>[
-C_{\text{heap I/O}}=
-26668+0.81(103-26668)
-=5150.35.
-]</p>
+<p><code>C_heap_IO = 26 668 + 0.81 × (103 − 26 668) = 5 150.35</code></p>
 <p>Откуда взялся именно квадрат? В исходниках это <strong>эвристика</strong> с прямой пометкой авторов о ее условности. Это не математическая теорема о B-tree или MVCC. Но знак корреляции действительно не обязан менять ценность локального физического порядка: движение по страницам в прямом и обратном направлении может быть эффективно в обоих случаях.</p>
 <h4 id="109-heap-index-scan">10.9. От стоимости heap до полного <code>Index Scan</code><a class="headerlink" href="#109-heap-index-scan" title="Permanent link">¶</a></h4>
 <p>Теперь добавим остальные компоненты.</p>
 <p>Для обычного непараллельного сканирования без дополнительных фильтров:</p>
-<p>[
-C_{\text{index,total}} \approx
-C_{\text{index AM,total}} +
-C_{\text{heap I/O}} +
-N_{\text{candidates}}C_{\text{tuple}} +
-C_{\text{target}}.
-]</p>
+<div class="highlight"><pre><span></span><code>C_index,total ≈
+    C_index_AM,total + C_heap_IO
+  + N_candidates × C_tuple + C_target
+</code></pre></div>
 <p>Если есть дополнительный <code>Filter</code>, к CPU по кандидатам добавляется стоимость его вычисления.</p>
 <p><strong>Важно:</strong> это объясняющая запись. В <code>cost_index()</code> стоимость индексного метода уже разделена на его <code>startup</code> и <code>run</code>, а CPU-стоимость выходных выражений учитывается по выходным <code>rows</code>. Не следует прибавлять еще раз компоненты, уже включенные <code>index AM</code>.</p>
 <p>Для конкретного ручного примера нам нужно назначить стоимость B-tree. В самой реализации это делает <code>btcostestimate()</code>: он учитывает статистику индекса, индексные ограничения и другие особенности. Для преподавательского расчета зададим <strong>отдельное приближение</strong>, отличающееся от алгоритма PostgreSQL:</p>
-<p>[
-C_{\text{index AM,toy}}=
-4\left(3+\lceil 2000s\rceil\right)
-+Ns(0.005+0.0025).
-]</p>
+<p><code>C_index_AM,учебн = 4 × (3 + ⌈2 000 × s⌉) + N × s × (0.005 + 0.0025)</code></p>
 <p>В нем:</p>
 <ul>
 <li><code>3</code> — условно три страницы пути спуска B-tree;</li>
@@ -2537,14 +2293,9 @@ C_{\text{index AM,toy}}=
 </ul>
 <p><strong>Это не формула <code>btcostestimate()</code></strong>. Мы используем ее лишь как публично оговоренную, воспроизводимую цену индексной части, чтобы сосредоточиться на точных формулах <code>cost_index()</code> для heap.</p>
 <p>При <code>s=0.01</code>, <code>n=10000</code>:</p>
-<p>[
-C_{\text{index AM,toy}}=
-4(3+20)+10000(0.0075)=92+75=167.
-]</p>
+<p><code>C_index_AM,учебн = 4 × (3 + 20) + 10 000 × 0.0075 = 92 + 75 = 167</code></p>
 <p>CPU обработки heap-кандидатов:</p>
-<p>[
-C_{\text{heap CPU}}=10000\cdot0.01=100.
-]</p>
+<p><code>C_heap_CPU = 10 000 × 0.01 = 100</code></p>
 <p>Итого:</p>
 <ul>
 <li>при <code>r=0</code>: <code>167 + 26 668 + 100 = 26 935</code>;</li>
@@ -2629,7 +2380,7 @@ C_{\text{heap CPU}}=10000\cdot0.01=100.
 <p>Фактические пороги выбора между планами нельзя получить из универсального правила «индекс выгоден до X%». Они определяются значениями cost model, статистикой, физическим размещением и самим запросом.</p>
 <h4 id="1011-index-scan">10.11. Что еще меняет стоимость Index Scan<a class="headerlink" href="#1011-index-scan" title="Permanent link">¶</a></h4>
 <p><strong>Повторные сканирования.</strong> В <code>cost_index()</code> параметр <code>loop_count</code> влияет на модель кеширования. Для повторяющегося чтения PostgreSQL может оценивать совместную нагрузку нескольких сканирований, а затем распределять стоимость на одно. Здесь мы не обсуждаем, откуда берутся такие повторения: их сценарии войдут в следующую лекцию про соединения.</p>
-<p><strong>Index Only Scan.</strong> Когда нужные значения есть в индексе, PostgreSQL может уменьшить ожидаемые heap-обращения пропорционально оцененной доле <code>all-visible</code> страниц (<code>allvisfrac</code>). Но MVCC и visibility map определяют, удастся ли действительно обходиться без heap. Подробный механизм вынесен в отдельную лекцию 05.2 Executor Internals.</p>
+<p><strong>Index Only Scan.</strong> Когда нужные значения есть в индексе, PostgreSQL может уменьшить ожидаемые heap-обращения пропорционально оцененной доле <code>all-visible</code> страниц (<code>allvisfrac</code>). Но MVCC и visibility map определяют, удастся ли действительно обходиться без heap. Подробности — в файле Executor Internals.</p>
 <p><strong>Стоимость индексной части.</strong> Метод доступа может учитывать дополнительные условия, сложность ключей и особенности индекса. У разных AM расчет различается. Число уровней B-tree не является всей стоимостью индексного поиска.</p>
 <p><strong>Дополнительный Filter.</strong> Если индекс выдал 100 000 кандидатов, а фильтр оставил сто, стоимость heap-обращений не становится равной стоимости чтения ста строк.</p>
 <h4 id="10">Что важно запомнить после раздела 10<a class="headerlink" href="#10" title="Permanent link">¶</a></h4>
@@ -2641,6 +2392,7 @@ C_{\text{heap CPU}}=10000\cdot0.01=100.
 <li>Порог выгодности индекса зависит от доступных путей, распределения TID и стоимости страниц, а не от одной магической селективности.</li>
 </ol>
 <hr/>
+<p>Индекс помогает найти нужные строки, но при слабой физической локальности ссылки могут вести на тысячи разрозненных страниц. Значит, возможна промежуточная стратегия: сначала собрать все подходящие позиции, а затем упорядочить чтение страниц. Теперь посчитаем стоимость такого решения — <code>Bitmap Heap Scan</code>.</p>
 <h3 id="11-bitmap-scan-tid">11. Математика <code>Bitmap Scan</code>: от случайных TID к сгруппированным страницам<a class="headerlink" href="#11-bitmap-scan-tid" title="Permanent link">¶</a></h3>
 <h4 id="111-index-scan">11.1. Проблема, которую обычный Index Scan оставил нерешенной<a class="headerlink" href="#111-index-scan" title="Permanent link">¶</a></h4>
 <p>Возьмем нашу таблицу с миллионом строк. Сканирование по индексу для <code>s=1%</code> дает <code>10 000</code> кандидатов. При слабой корреляции модель <code>Index Scan</code> предсказывает огромное количество непоследовательных обращений к heap.</p>
@@ -2674,16 +2426,13 @@ page 500 -&gt; offset 2
 <li>доступ по heap обычно теряет порядок ключа B-tree;</li>
 <li>при нехватке памяти bitmap может стать <strong>lossy</strong>, увеличив число проверяемых кандидатов.</li>
 </ul>
-<p>Физические детали разберем отдельно в 05.2 Executor Internals. Здесь считаем стоимость.</p>
+<p>Последние физические детали оставляем в файле Executor Internals. Здесь считаем стоимость.</p>
 <h4 id="113-cost_bitmap_heap_scan">11.3. Из каких компонентов состоит <code>cost_bitmap_heap_scan()</code><a class="headerlink" href="#113-cost_bitmap_heap_scan" title="Permanent link">¶</a></h4>
 <p>Для обычного одиночного сканирования логика близка к следующей:</p>
-<p>[
-C_{\text{bitmap,total}} \approx
-C_{\text{bitmap build}} +
-C_{\text{heap pages}} +
-C_{\text{candidate CPU}} +
-C_{\text{target}}.
-]</p>
+<div class="highlight"><pre><span></span><code>C_bitmap,total ≈
+    C_bitmap_build + C_heap_pages
+  + C_candidate_CPU + C_target
+</code></pre></div>
 <p>Внутри <code>cost_bitmap_heap_scan()</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="n">pages_fetched</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compute_bitmap_pages</span><span class="p">(</span>
 <span class="w">    </span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">baserel</span><span class="p">,</span><span class="w"> </span><span class="n">bitmapqual</span><span class="p">,</span><span class="w"> </span><span class="n">loop_count</span><span class="p">,</span>
@@ -2704,47 +2453,26 @@ C_{\text{target}}.
 <h4 id="114-bitmap">11.4. Расчет стоимости построения bitmap<a class="headerlink" href="#114-bitmap" title="Permanent link">¶</a></h4>
 <p><code>compute_bitmap_pages()</code> получает стоимость индексной части через <code>cost_bitmap_tree_node()</code>.</p>
 <p>Для одного <code>IndexPath</code> упрощенно:</p>
-<p>[
-C_{\text{bitmap build}} =
-C_{\text{index AM,total}}
-+0.1\cdot C_{\text{operator}}\cdot N_{\text{index rows}}.
-]</p>
+<p><code>C_bitmap_build = C_index_AM,total + 0.1 × C_operator × N_index_rows</code></p>
 <p>Последнее слагаемое — небольшая эвристическая плата за работу со структурой bitmap. Оно есть в исходниках, чтобы bitmap не выглядел совершенно бесплатным по сравнению с обычным индексным поиском.</p>
 <p>При <code>N_index rows=10000</code>:</p>
-<p>[
-0.1\cdot0.0025\cdot10000=2.5.
-]</p>
+<p><code>0.1 × 0.0025 × 10000 = 2.5</code></p>
 <p>Если использовать нашу условную стоимость индексной части <code>167</code>, получаем:</p>
-<p>[
-C_{\text{bitmap build}}=167+2.5=169.5.
-]</p>
+<p><code>C_bitmap_build = 167 + 2.5 = 169.5</code></p>
 <p><strong>Важно:</strong> полное чтение диапазона из индекса — уже часть startup-работы bitmap. Нельзя сравнивать <code>Index Scan</code> и <code>Bitmap Scan</code>, считая построение bitmap нулевым по времени.</p>
 <h4 id="115-heap">11.5. Оценка количества страниц heap<a class="headerlink" href="#115-heap" title="Permanent link">¶</a></h4>
 <p>Для <strong>одного</strong> bitmap-сканирования PostgreSQL применяет следующую оценку:</p>
-<p>[
-F_{\text{bitmap}}=
-\min\left(T,\left\lceil\frac{2Tn}{2T+n}\right\rceil\right).
-]</p>
+<p><code>F_bitmap = min(T, ⌈2 × T × n / (2 × T + n)⌉)</code></p>
 <p>Фактически это та же форма Mackert–Lohman, соответствующая случаю без повторного чтения страницы в рамках одного обхода.</p>
 <p>При <code>T=10000</code>, <code>n=10000</code>:</p>
-<p>[
-F_{\text{bitmap}}=6667.
-]</p>
+<p><code>F_bitmap = 6667</code></p>
 <p>Но разве это не то же число, что мы получили для некоррелированного <code>Index Scan</code>?</p>
 <p>Число страниц совпало, а <strong>цена каждой страницы</strong> в bitmap-модели будет иной.</p>
 <h4 id="116-bitmap-scan">11.6. Почему стоимость одной страницы у Bitmap Scan нелинейна<a class="headerlink" href="#116-bitmap-scan" title="Permanent link">¶</a></h4>
 <p>Если bitmap указывает всего на две страницы из десяти тысяч, эти страницы придется получить разрозненно.</p>
 <p>А если он указывает практически на все десять тысяч, доступ становится похож на последовательное чтение большого диапазона heap.</p>
 <p>Поэтому в <code>cost_bitmap_heap_scan()</code> применяется интерполяция:</p>
-<p>[
-\boxed{
-P_{\text{bitmap page}}=
-P_{\text{rand}}
--\left(P_{\text{rand}}-P_{\text{seq}}\right)
-\sqrt{\frac{F}{T}},
-\qquad F\ge2.
-}
-]</p>
+<p><code>P_bitmap_page = P_rand − (P_rand − P_seq) × √(F / T), при F ≥ 2</code></p>
 <p>Для <code>F &lt; 2</code> используется <code>P_rand</code>.</p>
 <p>Что происходит при разных долях страниц:</p>
 <table>
@@ -2776,37 +2504,19 @@ P_{\text{rand}}
 <p>Эта формула не утверждает, что накопитель физически ускоряется точно по квадратному корню. Это <strong>эвристика PostgreSQL для смешанного характера чтения страниц</strong>.</p>
 <h4 id="117-bitmap-heap-scan">11.7. Ручной расчет стоимости Bitmap Heap Scan<a class="headerlink" href="#117-bitmap-heap-scan" title="Permanent link">¶</a></h4>
 <p>Для нашего диапазона:</p>
-<p>[
-F=6667,\qquad T=10000.
-]</p>
+<p><code>F = 6667, T = 10000</code></p>
 <p>Стоимость одной страницы:</p>
-<p>[
-P_{\text{bitmap page}}=
-4-3\sqrt{\frac{6667}{10000}}
-\approx1.55045.
-]</p>
+<p><code>P_bitmap_page = 4 − 3 × √(6 667 / 10 000) ≈ 1.55045</code></p>
 <p>Стоимость heap I/O:</p>
-<p>[
-C_{\text{heap I/O}}=
-6667\cdot1.55045\approx10336.84.
-]</p>
+<p><code>C_heap_IO = 6 667 × 1.55045 ≈ 10 336.84</code></p>
 <p>Теперь CPU.</p>
 <p>В <code>cost_bitmap_heap_scan()</code> PostgreSQL консервативно включает полную стоимость условий сканирования в <code>qpqual_cost</code>. Оценщик фактически допускает необходимость повторной проверки условий на всех кандидатах, хотя при точной bitmap и подходящем индексном методе фактический executor может избегать части проверок.</p>
 <p>Для учебного условия, стоимость которого принята равной одному <code>cpu_operator_cost</code> на кандидата:</p>
-<p>[
-C_{\text{heap CPU}}=10000(0.01+0.0025)=125.
-]</p>
+<p><code>C_heap_CPU = 10 000 × (0.01 + 0.0025) = 125</code></p>
 <p>Стоимость построения bitmap из предыдущего пункта:</p>
-<p>[
-C_{\text{bitmap build}}=169.5.
-]</p>
+<p><code>C_bitmap_build = 169.5</code></p>
 <p>Сумма:</p>
-<p>[
-\boxed{
-C_{\text{bitmap,total}}
-\approx169.5+10336.84+125=10631.34.
-}
-]</p>
+<p><code>C_bitmap,total ≈ 169.5 + 10 336.84 + 125 = 10 631.34</code></p>
 <p>Получается:</p>
 <div class="highlight"><pre><span></span><code>Seq Scan            ≈ 22 500
 Index Scan, r=0      ≈ 26 935
@@ -2882,10 +2592,7 @@ Bitmap Heap Scan    ≈ 10 631
 </code></pre></div>
 <p>Сравнивается расчетное число страниц <code>heap_pages</code> и доступная емкость <code>maxentries</code>.</p>
 <p>При нехватке памяти код использует грубую оценку:</p>
-<p>[
-N_{\text{lossy pages}}\approx
-\max\left(0, F_{\text{heap}}-\frac{E_{\max}}{2}\right).
-]</p>
+<p><code>N_lossy_pages ≈ max(0, F_heap − E_max / 2)</code></p>
 <p>Затем число кандидатов для обработки увеличивается с учетом доли страниц, ставших lossy. В этой части PostgreSQL моделирует вероятность того, что кандидатом станет строка, которая раньше могла быть исключена по точной bitmap.</p>
 <p>Это снова <strong>оценочная</strong>, а не точная модель числа реальных кандидатов.</p>
 <p>Инженерный эффект:</p>
@@ -2931,6 +2638,7 @@ Seq Scan + Sort
 <li>Bitmap помогает на множестве кандидатов, но теряет готовый порядок B-tree и может потребовать <code>Sort</code>.</li>
 </ol>
 <hr/>
+<p>Мы получили стоимости трех способов чтения одной таблицы. Но запрос может требовать еще и порядок строк: дешевое чтение с последующей сортировкой иногда проигрывает более дорогому сканированию, которое уже выдает нужную последовательность. Поэтому к расчету стоимости доступа добавляется расчет сортировки.</p>
 <h3 id="12-sort">12. Математика <code>Sort</code>: почему порядок строк может стоить дороже поиска<a class="headerlink" href="#12-sort" title="Permanent link">¶</a></h3>
 <h4 id="121">12.1. Мы нашли подходящие строки. Теперь нужно их упорядочить<a class="headerlink" href="#121" title="Permanent link">¶</a></h4>
 <p>Добавим к нашему запросу сортировку:</p>
@@ -2984,66 +2692,30 @@ Seq Scan + Sort
 </code></pre></div>
 <p>Число сравнений для полного сортирования может быть одного порядка. Но затраты памяти различаются многократно. Вторая сортировка с большей вероятностью выйдет за <code>work_mem</code> и перейдет к работе с временными файлами.</p>
 <p>PostgreSQL использует приблизительную функцию <code>relation_byte_size()</code>:</p>
-<p>[
-B_{\text{input}}=N\cdot
-\left(\operatorname{MAXALIGN}(width)+
-\operatorname{MAXALIGN}(\operatorname{SizeofHeapTupleHeader})\right).
-]</p>
+<p><code>B_input = N × (MAXALIGN(width) + MAXALIGN(SizeofHeapTupleHeader))</code></p>
 <p>Здесь <code>MAXALIGN</code> — округление до нужного для платформы выравнивания, а заголовок отражает оценочный служебный расход на кортеж.</p>
 <p>Поэтому <code>width=64</code> и <code>100 000</code> строк в стандартной 64-битной конфигурации дают для этой конкретной оценки приблизительно:</p>
-<p>[
-B_{\text{input}}
-=100000(64+24)=8\,800\,000 \text{байт}
-\approx8.39 \text{МиБ}.
-]</p>
+<p><code>B_input = 100 000 × (64 + 24) = 8 800 000 байт ≈ 8.39 МиБ</code></p>
 <p>Это <strong>оценка, используемая cost model</strong>. Она не обязана совпадать с фактическим пиковым RSS узла сортировки и не является измерением размера строк в heap.</p>
 <h4 id="124-n-log2-n">12.4. Полная сортировка в памяти: <code>N log₂ N</code><a class="headerlink" href="#124-n-log2-n" title="Permanent link">¶</a></h4>
 <p>Когда расчетный объем помещается в доступную рабочую память, <code>cost_tuplesort()</code> для полной сортировки исходит из приближенно <code>N·log₂N</code> сравнений.</p>
 <p>Стоимость одного сравнения по умолчанию принимается равной:</p>
-<p>[
-C_{\text{compare}}=
-C_{\text{extra compare}} + 2C_{\text{operator}}.
-]</p>
+<p><code>C_compare = C_extra_compare + 2 × C_operator</code></p>
 <p>При <code>C_extra compare = 0</code>:</p>
-<p>[
-C_{\text{compare}}=2\cdot0.0025=0.005.
-]</p>
+<p><code>C_compare = 2 × 0.0025 = 0.005</code></p>
 <p>Тогда:</p>
-<p>[
-\boxed{
-C_{\text{sort CPU}}\approx
-0.005\cdot N\log_2N.
-}
-]</p>
+<p><code>C_sort_CPU ≈ 0.005 × N × log₂(N)</code></p>
 <p>Для <code>N=100000</code>:</p>
-<p>[
-\log_2 100000\approx16.60964.
-]</p>
-<p>[
-C_{\text{sort CPU}}
-\approx0.005\cdot100000\cdot16.60964
-=8304.82.
-]</p>
+<p><code>log₂ 100000 ≈ 16.60964</code></p>
+<p><code>C_sort_CPU ≈ 0.005 × 100 000 × 16.60964 = 8 304.82</code></p>
 <p>Кроме того, <code>cost_tuplesort()</code> начисляет небольшую стоимость извлечения строк из результата сортировки:</p>
-<p>[
-C_{\text{sort output}}=N\cdot C_{\text{operator}}
-=100000\cdot0.0025=250.
-]</p>
+<p><code>C_sort_output = N × C_operator = 100 000 × 0.0025 = 250</code></p>
 <p>Итого собственная цена полного сортирования в памяти:</p>
-<p>[
-C_{\text{sort, RAM}}\approx8304.82+250=8554.82.
-]</p>
+<p><code>C_sort_RAM ≈ 8 304.82 + 250 = 8 554.82</code></p>
 <p>Если входной <code>Seq Scan</code> стоил <code>22 500</code>, получаем:</p>
-<p>[
-\boxed{
-C_{\text{Seq + Sort,RAM}}
-\approx22500+8554.82=31054.82.
-}
-]</p>
+<p><code>C_Seq_Sort_RAM ≈ 22 500 + 8 554.82 = 31 054.82</code></p>
 <p>При этом <strong>startup cost</strong> обычной сортировки близок к:</p>
-<p>[
-22500+8304.82=30804.82,
-]</p>
+<p><code>22 500 + 8 304.82 = 30 804.82</code></p>
 <p>а ее <code>total cost</code> включает и дополнительную плату за извлечение всех выходных строк.</p>
 <h4 id="125-work_mem">12.5. Почему <code>work_mem</code> способен изменить оценку<a class="headerlink" href="#125-work_mem" title="Permanent link">¶</a></h4>
 <p>Сначала пусть:</p>
@@ -3054,9 +2726,7 @@ C_{\text{Seq + Sort,RAM}}
 <div class="highlight"><pre><span></span><code>work_mem = 4 MiB
 </code></pre></div>
 <p>Расчетный объем данных превышает доступную память:</p>
-<p>[
-8.39 \text{МиБ}&gt;4 \text{МиБ}.
-]</p>
+<p><code>8.39 МиБ &gt; 4 МиБ</code></p>
 <p>PostgreSQL рассматривает <strong>внешнюю сортировку</strong> с временными файлами.</p>
 <p>Подчеркнем границу: реальное поведение <code>tuplesort</code> зависит от размеров кортежей, служебных структур, ключей, управления памятью и версии PostgreSQL. <code>cost_tuplesort()</code> выбирает ветку своей модели по приближенным размерам.</p>
 <h4 id="126-runs-merge-passes">12.6. Внешняя сортировка: почему появляются <code>runs</code> и <code>merge passes</code><a class="headerlink" href="#126-runs-merge-passes" title="Permanent link">¶</a></h4>
@@ -3075,69 +2745,32 @@ C_{\text{Seq + Sort,RAM}}
 <p><em>Run</em> — отсортированная последовательность, полученная как промежуточный результат. <em>Merge pass</em> — проход слияния таких последовательностей.</p>
 <p>В реальном PostgreSQL детали <code>tuplesort</code> сложнее: используются специализированные структуры и адаптация к ресурсам. Для оценки стоимости планировщик применяет приближение.</p>
 <p>Сначала число страниц расчетного объема:</p>
-<p>[
-P_{\text{sort}}=
-\left\lceil\frac{B_{\text{input}}}{\text{BLCKSZ}}\right\rceil.
-]</p>
+<p><code>P_sort = ⌈B_input / BLCKSZ⌉</code></p>
 <p>При <code>B_input=8 800 000</code> и странице 8192 байта:</p>
-<p>[
-P_{\text{sort}}=
-\left\lceil\frac{8800000}{8192}\right\rceil
-=1075.
-]</p>
+<p><code>P_sort = ⌈8800000 / 8192⌉ = 1075</code></p>
 <p>Оценка числа исходных отсортированных последовательностей:</p>
-<p>[
-R\approx\frac{B_{\text{input}}}{B_{\text{work_mem}}}
-=\frac{8800000}{4\cdot1024\cdot1024}
-\approx2.10.
-]</p>
+<p><code>R ≈ B_input / B_work_mem = 8800000 / (4 × 1024 × 1024) ≈ 2.10</code></p>
 <p>Далее планировщик оценивает порядок слияния <code>M</code> (<em>merge order</em>), зависящий от доступной памяти и внутренних ограничений. Число проходов приближенно:</p>
-<p>[
-P_{\text{merge passes}}
-=\max\left(1,\left\lceil\log_M R\right\rceil\right).
-]</p>
+<p><code>P_merge_passes = max(1, ⌈log_M(R)⌉)</code></p>
 <p>Для нашего малого числа исходных последовательностей допустимо принять <code>P_merge passes = 1</code>.</p>
 <h4 id="127-io">12.7. Цена временного I/O<a class="headerlink" href="#127-io" title="Permanent link">¶</a></h4>
 <p>В исходниках используется приближение объема временного I/O:</p>
-<p>[
-N_{\text{page accesses}}
-=2\cdot P_{\text{sort}}\cdot P_{\text{merge passes}}.
-]</p>
+<p><code>N_page_accesses = 2 × P_sort × P_merge_passes</code></p>
 <p>Множитель 2 моделирует запись и последующее чтение промежуточных данных на проход слияния.</p>
 <p>PostgreSQL условно считает, что <strong>75%</strong> обращений последовательные, а <strong>25%</strong> — непоследовательные:</p>
-<p>[
-C_{\text{temp/page}}=
-0.75P_{\text{seq}}+0.25P_{\text{rand}}.
-]</p>
+<p><code>C_temp_page = 0.75 × P_seq + 0.25 × P_rand</code></p>
 <p>При стандартных параметрах:</p>
-<p>[
-C_{\text{temp/page}}=0.75\cdot1+0.25\cdot4=1.75.
-]</p>
+<p><code>C_temp_page = 0.75 × 1 + 0.25 × 4 = 1.75</code></p>
 <p>Для <code>1075</code> страниц и одного прохода:</p>
-<p>[
-N_{\text{page accesses}}=2\cdot1075=2150.
-]</p>
+<p><code>N_page_accesses = 2 × 1 075 = 2 150</code></p>
 <p>Итого:</p>
-<p>[
-C_{\text{temp I/O}}=2150\cdot1.75=3762.5.
-]</p>
+<p><code>C_temp_IO = 2 150 × 1.75 = 3 762.5</code></p>
 <p>При этом сама сортировка все еще требует расчетных сравнений:</p>
-<p>[
-C_{\text{sort CPU}}\approx8304.82.
-]</p>
+<p><code>C_sort_CPU ≈ 8 304.82</code></p>
 <p>Значит, собственная цена внешней сортировки:</p>
-<p>[
-C_{\text{sort,external}}
-\approx8304.82+3762.5+250
-=12317.32.
-]</p>
+<p><code>C_sort_external ≈ 8 304.82 + 3 762.5 + 250 = 12 317.32</code></p>
 <p>Добавим входной путь:</p>
-<p>[
-\boxed{
-C_{\text{Seq + Sort,external}}
-\approx22500+12317.32=34817.32.
-}
-]</p>
+<p><code>C_Seq_Sort_external ≈ 22 500 + 12 317.32 = 34 817.32</code></p>
 <p>Сравним:</p>
 <table>
 <thead>
@@ -3172,28 +2805,15 @@ C_{\text{Seq + Sort,external}}
 </code></pre></div>
 <p>Нужно выдать только десять строк в заданном порядке.</p>
 <p>Сортировка может поддерживать ограниченный набор лучших кандидатов в куче. Для <code>K=10</code> элементов порядок вычислительной сложности становится примерно:</p>
-<p>[
-O(N\log K)
-]</p>
+<p><code>O(N × log K)</code></p>
 <p>вместо:</p>
-<p>[
-O(N\log N).
-]</p>
+<p><code>O(N × log N)</code></p>
 <p>Иными словами, не обязательно хранить и сортировать все сто тысяч строк целиком.</p>
 <p>В PostgreSQL 18 <code>cost_tuplesort()</code> для bounded-сценария использует следующую оценку сравнений:</p>
-<p>[
-\boxed{
-C_{\text{topN,start}}\approx
-C_{\text{compare}}\cdot N\log_2(2K).
-}
-]</p>
+<p><code>C_topN,start ≈ C_compare × N × log₂(2 × K)</code></p>
 <p>Множитель <code>2K</code> — особенность эвристики cost model для сглаживания перехода между обычной и ограниченной сортировкой. Это не математическое требование алгоритма кучи.</p>
 <p>Подставим <code>N=100000</code>, <code>K=10</code>:</p>
-<p>[
-C_{\text{topN,start}}
-\approx0.005\cdot100000\cdot\log_2 20
-\approx2160.96.
-]</p>
+<p><code>C_topN,start ≈ 0.005 × 100 000 × log₂(20) ≈ 2 160.96</code></p>
 <p>Это значительно меньше <code>8304.82</code> для полной сортировки по всем строкам.</p>
 <p>Но здесь ловушка: <strong>чтобы найти действительно лучшие десять строк, сортировка при отсутствии подходящего готового порядка должна рассмотреть все входные строки</strong>.</p>
 <p>Значит, стоимость чтения таблицы <code>22 500</code> остается существенной. <code>LIMIT 10</code> уменьшает часть CPU и памяти, но не превращает полный <code>Seq Scan</code> в чтение десяти строк.</p>
@@ -3208,20 +2828,13 @@ Index Scan при r=1:   3 565
 <div class="highlight"><pre><span></span><code>Seq Scan + Sort в RAM: 31 054.82
 </code></pre></div>
 <p>Для некоррелированного индекса:</p>
-<p>[
-42562&gt;31054.82.
-]</p>
+<p><code>42562&gt;31054.82</code></p>
 <p>Таблицу выгоднее последовательно просканировать и отдельно отсортировать, чем получать строки в правильном порядке путем дорогих обращений к heap.</p>
 <p>При почти идеальной корреляции:</p>
-<p>[
-3565&lt;31054.82.
-]</p>
+<p><code>3565&lt;31054.82</code></p>
 <p>Индексное чтение в готовом порядке выглядит намного дешевле.</p>
 <p>Добавим <code>Bitmap Heap Scan + Sort</code> при достаточном <code>work_mem</code>:</p>
-<p>[
-C_{\text{Bitmap + Sort}}
-\approx12837+8554.82=21391.82.
-]</p>
+<p><code>C_Bitmap_Sort ≈ 12 837 + 8 554.82 = 21 391.82</code></p>
 <p>Получаем <strong>четыре расчетные альтернативы</strong> для одного запроса, зависящие от физического порядка:</p>
 <table>
 <thead>
@@ -3315,12 +2928,92 @@ Buffers: temp read=... written=...
 <li><code>LIMIT</code> способен уменьшить затраты на сортировку без устранения затрат на чтение входного набора.</li>
 </ol>
 <hr/>
-<h2 id="3-path-order-by-limit">Блок 3. Выбор <code>Path</code>, <code>ORDER BY</code> и <code>LIMIT</code><a class="headerlink" href="#3-path-order-by-limit" title="Permanent link">¶</a></h2>
-<p>Для каждой альтернативы уже получены <code>rows</code>, <code>startup_cost</code> и <code>total_cost</code>. Следующий вопрос: какие варианты сохраняет PostgreSQL, зачем ему учитывать порядок выходных строк и когда запросу важна лишь первая часть результата?</p>
+<h3 id="2-rows">Итог блока 2. От <code>rows</code> до выбора цены плана<a class="headerlink" href="#2-rows" title="Permanent link">¶</a></h3>
+<p>Мы начали с одной таблицы:</p>
+<div class="highlight"><pre><span></span><code>orders:
+  1 000 000 строк
+  10 000 heap pages
+  B-tree по amount
+  известная оцененная селективность WHERE
+</code></pre></div>
+<p>И прошли последовательную цепочку:</p>
+<div class="highlight"><pre><span></span><code>ANALYZE и статистика             ← разобрано в блоке 1
+            ↓
+selectivity и estimated rows      ← разобрано в блоке 1
+            ↓
+Seq Scan: все страницы и строки
+            ↓
+Index Scan: индекс, TID, heap, correlation, cache
+            ↓
+Bitmap Scan: построение bitmap, страницы heap, recheck
+            ↓
+Sort: rows, width, work_mem, temporary I/O
+            ↓
+startup_cost / total_cost для альтернатив
+            ↓
+выбор пути при заданных требованиях SQL
+</code></pre></div>
+<p>Важнейшая мысль: <strong>стоимость определяется не числом строк в результате само по себе, а объемом и способом работы, который требуется для их получения.</strong></p>
+<p>Отсюда инженерные выводы:</p>
+<ol>
+<li>При <code>Seq Scan</code> фильтр обычно не избавляет от чтения всей таблицы.</li>
+<li>При <code>Index Scan</code> даже небольшой результат способен стоить дорого из-за плохой физической локальности строк.</li>
+<li>При <code>Bitmap Heap Scan</code> можно выиграть на сгруппированных обращениях к страницам, но появляется цена построения bitmap и возможной потери точности.</li>
+<li><code>Sort</code> может изменить рейтинг всех альтернатив, особенно если один из путей предоставляет требуемый порядок заранее.</li>
+<li>Точность <code>rows</code>, параметры стоимости и реальные свойства хранения вместе определяют качество расчета.</li>
+<li>При увеличении нагрузки физические издержки могут измениться, хотя SQL и расчетный <code>cost</code> остаются прежними.</li>
+</ol>
+<h4 id="_4">Уровни строгости: что мы доказали, а что упростили<a class="headerlink" href="#_4" title="Permanent link">¶</a></h4>
+<p><strong>Формулы, непосредственно отражающие PostgreSQL 18:</strong></p>
+<ul>
+<li><code>cost_seqscan</code>: <code>pages × seq_page_cost</code> и CPU по входным <code>tuples</code>;</li>
+<li>разделение оценки <code>cost_index</code> на стоимость индексного метода и стоимость heap;</li>
+<li><code>index_pages_fetched()</code> и кусочная модель Mackert–Lohman;</li>
+<li>интерполяция heap-I/O у <code>Index Scan</code> по квадрату корреляции;</li>
+<li><code>compute_bitmap_pages()</code> и интерполяция цены heap-страницы через квадратный корень доли затронутых страниц;</li>
+<li>эвристика <code>cost_tuplesort()</code> для обычной, ограниченной и внешней сортировки.</li>
+</ul>
+<p><strong>Учебные допущения, сделанные явными:</strong></p>
+<ul>
+<li>искусственное отношение в миллион строк и десять тысяч страниц;</li>
+<li>одна условная проверка за <code>0.0025</code> на строку (даже если SQL-выражение на практике сложнее);</li>
+<li>отдельная простая формула для цены обхода B-tree вместо буквального воспроизведения <code>btcostestimate()</code>;</li>
+<li>отсутствие параллельного выполнения, побочных фильтров и дополнительных цен проекции;</li>
+<li>предположение о достаточной памяти для exact bitmap в числовом сравнении;</li>
+<li>условная идеальная корреляция <code>r=1</code> как крайний сценарий.</li>
+</ul>
+<p>Такой способ разбора позволяет получить логически связанный числовой результат без ложного утверждения, что лекционные числа обязаны совпасть с <code>EXPLAIN</code> после запуска на произвольной базе.</p>
+<h4 id="_5">Куда копнуть глубже, не выходя за рамки текущей темы<a class="headerlink" href="#_5" title="Permanent link">¶</a></h4>
+<p><strong>Следующий слой по planner:</strong> устройство <code>Path</code>, конкурентные альтернативы, отбрасывание заведомо проигрывающих путей и частичная стоимость плана при <code>LIMIT</code>. Это ответит на вопрос: <em>у нас уже посчитаны стоимости, но как именно PostgreSQL оставляет и выбирает кандидатов?</em> Именно это продолжение блока 3 лекции 05.1.</p>
+<p><strong>Следующий слой по executor:</strong> как PostgreSQL физически получает страницы, удерживает их в buffer pool, строит <code>TIDBitmap</code> и выполняет сортировку через <code>tuplesort</code>. Это ответит на вопрос: <em>что означают наши расчетные слагаемые в реальной памяти и I/O?</em> Данный материал предусмотрен для отдельного файла 05.2.</p>
+<p>Алгоритмы <code>JOIN</code> намеренно остаются за пределами лекции 05.1.</p>
+<hr/>
+<h3 id="_6">Источники и проверка реализации<a class="headerlink" href="#_6" title="Permanent link">¶</a></h3>
+<p><strong>Основной ориентир — PostgreSQL 18.</strong> В тексте приведены формулы по документации и исходному коду, причем подробные числовые примеры явно помечены как учебные. Версии PostgreSQL могут менять коэффициенты, эвристики и код оценки.</p>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/using-explain.html">PostgreSQL 18 — Using EXPLAIN</a>. Семантика <code>cost</code>, startup и total, вложенная стоимость узлов, <code>rows</code> и ограничения интерпретации.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html#RUNTIME-CONFIG-QUERY-CONSTANTS">PostgreSQL 18 — Planner Cost Constants</a>. Значения <code>seq_page_cost</code>, <code>random_page_cost</code>, CPU-параметров и <code>effective_cache_size</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-resource.html">PostgreSQL 18 — Resource Consumption</a>. <code>shared_buffers</code> и <code>work_mem</code>, их назначение и ограничения.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/costsize.c">PostgreSQL source, ветка <code>REL_18_STABLE</code>: <code>costsize.c</code></a>. <code>cost_seqscan()</code>, <code>cost_index()</code>, <code>index_pages_fetched()</code>, <code>cost_bitmap_heap_scan()</code>, <code>compute_bitmap_pages()</code>, <code>cost_sort()</code> и <code>cost_tuplesort()</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/selfuncs.c">PostgreSQL source, ветка <code>REL_18_STABLE</code>: <code>selfuncs.c</code></a>. <code>btcostestimate()</code> и общая логика оценки стоимости индексного метода доступа.</li>
+<li><a href="https://www.postgresql.org/docs/18/indexes-ordering.html">PostgreSQL 18 — Indexes and ORDER BY</a>. Способность B-tree предоставлять упорядоченный поток и необходимость сравнивать стоимость чтения с последующей сортировкой.</li>
+<li><a href="https://www.postgresql.org/docs/18/indexes-bitmap-scans.html">PostgreSQL 18 — Bitmap Index Combinations</a>. Сбор bitmap и потеря индексного порядка при обходе heap.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/sort/tuplesort.c">PostgreSQL source: <code>tuplesort.c</code>, ветка <code>REL_18_STABLE</code></a>. Физические алгоритмы сортировки, которые в этом блоке учитываются только через стоимость.</li>
+</ol>
+<p><strong>Мост к следующему блоку:</strong> числа для разных путей мы умеем получать. Остается выяснить, какие из них планировщик сохраняет, как сопоставляет варианты с разным порядком строк и почему при <code>LIMIT</code> предпочтительным может стать путь с более дорогим полным выполнением, но дешевым первым результатом.</p>
+<hr/>
+<h2 id="051-postgresql-planner-internals">05.1. PostgreSQL Planner Internals<a class="headerlink" href="#051-postgresql-planner-internals" title="Permanent link">¶</a></h2>
+<h3 id="3-limit-cost-based-optimizer">Блок 3. Выбор плана, <code>LIMIT</code> и границы Cost-Based Optimizer<a class="headerlink" href="#3-limit-cost-based-optimizer" title="Permanent link">¶</a></h3>
+<blockquote>
+<p><strong>Техническая лекция, продолжение блоков 1–2.</strong> Основной ориентир — PostgreSQL 18, включая исходники ветки <code>REL_18_STABLE</code>. Здесь разбираются <strong>разделы 13–15</strong> программы. Мы ограничиваемся выбором способов доступа к <strong>одной таблице</strong>, требуемым порядком результатов, <code>LIMIT</code> и пределами точности расчетной модели. <strong>JOIN, алгоритмы соединения и порядок соединений</strong> сознательно вынесены в следующую лекцию.</p>
+<p><strong>Формат:</strong> только теория, причинно-следственные объяснения, математические выкладки, короткие SQL-фрагменты и иллюстративные деревья планов. Лабораторных заданий и практических упражнений нет.</p>
+<p><strong>Главный вопрос:</strong> статистика уже дала нам оценку <code>rows</code>, а функции <code>cost_seqscan</code>, <code>cost_index</code>, <code>cost_bitmap_heap_scan</code>, <code>cost_sort</code> — значения стоимости. Почему PostgreSQL не выбирает просто самый дешевый скан таблицы? Что меняется при <code>ORDER BY</code> и <code>LIMIT</code>? И почему план с минимальным расчетным <code>cost</code> иногда работает медленнее альтернативы?</p>
+</blockquote>
+<hr/>
+<p>Теперь у нас есть оценки <code>rows</code>, <code>startup_cost</code> и <code>total_cost</code> для последовательного, индексного и битового сканирований, а также для сортировки. Однако таблица стоимости сама по себе не выбирает план: разным запросам нужны разные свойства результата. Посмотрим, как PostgreSQL представляет альтернативы в виде <code>Path</code>, отбрасывает проигрывающие и сохраняет полезные варианты.</p>
 <h3 id="13-path">13. Как планировщик выбирает оптимальный <code>Path</code><a class="headerlink" href="#13-path" title="Permanent link">¶</a></h3>
 <h4 id="131-cost-model">13.1. Продолжим с места, где остановилась cost model<a class="headerlink" href="#131-cost-model" title="Permanent link">¶</a></h4>
-<p>Для объяснения выбора <code>Path</code> возьмем <strong>отдельную учебную конфигурацию</strong> таблицы <code>orders</code>. Здесь изменятся физический размер и расчетные стоимости: сравнения ниже относятся только к этому примеру и не должны механически сопоставляться с числами разделов 9–12.</p>
-<p>Характеристики:</p>
+<p>Представим таблицу <code>orders</code>, для которой известны следующие характеристики:</p>
 <ul>
 <li><code>1 000 000</code> строк;</li>
 <li><code>20 000</code> страниц heap;</li>
@@ -3390,7 +3083,7 @@ Buffers: temp read=... written=...
 <li><strong><code>pathtarget</code></strong> — какие выражения/колонки формируются;</li>
 <li><strong>Сведения о возможности параллельного выполнения</strong> и другие свойства, влияющие на допустимость и сравнение альтернатив.</li>
 </ul>
-<p>Во внутреннем коде PostgreSQL 18 есть структуры <code>Path</code>, <code>IndexPath</code>, <code>BitmapHeapPath</code>, <code>SortPath</code>, <code>LimitPath</code>. Для обычного <code>Seq Scan</code> используется базовый <code>Path</code> с типом узла <code>T_SeqScan</code>; отдельная специальная структура для него не требуется.</p>
+<p>Во внутреннем коде есть типы вроде <code>Path</code>, <code>IndexPath</code>, <code>BitmapHeapPath</code>, <code>SortPath</code>, <code>LimitPath</code>.</p>
 <p>Концептуально:</p>
 <div class="highlight"><pre><span></span><code>SQL-запрос
     |
@@ -3400,7 +3093,7 @@ Buffers: temp read=... written=...
     v
 Создание кандидатов Path
     |
-    +-- Path (pathtype=T_SeqScan)
+    +-- SeqScanPath
     +-- IndexPath
     +-- BitmapHeapPath
     +-- ...
@@ -3433,7 +3126,7 @@ create_plan(...)
 <div class="highlight"><pre><span></span><code>RelOptInfo: orders
   rows: 10 000              &lt;- после условий WHERE
   pathlist:
-    Path (T_SeqScan)        cost=0..32500, pathkeys=[]
+    SeqScanPath             cost=0..32500, pathkeys=[]
     IndexPath               cost=0.43..1830, pathkeys=[...]
     BitmapHeapPath          cost=225..1650, pathkeys=[]
 </code></pre></div>
@@ -3473,9 +3166,7 @@ create_plan(...)
 <p>Путь B доминирует путь A, если при сопоставимых допустимых свойствах B не хуже A по важным измерениям и лучше хотя бы по одному из них.</p>
 <p>В реальной реализации анализируются не только <code>startup</code> и <code>total</code>, но и порядок строк, число строк в некоторых случаях, параметры/зависимости пути, пригодность к параллельному исполнению и специальные приоритеты отключенных типов узлов.</p>
 <p>Для <strong>учебного случая с одинаковыми выходными строками, порядком и прочими свойствами</strong> можно начать с двух чисел:</p>
-<p>[
-C_{s,B} \le C_{s,A}, \qquad C_{t,B} \le C_{t,A}.
-]</p>
+<p><code>C_s,B ≤ C_s,A;  C_t,B ≤ C_t,A</code></p>
 <p>Если оба неравенства выполняются, A обычно нет смысла сохранять: B стартует не дороже и полностью выполняется не дороже.</p>
 <p>Пример:</p>
 <table>
@@ -3529,8 +3220,8 @@ C_{s,B} \le C_{s,A}, \qquad C_{t,B} \le C_{t,A}.
 </table>
 <p>Ни один путь не доминирует другой по обоим показателям.</p>
 <p>Здесь возникает знакомая из оптимизации идея <strong>границы Парето</strong>: сохраняем варианты, каждый из которых может выиграть при определенной цели.</p>
-<p>Это только модель для понимания. PostgreSQL использует конкретные правила сравнения, допуски к близким оценкам (<em>fuzz factor</em>) и дополнительные ограничения. Для PostgreSQL 18 важно также поле <code>disabled_nodes</code>: при сравнении путей меньшее количество отключенных узлов имеет приоритет над числовыми значениями startup/total cost. Этим объясняется, почему <code>enable_seqscan = off</code> теперь не следует представлять как простое прибавление огромной константы к <code>cost</code> — эта старая модель была изменена. Поведение подтверждается <code>compare_path_costs()</code> в <code>pathnode.c</code> и комментариями в <code>costsize.c</code>. Такие настройки в обычном режиме не являются простым математическим «бесконечным cost».</p>
-<h5 id="_2">Почему нельзя оставить все «почти одинаковые» пути<a class="headerlink" href="#_2" title="Permanent link">¶</a></h5>
+<p>Это только модель для понимания. PostgreSQL использует конкретные правила сравнения, допуски к близким оценкам (<em>fuzz factor</em>) и дополнительные ограничения. Для PostgreSQL 18 важно также поле <code>disabled_nodes</code>: использование узлов, отключенных соответствующими настройками <code>enable_*</code>, учитывается при предпочтении путей. Такие настройки в обычном режиме не являются простым математическим «бесконечным cost».</p>
+<h5 id="_7">Почему нельзя оставить все «почти одинаковые» пути<a class="headerlink" href="#_7" title="Permanent link">¶</a></h5>
 <p>Планировщик должен сам завершить работу за приемлемое время.</p>
 <p>Если в списке хранятся тысячи кандидатов, каждый новый путь придется сравнивать со многими существующими. Дополнительная работа планировщика становится самостоятельным ограниченным ресурсом.</p>
 <p>Поэтому PostgreSQL отбрасывает часть вариантов <strong>до появления окончательного плана</strong>. Это осознанный компромисс между качеством поиска и стоимостью самого планирования.</p>
@@ -3561,21 +3252,15 @@ Path B:
 </code></pre></div>
 <p>Если запросу требуется порядок по <code>created_at DESC</code>, путь B может избавить нас от отдельного <code>Sort</code>.</p>
 <p>Хотя его полный индексный доступ дороже (<code>1800 &gt; 1200</code>), окончательный план нужно сравнивать так:</p>
-<p>[
-C(A + \text{Sort}) \quad \text{против} \quad C(B).
-]</p>
+<p><code>C(A + Sort)  сравниваем с  C(B)</code></p>
 <p>Если сортировка стоит еще условные 900 единиц, получаем:</p>
-<p>[
-1200 + 900 = 2100 &gt; 1800.
-]</p>
+<p><code>1 200 + 900 = 2 100 &gt; 1 800</code></p>
 <p>Тогда B выгоднее.</p>
 <p>Но если сортировка стоит всего 100 единиц:</p>
-<p>[
-1200 + 100 = 1300 &lt; 1800,
-]</p>
+<p><code>1 200 + 100 = 1 300 &lt; 1 800</code></p>
 <p>путь A с последующей сортировкой дешевле.</p>
 <p>Здесь суммы используются для <strong>учебной иллюстрации</strong> добавочной работы сортировки; в реальном PostgreSQL <code>cost_sort</code> формирует стоимость верхнего пути с учетом входного пути, и слепо суммировать <code>total_cost</code> двух уже посчитанных родительских узлов нельзя.</p>
-<h5 id="_3">Что именно учитывает порядок<a class="headerlink" href="#_3" title="Permanent link">¶</a></h5>
+<h5 id="_8">Что именно учитывает порядок<a class="headerlink" href="#_8" title="Permanent link">¶</a></h5>
 <p>Семантика порядка включает не только имя столбца:</p>
 <ul>
 <li>направление: <code>ASC</code> или <code>DESC</code>;</li>
@@ -3669,7 +3354,7 @@ create_plan
 <p>«Какой из доступных путей ожидается наиболее выгодным, если статистика и стоимость операций примерно соответствуют нашим предположениям?»</p>
 </blockquote>
 <p>Это разумная инженерная стратегия. Она позволяет быстро строить хорошие планы для большого числа запросов, но ее точность ограничена входной моделью.</p>
-<h4 id="13_1">Главное после раздела 13<a class="headerlink" href="#13_1" title="Permanent link">¶</a></h4>
+<h5 id="13_1">Главное после раздела 13<a class="headerlink" href="#13_1" title="Permanent link">¶</a></h5>
 <ol>
 <li><code>Path</code> — кандидат с оценками и свойствами, а <code>Plan</code> — дерево для executor.</li>
 <li>PostgreSQL сохраняет несколько путей, когда они выигрывают в разных измерениях: startup, total и порядке результата.</li>
@@ -3678,6 +3363,7 @@ create_plan
 <li>Выбор пути происходит по расчетной модели и среди доступных альтернатив.</li>
 </ol>
 <hr/>
+<p>Планировщик умеет сохранять несколько путей: один дешевле при полном выполнении, другой раньше отдает первую строку, третий уже обеспечивает нужный порядок. Но как выбрать между ними, если приложению нужны только первые десять результатов? Теперь появляется <code>LIMIT</code>, меняющий критерий сравнения путей.</p>
 <h3 id="14-limit">14. <code>LIMIT</code> и частичная стоимость плана<a class="headerlink" href="#14-limit" title="Permanent link">¶</a></h3>
 <h4 id="141-sql-">14.1. Один SQL-предикат, два разных инженерных требования<a class="headerlink" href="#141-sql-" title="Permanent link">¶</a></h4>
 <p>Начнем с двух запросов:</p>
@@ -3725,23 +3411,19 @@ cost=0.43..2200.43
 <h4 id="143">14.3. Главная формула: стоимость получения доли результата<a class="headerlink" href="#143" title="Permanent link">¶</a></h4>
 <p>У пути известны:</p>
 <ul>
-<li>(C_s) — startup cost;</li>
-<li>(C_t) — total cost;</li>
-<li>(N) — ожидаемое количество выходных строк при полном выполнении;</li>
-<li>(k) — требуемое количество строк.</li>
+<li><code>C_s</code> — startup cost;</li>
+<li><code>C_t</code> — total cost;</li>
+<li><code>N</code> — ожидаемое количество выходных строк при полном выполнении;</li>
+<li><code>k</code> — требуемое количество строк.</li>
 </ul>
 <p>Для пути, стоимость которого условно нарастает по мере выдачи строк, можно построить приближение:</p>
-<p>[
-f = \min!\left(1,\frac{k}{N}\right)
-]</p>
-<p>[
-\boxed{C_{\text{fraction}}(f) = C_s + f\,(C_t-C_s)}
-]</p>
+<p><code>f = min(1, k / N)</code></p>
+<p><code>C_fraction(f) = C_s + f × (C_t − C_s)</code></p>
 <p>Это <strong>ключевая математическая идея</strong>, используемая в сравнении частичной стоимости путей. В коде PostgreSQL существует функция <code>compare_fractional_path_costs()</code>.</p>
 <p>Но интерпретировать формулу нужно правильно.</p>
-<p>Она не утверждает, что физический executor выполняет ровно (f) всех операций или что реальная задержка растет строго линейно. Это <strong>расчетная эвристика</strong> на уровне <code>Path</code>, основанная на уже полученных оценках.</p>
+<p>Она не утверждает, что физический executor выполняет ровно <code>f</code> всех операций или что реальная задержка растет строго линейно. Это <strong>расчетная эвристика</strong> на уровне <code>Path</code>, основанная на уже полученных оценках.</p>
 <p>Для некоторых узлов почти вся работа приходится на startup; для других работа действительно может накапливаться при выдаче строк.</p>
-<h5 id="_4">Разбор на числах<a class="headerlink" href="#_4" title="Permanent link">¶</a></h5>
+<h5 id="_9">Разбор на числах<a class="headerlink" href="#_9" title="Permanent link">¶</a></h5>
 <p>Два кандидата возвращают по <code>10 000</code> строк при полном исполнении:</p>
 <table>
 <thead>
@@ -3765,23 +3447,17 @@ f = \min!\left(1,\frac{k}{N}\right)
 </tbody>
 </table>
 <p>Без <code>LIMIT</code> дешевле B:</p>
-<p>[
-1200 &lt; 2200.
-]</p>
+<p><code>1 200 &lt; 2 200</code></p>
 <p>Добавим <code>LIMIT 10</code>:</p>
-<p>[
-f = \frac{10}{10000}=0.001.
-]</p>
+<p><code>f = 10 / 10 000 = 0.001</code></p>
 <p>Для A:</p>
-<p>[
-C_A(0.001)=0.4+0.001(2200-0.4)
-=0.4+2.1996=2.5996.
-]</p>
+<div class="highlight"><pre><span></span><code>C_A(0.001) = 0.4 + 0.001 × (2 200 − 0.4)
+           = 0.4 + 2.1996 = 2.5996
+</code></pre></div>
 <p>Для B:</p>
-<p>[
-C_B(0.001)=150+0.001(1200-150)
-=150+1.05=151.05.
-]</p>
+<div class="highlight"><pre><span></span><code>C_B(0.001) = 150 + 0.001 × (1 200 − 150)
+           = 150 + 1.05 = 151.05
+</code></pre></div>
 <p>Итог:</p>
 <table>
 <thead>
@@ -3818,9 +3494,7 @@ C_B(0.001)=150+0.001(1200-150)
 <span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
 </code></pre></div>
 <p>Если <code>PAID</code> встречается с вероятностью <code>s=0.01</code> и строки распределены приблизительно независимо, для получения десяти успешных строк можно ожидать рассмотрения порядка:</p>
-<p>[
-E[N_{\text{checked}}] \approx \frac{10}{0.01}=1000
-]</p>
+<p><code>E[N_checked] ≈ 10 / 0.01 = 1 000</code></p>
 <p>строк.</p>
 <p>Это полезная <strong>вероятностная модель</strong>, но она опирается на предположение о распределении совпадений по потоку.</p>
 <p>Теперь представим таблицу с миллионом строк, где все <code>PAID</code> находятся в последних 10% физического порядка.</p>
@@ -3847,7 +3521,7 @@ B. Index Scan Backward -&gt; Limit
 </code></pre></div>
 <p>В полной выборке A может быть дешевле, потому что последовательное чтение таблицы и последующая сортировка требуют меньше разрозненных посещений heap, чем индексный обход всех строк.</p>
 <p>Но при <code>LIMIT 10</code> B способен получить десять строк в индексном порядке и завершить работу.</p>
-<h5 id="_5">Расчет<a class="headerlink" href="#_5" title="Permanent link">¶</a></h5>
+<h5 id="_10">Расчет<a class="headerlink" href="#_10" title="Permanent link">¶</a></h5>
 <p>Пусть таблица содержит миллион строк. Для учебной иллюстрации оценим:</p>
 <table>
 <thead>
@@ -3874,30 +3548,24 @@ B. Index Scan Backward -&gt; Limit
 </tbody>
 </table>
 <p>Здесь индексный путь значительно хуже, если читать <strong>всю</strong> таблицу:</p>
-<p>[
-45000 &gt; 24000.
-]</p>
+<p><code>45 000 &gt; 24 000</code></p>
 <p>Но нужно только десять строк:</p>
-<p>[
-f=\frac{10}{1000000}=0.00001.
-]</p>
+<p><code>f = 10 / 1 000 000 = 0.00001</code></p>
 <p>Для B:</p>
-<p>[
-C_B(f)=0.4+0.00001(45000-0.4)
-\approx 0.85.
-]</p>
+<div class="highlight"><pre><span></span><code>C_B(f) = 0.4 + 0.00001 × (45 000 − 0.4)
+       ≈ 0.85
+</code></pre></div>
 <p>Для A:</p>
-<p>[
-C_A(f)=18000+0.00001(24000-18000)
-=18000.06.
-]</p>
+<div class="highlight"><pre><span></span><code>C_A(f) = 18 000 + 0.00001 × (24 000 − 18 000)
+       = 18 000.06
+</code></pre></div>
 <p>В этой модели индексный путь выигрывает с огромным запасом.</p>
 <p>Почему startup у A такой большой?</p>
 <p>Потому что обычный <code>Sort</code> должен прочитать вход, прежде чем определить первый элемент глобально отсортированного результата.</p>
 <p>Даже если он применит ограниченную сортировку (<code>top-N heapsort</code>), <strong>прочитать исходный поток для определения десяти лучших строк все равно потребуется</strong>.</p>
 <h5 id="top-n">Неожиданный нюанс про top-N<a class="headerlink" href="#top-n" title="Permanent link">¶</a></h5>
-<p>Для полного <code>Sort</code> стоимость сравнения элементов обычно имеет масштаб (O(N\log N)).</p>
-<p>Для поддержания десяти лучших из миллиона строк можно использовать структуру с затратами порядка (O(N\log 10)) на сравнения и небольшим объемом памяти.</p>
+<p>Для полного <code>Sort</code> стоимость сравнения элементов обычно имеет масштаб <code>O(N log N)</code>.</p>
+<p>Для поддержания десяти лучших из миллиона строк можно использовать структуру с затратами порядка <code>O(N log 10)</code> на сравнения и небольшим объемом памяти.</p>
 <p>Это значительно уменьшает CPU и RAM на сортировку, однако не дает информации о максимальных значениях до просмотра всех строк.</p>
 <p>Следовательно, <code>top-N heapsort</code> может быть дешевым <strong>алгоритмом сортировки</strong>, сохраняя блокирующее поведение относительно входного потока.</p>
 <p>Индекс отличается тем, что <strong>уже хранит ключи в подходящем порядке</strong>, поэтому чтение всего исходного отношения не требуется.</p>
@@ -3975,71 +3643,33 @@ C_A(f)=18000+0.00001(24000-18000)
 </tbody>
 </table>
 <p>Для полного результата:</p>
-<p>[
-1650 &lt; 1830 \ll 32500
-]</p>
+<p><code>1 650 &lt; 1 830 ≪ 32 500</code></p>
 <p>Побеждает bitmap.</p>
 <p>Для <code>LIMIT 10</code>:</p>
-<p>[
-f = 0.001.
-]</p>
-<p>[
-C_{\text{seq}}=0+0.001\cdot32500=32.5
-]</p>
-<p>[
-C_{\text{index}}=0.43+0.001(1830-0.43)
-\approx 2.26
-]</p>
-<p>[
-C_{\text{bitmap}}=225+0.001(1650-225)
-=226.425
-]</p>
+<p><code>f = 0.001</code></p>
+<p><code>C_seq = 0 + 0.001 × 32 500 = 32.5</code></p>
+<p><code>C_index = 0.43 + 0.001 × (1 830 − 0.43) ≈ 2.26</code></p>
+<p><code>C_bitmap = 225 + 0.001 × (1 650 − 225) = 226.425</code></p>
 <p>Побеждает индекс.</p>
 <p>Для <code>LIMIT 5000</code>:</p>
-<p>[
-f = 0.5.
-]</p>
-<p>[
-C_{\text{seq}}=16250
-]</p>
-<p>[
-C_{\text{index}}=0.43+0.5(1830-0.43)
-\approx915.22
-]</p>
-<p>[
-C_{\text{bitmap}}=225+0.5(1650-225)=937.5
-]</p>
+<p><code>f = 0.5</code></p>
+<p><code>C_seq = 16 250</code></p>
+<p><code>C_index = 0.43 + 0.5 × (1 830 − 0.43) ≈ 915.22</code></p>
+<p><code>C_bitmap = 225 + 0.5 × (1 650 − 225) = 937.5</code></p>
 <p>Индекс еще немного выгоднее по этой модели.</p>
 <p>При <code>LIMIT 7000</code>:</p>
-<p>[
-f=0.7.
-]</p>
-<p>[
-C_{\text{index}}=0.43+0.7(1830-0.43)
-\approx1281.13
-]</p>
-<p>[
-C_{\text{bitmap}}=225+0.7(1650-225)=1222.5
-]</p>
+<p><code>f = 0.7</code></p>
+<p><code>C_index = 0.43 + 0.7 × (1 830 − 0.43) ≈ 1 281.13</code></p>
+<p><code>C_bitmap = 225 + 0.7 × (1 650 − 225) = 1 222.5</code></p>
 <p>Уже выгоднее bitmap.</p>
-<h5 id="_6">Где граница переключения?<a class="headerlink" href="#_6" title="Permanent link">¶</a></h5>
+<h5 id="_11">Где граница переключения?<a class="headerlink" href="#_11" title="Permanent link">¶</a></h5>
 <p>Решим уравнение равенства оценок:</p>
-<p>[
-0.43+f(1830-0.43)=225+f(1650-225).
-]</p>
-<p>[
-0.43+1829.57f=225+1425f.
-]</p>
-<p>[
-404.57f=224.57.
-]</p>
-<p>[
-\boxed{f\approx0.5551}.
-]</p>
-<p>При (N=10000) это соответствует примерно:</p>
-<p>[
-k\approx5551.
-]</p>
+<p><code>0.43 + f × (1 830 − 0.43) = 225 + f × (1 650 − 225)</code></p>
+<p><code>0.43 + 1 829.57f = 225 + 1 425f</code></p>
+<p><code>404.57f = 224.57</code></p>
+<p><code>f ≈ 0.5551</code></p>
+<p>При <code>N = 10 000</code> это соответствует примерно:</p>
+<p><code>k ≈ 5 551</code></p>
 <p>Получаем важный результат: <strong>в учебной модели существует расчетная точка, после которой предпочтение меняется с индексного на bitmap-путь</strong>.</p>
 <p>В реальном PostgreSQL точное место переключения зависит от стоимости верхних узлов, статистики, допустимых путей, дискретных решений и множества деталей. Но механизм хорошо виден именно через математическое сравнение.</p>
 <h4 id="148-limit">14.8. Почему нельзя просто считать <code>LIMIT</code> бесплатным<a class="headerlink" href="#148-limit" title="Permanent link">¶</a></h4>
@@ -4077,38 +3707,26 @@ k\approx5551.
 <p>Вроде бы снова нужно только десять строк.</p>
 <p>Но перед ними исполнитель должен <strong>пропустить 990 000 строк</strong> в требуемом порядке.</p>
 <p>На уровне числа строк путь должен произвести примерно:</p>
-<p>[
-N_{\text{consumed}}=\text{OFFSET}+\text{LIMIT}
-=990000+10=990010.
-]</p>
+<div class="highlight"><pre><span></span><code>N_consumed = OFFSET + LIMIT
+           = 990 000 + 10 = 990 010
+</code></pre></div>
 <p>Пусть индексный путь для миллиона строк имеет:</p>
-<p>[
-C_s=0.4, \qquad C_t=40000.
-]</p>
+<p><code>C_s = 0.4;  C_t = 40 000</code></p>
 <p>Если оценивать чтение большого начального префикса по линейной модели, доля:</p>
-<p>[
-f=\frac{990010}{1000000}=0.99001.
-]</p>
+<p><code>f = 990 010 / 1 000 000 = 0.99001</code></p>
 <p>И стоимость оказывается почти полной:</p>
-<p>[
-C\approx0.4+0.99001(40000-0.4)
-\approx39600.40.
-]</p>
+<div class="highlight"><pre><span></span><code>C ≈ 0.4 + 0.99001 × (40 000 − 0.4)
+  ≈ 39 600.40
+</code></pre></div>
 <p>Несмотря на <code>LIMIT 10</code>, запрос должен пройти почти весь индексный поток.</p>
 <h5 id="offset-limitpath">Как <code>OFFSET</code> отражается в модели <code>LimitPath</code><a class="headerlink" href="#offset-limitpath" title="Permanent link">¶</a></h5>
 <p>В реализации PostgreSQL функция, строящая <code>LimitPath</code>, корректирует отдельно startup и total стоимости дочернего пути с учетом пропускаемых и возвращаемых строк.</p>
-<p>Упрощенная модель при (N) ожидаемых строках, (o) пропускаемых и (k) возвращаемых:</p>
-<p>[
-C_{\text{startup,limit}}
-\approx C_s+\frac{o}{N}(C_t-C_s)
-]</p>
-<p>[
-C_{\text{total,limit}}
-\approx C_s+\frac{\min(N,o+k)}{N}(C_t-C_s).
-]</p>
+<p>Упрощенная модель при <code>N</code> ожидаемых строках, <code>o</code> пропускаемых и <code>k</code> возвращаемых:</p>
+<p><code>C_startup,limit ≈ C_s + (o / N) × (C_t − C_s)</code></p>
+<p><code>C_total,limit ≈ C_s + [min(N, o + k) / N] × (C_t − C_s)</code></p>
 <p>При корректном учете границ эти формулы отражают главное: <strong>пропуск строк требует работы</strong>.</p>
 <p>Это не попытка дословно воспроизвести весь код <code>create_limit_path()</code>. Реальная реализация предусматривает особые случаи неизвестных границ, округления и корректировки <code>rows</code>.</p>
-<h5 id="_7">Где возникает инженерное решение<a class="headerlink" href="#_7" title="Permanent link">¶</a></h5>
+<h5 id="_12">Где возникает инженерное решение<a class="headerlink" href="#_12" title="Permanent link">¶</a></h5>
 <p>Для последовательной пагинации по стабильному ключу иногда подходит подход по последнему полученному ключу (<em>keyset pagination</em>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
@@ -4211,38 +3829,33 @@ C_{\text{total,limit}}
 <p>Почему это важно?</p>
 <p>Потому что «сколько строк реально заберет клиент» — часть требований к оптимизации. Без такой информации планировщик будет использовать допущение, которое может не совпадать с фактическим потреблением.</p>
 <p>Но это <strong>не универсальный способ ускорять SELECT</strong>. Изменение параметра влияет на определенные сценарии работы с курсорами, а не превращает любой запрос в потоковый индексный поиск.</p>
-<h4 id="14">Главное после раздела 14<a class="headerlink" href="#14" title="Permanent link">¶</a></h4>
+<h5 id="14">Главное после раздела 14<a class="headerlink" href="#14" title="Permanent link">¶</a></h5>
 <ol>
 <li><code>LIMIT</code> позволяет выбирать путь по стоимости получения части строк, а не только всего результата.</li>
-<li>Учебное приближение: (C(f)=C_s+f(C_t-C_s)).</li>
+<li>Учебное приближение: <code>C(f) = C_s + f × (C_t − C_s)</code>.</li>
 <li>Самый дешевый полный путь может проиграть пути с меньшим startup cost.</li>
 <li><code>ORDER BY + LIMIT</code> особенно выгоден, если индекс сразу обеспечивает нужный порядок.</li>
 <li><code>Sort</code>, фильтры и большой <code>OFFSET</code> могут уничтожить ожидаемую выгоду ранней остановки.</li>
 <li><code>LIMIT</code> без полного <code>ORDER BY</code> не гарантирует воспроизводимого состава результата.</li>
 </ol>
 <hr/>
+<p>Мы разобрали, почему <code>LIMIT</code>, <code>ORDER BY</code> и <code>OFFSET</code> способны менять выбор пути, а маленький результат не гарантирует маленькую работу. Остался последний вопрос: почему выбранный по расчетной стоимости план все равно бывает медленным? Чтобы ответить, отделим ошибки оценки строк от ошибок стоимости и ограничений самого поиска альтернатив.</p>
 <h3 id="15-cost-based-optimizer">15. Ограничения Cost-Based Optimizer<a class="headerlink" href="#15-cost-based-optimizer" title="Permanent link">¶</a></h3>
 <h4 id="151-postgresql">15.1. Что оптимизирует PostgreSQL — и почему этого недостаточно для гарантии минимальной задержки<a class="headerlink" href="#151-postgresql" title="Permanent link">¶</a></h4>
 <p>В предыдущих разделах мы получили множество возможных <code>Path</code> и научились сравнивать их стоимость. Математическая постановка выглядит так:</p>
-<p>[
-P^* = \arg\min_{P \in \mathcal{P}} \widehat{C}(P),
-]</p>
+<p><code>P* = argmin Ĉ(P),  где P ∈ 𝒫</code></p>
 <p>где:</p>
 <ul>
-<li>(\mathcal{P}) — рассматриваемые допустимые пути;</li>
-<li>(\widehat{C}(P)) — оценка стоимости пути по модели планировщика;</li>
-<li>(P^*) — выбранный путь.</li>
+<li><code>𝒫</code> — рассматриваемые допустимые пути;</li>
+<li><code>Ĉ(P)</code> — оценка стоимости пути по модели планировщика;</li>
+<li><code>P*</code> — выбранный путь.</li>
 </ul>
 <p>Для запроса с <code>LIMIT</code> критерием может выступать стоимость получения нужной части результата. Для запроса с <code>ORDER BY</code> рассматриваются пути, удовлетворяющие требуемому порядку, либо пути, дополненные сортировкой.</p>
-<p>Здесь решающую роль играет значок оценки над (C). Планировщик сравнивает <strong>предсказанные затраты</strong>, а не измеренное будущее время.</p>
+<p>Здесь решающую роль играет значок оценки над <code>C</code>. Планировщик сравнивает <strong>предсказанные затраты</strong>, а не измеренное будущее время.</p>
 <p>Его модель может выбрать:</p>
-<p>[
-\widehat{C}(A) &lt; \widehat{C}(B),
-]</p>
+<p><code>Ĉ(A) &lt; Ĉ(B)</code></p>
 <p>хотя при конкретном выполнении окажется:</p>
-<p>[
-T_{\text{actual}}(A) &gt; T_{\text{actual}}(B).
-]</p>
+<p><code>T_actual(A) &gt; T_actual(B)</code></p>
 <p>Это допустимая ситуация. Она показывает, что какая-то предпосылка модели не совпала с реальными условиями.</p>
 <p>Чтобы диагностировать такое расхождение, нужно последовательно проверить три слоя:</p>
 <ol>
@@ -4258,13 +3871,9 @@ T_{\text{actual}}(A) &gt; T_{\text{actual}}(B).
 <div class="highlight"><pre><span></span><code>actual rows=100000
 </code></pre></div>
 <p>Введем отношение:</p>
-<p>[
-E_{rows} = \frac{R_{\text{actual}}}{R_{\text{estimated}}}.
-]</p>
+<p><code>E_rows = R_actual / R_estimated</code></p>
 <p>Получаем:</p>
-<p>[
-E_{rows}=\frac{100000}{100}=1000.
-]</p>
+<p><code>E_rows = 100 000 / 100 = 1 000</code></p>
 <p>Ошибка в тысячу раз.</p>
 <p>Рассмотрим запрос:</p>
 <div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
@@ -4274,7 +3883,7 @@ E_{rows}=\frac{100000}{100}=1000.
 <p>Допустим, когда статистика собиралась, у клиента было сто заказов. После миграции данных оказалось сто тысяч. Однако статистика не успела обновиться.</p>
 <p>Планировщик считает условие очень селективным и выбирает индексный доступ. Реально индекс возвращает намного больше кандидатов, вызывая большое количество обращений к heap. В этих условиях последовательное сканирование могло бы оказаться дешевле.</p>
 <p>Но <strong>плохая cardinality не всегда означает плохой индекс</strong>. Если выбранный индекс покрывает запрос или строки физически хорошо локализованы, даже большой результат может обслуживаться эффективно. Нужно анализировать полную стоимость, а не только число строк.</p>
-<h5 id="_8">Почему статистика ошибается<a class="headerlink" href="#_8" title="Permanent link">¶</a></h5>
+<h5 id="_13">Почему статистика ошибается<a class="headerlink" href="#_13" title="Permanent link">¶</a></h5>
 <p>Причины уже известны из блока 1: устаревший <code>ANALYZE</code>, недостаточная выборка, неравномерные распределения, значения вне MCV, грубая гистограмма, зависимые столбцы и ограниченная многоколоночная статистика.</p>
 <p>Еще одна важная граница: статистика по столбцу может верно оценивать, <strong>сколько</strong> строк удовлетворяет условию, и недостаточно точно описывать, <strong>где именно</strong> эти строки встретятся при обходе определенного индекса.</p>
 <h5 id="rows">Когда расхождение <code>rows</code> вообще не ошибка<a class="headerlink" href="#rows" title="Permanent link">¶</a></h5>
@@ -4369,12 +3978,8 @@ cpu_operator_cost
 <p>Зависит от вида плана.</p>
 <p><strong>Custom plan</strong> строится с учетом параметров текущего выполнения. Это позволяет принимать разные решения для <code>PAID</code> и <code>CANCELLED</code>.</p>
 <p><strong>Generic plan</strong> предназначен для повторного использования с разными параметрами. Он экономит стоимость планирования, но не учитывает конкретное текущее значение <code>$1</code> так же, как custom plan.</p>
-<h5 id="_9">Компромисс<a class="headerlink" href="#_9" title="Permanent link">¶</a></h5>
-<p>[
-\text{экономия времени планирования}
-\quad\leftrightarrow\quad
-\text{качество специализированного плана}.
-]</p>
+<h5 id="_14">Компромисс<a class="headerlink" href="#_14" title="Permanent link">¶</a></h5>
+<p><code>Экономия времени планирования ↔ качество специализированного плана</code></p>
 <p>В стандартном автоматическом режиме PostgreSQL 18 для параметризованного prepared statement сначала обычно строит custom plans при первых пяти выполнениях, затем оценивает применимость generic plan, сравнивая его расчетную стоимость с оценками custom plans и учитывая экономию на планировании.</p>
 <p>Это <strong>деталь текущей реализации</strong>, а не гарантия SQL-стандарта.</p>
 <p>Настройка <code>plan_cache_mode</code> позволяет влиять на выбор между <code>auto</code>, <code>force_custom_plan</code> и <code>force_generic_plan</code>.</p>
@@ -4400,13 +4005,9 @@ cpu_operator_cost
 <p>Поэтому важно, насколько качественной была исходная статистика.</p>
 <h4 id="159-cost-p95">15.9. Минимальный <code>cost</code> и минимальный p95 — разные цели<a class="headerlink" href="#159-cost-p95" title="Permanent link">¶</a></h4>
 <p>Предположим, оптимизатор оценил:</p>
-<p>[
-\widehat{C}(A)=900, \qquad \widehat{C}(B)=1100.
-]</p>
+<p><code>Ĉ(A) = 900;  Ĉ(B) = 1 100</code></p>
 <p>А фактические задержки при определенном состоянии среды оказались такими:</p>
-<p>[
-T(A)=120\text{ мс},\qquad T(B)=75\text{ мс}.
-]</p>
+<p><code>T(A) = 120 мс;  T(B) = 75 мс</code></p>
 <p>Это <strong>сконструированный пример</strong>, показывающий возможное расхождение порядка предпочтений.</p>
 <p>Backend часто оценивают по:</p>
 <div class="highlight"><pre><span></span><code>p95 latency &lt; 100 ms
@@ -4506,7 +4107,7 @@ Execution Time: ... ms
 <li>фактическое время не обязано соответствовать расчетному порядку путей.</li>
 </ul>
 <p>Это не набор исключений для запоминания. Это следствия одной инженерной идеи: <strong>планировщик решает сложную задачу выбора быстро, пользуясь доступной статистической моделью вместо выполнения всех вариантов</strong>.</p>
-<h4 id="15">Главное после раздела 15<a class="headerlink" href="#15" title="Permanent link">¶</a></h4>
+<h5 id="15">Главное после раздела 15<a class="headerlink" href="#15" title="Permanent link">¶</a></h5>
 <ol>
 <li>Cost-Based Optimizer работает с оценкой затрат, а не с заранее известной задержкой.</li>
 <li>Серьезные ошибки <code>rows</code> часто приводят к плохим решениям, но правильные <code>rows</code> не гарантируют хороший план.</li>
@@ -4517,67 +4118,82 @@ Execution Time: ... ms
 <li>Минимальный <code>cost</code> не является обещанием минимального p95 backend-запроса.</li>
 </ol>
 <hr/>
-<h2 id="postgresql-18">Итоговая модель планировщика PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code>SQL / предикаты / ORDER BY / LIMIT
-              ↓
-pg_class + статистика ANALYZE
-              ↓
-Оценка selectivity и выходных rows
-              ↓
-Cost model каждого допустимого способа
-  - Seq Scan          → CPU + все heap pages
-  - Index Scan        → индекс + heap + correlation + cache
-  - Bitmap Heap Scan  → bitmap + сгруппированные heap pages
-  - Sort              → rows + width + work_mem + temp I/O
-              ↓
-Создание и сравнение Path
-  - startup_cost / total_cost
-  - pathkeys и другие свойства
-  - удаление доминируемых альтернатив
-              ↓
-ORDER BY / LIMIT → свойства порядка и доля результата
-              ↓
-Выбранный Path → create_plan() → executor
-              ↓
-EXPLAIN ANALYZE: реальные строки, время и буферы
-              ↓
-Сравнение прогноза и действительной работы
+<h3 id="3_2">Итоговая модель блока 3<a class="headerlink" href="#3_2" title="Permanent link">¶</a></h3>
+<p>Мы последовательно разобрали:</p>
+<div class="highlight"><pre><span></span><code>SQL, WHERE, ORDER BY, LIMIT
+          |
+          v
+Статистика и оценка selectivity
+          |
+          v
+Ожидаемые строки (rows)
+          |
+          v
+Допустимые Path для одной таблицы
+    - Seq Scan
+    - Index Scan
+    - Bitmap Scan
+    - при необходимости Sort / Incremental Sort
+          |
+          v
+Cost model
+    - startup_cost
+    - total_cost
+          |
+          v
+Сравнение по стоимости и свойствам
+    - output ordering (pathkeys)
+    - возможность ранней выдачи
+    - доминирование и отбрасывание кандидатов
+          |
+          v
+LIMIT: интересует часть выходных строк?
+          |
+          v
+Выбор итогового Path
+          |
+          v
+create_plan -&gt; executor
+          |
+          v
+Фактические rows, time, BUFFERS
+          |
+          v
+Сопоставление оценок с реальной работой
 </code></pre></div>
-<h3 id="_10">Семь инженерных выводов<a class="headerlink" href="#_10" title="Permanent link">¶</a></h3>
+<h4 id="051">Семь выводов всей углубленной лекции 05.1<a class="headerlink" href="#051" title="Permanent link">¶</a></h4>
 <ol>
-<li><strong>Кардинальность — первая гипотеза.</strong> <code>rows</code> вычисляется из статистики, а не подсчитывается заранее исполнением того же запроса.</li>
-<li><strong>Селективность зависит от распределения.</strong> MCV, гистограммы, доля <code>NULL</code> и зависимости между столбцами объясняют большую часть ошибок оценок для одной таблицы.</li>
-<li><strong>Стоимость — относительная модель.</strong> <code>cost</code> объединяет CPU и страничный доступ в условных единицах; это не миллисекунды и не прогноз p95.</li>
-<li><strong>Индекс не дает бесплатного heap.</strong> Случайное расположение TID способно сделать <code>Index Scan</code> дорогим даже при правильной оценке <code>rows</code>.</li>
-<li><strong>Bitmap и Sort оплачиваются отдельно.</strong> Они могут экономить I/O или обеспечивать порядок, но требуют предварительной работы и ограниченной памяти.</li>
-<li><strong>Порядок и LIMIT меняют критерий выбора.</strong> План для всех строк может проиграть при запросе первых десяти, а блокирующий <code>Sort</code> или большой <code>OFFSET</code> способны лишить <code>LIMIT</code> ожидаемой выгоды.</li>
-<li><strong>Минимальный расчетный cost — условный выбор.</strong> Качество решения определяется актуальностью статистики, приближениями модели и реальным состоянием системы под нагрузкой.</li>
+<li>Статистика дает планировщику оценку количества строк и свойств распределения.</li>
+<li>Cost model превращает эту оценку в стоимость различных способов доступа.</li>
+<li><code>Path</code> — кандидат со стоимостью и свойствами; <code>Plan</code> — выбранное дерево для выполнения.</li>
+<li><code>ORDER BY</code> делает порядок строк экономически значимым свойством пути.</li>
+<li><code>LIMIT</code> может переключать выбор с минимального total cost на минимальную стоимость получения первых строк.</li>
+<li><code>add_path()</code> сокращает пространство поиска, потому что само планирование потребляет ресурсы.</li>
+<li>Неудачный план нужно объяснять через нарушенные предпосылки модели, а не исправлять случайными индексами или флагами.</li>
 </ol>
-<h3 id="_11">Где заканчивается эта лекция<a class="headerlink" href="#_11" title="Permanent link">¶</a></h3>
-<ul>
-<li><strong>Следующий технический слой внутри темы:</strong> исходники <code>selfuncs.c</code>, <code>costsize.c</code>, <code>pathnode.c</code> и <code>planner.c</code> вплоть до конкретных ветвей для одного SQL. Он ответит, где именно возникают отдельные эвристики и почему два близких по стоимости <code>Path</code> сохраняются или отбрасываются.</li>
-<li><strong>Отдельный слой 05.2:</strong> Buffer Manager, фактические buffer pins, <code>TIDBitmap</code>, <code>tuplesort</code> и инструментирование executor. Он отвечает на вопрос, какой физической работе соответствуют расчетные слагаемые.</li>
-<li><strong>Следующая лекция №6:</strong> логические и физические <code>JOIN</code>, алгоритмы соединения и порядок соединений. В этой лекции их намеренно нет.</li>
-</ul>
-<h2 id="_12">Источники и границы точности<a class="headerlink" href="#_12" title="Permanent link">¶</a></h2>
-<p><strong>Проверенный ориентир:</strong> документация PostgreSQL 18 и исходники ветки <code>REL_18_STABLE</code>. Понятия <code>Path</code>, <code>RelOptInfo</code>, <code>Cost</code>, <code>PathKey</code>, <code>add_path()</code> и названия функций стоимости — особенности реализации PostgreSQL 18. Формулы с пометками «учебная» и <code>toy</code> не претендуют на буквальное воспроизведение всех внутренних ветвей кода.</p>
+<h4 id="_15">Куда можно копнуть глубже в рамках темы<a class="headerlink" href="#_15" title="Permanent link">¶</a></h4>
+<p><strong>1. Реальные правила <code>add_path()</code> и сравнение <code>PathKey</code>.</strong> Это позволит установить, почему один кандидат сохранился, а другой был отброшен до окончательного <code>EXPLAIN</code>.</p>
+<p><strong>2. Выбор пути при <code>LIMIT</code> в исходниках.</strong> <code>compare_fractional_path_costs</code>, <code>get_cheapest_fractional_path</code> и <code>create_limit_path</code> покажут, как математическая интерполяция превращается в конкретный выбранный путь.</p>
+<p><strong>3. Распределение совпадений в индексном порядке.</strong> Это закроет вопрос, почему статистика знает частоту значения, но <code>ORDER BY + LIMIT</code> иногда приводит к сотням тысяч бесполезных проверок.</p>
+<p><strong>4. Generic/custom plan для подготовленных запросов.</strong> Поможет объяснить резкую разницу в задержках при одинаковом SQL-тексте и разных параметрах. Детали драйверов и протокола PostgreSQL оставляем за пределами лекции.</p>
+<p>Алгоритмы <code>JOIN</code> и порядок соединений будут рассмотрены в отдельной лекции №6.</p>
+<hr/>
+<h3 id="_16">Источники и статус утверждений<a class="headerlink" href="#_16" title="Permanent link">¶</a></h3>
+<p><strong>Ориентир: PostgreSQL 18, ветка <code>REL_18_STABLE</code>.</strong> Математические и числовые примеры, специально сконструированные для обучения, обозначены как учебные. Их нельзя воспринимать как реальный результат исполнения <code>EXPLAIN</code>. Названия внутренних структур и функций относятся к реализации PostgreSQL 18, а не к гарантиям SQL-стандарта.</p>
 <ol>
-<li><a href="https://www.postgresql.org/docs/18/using-explain.html">PostgreSQL 18 — Using EXPLAIN</a> — семантика дерева плана, <code>cost</code>, <code>rows</code>, <code>width</code>, <code>LIMIT</code> и интерпретация узлов.</li>
-<li><a href="https://www.postgresql.org/docs/18/planner-stats.html">PostgreSQL 18 — Statistics Used by the Planner</a> — обычная и расширенная статистика, MCV, гистограммы, функциональные зависимости.</li>
-<li><a href="https://www.postgresql.org/docs/18/row-estimation-examples.html">PostgreSQL 18 — Planner Statistics Details</a> — расчет селективности на конкретных распределениях.</li>
-<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">PostgreSQL 18 — Query Planning</a> — коэффициенты стоимости, параметры планировщика, <code>effective_cache_size</code>.</li>
-<li><a href="https://www.postgresql.org/docs/18/planner-optimizer.html">PostgreSQL 18 — Planner/Optimizer</a> — <code>Path</code> и построение окончательного дерева <code>Plan</code>.</li>
-<li><a href="https://www.postgresql.org/docs/18/indexes-ordering.html">PostgreSQL 18 — Indexes and ORDER BY</a> — порядок B-tree, выбор между индексным обходом и сортировкой.</li>
-<li><a href="https://www.postgresql.org/docs/18/queries-limit.html">PostgreSQL 18 — LIMIT and OFFSET</a> — частичные результаты, нестабильность порядка и цена OFFSET.</li>
-<li><a href="https://www.postgresql.org/docs/18/sql-prepare.html">PostgreSQL 18 — PREPARE</a> — generic/custom plans.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/costsize.c">Исходный код PostgreSQL 18 — <code>costsize.c</code></a> — <code>cost_seqscan</code>, <code>cost_index</code>, <code>cost_bitmap_heap_scan</code>, <code>cost_tuplesort</code>, интерполяция стоимости.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/adt/selfuncs.c">Исходный код PostgreSQL 18 — <code>selfuncs.c</code></a> — <code>eqsel</code>, диапазонные оценки, стоимость индексного метода.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/analyze.c">Исходный код PostgreSQL 18 — <code>analyze.c</code></a> — алгоритмы статистической выборки.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/statistics/dependencies.c">Исходный код PostgreSQL 18 — <code>dependencies.c</code></a> — оценка функциональных зависимостей.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/util/pathnode.c">Исходный код PostgreSQL 18 — <code>pathnode.c</code></a> — добавление путей, <code>disabled_nodes</code>, сравнение стоимости и создание <code>LimitPath</code>.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/plan/planner.c">Исходный код PostgreSQL 18 — <code>planner.c</code></a> — выбор финального пути с учетом частичной стоимости.</li>
-<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/sort/tuplesort.c">Исходный код PostgreSQL 18 — <code>tuplesort.c</code></a> — механика сортировки, которую здесь учитываем через стоимостные эвристики.</li>
+<li><a href="https://www.postgresql.org/docs/18/using-explain.html">PostgreSQL 18 — Using EXPLAIN</a>: семантика startup/total, планы с LIMIT, Incremental Sort, особенности досрочно завершенных дочерних узлов.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-explain.html">PostgreSQL 18 — EXPLAIN</a>: стоимость частичного получения строк, <code>ANALYZE</code>, <code>GENERIC_PLAN</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/planner-optimizer.html">PostgreSQL 18 — Planner/Optimizer</a>: понятие <code>Path</code>, генерация и выбор планов.</li>
+<li><a href="https://www.postgresql.org/docs/18/indexes-ordering.html">PostgreSQL 18 — Indexes and ORDER BY</a>: B-tree, порядок обхода, <code>ORDER BY + LIMIT</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/queries-limit.html">PostgreSQL 18 — LIMIT and OFFSET</a>: ограничение результата, нестабильный порядок без <code>ORDER BY</code>, стоимость <code>OFFSET</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">PostgreSQL 18 — Query Planning Settings</a>: cost coefficients, <code>effective_cache_size</code>, <code>cursor_tuple_fraction</code>, <code>plan_cache_mode</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-prepare.html">PostgreSQL 18 — PREPARE</a>: различия generic и custom планов, эвристика автоматического выбора.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/util/pathnode.c">PostgreSQL 18, исходник <code>pathnode.c</code></a>: <code>add_path</code>, <code>set_cheapest</code>, <code>compare_fractional_path_costs</code>, создание <code>LimitPath</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/plan/planner.c">PostgreSQL 18, исходник <code>planner.c</code></a>: <code>get_cheapest_fractional_path</code>, выбор пути и переход к <code>create_plan</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/pathkeys.c">PostgreSQL 18, исходник <code>pathkeys.c</code></a>: представление и сравнение порядка строк.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/costsize.c">PostgreSQL 18, исходник <code>costsize.c</code></a>: оценка стоимости чтения и сортировки из предыдущего блока.</li>
 </ol>
+<p><strong>Граница разделов:</strong> выбор плана для одной таблицы, порядок, LIMIT и ограничения модели. Без лабораторной практики и без алгоритмов JOIN.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -4589,7 +4205,7 @@ EXPLAIN ANALYZE: реальные строки, время и буферы
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 05.2. PostgreSQL Cost Model" class="md-footer__link md-footer__link--prev" href="../5.2%20-%20PostgreSQL%20cost%20model/">
+<a aria-label="Назад: 4.6. Startup рантайма Go глубже: от rt0 до main.main" class="md-footer__link md-footer__link--prev" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -4598,17 +4214,17 @@ EXPLAIN ANALYZE: реальные строки, время и буферы
                 Назад
               </span>
 <div class="md-ellipsis">
-                05.2. PostgreSQL Cost Model
+                4.6. Startup рантайма Go глубже: от rt0 до main.main
               </div>
 </div>
 </a>
-<a aria-label="Вперед: Задание на допуск" class="md-footer__link md-footer__link--next" href="../../../practice/1%20-%20task/">
+<a aria-label="Вперед: Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN" class="md-footer__link md-footer__link--next" href="../6.1%20-%20Join%20Planner/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                Задание на допуск
+                Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
               </div>
 </div>
 <div class="md-footer__button md-icon">
