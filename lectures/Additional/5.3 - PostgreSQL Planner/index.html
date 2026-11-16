@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/5.3%20-%20PostgreSQL%20Planner/" rel="canonical"/>
+<link href="../5.2%20-%20PostgreSQL%20Cost%20model/" rel="prev"/>
+<link href="../6.1%20-%20Join%20Planner/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>05.1. PostgreSQL Planner Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#051-postgresql-planner-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              05.1. PostgreSQL Planner Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL. EXPLAIN и EXPLAIN ANALYZE
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 6. PostgreSQL: алгоритмы соединения таблиц
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_7_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_7">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20PostgreSQL%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    05.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20PostgreSQL%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    05.2. PostgreSQL Cost Model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    05.1. PostgreSQL Planner Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    05.1. PostgreSQL Planner Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-limit-cost-based-optimizer">
+<span class="md-ellipsis">
+      
+        Блок 3. Выбор плана, LIMIT и границы Cost-Based Optimizer
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    06.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    06.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production Backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
+<span class="md-ellipsis">
+    
+  
+    1.1 - CPU Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
+<span class="md-ellipsis">
+    
+  
+    2.1 - CAS Cache Coherence
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
+<span class="md-ellipsis">
+    
+  
+    3.1 - GC + memory internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.2 - OS Virtual Memory
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.3 - Linux memory reclaim
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.4 - Windows, macOS - Memory Pressure
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.5 - Linux storage path
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1 - Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2 - Channels, select and context deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3 - Go compiler under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4 - Go ABI, generics codegen and linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5 - Executable, OS loader and dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6 - Go runtime startup deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1 - Cardinality
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2 - Cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5.3%20-%20Path%20selection%20limit/">
+<span class="md-ellipsis">
+    
+  
+    5.3 - Path selection limit
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6.1%20-%20Join%20planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1 - Join planner
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6.2%20-%20Join%20executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2 - Join executor
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6.3%20-%20Hash%20storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3 - Hash storage
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-limit-cost-based-optimizer">
+<span class="md-ellipsis">
+      
+        Блок 3. Выбор плана, LIMIT и границы Cost-Based Optimizer
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="051-postgresql-planner-internals">05.1. PostgreSQL Planner Internals<a class="headerlink" href="#051-postgresql-planner-internals" title="Permanent link">¶</a></h1>
+<h2 id="3-limit-cost-based-optimizer">Блок 3. Выбор плана, <code>LIMIT</code> и границы Cost-Based Optimizer<a class="headerlink" href="#3-limit-cost-based-optimizer" title="Permanent link">¶</a></h2>
+<blockquote>
+<p><strong>Техническая лекция, продолжение блоков 1–2.</strong> Основной ориентир — PostgreSQL 18, включая исходники ветки <code>REL_18_STABLE</code>. Здесь разбираются <strong>разделы 13–15</strong> программы. Мы ограничиваемся выбором способов доступа к <strong>одной таблице</strong>, требуемым порядком результатов, <code>LIMIT</code> и пределами точности расчетной модели. <strong>JOIN, алгоритмы соединения и порядок соединений</strong> сознательно вынесены в следующую лекцию.</p>
+<p><strong>Формат:</strong> только теория, причинно-следственные объяснения, математические выкладки, короткие SQL-фрагменты и иллюстративные деревья планов. Лабораторных заданий и практических упражнений нет.</p>
+<p><strong>Главный вопрос:</strong> статистика уже дала нам оценку <code>rows</code>, а функции <code>cost_seqscan</code>, <code>cost_index</code>, <code>cost_bitmap_heap_scan</code>, <code>cost_sort</code> — значения стоимости. Почему PostgreSQL не выбирает просто самый дешевый скан таблицы? Что меняется при <code>ORDER BY</code> и <code>LIMIT</code>? И почему план с минимальным расчетным <code>cost</code> иногда работает медленнее альтернативы?</p>
+</blockquote>
+<hr/>
+<h1 id="13-path">13. Как планировщик выбирает оптимальный <code>Path</code><a class="headerlink" href="#13-path" title="Permanent link">¶</a></h1>
+<h2 id="131-cost-model">13.1. Продолжим с места, где остановилась cost model<a class="headerlink" href="#131-cost-model" title="Permanent link">¶</a></h2>
+<p>Представим таблицу <code>orders</code>, для которой известны следующие характеристики:</p>
+<ul>
+<li><code>1 000 000</code> строк;</li>
+<li><code>20 000</code> страниц heap;</li>
+<li>средняя выходная строка в рассматриваемом запросе — около <code>96</code> байт;</li>
+<li>существуют B-tree индексы по <code>customer_id</code> и <code>created_at</code>;</li>
+<li>статистика показывает, что условие <code>customer_id = 42</code> возвращает приблизительно <code>10 000</code> строк.</li>
+</ul>
+<p>Запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>В первых двух блоках мы научились раскладывать эту задачу на две части:</p>
+<ol>
+<li><em>Cardinality estimation:</em> сколько строк будет получено? Примерно <code>10 000</code>.</li>
+<li><em>Cost model:</em> сколько стоят допустимые способы получить эти строки? Это уже оценка стоимости чтения таблицы, индекса, heap, обработки условий и вспомогательных структур.</li>
+</ol>
+<p>Предположим, получили три <strong>иллюстративных</strong>, а не снятых с реального сервера, набора оценок:</p>
+<table>
+<thead>
+<tr>
+<th>Альтернатива</th>
+<th style="text-align: right;">Startup cost</th>
+<th style="text-align: right;">Total cost</th>
+<th style="text-align: right;">Ожидаемые выходные строки</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Seq Scan</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td style="text-align: right;"><code>32 500</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+<tr>
+<td><code>Index Scan</code></td>
+<td style="text-align: right;"><code>0.43</code></td>
+<td style="text-align: right;"><code>1 830</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+<tr>
+<td><code>Bitmap Heap Scan</code></td>
+<td style="text-align: right;"><code>225</code></td>
+<td style="text-align: right;"><code>1 650</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+</tbody>
+</table>
+<p>Казалось бы, все ясно: выберем <code>Bitmap Heap Scan</code>, поскольку его <code>total_cost = 1650</code> меньше остальных.</p>
+<p>Для данного запроса без <code>ORDER BY</code> и <code>LIMIT</code>, при прочих равных, это может оказаться правильным выбором.</p>
+<p>Но теперь добавим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Что изменилось? Само условие <code>customer_id = 42</code> не изменилось. Статистика для него тоже. Однако требуемый результат теперь должен быть <strong>упорядоченным</strong>, причем нам нужны всего десять первых строк.</p>
+<p>Значит, планировщику нужно оценивать больше свойств, чем одно число <code>total_cost</code>.</p>
+<p><strong>Именно поэтому PostgreSQL сравнивает не готовые текстовые деревья <code>EXPLAIN</code>, а специальные объекты <code>Path</code>.</strong></p>
+<h2 id="132-path">13.2. <code>Path</code>: описание способа выполнения до появления итогового дерева<a class="headerlink" href="#132-path" title="Permanent link">¶</a></h2>
+<p>Внутреннее понятие <code>Path</code> — кандидат на выполнение некоторой части запроса. Это облегченная структура, в которой содержится информация, необходимая для принятия решения планировщиком.</p>
+<p>Для нашей темы важны:</p>
+<ul>
+<li><strong>Тип способа доступа</strong> — последовательное сканирование, индексное, bitmap, сортировка и т. д.;</li>
+<li><strong>Ожидаемые строки</strong> (<code>rows</code>) — сколько результата дает кандидат;</li>
+<li><strong><code>startup_cost</code></strong> — затраты до появления первой выходной строки;</li>
+<li><strong><code>total_cost</code></strong> — затраты, если кандидат выполняется до конца;</li>
+<li><strong><code>pathkeys</code></strong> — какие гарантии порядка выходных строк дает кандидат;</li>
+<li><strong><code>pathtarget</code></strong> — какие выражения/колонки формируются;</li>
+<li><strong>Сведения о возможности параллельного выполнения</strong> и другие свойства, влияющие на допустимость и сравнение альтернатив.</li>
+</ul>
+<p>Во внутреннем коде есть типы вроде <code>Path</code>, <code>IndexPath</code>, <code>BitmapHeapPath</code>, <code>SortPath</code>, <code>LimitPath</code>.</p>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>SQL-запрос
+    |
+    v
+Оценка количества строк
+    |
+    v
+Создание кандидатов Path
+    |
+    +-- SeqScanPath
+    +-- IndexPath
+    +-- BitmapHeapPath
+    +-- ...
+    |
+    v
+Оценка и сравнение
+    |
+    v
+Выбранный Path
+    |
+    v
+create_plan(...)
+    |
+    v
+Дерево Plan -&gt; executor
+</code></pre></div>
+<p>Это <strong>учебная схема</strong>. Реальная последовательность включает дополнительные стадии, преобразования запроса, формирование верхних отношений, добавление путей для сортировки и ограничения результата.</p>
+<p>Разница между <code>Path</code> и <code>Plan</code> фундаментальна:</p>
+<ul>
+<li><strong><code>Path</code></strong> — гипотеза планировщика о способе выполнения со стоимостью и свойствами;</li>
+<li><strong><code>Plan</code></strong> — выбранная структура узлов, которую будет исполнять executor.</li>
+</ul>
+<p>PostgreSQL не обязан построить и исполнить все возможные <code>Plan</code>, чтобы выбрать лучший. Он сравнивает стоимость и свойства кандидатов <strong>до выполнения запроса</strong>.</p>
+<blockquote>
+<p><strong>Уровень гарантии:</strong> SQL и <code>EXPLAIN</code> — пользовательские интерфейсы PostgreSQL. Названия структур <code>Path</code>, <code>RelOptInfo</code>, <code>PathKey</code>, алгоритм <code>add_path</code> — детали реализации PostgreSQL 18. Они не являются гарантиями SQL-стандарта.</p>
+</blockquote>
+<h2 id="133-reloptinfo">13.3. <code>RelOptInfo</code>: где планировщик хранит альтернативы<a class="headerlink" href="#133-reloptinfo" title="Permanent link">¶</a></h2>
+<p>Планировщику нужно где-то сохранять кандидатов. Для одной таблицы используется внутренняя структура <code>RelOptInfo</code>, которая содержит в том числе список рассматриваемых путей <code>pathlist</code> и информацию об оценках отношения.</p>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>RelOptInfo: orders
+  rows: 10 000              &lt;- после условий WHERE
+  pathlist:
+    SeqScanPath             cost=0..32500, pathkeys=[]
+    IndexPath               cost=0.43..1830, pathkeys=[...]
+    BitmapHeapPath          cost=225..1650, pathkeys=[]
+</code></pre></div>
+<p>В данном наброске <code>IndexPath</code> может относиться к индексу по <code>customer_id</code> и потому не обязан обеспечивать <code>ORDER BY created_at</code>. Если планировщик рассматривает индекс по <code>created_at</code>, появится другой кандидат с иным порядком и условиями фильтрации.</p>
+<p>Почему нельзя сразу оставить только кандидата с минимальным <code>total_cost</code>?</p>
+<p>Представим два пути, возвращающих одни и те же строки:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align: right;"><code>0.5</code></td>
+<td style="text-align: right;"><code>3 000</code></td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align: right;"><code>200</code></td>
+<td style="text-align: right;"><code>1 500</code></td>
+</tr>
+</tbody>
+</table>
+<p>Если требуется весь результат, B дешевле.</p>
+<p>Если требуется несколько первых строк, A может быть намного выгоднее.</p>
+<p>Следовательно, <strong>оба пути могут оказаться полезными</strong>. Раннее удаление A было бы ошибкой.</p>
+<h2 id="134-add_path">13.4. <code>add_path</code>: почему планировщик не хранит бесконечное число вариантов<a class="headerlink" href="#134-add_path" title="Permanent link">¶</a></h2>
+<p>А теперь другая крайность.</p>
+<p>Допустим, на одной таблице десять индексов, несколько подходящих условий, разные варианты сортировки и дополнительные свойства путей. Если сохранять любой кандидат, расход времени и памяти на планирование будет расти.</p>
+<p>Поэтому при добавлении очередного пути PostgreSQL пытается отбросить явно проигрывающие альтернативы.</p>
+<p>Ключевая функция реализации — <code>add_path()</code> в <code>src/backend/optimizer/util/pathnode.c</code>.</p>
+<p>Ее удобно понимать как поиск <strong>недоминируемых</strong> кандидатов.</p>
+<p>Путь B доминирует путь A, если при сопоставимых допустимых свойствах B не хуже A по важным измерениям и лучше хотя бы по одному из них.</p>
+<p>В реальной реализации анализируются не только <code>startup</code> и <code>total</code>, но и порядок строк, число строк в некоторых случаях, параметры/зависимости пути, пригодность к параллельному исполнению и специальные приоритеты отключенных типов узлов.</p>
+<p>Для <strong>учебного случая с одинаковыми выходными строками, порядком и прочими свойствами</strong> можно начать с двух чисел:</p>
+<p><code>C_s,B ≤ C_s,A;  C_t,B ≤ C_t,A</code></p>
+<p>Если оба неравенства выполняются, A обычно нет смысла сохранять: B стартует не дороже и полностью выполняется не дороже.</p>
+<p>Пример:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+<th>Вывод</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align: right;"><code>15</code></td>
+<td style="text-align: right;"><code>1 500</code></td>
+<td>Проигрывает B</td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align: right;"><code>10</code></td>
+<td style="text-align: right;"><code>1 300</code></td>
+<td>Доминирует A</td>
+</tr>
+</tbody>
+</table>
+<p>Однако:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+<th>Вывод</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td style="text-align: right;"><code>1</code></td>
+<td style="text-align: right;"><code>2 000</code></td>
+<td>Очень дешевый старт</td>
+</tr>
+<tr>
+<td>D</td>
+<td style="text-align: right;"><code>100</code></td>
+<td style="text-align: right;"><code>1 000</code></td>
+<td>Дешевое полное выполнение</td>
+</tr>
+</tbody>
+</table>
+<p>Ни один путь не доминирует другой по обоим показателям.</p>
+<p>Здесь возникает знакомая из оптимизации идея <strong>границы Парето</strong>: сохраняем варианты, каждый из которых может выиграть при определенной цели.</p>
+<p>Это только модель для понимания. PostgreSQL использует конкретные правила сравнения, допуски к близким оценкам (<em>fuzz factor</em>) и дополнительные ограничения. Для PostgreSQL 18 важно также поле <code>disabled_nodes</code>: использование узлов, отключенных соответствующими настройками <code>enable_*</code>, учитывается при предпочтении путей. Такие настройки в обычном режиме не являются простым математическим «бесконечным cost».</p>
+<h3 id="_1">Почему нельзя оставить все «почти одинаковые» пути<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Планировщик должен сам завершить работу за приемлемое время.</p>
+<p>Если в списке хранятся тысячи кандидатов, каждый новый путь придется сравнивать со многими существующими. Дополнительная работа планировщика становится самостоятельным ограниченным ресурсом.</p>
+<p>Поэтому PostgreSQL отбрасывает часть вариантов <strong>до появления окончательного плана</strong>. Это осознанный компромисс между качеством поиска и стоимостью самого планирования.</p>
+<h2 id="135-pathkeys">13.5. <code>pathkeys</code>: почему порядок строк — часть стоимости решения<a class="headerlink" href="#135-pathkeys" title="Permanent link">¶</a></h2>
+<p>Теперь вернемся к:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Результат должен быть отсортирован по <code>created_at DESC</code>.</p>
+<p>Есть минимум два принципиальных подхода:</p>
+<ol>
+<li>Получить строки любым относительно дешевым способом и затем выполнить <code>Sort</code>.</li>
+<li>Получить строки сразу в требуемом порядке, если подходящий индекс это позволяет.</li>
+</ol>
+<p>Например, при наличии подходящего B-tree индекса с нужными ведущими ключами PostgreSQL может получить требуемый порядок непосредственно из <code>Index Scan</code>.</p>
+<p>Внутренние <code>pathkeys</code> кодируют гарантию упорядоченности выходного потока. Их важно воспринимать как <strong>свойство результата пути</strong>, а не как указатель на конкретный индекс.</p>
+<div class="highlight"><pre><span></span><code>Path A:
+  cost:     100..1200
+  pathkeys: []
+  результат: порядок не гарантирован
+
+Path B:
+  cost:     0.4..1800
+  pathkeys: [created_at DESC]
+  результат: уже отсортирован
+</code></pre></div>
+<p>Если запросу требуется порядок по <code>created_at DESC</code>, путь B может избавить нас от отдельного <code>Sort</code>.</p>
+<p>Хотя его полный индексный доступ дороже (<code>1800 &gt; 1200</code>), окончательный план нужно сравнивать так:</p>
+<p><code>C(A + Sort)  сравниваем с  C(B)</code></p>
+<p>Если сортировка стоит еще условные 900 единиц, получаем:</p>
+<p><code>1 200 + 900 = 2 100 &gt; 1 800</code></p>
+<p>Тогда B выгоднее.</p>
+<p>Но если сортировка стоит всего 100 единиц:</p>
+<p><code>1 200 + 100 = 1 300 &lt; 1 800</code></p>
+<p>путь A с последующей сортировкой дешевле.</p>
+<p>Здесь суммы используются для <strong>учебной иллюстрации</strong> добавочной работы сортировки; в реальном PostgreSQL <code>cost_sort</code> формирует стоимость верхнего пути с учетом входного пути, и слепо суммировать <code>total_cost</code> двух уже посчитанных родительских узлов нельзя.</p>
+<h3 id="_2">Что именно учитывает порядок<a class="headerlink" href="#_2" title="Permanent link">¶</a></h3>
+<p>Семантика порядка включает не только имя столбца:</p>
+<ul>
+<li>направление: <code>ASC</code> или <code>DESC</code>;</li>
+<li>порядок <code>NULLS FIRST</code> / <code>NULLS LAST</code>;</li>
+<li>применимые правила сравнения значений и collation;</li>
+<li>последовательность ключей при сортировке по нескольким выражениям.</li>
+</ul>
+<p>Поэтому индекс <code>(a, b)</code> не способен безусловно удовлетворить любой <code>ORDER BY</code> с этими двумя столбцами.</p>
+<p>Например, обычный индекс <code>(a ASC, b ASC)</code> обеспечивает совместимый порядок <code>a ASC, b ASC</code> при прямом обходе и <code>a DESC, b DESC</code> при обратном. Для <code>ORDER BY a ASC, b DESC</code> обычно нужен специально сформированный порядок ключей либо дополнительная сортировка.</p>
+<p>Отдельная тонкость: планировщик использует классы эквивалентности выражений (<em>EquivalenceClass</em>) и связанные с ними <code>PathKey</code>, так что логически эквивалентные выражения могут разделять свойства порядка. Это уже внутренняя модель PostgreSQL, а не буквальное текстовое сравнение <code>ORDER BY</code> с определением индекса.</p>
+<h2 id="136-incremental-sort">13.6. Частично отсортированный поток и <code>Incremental Sort</code><a class="headerlink" href="#136-incremental-sort" title="Permanent link">¶</a></h2>
+<p>Предположим, нужен порядок:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+</code></pre></div>
+<p>А доступный индекс гарантирует только:</p>
+<div class="highlight"><pre><span></span><code>customer_id ASC
+</code></pre></div>
+<p>Может ли PostgreSQL использовать это знание?</p>
+<p>Да. Если входные строки уже разбиты на группы с одинаковым <code>customer_id</code> в правильном порядке, можно сортировать <code>created_at DESC</code> <strong>внутри каждой группы</strong>, а не обязательно сортировать весь результат как один массив.</p>
+<p>Для этого предусмотрен <code>Incremental Sort</code>.</p>
+<p>Схематично:</p>
+<div class="highlight"><pre><span></span><code>Incremental Sort
+  Sort Key: customer_id, created_at DESC
+  Presorted Key: customer_id
+  -&gt; Index Scan ...
+</code></pre></div>
+<p>Последовательность:</p>
+<ol>
+<li>Вход дает строки, упорядоченные по <code>customer_id</code>.</li>
+<li>Executor получает группу строк с одинаковым <code>customer_id</code>.</li>
+<li>Сортирует группу по оставшимся ключам.</li>
+<li>Отдает готовую группу и переходит к следующей.</li>
+</ol>
+<p>По сравнению с обычной полной сортировкой это может уменьшить потребление памяти и время до первых строк.</p>
+<p>Но если одна группа огромна, ее сортировка все равно может быть дорогой. Кроме того, появляются затраты на обнаружение границ групп и работу с несколькими порциями.</p>
+<p><strong>Инженерный вывод:</strong> при <code>ORDER BY</code> планировщик выбирает еще и свойства промежуточного потока. Наличие «более дешевого чтения» недостаточно для определения самого дешевого плана целиком.</p>
+<h2 id="137-bitmap-scan">13.7. Когда <code>Bitmap Scan</code> проигрывает несмотря на дешевую стоимость чтения<a class="headerlink" href="#137-bitmap-scan" title="Permanent link">¶</a></h2>
+<p>Предположим, условие селективно на несколько процентов и <code>Bitmap Heap Scan</code> имеет <code>total_cost=1600</code>, тогда как <code>Index Scan</code> — <code>total_cost=2200</code>.</p>
+<p>Для простого <code>WHERE</code> bitmap может быть привлекательнее.</p>
+<p>Но bitmap организует посещение heap по страницам, фактически теряя порядок индексных ключей. Если требуется <code>ORDER BY</code> по индексируемому столбцу, <code>Bitmap Heap Scan</code> обычно нуждается в последующей сортировке.</p>
+<p>Индексный путь может выдавать строки в требуемом порядке сразу.</p>
+<div class="highlight"><pre><span></span><code>Bitmap Heap Scan (1600)
+     + Sort (дополнительная работа)
+
+против
+
+Index Scan (2200, нужный порядок уже есть)
+</code></pre></div>
+<p>Разница особенно заметна при <code>LIMIT</code>, когда индекс способен прекратить поиск очень рано. Этот механизм подробно разберем в разделе 14.</p>
+<h2 id="138">13.8. Какие варианты вообще попадают на рассмотрение<a class="headerlink" href="#138" title="Permanent link">¶</a></h2>
+<p>Планировщик сравнивает <strong>доступные</strong> способы выполнения, а не любые вообразимые алгоритмы.</p>
+<p>Например:</p>
+<ul>
+<li>Для B-tree индекса, пригодного для условия поиска, могут строиться соответствующие <code>IndexPath</code>.</li>
+<li>Несколько индексов могут участвовать в bitmap-альтернативах.</li>
+<li>При отсутствии нужного индекса подходящего индексного пути может вообще не быть.</li>
+<li>Для определенных запросов возможен <code>Index Only Scan</code>, но его стоимость зависит в том числе от ожидаемых обращений к heap для проверки видимости.</li>
+<li>Возможность параллельного доступа зависит от узла, размера отношения, настроек и других ограничений.</li>
+</ul>
+<p>Нельзя сказать: «PostgreSQL сравнил <code>Seq Scan</code> и индексный план, решил, что <code>Seq Scan</code> быстрее», если индексного плана с требуемой семантикой вообще не существовало.</p>
+<p><strong>Сначала проверяем допустимость альтернативы. Потом сравниваем стоимость.</strong></p>
+<h2 id="139-set_cheapest">13.9. <code>set_cheapest</code> и заключительный выбор<a class="headerlink" href="#139-set_cheapest" title="Permanent link">¶</a></h2>
+<p>На определенных стадиях PostgreSQL выделяет среди сохранившихся путей наиболее выгодные варианты, в том числе по полной стоимости. Одна из функций реализации — <code>set_cheapest()</code>.</p>
+<p>Но итоговый путь верхнего уровня может учитывать и требование получить лишь часть строк. Для такого выбора в <code>planner.c</code> используется <code>get_cheapest_fractional_path()</code>.</p>
+<p>После выбора лучшего верхнего <code>Path</code> вызывается <code>create_plan()</code>, который создает дерево исполнительных узлов.</p>
+<p>Промежуточный смысл:</p>
+<div class="highlight"><pre><span></span><code>pathlist после add_path
+       |
+       +-- дешево выдать первую строку
+       +-- дешево выдать все строки
+       +-- заранее отсортированный поток
+       +-- другие полезные свойства
+       |
+       v
+Учет требований запроса
+       |
+       v
+Выбранный итоговый Path
+       |
+       v
+create_plan
+</code></pre></div>
+<p>Важно: <strong>«оптимальный Path» означает оптимальный по расчетной модели среди рассмотренных и сохранившихся кандидатов</strong>. Это еще не доказательство его фактической минимальной задержки.</p>
+<h2 id="1310">13.10. Почему планировщик не обязан найти глобально лучший реальный план<a class="headerlink" href="#1310" title="Permanent link">¶</a></h2>
+<p>Есть три независимые причины.</p>
+<p><strong>Первая — прогнозы приближенные.</strong> Мы не знаем точного числа будущих строк и реальной стоимости работы с ними.</p>
+<p><strong>Вторая — альтернативы ограничены.</strong> Не любой мыслимый вариант исполнения доступен, а число кандидатов приходится контролировать ради скорости планирования.</p>
+<p><strong>Третья — цель формализована через модель стоимости.</strong> Реальные задержки зависят от условий, которых этот скалярный <code>cost</code> не отражает в точности.</p>
+<p>В результате планировщик отвечает на конкретный инженерный вопрос:</p>
+<blockquote>
+<p>«Какой из доступных путей ожидается наиболее выгодным, если статистика и стоимость операций примерно соответствуют нашим предположениям?»</p>
+</blockquote>
+<p>Это разумная инженерная стратегия. Она позволяет быстро строить хорошие планы для большого числа запросов, но ее точность ограничена входной моделью.</p>
+<h3 id="13">Главное после раздела 13<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>Path</code> — кандидат с оценками и свойствами, а <code>Plan</code> — дерево для executor.</li>
+<li>PostgreSQL сохраняет несколько путей, когда они выигрывают в разных измерениях: startup, total и порядке результата.</li>
+<li><code>add_path()</code> отбрасывает доминируемые варианты, сокращая стоимость планирования.</li>
+<li><code>ORDER BY</code> превращает свойство <code>pathkeys</code> в экономически значимое преимущество.</li>
+<li>Выбор пути происходит по расчетной модели и среди доступных альтернатив.</li>
+</ol>
+<hr/>
+<h1 id="14-limit">14. <code>LIMIT</code> и частичная стоимость плана<a class="headerlink" href="#14-limit" title="Permanent link">¶</a></h1>
+<h2 id="141-sql-">14.1. Один SQL-предикат, два разных инженерных требования<a class="headerlink" href="#141-sql-" title="Permanent link">¶</a></h2>
+<p>Начнем с двух запросов:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Запрос A: нужны все подходящие заказы.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Запрос B: нужны только десять подходящих заказов.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Предикат одинаковый. Поэтому для полного выполнения дочернего сканирования расчетное количество строк может быть одинаковым: <code>rows=10000</code>.</p>
+<p>Но у запросов разные <strong>условия завершения</strong>.</p>
+<p>Запрос A должен получить весь результат. Для B достаточно десяти строк, если они существуют.</p>
+<p>Исполнитель PostgreSQL устроен так, что многие узлы могут выдавать строки постепенно. Родительский узел запрашивает очередную строку; дочерний узел производит ее. Когда <code>Limit</code> получил достаточно строк, он может перестать запрашивать новые.</p>
+<p>Здесь появляются две независимые величины:</p>
+<ul>
+<li>Стоимость получить <strong>все</strong> строки пути;</li>
+<li>Стоимость получить только <strong>нужную долю</strong> его строк.</li>
+</ul>
+<p>Именно из-за этого <code>LIMIT</code> способен изменить <strong>выбор плана</strong>, даже если он не изменил исходную статистику по таблице.</p>
+<h2 id="142-total_cost-limit">14.2. Почему <code>total_cost</code> дочернего узла не уменьшается при <code>LIMIT</code><a class="headerlink" href="#142-total_cost-limit" title="Permanent link">¶</a></h2>
+<p>Представим <strong>иллюстративный</strong> план:</p>
+<div class="highlight"><pre><span></span><code>Limit  (cost=0.43..2.63 rows=10 width=96)
+  -&gt; Index Scan using idx_orders_customer on orders
+       (cost=0.43..2200.43 rows=10000 width=96)
+       Index Cond: (customer_id = 42)
+</code></pre></div>
+<p>Внутри <code>Index Scan</code> по-прежнему указано:</p>
+<div class="highlight"><pre><span></span><code>rows=10000
+cost=0.43..2200.43
+</code></pre></div>
+<p>Почему? <code>EXPLAIN</code> показывает оценку дочернего узла <strong>как если бы его потребовали выполнить до конца</strong>.</p>
+<p>А верхний <code>Limit</code> учитывает, что достаточно первых десяти строк.</p>
+<p>При первом взгляде кажется, будто PostgreSQL обязан потратить <code>2200.43</code>, раз это написано внутри плана.</p>
+<p>Но эта стоимость соответствует <strong>полному исполнению</strong> <code>Index Scan</code>.</p>
+<p>Если родитель останавливает дочерний узел раньше, соответствующая часть его работы вообще не выполняется.</p>
+<p>В этом примере план предполагает, что десять строк удастся получить при небольшой доле полного сканирования. Формулы покажем дальше.</p>
+<blockquote>
+<p>Числа в примере специально подобраны для иллюстрации интерполяции. Это не точный вывод PostgreSQL по созданной таблице; реальный <code>Limit</code> учитывает дополнительные детали оценки выходных строк и границ стоимости.</p>
+</blockquote>
+<h2 id="143">14.3. Главная формула: стоимость получения доли результата<a class="headerlink" href="#143" title="Permanent link">¶</a></h2>
+<p>У пути известны:</p>
+<ul>
+<li><code>C_s</code> — startup cost;</li>
+<li><code>C_t</code> — total cost;</li>
+<li><code>N</code> — ожидаемое количество выходных строк при полном выполнении;</li>
+<li><code>k</code> — требуемое количество строк.</li>
+</ul>
+<p>Для пути, стоимость которого условно нарастает по мере выдачи строк, можно построить приближение:</p>
+<p><code>f = min(1, k / N)</code></p>
+<p><code>C_fraction(f) = C_s + f × (C_t − C_s)</code></p>
+<p>Это <strong>ключевая математическая идея</strong>, используемая в сравнении частичной стоимости путей. В коде PostgreSQL существует функция <code>compare_fractional_path_costs()</code>.</p>
+<p>Но интерпретировать формулу нужно правильно.</p>
+<p>Она не утверждает, что физический executor выполняет ровно <code>f</code> всех операций или что реальная задержка растет строго линейно. Это <strong>расчетная эвристика</strong> на уровне <code>Path</code>, основанная на уже полученных оценках.</p>
+<p>Для некоторых узлов почти вся работа приходится на startup; для других работа действительно может накапливаться при выдаче строк.</p>
+<h3 id="_3">Разбор на числах<a class="headerlink" href="#_3" title="Permanent link">¶</a></h3>
+<p>Два кандидата возвращают по <code>10 000</code> строк при полном исполнении:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A: потоковый индексный доступ</td>
+<td style="text-align: right;"><code>0.4</code></td>
+<td style="text-align: right;"><code>2 200</code></td>
+</tr>
+<tr>
+<td>B: bitmap-доступ</td>
+<td style="text-align: right;"><code>150</code></td>
+<td style="text-align: right;"><code>1 200</code></td>
+</tr>
+</tbody>
+</table>
+<p>Без <code>LIMIT</code> дешевле B:</p>
+<p><code>1 200 &lt; 2 200</code></p>
+<p>Добавим <code>LIMIT 10</code>:</p>
+<p><code>f = 10 / 10 000 = 0.001</code></p>
+<p>Для A:</p>
+<div class="highlight"><pre><span></span><code>C_A(0.001) = 0.4 + 0.001 × (2 200 − 0.4)
+           = 0.4 + 2.1996 = 2.5996
+</code></pre></div>
+<p>Для B:</p>
+<div class="highlight"><pre><span></span><code>C_B(0.001) = 150 + 0.001 × (1 200 − 150)
+           = 150 + 1.05 = 151.05
+</code></pre></div>
+<p>Итог:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Для полного результата</th>
+<th style="text-align: right;">Для первых 10 строк, по модели</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align: right;"><code>2200</code></td>
+<td style="text-align: right;"><strong><code>2.60</code></strong></td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align: right;"><strong><code>1200</code></strong></td>
+<td style="text-align: right;"><code>151.05</code></td>
+</tr>
+</tbody>
+</table>
+<p>Победитель поменялся.</p>
+<p><strong>Это и есть математическая причина, почему <code>LIMIT</code> может переключить план с bitmap на потоковое индексное сканирование.</strong></p>
+<h2 id="144-order-by">14.4. Почему исходный порядок важен даже при отсутствии <code>ORDER BY</code><a class="headerlink" href="#144-order-by" title="Permanent link">¶</a></h2>
+<p>У предыдущего расчета есть тонкость.</p>
+<p>Мы предполагаем, что подходящие строки в среднем будут поступать достаточно равномерно. Но фактическая последовательность строк может отличаться от такой модели.</p>
+<p>Для индексного доступа по точному условию <code>customer_id = 42</code> это часто разумная модель: мы уже находимся внутри ограниченного диапазона индекса.</p>
+<p>Для последовательного сканирования с дополнительным <code>Filter</code> ситуация сложнее.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Если <code>PAID</code> встречается с вероятностью <code>s=0.01</code> и строки распределены приблизительно независимо, для получения десяти успешных строк можно ожидать рассмотрения порядка:</p>
+<p><code>E[N_checked] ≈ 10 / 0.01 = 1 000</code></p>
+<p>строк.</p>
+<p>Это полезная <strong>вероятностная модель</strong>, но она опирается на предположение о распределении совпадений по потоку.</p>
+<p>Теперь представим таблицу с миллионом строк, где все <code>PAID</code> находятся в последних 10% физического порядка.</p>
+<p>При <code>Seq Scan</code> первые десять подходящих строк появятся только после чтения большой части таблицы.</p>
+<p>Глобальная статистика может правильно сообщать, что <code>PAID</code> — распространенное значение, но <strong>не обязательно точно описывает его расположение относительно направления чтения</strong>.</p>
+<p>Следовательно:</p>
+<div class="highlight"><pre><span></span><code>Небольшой LIMIT
+    !=
+Гарантированное малое количество обработанных строк
+</code></pre></div>
+<p>Это один из важнейших источников непредсказуемости <code>LIMIT</code> на неравномерно расположенных данных.</p>
+<h2 id="145-order-by-limit">14.5. <code>ORDER BY + LIMIT</code>: почему индекс может превратиться из проигравшего в победителя<a class="headerlink" href="#145-order-by-limit" title="Permanent link">¶</a></h2>
+<p>Теперь другой запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Предположим, есть B-tree индекс по <code>created_at</code>.</p>
+<p>PostgreSQL рассматривает две естественные стратегии:</p>
+<div class="highlight"><pre><span></span><code>A. Seq Scan -&gt; Sort -&gt; Limit
+
+B. Index Scan Backward -&gt; Limit
+</code></pre></div>
+<p>В полной выборке A может быть дешевле, потому что последовательное чтение таблицы и последующая сортировка требуют меньше разрозненных посещений heap, чем индексный обход всех строк.</p>
+<p>Но при <code>LIMIT 10</code> B способен получить десять строк в индексном порядке и завершить работу.</p>
+<h3 id="_4">Расчет<a class="headerlink" href="#_4" title="Permanent link">¶</a></h3>
+<p>Пусть таблица содержит миллион строк. Для учебной иллюстрации оценим:</p>
+<table>
+<thead>
+<tr>
+<th>Путь до применения Limit</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+<th style="text-align: right;">Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A: <code>Seq Scan + Sort</code></td>
+<td style="text-align: right;"><code>18 000</code></td>
+<td style="text-align: right;"><code>24 000</code></td>
+<td style="text-align: right;"><code>1 000 000</code></td>
+</tr>
+<tr>
+<td>B: <code>Index Scan Backward</code></td>
+<td style="text-align: right;"><code>0.4</code></td>
+<td style="text-align: right;"><code>45 000</code></td>
+<td style="text-align: right;"><code>1 000 000</code></td>
+</tr>
+</tbody>
+</table>
+<p>Здесь индексный путь значительно хуже, если читать <strong>всю</strong> таблицу:</p>
+<p><code>45 000 &gt; 24 000</code></p>
+<p>Но нужно только десять строк:</p>
+<p><code>f = 10 / 1 000 000 = 0.00001</code></p>
+<p>Для B:</p>
+<div class="highlight"><pre><span></span><code>C_B(f) = 0.4 + 0.00001 × (45 000 − 0.4)
+       ≈ 0.85
+</code></pre></div>
+<p>Для A:</p>
+<div class="highlight"><pre><span></span><code>C_A(f) = 18 000 + 0.00001 × (24 000 − 18 000)
+       = 18 000.06
+</code></pre></div>
+<p>В этой модели индексный путь выигрывает с огромным запасом.</p>
+<p>Почему startup у A такой большой?</p>
+<p>Потому что обычный <code>Sort</code> должен прочитать вход, прежде чем определить первый элемент глобально отсортированного результата.</p>
+<p>Даже если он применит ограниченную сортировку (<code>top-N heapsort</code>), <strong>прочитать исходный поток для определения десяти лучших строк все равно потребуется</strong>.</p>
+<h3 id="top-n">Неожиданный нюанс про top-N<a class="headerlink" href="#top-n" title="Permanent link">¶</a></h3>
+<p>Для полного <code>Sort</code> стоимость сравнения элементов обычно имеет масштаб <code>O(N log N)</code>.</p>
+<p>Для поддержания десяти лучших из миллиона строк можно использовать структуру с затратами порядка <code>O(N log 10)</code> на сравнения и небольшим объемом памяти.</p>
+<p>Это значительно уменьшает CPU и RAM на сортировку, однако не дает информации о максимальных значениях до просмотра всех строк.</p>
+<p>Следовательно, <code>top-N heapsort</code> может быть дешевым <strong>алгоритмом сортировки</strong>, сохраняя блокирующее поведение относительно входного потока.</p>
+<p>Индекс отличается тем, что <strong>уже хранит ключи в подходящем порядке</strong>, поэтому чтение всего исходного отношения не требуется.</p>
+<h2 id="146-limit-n">14.6. <code>LIMIT</code> не всегда означает «прямо прочитать N строк»<a class="headerlink" href="#146-limit-n" title="Permanent link">¶</a></h2>
+<p>Рассмотрим три разных случая.</p>
+<h3 id="a">Случай A. Индекс соответствует сортировке<a class="headerlink" href="#a" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Подходящий индекс может сразу дать нужную последовательность. Часто достаточно обработать небольшую часть индекса и heap, если требуемые строки доступны.</p>
+<h3 id="b">Случай B. Подходящего индекса нет<a class="headerlink" href="#b" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Без способа получить значения в нужном порядке PostgreSQL должен рассмотреть все потенциальные строки, чтобы найти десять максимальных.</p>
+<p><code>LIMIT</code> сокращает <strong>размер результата и память bounded sort</strong>, но не обязан сокращать чтение таблицы.</p>
+<h3 id="c-order-by">Случай C. Индекс подходит к <code>ORDER BY</code>, но условие фильтрует почти все<a class="headerlink" href="#c-order-by" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Допустим, есть индекс по <code>created_at</code>, но нет эффективного индексного доступа, одновременно ограничивающего <code>tenant_id</code>.</p>
+<p>PostgreSQL может идти по <code>created_at</code> в обратном порядке и проверять <code>Filter: (tenant_id = 42)</code>.</p>
+<p>Если последние десять заказов этого tenant старые, до них придется пройти множество новых заказов других tenant.</p>
+<p>Условный симптом:</p>
+<div class="highlight"><pre><span></span><code>Limit
+  -&gt; Index Scan Backward using idx_orders_created_at on orders
+       Filter: (tenant_id = 42)
+       Rows Removed by Filter: 850000
+</code></pre></div>
+<p>Наличие индекса, соответствующего <code>ORDER BY</code>, еще не гарантирует эффективный <code>LIMIT</code> при дополнительном фильтре.</p>
+<p>Здесь снова встретились две оценки:</p>
+<ol>
+<li><strong>Сколько всего строк удовлетворяет <code>tenant_id = 42</code>?</strong></li>
+<li><strong>Как быстро эти строки встретятся при чтении по <code>created_at DESC</code>?</strong></li>
+</ol>
+<p>Обычная однотабличная статистика может достаточно хорошо отвечать на первый вопрос и гораздо хуже — на второй.</p>
+<h2 id="147-limit">14.7. Математика <code>LIMIT</code> на примере трех способов чтения<a class="headerlink" href="#147-limit" title="Permanent link">¶</a></h2>
+<p>Вернемся к одной таблице и условию, возвращающему 10 000 строк.</p>
+<p>Пусть есть три иллюстративных пути:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th style="text-align: right;">Startup</th>
+<th style="text-align: right;">Total</th>
+<th style="text-align: right;">Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Seq Scan</code></td>
+<td style="text-align: right;"><code>0</code></td>
+<td style="text-align: right;"><code>32 500</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+<tr>
+<td><code>Index Scan</code></td>
+<td style="text-align: right;"><code>0.43</code></td>
+<td style="text-align: right;"><code>1 830</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+<tr>
+<td><code>Bitmap Heap Scan</code></td>
+<td style="text-align: right;"><code>225</code></td>
+<td style="text-align: right;"><code>1 650</code></td>
+<td style="text-align: right;"><code>10 000</code></td>
+</tr>
+</tbody>
+</table>
+<p>Для полного результата:</p>
+<p><code>1 650 &lt; 1 830 ≪ 32 500</code></p>
+<p>Побеждает bitmap.</p>
+<p>Для <code>LIMIT 10</code>:</p>
+<p><code>f = 0.001</code></p>
+<p><code>C_seq = 0 + 0.001 × 32 500 = 32.5</code></p>
+<p><code>C_index = 0.43 + 0.001 × (1 830 − 0.43) ≈ 2.26</code></p>
+<p><code>C_bitmap = 225 + 0.001 × (1 650 − 225) = 226.425</code></p>
+<p>Побеждает индекс.</p>
+<p>Для <code>LIMIT 5000</code>:</p>
+<p><code>f = 0.5</code></p>
+<p><code>C_seq = 16 250</code></p>
+<p><code>C_index = 0.43 + 0.5 × (1 830 − 0.43) ≈ 915.22</code></p>
+<p><code>C_bitmap = 225 + 0.5 × (1 650 − 225) = 937.5</code></p>
+<p>Индекс еще немного выгоднее по этой модели.</p>
+<p>При <code>LIMIT 7000</code>:</p>
+<p><code>f = 0.7</code></p>
+<p><code>C_index = 0.43 + 0.7 × (1 830 − 0.43) ≈ 1 281.13</code></p>
+<p><code>C_bitmap = 225 + 0.7 × (1 650 − 225) = 1 222.5</code></p>
+<p>Уже выгоднее bitmap.</p>
+<h3 id="_5">Где граница переключения?<a class="headerlink" href="#_5" title="Permanent link">¶</a></h3>
+<p>Решим уравнение равенства оценок:</p>
+<p><code>0.43 + f × (1 830 − 0.43) = 225 + f × (1 650 − 225)</code></p>
+<p><code>0.43 + 1 829.57f = 225 + 1 425f</code></p>
+<p><code>404.57f = 224.57</code></p>
+<p><code>f ≈ 0.5551</code></p>
+<p>При <code>N = 10 000</code> это соответствует примерно:</p>
+<p><code>k ≈ 5 551</code></p>
+<p>Получаем важный результат: <strong>в учебной модели существует расчетная точка, после которой предпочтение меняется с индексного на bitmap-путь</strong>.</p>
+<p>В реальном PostgreSQL точное место переключения зависит от стоимости верхних узлов, статистики, допустимых путей, дискретных решений и множества деталей. Но механизм хорошо виден именно через математическое сравнение.</p>
+<h2 id="148-limit">14.8. Почему нельзя просто считать <code>LIMIT</code> бесплатным<a class="headerlink" href="#148-limit" title="Permanent link">¶</a></h2>
+<p>Теперь добавим требование:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Если индекс обеспечивает и фильтрацию, и порядок, он может быстро остановиться.</p>
+<p>Если единственный допустимый путь — <code>Seq Scan + Sort</code>, сначала нужно прочитать все подходящие строки и определить лучшие десять.</p>
+<p>Даже если итоговый <code>Limit</code> выдает всего десять строк, это не отменяет работу <strong>под ним</strong>.</p>
+<p>Ключ к чтению плана — не смотреть только на:</p>
+<div class="highlight"><pre><span></span><code>Limit (rows=10)
+</code></pre></div>
+<p>а развернуть дерево:</p>
+<div class="highlight"><pre><span></span><code>Limit
+  -&gt; Sort                &lt;- блокирующая подготовка
+       -&gt; Seq Scan        &lt;- может прочитать всю таблицу
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>Limit
+  -&gt; Index Scan Backward &lt;- поток с уже нужным порядком
+</code></pre></div>
+<p>Две одинаковые строки <code>LIMIT 10</code>, две разные физические стратегии и две разные цены.</p>
+<h2 id="149-offset-limit">14.9. <code>OFFSET</code>: почему дорогие страницы пагинации нельзя оправдать небольшим <code>LIMIT</code><a class="headerlink" href="#149-offset-limit" title="Permanent link">¶</a></h2>
+<p>Теперь запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">OFFSET</span><span class="w"> </span><span class="mi">990000</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Вроде бы снова нужно только десять строк.</p>
+<p>Но перед ними исполнитель должен <strong>пропустить 990 000 строк</strong> в требуемом порядке.</p>
+<p>На уровне числа строк путь должен произвести примерно:</p>
+<div class="highlight"><pre><span></span><code>N_consumed = OFFSET + LIMIT
+           = 990 000 + 10 = 990 010
+</code></pre></div>
+<p>Пусть индексный путь для миллиона строк имеет:</p>
+<p><code>C_s = 0.4;  C_t = 40 000</code></p>
+<p>Если оценивать чтение большого начального префикса по линейной модели, доля:</p>
+<p><code>f = 990 010 / 1 000 000 = 0.99001</code></p>
+<p>И стоимость оказывается почти полной:</p>
+<div class="highlight"><pre><span></span><code>C ≈ 0.4 + 0.99001 × (40 000 − 0.4)
+  ≈ 39 600.40
+</code></pre></div>
+<p>Несмотря на <code>LIMIT 10</code>, запрос должен пройти почти весь индексный поток.</p>
+<h3 id="offset-limitpath">Как <code>OFFSET</code> отражается в модели <code>LimitPath</code><a class="headerlink" href="#offset-limitpath" title="Permanent link">¶</a></h3>
+<p>В реализации PostgreSQL функция, строящая <code>LimitPath</code>, корректирует отдельно startup и total стоимости дочернего пути с учетом пропускаемых и возвращаемых строк.</p>
+<p>Упрощенная модель при <code>N</code> ожидаемых строках, <code>o</code> пропускаемых и <code>k</code> возвращаемых:</p>
+<p><code>C_startup,limit ≈ C_s + (o / N) × (C_t − C_s)</code></p>
+<p><code>C_total,limit ≈ C_s + [min(N, o + k) / N] × (C_t − C_s)</code></p>
+<p>При корректном учете границ эти формулы отражают главное: <strong>пропуск строк требует работы</strong>.</p>
+<p>Это не попытка дословно воспроизвести весь код <code>create_limit_path()</code>. Реальная реализация предусматривает особые случаи неизвестных границ, округления и корректировки <code>rows</code>.</p>
+<h3 id="_6">Где возникает инженерное решение<a class="headerlink" href="#_6" title="Permanent link">¶</a></h3>
+<p>Для последовательной пагинации по стабильному ключу иногда подходит подход по последнему полученному ключу (<em>keyset pagination</em>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="mi">2</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>При подходящем индексе он позволяет ограничить диапазон доступа и избежать пропуска огромного числа предыдущих строк.</p>
+<p>Этот фрагмент приведен только для объяснения цены <code>OFFSET</code>; отдельные вопросы стабильности пагинации, изменения данных и API-контрактов здесь не рассматриваем.</p>
+<h2 id="1410-limit-order-by">14.10. <code>LIMIT</code> без <code>ORDER BY</code>: результат может измениться после перепланирования<a class="headerlink" href="#1410-limit-order-by" title="Permanent link">¶</a></h2>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>SQL не обещает конкретный порядок строк, если нет <code>ORDER BY</code>.</p>
+<p>Планировщик может выбрать один способ доступа сегодня и другой завтра — например, после изменения статистики или параметров стоимости.</p>
+<p>Если порядок обхода поменялся, набор из первых десяти строк тоже может поменяться.</p>
+<p>Это корректное поведение.</p>
+<p>Причинно-следственная цепочка:</p>
+<div class="highlight"><pre><span></span><code>Нет ORDER BY
+    -&gt; допустимы разные порядки выдачи
+    -&gt; planner выбирает способ доступа по cost
+    -&gt; LIMIT останавливает поток после N строк
+    -&gt; изменившийся путь может дать другие N строк
+</code></pre></div>
+<p>Даже <code>ORDER BY created_at</code> не гарантирует стабильный порядок <strong>между строками с одинаковым <code>created_at</code></strong>. Если для бизнеса нужна воспроизводимая граница, полезно добавить уникальный ключ в сортировку:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">DESC</span>
+</code></pre></div>
+<p>Это требование корректности результата, а не только производительности.</p>
+<h2 id="1411-incremental-sort">14.11. <code>Incremental Sort</code> и частичная выдача результата<a class="headerlink" href="#1411-incremental-sort" title="Permanent link">¶</a></h2>
+<p>Обычная полная сортировка вынуждена увидеть весь вход, прежде чем уверенно выдать первую строку глобального порядка.</p>
+<p><code>Incremental Sort</code> способен использовать уже отсортированный префикс ключей.</p>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="k">ASC</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+</code></pre></div>
+<p>Индекс может давать поток, упорядоченный по <code>customer_id</code>, но не по <code>created_at DESC</code> внутри каждого клиента.</p>
+<p><code>Incremental Sort</code> группирует строки по <code>customer_id</code>, сортирует первую группу и начинает выдачу, пока последующие группы еще не прочитаны.</p>
+<p>Если первые группы небольшие, <code>LIMIT 20</code> может сработать после обработки ограниченной части входа.</p>
+<p>Но если первый <code>customer_id</code> имеет миллион строк, даже первая группа требует большой работы. Поэтому планировщик снова опирается на оценки распределения данных, а фактическая выгода не гарантирована.</p>
+<p>Важно разделять:</p>
+<ul>
+<li><strong>Свойство порядка на входе</strong> — <code>Presorted Key</code>;</li>
+<li><strong>Алгоритм завершения сортировки</strong> — <code>Incremental Sort</code>;</li>
+<li><strong>Факт ранней остановки</strong> — родительский <code>Limit</code> прекратил запросы к дочернему узлу.</li>
+</ul>
+<p>Три механизма работают вместе, но решают разные задачи.</p>
+<h2 id="1412-limit">14.12. Почему <code>LIMIT</code> может не ускорить работу вообще<a class="headerlink" href="#1412-limit" title="Permanent link">¶</a></h2>
+<p>Обобщим ситуации, когда небольшой результат не означает небольшой объем вычислений.</p>
+<table>
+<thead>
+<tr>
+<th>Условие запроса</th>
+<th>Почему <code>LIMIT</code> может почти не помочь</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ORDER BY</code> без подходящего порядка во входе</td>
+<td>Надо изучить все входные строки для нахождения лучших N</td>
+</tr>
+<tr>
+<td><code>Filter</code> отбрасывает большинство ранних кандидатов</td>
+<td>Нужно проверить много строк, пока найдутся N подходящих</td>
+</tr>
+<tr>
+<td>Большой <code>OFFSET</code></td>
+<td>Сначала нужно произвести и пропустить <code>OFFSET</code> строк</td>
+</tr>
+<tr>
+<td>Большая первая группа при <code>Incremental Sort</code></td>
+<td>Первая порция сортировки все равно дорогая</td>
+</tr>
+<tr>
+<td>Очень малая фактическая селективность</td>
+<td>Для получения N совпадений придется пройти большой диапазон</td>
+</tr>
+<tr>
+<td>Данных фактически меньше, чем <code>LIMIT</code></td>
+<td>Узел будет выполнен до исчерпания результата</td>
+</tr>
+<tr>
+<td>Промахи кеша и дорогое получение первых страниц</td>
+<td>Даже короткий путь может иметь значительную фактическую задержку</td>
+</tr>
+</tbody>
+</table>
+<p>Есть еще специальный вариант <code>FETCH FIRST n ROWS WITH TIES</code>: он может вернуть больше <code>n</code> строк, если значения на границе сортировки совпадают. Для такого запроса нельзя механически ожидать, что после выдачи ровно <code>n</code> строк поток гарантированно остановится.</p>
+<h2 id="1413-cursor_tuple_fraction">14.13. <code>cursor_tuple_fraction</code>: что если клиент читает результат постепенно<a class="headerlink" href="#1413-cursor_tuple_fraction" title="Permanent link">¶</a></h2>
+<p><code>LIMIT</code> — наиболее очевидный случай, когда нужны первые строки.</p>
+<p>Но есть и другой сценарий: клиент открывает курсор и может получить только часть результата.</p>
+<p>Для планирования соответствующих запросов PostgreSQL имеет настройку:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">cursor_tuple_fraction</span><span class="p">;</span>
+</code></pre></div>
+<p>Ее стандартное значение — <code>0.1</code>.</p>
+<p>Она задает планировщику предположение о доле строк курсора, которую, вероятно, будут читать. Меньшее значение может усилить предпочтение «быстрого старта»; значение <code>1.0</code> делает акцент на полной стоимости.</p>
+<p>Почему это важно?</p>
+<p>Потому что «сколько строк реально заберет клиент» — часть требований к оптимизации. Без такой информации планировщик будет использовать допущение, которое может не совпадать с фактическим потреблением.</p>
+<p>Но это <strong>не универсальный способ ускорять SELECT</strong>. Изменение параметра влияет на определенные сценарии работы с курсорами, а не превращает любой запрос в потоковый индексный поиск.</p>
+<h3 id="14">Главное после раздела 14<a class="headerlink" href="#14" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>LIMIT</code> позволяет выбирать путь по стоимости получения части строк, а не только всего результата.</li>
+<li>Учебное приближение: <code>C(f) = C_s + f × (C_t − C_s)</code>.</li>
+<li>Самый дешевый полный путь может проиграть пути с меньшим startup cost.</li>
+<li><code>ORDER BY + LIMIT</code> особенно выгоден, если индекс сразу обеспечивает нужный порядок.</li>
+<li><code>Sort</code>, фильтры и большой <code>OFFSET</code> могут уничтожить ожидаемую выгоду ранней остановки.</li>
+<li><code>LIMIT</code> без полного <code>ORDER BY</code> не гарантирует воспроизводимого состава результата.</li>
+</ol>
+<hr/>
+<h1 id="15-cost-based-optimizer">15. Ограничения Cost-Based Optimizer<a class="headerlink" href="#15-cost-based-optimizer" title="Permanent link">¶</a></h1>
+<h2 id="151-postgresql">15.1. Что оптимизирует PostgreSQL — и почему этого недостаточно для гарантии минимальной задержки<a class="headerlink" href="#151-postgresql" title="Permanent link">¶</a></h2>
+<p>В предыдущих разделах мы получили множество возможных <code>Path</code> и научились сравнивать их стоимость. Математическая постановка выглядит так:</p>
+<p><code>P* = argmin Ĉ(P),  где P ∈ 𝒫</code></p>
+<p>где:</p>
+<ul>
+<li><code>𝒫</code> — рассматриваемые допустимые пути;</li>
+<li><code>Ĉ(P)</code> — оценка стоимости пути по модели планировщика;</li>
+<li><code>P*</code> — выбранный путь.</li>
+</ul>
+<p>Для запроса с <code>LIMIT</code> критерием может выступать стоимость получения нужной части результата. Для запроса с <code>ORDER BY</code> рассматриваются пути, удовлетворяющие требуемому порядку, либо пути, дополненные сортировкой.</p>
+<p>Здесь решающую роль играет значок оценки над <code>C</code>. Планировщик сравнивает <strong>предсказанные затраты</strong>, а не измеренное будущее время.</p>
+<p>Его модель может выбрать:</p>
+<p><code>Ĉ(A) &lt; Ĉ(B)</code></p>
+<p>хотя при конкретном выполнении окажется:</p>
+<p><code>T_actual(A) &gt; T_actual(B)</code></p>
+<p>Это допустимая ситуация. Она показывает, что какая-то предпосылка модели не совпала с реальными условиями.</p>
+<p>Чтобы диагностировать такое расхождение, нужно последовательно проверить три слоя:</p>
+<ol>
+<li><strong>Статистика и селективность:</strong> правильно ли посчитано количество строк?</li>
+<li><strong>Стоимость доступа:</strong> правильно ли оценена работа с индексом, heap, CPU и памятью?</li>
+<li><strong>Условия выполнения:</strong> соответствует ли реальная среда усредненным предположениям модели?</li>
+</ol>
+<h2 id="152-cardinality">15.2. Ошибка cardinality: когда последствия растут быстрее ошибки статистики<a class="headerlink" href="#152-cardinality" title="Permanent link">¶</a></h2>
+<p>Планировщик ожидает:</p>
+<div class="highlight"><pre><span></span><code>rows=100
+</code></pre></div>
+<p>А при полном исполнении узел возвращает:</p>
+<div class="highlight"><pre><span></span><code>actual rows=100000
+</code></pre></div>
+<p>Введем отношение:</p>
+<p><code>E_rows = R_actual / R_estimated</code></p>
+<p>Получаем:</p>
+<p><code>E_rows = 100 000 / 100 = 1 000</code></p>
+<p>Ошибка в тысячу раз.</p>
+<p>Рассмотрим запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Допустим, когда статистика собиралась, у клиента было сто заказов. После миграции данных оказалось сто тысяч. Однако статистика не успела обновиться.</p>
+<p>Планировщик считает условие очень селективным и выбирает индексный доступ. Реально индекс возвращает намного больше кандидатов, вызывая большое количество обращений к heap. В этих условиях последовательное сканирование могло бы оказаться дешевле.</p>
+<p>Но <strong>плохая cardinality не всегда означает плохой индекс</strong>. Если выбранный индекс покрывает запрос или строки физически хорошо локализованы, даже большой результат может обслуживаться эффективно. Нужно анализировать полную стоимость, а не только число строк.</p>
+<h3 id="_7">Почему статистика ошибается<a class="headerlink" href="#_7" title="Permanent link">¶</a></h3>
+<p>Причины уже известны из блока 1: устаревший <code>ANALYZE</code>, недостаточная выборка, неравномерные распределения, значения вне MCV, грубая гистограмма, зависимые столбцы и ограниченная многоколоночная статистика.</p>
+<p>Еще одна важная граница: статистика по столбцу может верно оценивать, <strong>сколько</strong> строк удовлетворяет условию, и недостаточно точно описывать, <strong>где именно</strong> эти строки встретятся при обходе определенного индекса.</p>
+<h3 id="rows">Когда расхождение <code>rows</code> вообще не ошибка<a class="headerlink" href="#rows" title="Permanent link">¶</a></h3>
+<p>Если дочерний узел остановлен верхним <code>Limit</code>, его расчетная оценка рассчитана для полного выполнения, а фактическое число строк отражает только выполненную часть.</p>
+<div class="highlight"><pre><span></span><code>Limit (actual rows=10)
+  -&gt; Index Scan (rows=100000, actual rows=10)
+</code></pre></div>
+<p>Сравнение <code>100000 / 10</code> здесь бессмысленно как мера ошибки оценки: план мог остановиться после десяти строк по требованию родителя.</p>
+<p>Это одна из ловушек поверхностного чтения <code>EXPLAIN ANALYZE</code>.</p>
+<h2 id="153-cardinality">15.3. Верная cardinality, но неправильная физическая цена чтения<a class="headerlink" href="#153-cardinality" title="Permanent link">¶</a></h2>
+<p>Пусть планировщик ожидает 50 000 строк и исполнитель возвращает 49 800. Оценка близка к факту.</p>
+<p>Можно ли утверждать, что выбранный план должен работать быстро?</p>
+<p>Нет. <code>rows</code> описывает объем выходного потока. Для физической стоимости важны еще число страниц, локальность обращений и степень кеширования.</p>
+<p>На стоимость влияют:</p>
+<ul>
+<li><code>seq_page_cost</code> и <code>random_page_cost</code>;</li>
+<li><code>effective_cache_size</code>;</li>
+<li>корреляция ключа индекса с физическим порядком heap;</li>
+<li>количество посещаемых страниц индекса и таблицы;</li>
+<li>необходимость обработки и проверки версий строк;</li>
+<li>фактическое состояние общего буферного кеша и файлового кеша ОС.</li>
+</ul>
+<p>Предположим, что на одной машине почти вся таблица находится в RAM, а на другой рабочий набор данных сильно превосходит размер доступного кеша. При одинаковой статистике и одинаковых коэффициентах планировщик способен построить один и тот же план. Но фактическая задержка выполнения будет существенно различаться.</p>
+<p>Следовательно, <strong>правильная оценка количества строк — необходимая часть модели, но далеко не вся модель</strong>.</p>
+<h3 id="effective_cache_size"><code>effective_cache_size</code> не выделяет память<a class="headerlink" href="#effective_cache_size" title="Permanent link">¶</a></h3>
+<p>С этим параметром часто связана неправильная ментальная модель:</p>
+<blockquote>
+<p>«Укажу <code>effective_cache_size = 32GB</code>, и PostgreSQL получит 32 ГиБ кеша».</p>
+</blockquote>
+<p>Так не работает. <code>effective_cache_size</code> — <strong>предположение планировщика</strong> о суммарном эффективном объеме кеша, доступного запросу. Оно не выделяет память и не заменяет <code>shared_buffers</code>.</p>
+<p>Его изменение влияет на относительную привлекательность некоторых планов. Но если физической памяти по-прежнему не хватает, никакая запись в конфигурации не материализует недостающий RAM.</p>
+<p>Это хороший пример разницы между <strong>настройкой модели</strong> и <strong>настройкой ограниченного ресурса</strong>.</p>
+<h2 id="154-correlation">15.4. Физический порядок данных: почему <code>correlation</code> тоже приближение<a class="headerlink" href="#154-correlation" title="Permanent link">¶</a></h2>
+<p>В блоке 2 мы связывали выгодность индексного доступа с корреляцией порядка значений и физического расположения строк.</p>
+<p>Если строки вставлялись в порядке <code>created_at</code>, диапазонный индексный обход может получать соседние TID, указывающие на близкие страницы heap.</p>
+<p>Если таблица содержит множество обновлений, исторических загрузок и перемешанных данных, та же последовательность индексных ключей может приводить к множеству удаленных друг от друга страниц.</p>
+<p>Но статистическая <code>correlation</code> описывает общую картину, а не точную последовательность блоков для каждого будущего условия <code>WHERE</code>.</p>
+<p>Представим, что в целом хронология хорошо соответствует физическому порядку. При этом конкретный исторический диапазон недавно массово изменяли. Строки в этом диапазоне могут быть расположены хуже, чем типичные строки таблицы.</p>
+<p>В таком случае расчетная стоимость индексного чтения будет основана на агрегированной модели. Фактическая локальность для выбранного диапазона может отличаться.</p>
+<p><strong>Итог:</strong> даже если количество найденных строк оценено достаточно точно, объем работы по доступу к страницам может оказаться другим.</p>
+<h2 id="155-sql">15.5. Кеширование и конкуренция: почему одинаковый SQL имеет разную цену во времени<a class="headerlink" href="#155-sql" title="Permanent link">¶</a></h2>
+<p>Возьмем запрос, который вчера выполнялся за 20 мс, а сегодня за 300 мс. SQL не изменился, индекс остался, <code>EXPLAIN</code> показывает то же дерево.</p>
+<p>Что могло поменяться?</p>
+<p><strong>Состояние кеша.</strong> При холодном запуске часть страниц приходится получать из файлового слоя, а при повторном выполнении значительная их часть уже находится в RAM.</p>
+<p><strong>Профиль соседних запросов.</strong> Другие сессии могут вытеснять полезные страницы из кеша и создавать конкуренцию за CPU.</p>
+<p><strong>I/O-конкуренция.</strong> Одновременно работающие процессы могут увеличить очередь на накопителе и стоимость получения каждой недостающей страницы.</p>
+<p><strong>Блокировки и ожидания.</strong> Задержка может включать время ожидания ресурсов, которое не следует объяснять неправильным <code>random_page_cost</code>.</p>
+<p><strong>Изменение физического рабочего набора.</strong> После массовой записи и обновлений страницы могут занимать больше места и иначе размещаться в heap.</p>
+<p>Планировщик не знает точного будущего расписания всех этих процессов. Он работает с усредненными коэффициентами и статистикой.</p>
+<p>Поэтому числа вида:</p>
+<div class="highlight"><pre><span></span><code>cost=0.43..2500.00
+</code></pre></div>
+<p>не обещают ни <code>2500 ms</code>, ни постоянную задержку при холодном и горячем кеше, ни одинаковое время при одном и ста конкурентных клиентах.</p>
+<h2 id="156-cost-">15.6. Почему cost-параметры нельзя безнаказанно настроить под один медленный запрос<a class="headerlink" href="#156-cost-" title="Permanent link">¶</a></h2>
+<p>Набор коэффициентов стоимости:</p>
+<div class="highlight"><pre><span></span><code>seq_page_cost
+random_page_cost
+cpu_tuple_cost
+cpu_index_tuple_cost
+cpu_operator_cost
+</code></pre></div>
+<p>управляет относительной ценой CPU и доступа к страницам.</p>
+<p>Допустим, после анализа одного запроса разработчик решил уменьшить <code>random_page_cost</code>: индексный доступ сразу стал выглядеть выгоднее.</p>
+<p>Но теперь другие запросы, возвращающие значительную долю таблицы, тоже могут получить предпочтение индексного доступа, хотя для них последовательное чтение дешевле.</p>
+<p>Получается:</p>
+<div class="highlight"><pre><span></span><code>Один набор коэффициентов
+    |
+    +-- маленькие выборки
+    +-- большие выборки
+    +-- хорошо коррелированные данные
+    +-- случайно расположенные строки
+    +-- горячий кеш
+    +-- холодный кеш
+</code></pre></div>
+<p>Один набор параметров не способен идеально описать все сочетания.</p>
+<p>Поэтому документация PostgreSQL советует рассматривать коэффициенты как усредненную характеристику <strong>реальной рабочей нагрузки</strong>. Идеальная подгонка к одному запросу может ухудшить множество других.</p>
+<p>Отдельные коэффициенты чтения страниц можно переопределять на уровне tablespace, если данные действительно размещены на носителях с существенно разными характеристиками. Но и такие настройки не превращают модель в датчик текущей очереди I/O.</p>
+<h2 id="157-prepared-statements">15.7. Prepared statements: когда планировщик не знает конкретного значения параметра<a class="headerlink" href="#157-prepared-statements" title="Permanent link">¶</a></h2>
+<p>Представим таблицу с миллионом заказов:</p>
+<ul>
+<li><code>status = 'PAID'</code> встречается в 95% строк;</li>
+<li><code>status = 'CANCELLED'</code> встречается в 5%.</li>
+</ul>
+<p>Для этих значений может быть выгоден разный доступ к таблице.</p>
+<p>Теперь backend выполняет один параметризованный SQL:</p>
+<div class="highlight"><pre><span></span><code><span class="k">PREPARE</span><span class="w"> </span><span class="n">find_orders</span><span class="p">(</span><span class="nb">text</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Возникает вопрос: может ли оптимизатор учитывать, какое значение параметра пришло сегодня?</p>
+<p>Зависит от вида плана.</p>
+<p><strong>Custom plan</strong> строится с учетом параметров текущего выполнения. Это позволяет принимать разные решения для <code>PAID</code> и <code>CANCELLED</code>.</p>
+<p><strong>Generic plan</strong> предназначен для повторного использования с разными параметрами. Он экономит стоимость планирования, но не учитывает конкретное текущее значение <code>$1</code> так же, как custom plan.</p>
+<h3 id="_8">Компромисс<a class="headerlink" href="#_8" title="Permanent link">¶</a></h3>
+<p><code>Экономия времени планирования ↔ качество специализированного плана</code></p>
+<p>В стандартном автоматическом режиме PostgreSQL 18 для параметризованного prepared statement сначала обычно строит custom plans при первых пяти выполнениях, затем оценивает применимость generic plan, сравнивая его расчетную стоимость с оценками custom plans и учитывая экономию на планировании.</p>
+<p>Это <strong>деталь текущей реализации</strong>, а не гарантия SQL-стандарта.</p>
+<p>Настройка <code>plan_cache_mode</code> позволяет влиять на выбор между <code>auto</code>, <code>force_custom_plan</code> и <code>force_generic_plan</code>.</p>
+<p>Для нашей лекции главное следствие такое: <strong>одинаковый SQL-текст с разными параметрами может получать разные планы, а переиспользуемый общий план может оказаться неудачным для редкого или очень частого значения</strong>.</p>
+<p>Протокол PostgreSQL и реализация prepared statements в драйверах относятся к отдельному техническому слою.</p>
+<h2 id="158-executor">15.8. Почему executor не перестраивает весь план после первых плохих измерений<a class="headerlink" href="#158-executor" title="Permanent link">¶</a></h2>
+<p>Рассмотрим такой сценарий:</p>
+<ol>
+<li>Планировщик оценивает запрос и выбирает <code>Index Scan</code>.</li>
+<li>Начинается выполнение.</li>
+<li>После первых сотен тысяч строк становится видно, что данных гораздо больше, чем предполагалось.</li>
+<li>Стоимость индексного доступа резко возрастает.</li>
+</ol>
+<p>Можно было бы ожидать, что PostgreSQL автоматически прервет индексный доступ и переключится на <code>Seq Scan</code>.</p>
+<p>Но обычный исполнитель PostgreSQL не гарантирует такого глобального динамического перепланирования посреди запроса.</p>
+<p>План строится перед выполнением. <code>EXPLAIN ANALYZE</code> позволяет после выполнения сравнить прогноз с реальностью, однако найденная ошибка оценки сама по себе не перестраивает задним числом выбранную стратегию.</p>
+<p>Это цена архитектурного компромисса:</p>
+<ul>
+<li>планирование выполняется до работы с основным объемом данных;</li>
+<li>исполнитель получает заранее выбранное дерево;</li>
+<li>стоимость и сложность непрерывной перестройки плана не входят в обычную модель исполнения.</li>
+</ul>
+<p>Поэтому важно, насколько качественной была исходная статистика.</p>
+<h2 id="159-cost-p95">15.9. Минимальный <code>cost</code> и минимальный p95 — разные цели<a class="headerlink" href="#159-cost-p95" title="Permanent link">¶</a></h2>
+<p>Предположим, оптимизатор оценил:</p>
+<p><code>Ĉ(A) = 900;  Ĉ(B) = 1 100</code></p>
+<p>А фактические задержки при определенном состоянии среды оказались такими:</p>
+<p><code>T(A) = 120 мс;  T(B) = 75 мс</code></p>
+<p>Это <strong>сконструированный пример</strong>, показывающий возможное расхождение порядка предпочтений.</p>
+<p>Backend часто оценивают по:</p>
+<div class="highlight"><pre><span></span><code>p95 latency &lt; 100 ms
+</code></pre></div>
+<p>Но cost model PostgreSQL не минимизирует p95 всего HTTP-запроса. Она сравнивает оценочные затраты выполнения SQL-плана.</p>
+<p>End-to-end задержка дополнительно включает ожидание соединения в пуле, передачу SQL, сериализацию результата, сетевое взаимодействие и работу приложения.</p>
+<p>Даже внутри PostgreSQL p95 зависит от различий между холодным и горячим кешем, переменной нагрузки и редких дорогостоящих ожиданий.</p>
+<p>Значит, <strong>минимальный расчетный <code>cost</code> — разумный критерий выбора плана, но не контракт на задержку сервиса</strong>.</p>
+<h2 id="1510-cpu">15.10. Планирование само стоит CPU и времени<a class="headerlink" href="#1510-cpu" title="Permanent link">¶</a></h2>
+<p>Пока мы рассчитывали <code>cost</code> для путей, могло возникнуть впечатление, что планировщик выполняет эту работу бесплатно.</p>
+<p>Бесплатное закончилось.</p>
+<p>Построение статистических оценок, генерация <code>Path</code>, сравнение кандидатов и конструирование окончательного <code>Plan</code> потребляют ресурсы.</p>
+<p>Именно поэтому <code>add_path()</code> отбрасывает доминируемые варианты. Сохранять все возможные кандидаты ради теоретически идеального выбора было бы слишком дорого по времени и памяти.</p>
+<p>Именно поэтому generic plans могут быть выгодны при частом повторном исполнении похожих запросов: они позволяют экономить на повторном планировании.</p>
+<p>В <code>EXPLAIN ANALYZE</code> различаются:</p>
+<div class="highlight"><pre><span></span><code>Planning Time: ... ms
+Execution Time: ... ms
+</code></pre></div>
+<p>При этом <code>Planning Time</code> не равно стоимости полного цикла обработки запроса в приложении, а cost-оценки узлов не включают все возможные накладные расходы подготовки SQL и сетевого обмена.</p>
+<p><strong>Инженерный вывод:</strong> оптимизатор должен быть достаточно точным, но и достаточно быстрым. Дополнительная точность имеет смысл только тогда, когда ее цена оправдана ожидаемым выигрышем.</p>
+<h2 id="1511">15.11. Как интерпретировать расхождение прогноза и фактического времени<a class="headerlink" href="#1511" title="Permanent link">¶</a></h2>
+<p>Вместо интуитивного «индекс плохой» полезнее пройти причинную цепочку.</p>
+<table>
+<thead>
+<tr>
+<th>Наблюдение</th>
+<th>Что оно означает и чего не доказывает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rows</code> близко к <code>actual rows</code></td>
+<td>Cardinality в данном узле хорошая, но цена доступа может быть неверной</td>
+</tr>
+<tr>
+<td><code>rows</code> в сотни раз меньше <code>actual rows</code></td>
+<td>Возможна ошибка статистики, но сначала исключаем раннюю остановку узла и особенности <code>loops</code></td>
+</tr>
+<tr>
+<td><code>shared read</code> вырос</td>
+<td>Больше чтений при промахах в <code>shared_buffers</code>, однако это не всегда физические чтения SSD</td>
+</tr>
+<tr>
+<td><code>shared hit</code> велик при медленном запросе</td>
+<td>Данные кешированы, но обращений и CPU-работы может быть очень много</td>
+</tr>
+<tr>
+<td><code>Sort Method: external merge</code></td>
+<td>Сортировка использовала временные файлы; нужно учитывать ее входной объем и память</td>
+</tr>
+<tr>
+<td><code>Limit</code> вернул 10 строк</td>
+<td>Ничего не говорит само по себе о количестве обработанных строк внизу дерева</td>
+</tr>
+<tr>
+<td>План не изменился, время выросло</td>
+<td>Возможны кеш, конкуренция, I/O-очереди, ожидания и изменение окружения</td>
+</tr>
+</tbody>
+</table>
+<p>Есть еще инструментальная тонкость: <code>EXPLAIN ANALYZE</code> дополнительно измеряет узлы и может создавать заметные накладные расходы для очень коротких операций. Для оценки количества строк и обращений к буферам без измерения времени каждого узла существует <code>TIMING OFF</code>.</p>
+<p>В этом блоке мы не изучаем устройство инструментирования executor — оно относится к отдельному <code>05.2 Executor Internals</code>.</p>
+<h2 id="1512">15.12. Три теоретические аварии модели<a class="headerlink" href="#1512" title="Permanent link">¶</a></h2>
+<h3 id="a_1">Авария A. «Клиенту приписали миллион заказов»<a class="headerlink" href="#a_1" title="Permanent link">¶</a></h3>
+<p>До массовой загрузки по <code>customer_id=42</code> было 50 строк, а после стало 200 000. Статистика устарела.</p>
+<p>Планировщик продолжает оценивать очень селективный предикат и предпочитает индекс. Фактически множество heap fetches делает запрос дорогим.</p>
+<p><strong>Нарушена предпосылка:</strong> количество строк соответствует прежнему распределению.</p>
+<p><strong>Какой показатель выдаст проблему:</strong> <code>estimated rows</code> против <code>actual rows</code> при полном исполнении.</p>
+<h3 id="b_1">Авария B. «Количество строк правильное, но страницы разбросаны»<a class="headerlink" href="#b_1" title="Permanent link">¶</a></h3>
+<p>Планировщик ожидал 50 000 строк, получил 50 100, но физическая локальность оказалась существенно хуже расчетной.</p>
+<p><strong>Нарушена предпосылка:</strong> цена получения страниц близка к оцененной.</p>
+<p><strong>Что важно:</strong> <code>BUFFERS</code>, информация об I/O, физическое распределение строк и реальный рабочий набор.</p>
+<h3 id="c-limit-10">Авария C. «LIMIT 10, но первые десять находятся в самом конце»<a class="headerlink" href="#c-limit-10" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>При обратном чтении индекса по времени исполнитель долго не находит подходящие строки. Почти все ранние кандидаты отклоняются <code>Filter</code>.</p>
+<p><strong>Нарушена предпосылка:</strong> подходящие строки встретятся достаточно быстро в выбранном порядке обхода.</p>
+<p><strong>Что выдаст проблему:</strong> большое число строк, отклоненных фильтром, и дорогая работа дочернего <code>Index Scan</code>, несмотря на маленький <code>Limit</code>.</p>
+<p>Все три ситуации могут выглядеть как «PostgreSQL выбрал не тот план», но механизмы у них совершенно разные.</p>
+<h2 id="1513">15.13. Последнее разрушение упрощения «планировщик всегда выбирает самый дешевый план»<a class="headerlink" href="#1513" title="Permanent link">¶</a></h2>
+<p>Это выражение верно лишь с оговорками.</p>
+<p><strong>Точная формулировка:</strong> PostgreSQL выбирает путь с предпочтительной <em>расчетной</em> стоимостью, учитывая требования запроса и доступные свойства путей, среди альтернатив, которые удалось создать и сохранить по правилам оптимизатора.</p>
+<p>Почему не стоит говорить просто «самый дешевый»?</p>
+<p>Потому что:</p>
+<ul>
+<li>стоимость приблизительна;</li>
+<li>количество строк приблизительно;</li>
+<li><code>startup</code> и <code>total</code> дают разные критерии;</li>
+<li><code>ORDER BY</code> требует оценивать порядок выходного потока;</li>
+<li><code>LIMIT</code> меняет интересующую долю результата;</li>
+<li>часть кандидатов отбрасывается в ходе поиска;</li>
+<li>среда меняется под нагрузкой;</li>
+<li>фактическое время не обязано соответствовать расчетному порядку путей.</li>
+</ul>
+<p>Это не набор исключений для запоминания. Это следствия одной инженерной идеи: <strong>планировщик решает сложную задачу выбора быстро, пользуясь доступной статистической моделью вместо выполнения всех вариантов</strong>.</p>
+<h3 id="15">Главное после раздела 15<a class="headerlink" href="#15" title="Permanent link">¶</a></h3>
+<ol>
+<li>Cost-Based Optimizer работает с оценкой затрат, а не с заранее известной задержкой.</li>
+<li>Серьезные ошибки <code>rows</code> часто приводят к плохим решениям, но правильные <code>rows</code> не гарантируют хороший план.</li>
+<li>Физическая локальность, кеширование и конкурентная нагрузка определяют реальную стоимость страниц.</li>
+<li>Коэффициенты стоимости нельзя без риска настраивать по единственному запросу.</li>
+<li>Generic plan уменьшает стоимость планирования, но может оказаться невыгодным для некоторых значений параметров.</li>
+<li><code>LIMIT</code> меняет расчетную цель, однако сам по себе не гарантирует малую работу.</li>
+<li>Минимальный <code>cost</code> не является обещанием минимального p95 backend-запроса.</li>
+</ol>
+<hr/>
+<h1 id="3">Итоговая модель блока 3<a class="headerlink" href="#3" title="Permanent link">¶</a></h1>
+<p>Мы последовательно разобрали:</p>
+<div class="highlight"><pre><span></span><code>SQL, WHERE, ORDER BY, LIMIT
+          |
+          v
+Статистика и оценка selectivity
+          |
+          v
+Ожидаемые строки (rows)
+          |
+          v
+Допустимые Path для одной таблицы
+    - Seq Scan
+    - Index Scan
+    - Bitmap Scan
+    - при необходимости Sort / Incremental Sort
+          |
+          v
+Cost model
+    - startup_cost
+    - total_cost
+          |
+          v
+Сравнение по стоимости и свойствам
+    - output ordering (pathkeys)
+    - возможность ранней выдачи
+    - доминирование и отбрасывание кандидатов
+          |
+          v
+LIMIT: интересует часть выходных строк?
+          |
+          v
+Выбор итогового Path
+          |
+          v
+create_plan -&gt; executor
+          |
+          v
+Фактические rows, time, BUFFERS
+          |
+          v
+Сопоставление оценок с реальной работой
+</code></pre></div>
+<h2 id="051">Семь выводов всей углубленной лекции 05.1<a class="headerlink" href="#051" title="Permanent link">¶</a></h2>
+<ol>
+<li>Статистика дает планировщику оценку количества строк и свойств распределения.</li>
+<li>Cost model превращает эту оценку в стоимость различных способов доступа.</li>
+<li><code>Path</code> — кандидат со стоимостью и свойствами; <code>Plan</code> — выбранное дерево для выполнения.</li>
+<li><code>ORDER BY</code> делает порядок строк экономически значимым свойством пути.</li>
+<li><code>LIMIT</code> может переключать выбор с минимального total cost на минимальную стоимость получения первых строк.</li>
+<li><code>add_path()</code> сокращает пространство поиска, потому что само планирование потребляет ресурсы.</li>
+<li>Неудачный план нужно объяснять через нарушенные предпосылки модели, а не исправлять случайными индексами или флагами.</li>
+</ol>
+<h2 id="_9">Куда можно копнуть глубже в рамках темы<a class="headerlink" href="#_9" title="Permanent link">¶</a></h2>
+<p><strong>1. Реальные правила <code>add_path()</code> и сравнение <code>PathKey</code>.</strong> Это позволит установить, почему один кандидат сохранился, а другой был отброшен до окончательного <code>EXPLAIN</code>.</p>
+<p><strong>2. Выбор пути при <code>LIMIT</code> в исходниках.</strong> <code>compare_fractional_path_costs</code>, <code>get_cheapest_fractional_path</code> и <code>create_limit_path</code> покажут, как математическая интерполяция превращается в конкретный выбранный путь.</p>
+<p><strong>3. Распределение совпадений в индексном порядке.</strong> Это закроет вопрос, почему статистика знает частоту значения, но <code>ORDER BY + LIMIT</code> иногда приводит к сотням тысяч бесполезных проверок.</p>
+<p><strong>4. Generic/custom plan для подготовленных запросов.</strong> Поможет объяснить резкую разницу в задержках при одинаковом SQL-тексте и разных параметрах. Детали драйверов и протокола PostgreSQL оставляем за пределами лекции.</p>
+<p>Алгоритмы <code>JOIN</code> и порядок соединений будут рассмотрены в отдельной лекции №6.</p>
+<hr/>
+<h1 id="_10">Источники и статус утверждений<a class="headerlink" href="#_10" title="Permanent link">¶</a></h1>
+<p><strong>Ориентир: PostgreSQL 18, ветка <code>REL_18_STABLE</code>.</strong> Математические и числовые примеры, специально сконструированные для обучения, обозначены как учебные. Их нельзя воспринимать как реальный результат исполнения <code>EXPLAIN</code>. Названия внутренних структур и функций относятся к реализации PostgreSQL 18, а не к гарантиям SQL-стандарта.</p>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/using-explain.html">PostgreSQL 18 — Using EXPLAIN</a>: семантика startup/total, планы с LIMIT, Incremental Sort, особенности досрочно завершенных дочерних узлов.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-explain.html">PostgreSQL 18 — EXPLAIN</a>: стоимость частичного получения строк, <code>ANALYZE</code>, <code>GENERIC_PLAN</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/planner-optimizer.html">PostgreSQL 18 — Planner/Optimizer</a>: понятие <code>Path</code>, генерация и выбор планов.</li>
+<li><a href="https://www.postgresql.org/docs/18/indexes-ordering.html">PostgreSQL 18 — Indexes and ORDER BY</a>: B-tree, порядок обхода, <code>ORDER BY + LIMIT</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/queries-limit.html">PostgreSQL 18 — LIMIT and OFFSET</a>: ограничение результата, нестабильный порядок без <code>ORDER BY</code>, стоимость <code>OFFSET</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">PostgreSQL 18 — Query Planning Settings</a>: cost coefficients, <code>effective_cache_size</code>, <code>cursor_tuple_fraction</code>, <code>plan_cache_mode</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-prepare.html">PostgreSQL 18 — PREPARE</a>: различия generic и custom планов, эвристика автоматического выбора.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/util/pathnode.c">PostgreSQL 18, исходник <code>pathnode.c</code></a>: <code>add_path</code>, <code>set_cheapest</code>, <code>compare_fractional_path_costs</code>, создание <code>LimitPath</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/plan/planner.c">PostgreSQL 18, исходник <code>planner.c</code></a>: <code>get_cheapest_fractional_path</code>, выбор пути и переход к <code>create_plan</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/pathkeys.c">PostgreSQL 18, исходник <code>pathkeys.c</code></a>: представление и сравнение порядка строк.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/costsize.c">PostgreSQL 18, исходник <code>costsize.c</code></a>: оценка стоимости чтения и сортировки из предыдущего блока.</li>
+</ol>
+<p><strong>Граница разделов:</strong> выбор плана для одной таблицы, порядок, LIMIT и ограничения модели. Без лабораторной практики и без алгоритмов JOIN.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 05.2. PostgreSQL Cost Model" class="md-footer__link md-footer__link--prev" href="../5.2%20-%20PostgreSQL%20Cost%20model/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                05.2. PostgreSQL Cost Model
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN" class="md-footer__link md-footer__link--next" href="../6.1%20-%20Join%20Planner/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
