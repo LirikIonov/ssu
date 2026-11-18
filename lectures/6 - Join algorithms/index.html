@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
-<link href="https://lirikonov.github.io/ssu/lectures/6%20-%20PostgreSQL%20Join%20algorithms/" rel="canonical"/>
-<link href="../5%20-%20PostgreSQL%20Explain/" rel="prev"/>
-<link href="../7%20-%20PostgreSQL%20WAL%20durability/" rel="next"/>
+<link href="https://lirikonov.github.io/ssu/lectures/6%20-%20Join%20algorithms/" rel="canonical"/>
+<link href="../5%20-%20Explain/" rel="prev"/>
+<link href="../7%20-%20WAL%20durability/" rel="next"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>PostgreSQL: joins - Go</title>
+<title>6. PostgreSQL: Joins - Go</title>
 <link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#postgresql-joins">
+<a class="md-skip" href="#6-postgresql-joins">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              PostgreSQL: joins
+              6. PostgreSQL: Joins
             
           </span>
 </div>
@@ -193,7 +193,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../5%20-%20PostgreSQL%20Explain/">
+<a class="md-nav__link" href="../5%20-%20Explain/">
 <span class="md-ellipsis">
     
   
@@ -210,7 +210,7 @@
 <span class="md-ellipsis">
     
   
-    PostgreSQL: joins
+    6. PostgreSQL: Joins
   
 
     
@@ -221,7 +221,7 @@
 <span class="md-ellipsis">
     
   
-    PostgreSQL: joins
+    6. PostgreSQL: Joins
   
 
     
@@ -309,11 +309,11 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../7%20-%20PostgreSQL%20WAL%20durability/">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
 <span class="md-ellipsis">
     
   
-    PostgreSQL WAL и durability
+    7. PostgreSQL: WAL и durability
   
 
     
@@ -325,7 +325,7 @@
 <span class="md-ellipsis">
     
   
-    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+    8. PostgreSQL: Diagnostics &amp; Locks
   
 
     
@@ -337,7 +337,7 @@
 <span class="md-ellipsis">
     
   
-    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
   
 
     
@@ -636,7 +636,7 @@
 <span class="md-ellipsis">
     
   
-    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
   
 
     
@@ -648,7 +648,7 @@
 <span class="md-ellipsis">
     
   
-    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
   
 
     
@@ -660,7 +660,7 @@
 <span class="md-ellipsis">
     
   
-    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
   
 
     
@@ -672,7 +672,7 @@
 <span class="md-ellipsis">
     
   
-    09.1. PostgreSQL Schema Migration Internals
+    9.1. PostgreSQL Schema Migration Internals
   
 
     
@@ -684,7 +684,7 @@
 <span class="md-ellipsis">
     
   
-    09.2. PostgreSQL Backup &amp; Restore Internals
+    9.2. PostgreSQL Backup &amp; Restore Internals
   
 
     
@@ -696,7 +696,7 @@
 <span class="md-ellipsis">
     
   
-    09.3. PostgreSQL Connection Pooling Internals
+    9.3. PostgreSQL Connection Pooling Internals
   
 
     
@@ -986,7 +986,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="postgresql-joins">PostgreSQL: joins<a class="headerlink" href="#postgresql-joins" title="Permanent link">¶</a></h1>
+<h1 id="6-postgresql-joins">6. PostgreSQL: Joins<a class="headerlink" href="#6-postgresql-joins" title="Permanent link">¶</a></h1>
 <blockquote>
 <p><strong>Основная лекция, обязательный материал.</strong> Технический ориентир — PostgreSQL 18. Основная тема: логика соединений, физические алгоритмы <code>Nested Loop</code>, <code>Hash Join</code>, <code>Merge Join</code>, порядок соединения таблиц, потребление памяти и диагностика через <code>EXPLAIN ANALYZE</code>.</p>
 <p><strong>Терминология:</strong> понятия объясняются по-русски. Имена SQL-конструкций, операторов плана, параметров PostgreSQL и внутренних функций сохраняются в исходном написании — именно так они выглядят в запросах, настройках и <code>EXPLAIN</code>. Например, <code>rows</code> — оценка количества строк, <code>loops</code> — число запусков, <code>Hash Cond</code> — условие хеш-соединения.</p>
@@ -1890,7 +1890,7 @@ EXPLAIN ANALYZE: actual rows, loops, BUFFERS, Batches
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 5. PostgreSQL: Explain" class="md-footer__link md-footer__link--prev" href="../5%20-%20PostgreSQL%20Explain/">
+<a aria-label="Назад: 5. PostgreSQL: Explain" class="md-footer__link md-footer__link--prev" href="../5%20-%20Explain/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -1903,13 +1903,13 @@ EXPLAIN ANALYZE: actual rows, loops, BUFFERS, Batches
               </div>
 </div>
 </a>
-<a aria-label="Вперед: PostgreSQL WAL и durability" class="md-footer__link md-footer__link--next" href="../7%20-%20PostgreSQL%20WAL%20durability/">
+<a aria-label="Вперед: 7. PostgreSQL: WAL и durability" class="md-footer__link md-footer__link--next" href="../7%20-%20WAL%20durability/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                PostgreSQL WAL и durability
+                7. PostgreSQL: WAL и durability
               </div>
 </div>
 <div class="md-footer__button md-icon">

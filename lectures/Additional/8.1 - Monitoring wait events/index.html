@@ -8,7 +8,7 @@
 <link href="../8.2%20-%20Lock%20manager/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки - Go</title>
+<title>8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#081-postgresql-monitoring-wait-events-internals">
+<a class="md-skip" href="#81-postgresql-monitoring-wait-events-internals">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+              8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
             
           </span>
 </div>
@@ -193,7 +193,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20Explain/">
+<a class="md-nav__link" href="../../5%20-%20Explain/">
 <span class="md-ellipsis">
     
   
@@ -205,11 +205,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../6%20-%20PostgreSQL%20Join%20algorithms/">
+<a class="md-nav__link" href="../../6%20-%20Join%20algorithms/">
 <span class="md-ellipsis">
     
   
-    PostgreSQL: joins
+    6. PostgreSQL: Joins
   
 
     
@@ -217,11 +217,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../7%20-%20PostgreSQL%20WAL%20durability/">
+<a class="md-nav__link" href="../../7%20-%20WAL%20durability/">
 <span class="md-ellipsis">
     
   
-    PostgreSQL WAL и durability
+    7. PostgreSQL: WAL и durability
   
 
     
@@ -233,7 +233,7 @@
 <span class="md-ellipsis">
     
   
-    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+    8. PostgreSQL: Diagnostics &amp; Locks
   
 
     
@@ -245,7 +245,7 @@
 <span class="md-ellipsis">
     
   
-    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
   
 
     
@@ -545,7 +545,7 @@
 <span class="md-ellipsis">
     
   
-    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
   
 
     
@@ -556,7 +556,7 @@
 <span class="md-ellipsis">
     
   
-    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
   
 
     
@@ -585,7 +585,7 @@
 <span class="md-ellipsis">
     
   
-    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
   
 
     
@@ -597,7 +597,7 @@
 <span class="md-ellipsis">
     
   
-    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
   
 
     
@@ -609,7 +609,7 @@
 <span class="md-ellipsis">
     
   
-    09.1. PostgreSQL Schema Migration Internals
+    9.1. PostgreSQL Schema Migration Internals
   
 
     
@@ -621,7 +621,7 @@
 <span class="md-ellipsis">
     
   
-    09.2. PostgreSQL Backup &amp; Restore Internals
+    9.2. PostgreSQL Backup &amp; Restore Internals
   
 
     
@@ -633,7 +633,7 @@
 <span class="md-ellipsis">
     
   
-    09.3. PostgreSQL Connection Pooling Internals
+    9.3. PostgreSQL Connection Pooling Internals
   
 
     
@@ -860,7 +860,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="081-postgresql-monitoring-wait-events-internals">08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки<a class="headerlink" href="#081-postgresql-monitoring-wait-events-internals" title="Permanent link">¶</a></h1>
+<h1 id="81-postgresql-monitoring-wait-events-internals">8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки<a class="headerlink" href="#81-postgresql-monitoring-wait-events-internals" title="Permanent link">¶</a></h1>
 <blockquote>
 <p><strong>Углубленная лекция магистратуры · PostgreSQL 18 · <code>REL_18_STABLE</code> · блок 8, продолжение лекции 08.</strong></p>
 <p><strong>Предмет:</strong> внутренняя организация текущей активности, накопительной статистики, <code>pg_stat_statements</code>, <code>queryid</code>, wait events и LWLocks как наблюдаемого источника конкуренции; точность измерений и диагностика под нагрузкой. Механика heavyweight Lock Manager, очереди row locks и VACUUM/freezing разбираются отдельно в 08.2 и 08.3. Темы блока 9 здесь отсутствуют.</p>
@@ -1880,13 +1880,13 @@ P(\text{поймать хотя бы раз}) = 1 - (1-p)^n
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock" class="md-footer__link md-footer__link--next" href="../8.2%20-%20Lock%20manager/">
+<a aria-label="Вперед: 8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock" class="md-footer__link md-footer__link--next" href="../8.2%20-%20Lock%20manager/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+                8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
               </div>
 </div>
 <div class="md-footer__button md-icon">
