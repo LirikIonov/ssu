@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/9%20-%20Migrations%20backup%20pooling/" rel="canonical"/>
+<link href="../8%20-%20Diagnostics%20locks/" rel="prev"/>
+<link href="../Additional/1.1%20-%20CPU%20architecture/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#090-postgresql-migrations-backup-connection-pooling">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL: joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20PostgreSQL%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: миграция прошла, приложение запустилось, сервис недоступен
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_10_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_10">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    09.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    09.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: миграция прошла, приложение запустилось, сервис недоступен
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="090-postgresql-migrations-backup-connection-pooling">09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling<a class="headerlink" href="#090-postgresql-migrations-backup-connection-pooling" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Основная лекция магистратуры · PostgreSQL 18 · <code>REL_18_STABLE</code> · блок 9.</strong><br/>
+<strong>Состав:</strong> ровно 14 согласованных тем: миграции (1–6), backup/restore (7–9), управление соединениями (10–14).<br/>
+<strong>Предыдущие блоки:</strong> SQL planner/executor, MVCC, блокировки, WAL, crash recovery и VACUUM уже изучены. Здесь обращаемся к их следствиям, не пересказывая механизмы.<br/>
+<strong>Оговорка о версиях:</strong> синтаксис и поведение PostgreSQL проверены по документации PostgreSQL 18; сведения о <code>database/sql</code> — по документации Go; особенности PgBouncer — по актуальной официальной документации. Схемы и расчеты с условными значениями являются учебными примерами, а не измерениями действующего сервера.</p>
+</blockquote>
+<h2 id="0">0. Инцидент: миграция прошла, приложение запустилось, сервис недоступен<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>Представим backend-сервис с таблицей <code>orders</code> на десятки миллионов строк. После релиза одновременно происходят три события. Новый код ожидает колонку <code>external_id</code>, которой нет на части экземпляров схемы. Миграционный скрипт добавляет индекс обычным <code>CREATE INDEX</code>, и запись заказов встает в очередь. Чтобы «помочь базе», мы увеличиваем число экземпляров приложения и размер каждого пула. После этого новые подключения упираются в <code>max_connections</code>. У нас есть ночной SQL-дамп, но команда восстановления на тестовом окружении ни разу не запускалась.</p>
+<p>В такой ситуации не помогает знание того, что <code>ALTER TABLE</code> меняет структуру таблицы, а <code>pg_dump</code> делает резервную копию. Нужно связать три эксплуатационных контракта:</p>
+<div class="highlight"><pre><span></span><code>Релиз приложения ──&gt; контракт схемы ──&gt; допустимые изменения на живой БД
+                                                  │
+                                                  ▼
+                                  контроль отказа и восстановление
+                                                  │
+                                                  ▼
+                                поток запросов ──&gt; ограниченный пул
+</code></pre></div>
+<p><strong>Первый контракт — совместимость.</strong> Старая и новая версии приложения могут одновременно работать с одной схемой. <strong>Второй — восстановимость.</strong> Данные можно вернуть в измеримое время и с приемлемой потерей. <strong>Третий — емкость соединений.</strong> Каждый экземпляр сервиса не должен бесконтрольно увеличивать количество серверных процессов PostgreSQL.</p>
+<p>Сегодня пройдем полный путь: подготовим безопасную миграцию, оценим цену DDL, создадим и проверим резервную копию, вычислим RPO/RTO, затем ограничим физические соединения и разберем, что делает PgBouncer. Вопросы из Lock Manager, VACUUM и WAL Internals считаем уже известными; здесь важны инженерные последствия.</p>
+<hr/>
+<h1 id="i">I. Миграции схемы: изменяем контракт работающей системы<a class="headerlink" href="#i" title="Permanent link">¶</a></h1>
+<h2 id="1-database-migrations">1. Database migrations: как координировать изменение схемы<a class="headerlink" href="#1-database-migrations" title="Permanent link">¶</a></h2>
+<h3 id="11-sql-">1.1. Почему «один SQL-файл» перестает быть простым<a class="headerlink" href="#11-sql-" title="Permanent link">¶</a></h3>
+<p>На локальной машине миграция выглядит безобидно:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>В production три сложности появляются одновременно. Первая: кто знает, применялась ли эта команда к конкретному окружению? Вторая: что делать, если мигратор потерял соединение после отправки <code>COMMIT</code> и не узнал результат? Третья: как избежать того, что два экземпляра приложения начнут выполнять миграции параллельно?</p>
+<p>Под <strong>миграцией базы данных</strong> будем понимать версионированное преобразование схемы и, иногда, данных, для которого зафиксированы порядок, ожидаемое состояние до/после, правила исполнения и восстановления после ошибки.</p>
+<p>Типичная таблица истории (ее схема зависит от инструмента):</p>
+<table>
+<thead>
+<tr>
+<th>version</th>
+<th>description</th>
+<th>applied_at</th>
+<th>checksum</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>17</td>
+<td>add external_id</td>
+<td>2026-11-18</td>
+<td>hash...</td>
+<td>success</td>
+</tr>
+<tr>
+<td>18</td>
+<td>create orders index</td>
+<td>—</td>
+<td>hash...</td>
+<td>pending</td>
+</tr>
+</tbody>
+</table>
+<p>Название и наличие колонок не являются стандартом PostgreSQL. Это договоренность мигратора. Состояние <code>success</code> полезно только тогда, когда обновление истории корректно согласовано с самой операцией изменения схемы.</p>
+<h3 id="12">1.2. Транзакционная миграция<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>PostgreSQL поддерживает транзакционный DDL для множества операций:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">schema_migrations</span><span class="p">(</span><span class="k">version</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'017'</span><span class="p">);</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>При ошибке до <code>COMMIT</code> изменения транзакции откатываются. Но есть исключения: например, <code>CREATE INDEX CONCURRENTLY</code> нельзя выполнять внутри явного transaction block. Поэтому требование «все миграции всегда оборачиваем в один <code>BEGIN</code>» неверно. Мигратор должен различать транзакционные и нетранзакционные шаги.</p>
+<p><strong>Неопределенный результат</strong> — другая проблема. Клиент отправил <code>COMMIT</code>, затем сеть оборвалась. Коммит мог состояться либо не состояться. Повторная отправка команды без чтения фактического состояния опасна. Надежный порядок: подключиться заново → прочитать историю миграций и реальные объекты схемы → определить состояние → выполнить безопасную следующую операцию. Одной проверки <code>IF NOT EXISTS</code> иногда недостаточно: объект с таким именем может иметь не ту структуру.</p>
+<h3 id="13">1.3. Кто единственный применяет миграцию<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Если у нас 20 экземпляров сервиса, запуск DDL из <code>main()</code> каждого экземпляра создает гонку при развертывании. Надежнее выделить миграции в отдельный контролируемый этап релиза либо использовать проверенный мигратор с координацией, блокировкой выполнения и таблицей состояния. Параллельно запускаемые экземпляры приложения должны уметь работать с переходной схемой.</p>
+<p>Инструменты <code>golang-migrate</code>, Goose и Flyway по-разному организуют версионирование, транзакции и блокировки. Для курса принцип важнее названия: <strong>DDL выполняется один раз в контролируемой последовательности, а ошибка оставляет диагностируемое состояние</strong>.</p>
+<h3 id="14-versioned-repeatable-migrations">1.4. Versioned и repeatable migrations<a class="headerlink" href="#14-versioned-repeatable-migrations" title="Permanent link">¶</a></h3>
+<p>Версионированная миграция (<code>V017__...</code>) выполняется согласно порядку и не должна незаметно менять смысл задним числом. Повторяемые миграции, где инструмент их поддерживает, используются для объектов, содержание которых допустимо обновлять при изменении файла (например, некоторых SQL-функций). Они не превращают любой разрушительный DDL в безопасно повторяемый.</p>
+<p>Нужно хранить примененный артефакт миграции вместе с версией приложения: у команды должны быть воспроизводимые сведения о том, какой именно SQL был запущен и на каком окружении.</p>
+<h3 id="15-production-">1.5. Production-цена и диагностика<a class="headerlink" href="#15-production-" title="Permanent link">¶</a></h3>
+<p>При зависшей миграции нас интересует не только статус скрипта. Смотрим, какой процесс сейчас выполняет команду, ждет ли она ресурс, какой запрос ее блокирует, сколько времени остается по лимитам, завершилась ли транзакция и какие каталоги/индексы появились. Инструменты блока 8 уже дают такой диагностический путь.</p>
+<p>Минимальный чек-лист перед запуском: оценка объема затрагиваемой таблицы; проверка совместимости обеих версий кода; таймаут на ожидание блокировки; отдельное окно наблюдения; способ повторного запуска; проверка результата SQL и метаданных; откат приложения без обязательного возврата схемы назад.</p>
+<p><strong>Инженерный вывод.</strong> Миграция является частью протокола релиза. Надежность определяется контролем порядка и состояния, а не только правильным синтаксисом SQL.</p>
+<h2 id="2-schema-as-contract">2. Schema as Contract: две версии приложения и одна база<a class="headerlink" href="#2-schema-as-contract" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Где ломается модель «сначала поменяем БД, потом код»<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>В production релиз обычно не атомарен. На одном сервере еще работает версия A, на другом уже запущена версия B. Обе пишут в ту же таблицу. Поэтому новая схема должна в течение переходного периода удовлетворять обоим клиентам.</p>
+<p>Пример. Старая версия читает и пишет <code>customers.full_name</code>. Новая хочет отдельно <code>first_name</code>, <code>last_name</code>.</p>
+<div class="highlight"><pre><span></span><code>A (старая версия) ──── SELECT/UPDATE full_name ─────┐
+                                                    ├── customers
+B (новая версия) ──── SELECT/UPDATE first_name, ────┘
+                                           last_name
+</code></pre></div>
+<p>Если немедленно <code>DROP COLUMN full_name</code>, все оставшиеся экземпляры A сломаются. Если B сначала начнет читать только новые колонки без backfill, исторические записи окажутся пустыми.</p>
+<h3 id="22">2.2. Контракт чтения и контракт записи<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p>Полезно составить матрицу:</p>
+<table>
+<thead>
+<tr>
+<th>Версия кода</th>
+<th>Старая схема</th>
+<th>Переходная схема</th>
+<th>Финальная схема</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A: работает с <code>full_name</code></td>
+<td>Да</td>
+<td>Да</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td>B-переходная: понимает оба формата</td>
+<td>Нет/зависит от кода</td>
+<td>Да</td>
+<td>Да/зависит от кода</td>
+</tr>
+<tr>
+<td>C: только новые поля</td>
+<td>Нет</td>
+<td>Да, после переноса</td>
+<td>Да</td>
+</tr>
+</tbody>
+</table>
+<p>Здесь таблица — проектное обязательство. Для каждого выпуска нужно явно знать: какие колонки читаются, какие пишутся, допустимы ли <code>NULL</code>, какие ограничения уже работают и что случится при откате бинарника на предыдущую версию.</p>
+<p><strong>Backward compatibility</strong> в миграции означает сохранение корректной работы старого приложения при применении новой схемы. Иногда дополнительно нужна forward compatibility переходной версии — способность читать еще не полностью перенесенные данные.</p>
+<h3 id="23">2.3. Схема — это шире списка колонок<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p>Контракт включает типы, значения по умолчанию, проверки, уникальность, <code>NOT NULL</code>, допустимые значения enum/справочников, индексные предпосылки производительности и существование объектов. Особенно опасны изменения, которые внешне выглядят косметическими: переименование поля, сужение типа, изменение семантики <code>NULL</code>, ужесточение constraint.</p>
+<p>Изменение <code>DEFAULT</code> влияет на будущие вставки, но не переписывает автоматически значения старых строк. Это важно для постепенного релиза: старая версия, которая не указывает колонку в <code>INSERT</code>, может начать получать новое значение раньше переключения бизнес-логики.</p>
+<h3 id="24">2.4. Откат бинарника ≠ откат данных<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<p>После выкладки B часть пользователей уже записала новые данные. Если миграция удалила старую колонку или преобразовала тип с потерей информации, возврат к A не восстанавливает утраченное. Поэтому основной способ безопасного возврата часто состоит в <strong>откате приложения при сохранении расширенной схемы</strong>. Обратное преобразование данных требуется отдельно оценивать и тестировать.</p>
+<p><strong>Инженерный вывод.</strong> Схема — публичный контракт для нескольких одновременно существующих версий приложения. Операции следует планировать по матрице совместимости, а не по желаемому окончательному DDL.</p>
+<h2 id="3-backward-compatible-migrations">3. Backward-Compatible Migrations: безопасные и опасные шаги<a class="headerlink" href="#3-backward-compatible-migrations" title="Permanent link">¶</a></h2>
+<h3 id="31-nullable-">3.1. Добавляем nullable-колонку<a class="headerlink" href="#31-nullable-" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Новая структура не требует немедленного заполнения старых строк. Старая версия продолжает работать с <code>full_name</code>. Но приложение B обязано корректно читать <code>NULL</code>, пока данные не перенесены.</p>
+<h3 id="32-default">3.2. <code>DEFAULT</code> — когда быстро, а когда дорого<a class="headerlink" href="#32-default" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 добавление колонки с <strong>неволатильным</strong> <code>DEFAULT</code> обычно сохраняет вычисленное значение в метаданных. Старые строки физически не переписываются сразу:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="w">  </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="k">source</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'web'</span><span class="p">;</span>
+</code></pre></div>
+<p>У новых строк значение задается обычным механизмом <code>DEFAULT</code>, а при чтении прежних строк PostgreSQL подставляет сохраненное значение. Это позволяет выполнить операцию быстро даже на большой таблице, хотя кратковременная блокировка DDL все равно нужна. Команда с волатильным <code>DEFAULT</code> вроде <code>clock_timestamp()</code> требует иной работы, вплоть до переписывания таблицы и индексов. Эта оптимизация — конкретное свойство PostgreSQL 18, а не универсальная гарантия любого DDL.</p>
+<p>Полезно различать:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Не меняет старые строки:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="k">source</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'api'</span><span class="p">;</span>
+
+<span class="c1">-- Может потребовать дорогой операции на большой таблице:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">captured_at</span><span class="w"> </span><span class="n">timestamptz</span>
+<span class="w">  </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">();</span>
+</code></pre></div>
+<h3 id="33">3.3. Новые ограничения: проверку можно отделить от введения правила<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<p>Если требуется начать проверять новый инвариант, часто можно отделить добавление ограничения от валидации исторических строк:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="w">  </span><span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_total_nonnegative</span>
+<span class="w">  </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">total_amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">VALID</span><span class="p">;</span>
+
+<span class="c1">-- Исправляем старые нарушения отдельной контролируемой операцией.</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="w">  </span><span class="n">VALIDATE</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_total_nonnegative</span><span class="p">;</span>
+</code></pre></div>
+<p>После первого шага новые и обновляемые строки должны удовлетворять правилу. Исторические данные еще не проверены целиком. <code>VALIDATE CONSTRAINT</code> проверит существующие строки отдельно, используя совместимый с обычными изменениями режим блокировки (<code>SHARE UPDATE EXCLUSIVE</code> для соответствующей таблицы). При этом сканирование все равно потребляет I/O и CPU.</p>
+<p><strong>Новое в PostgreSQL 18:</strong> <code>NOT VALID</code> поддерживается также для ограничений <code>NOT NULL</code>. Поэтому возможен поэтапный вариант:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="w">  </span><span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_external_id_nn</span>
+<span class="w">  </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">VALID</span><span class="p">;</span>
+
+<span class="c1">-- Предварительно заполнить external_id в существующих строках.</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="w">  </span><span class="n">VALIDATE</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_external_id_nn</span><span class="p">;</span>
+</code></pre></div>
+<p>Применимость синтаксиса и план блокировок проверяем на целевой PostgreSQL 18; на старых версиях аналогичный подход строился, например, через валидный <code>CHECK (col IS NOT NULL)</code> и последующий <code>SET NOT NULL</code>.</p>
+<h3 id="34">3.4. Переименование колонки — несовместимый контракт<a class="headerlink" href="#34" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">RENAME</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">full_name</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">display_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Само изменение каталога может быть быстрым, но старый код, продолжавший использовать <code>full_name</code>, немедленно начинает падать. Время выполнения DDL не отражает риск релиза. Более безопасная стратегия для длинного окна совместимости — добавить новое поле, перенести данные, переключить код и только затем удалить старое.</p>
+<h3 id="35">3.5. Изменение типа и сужение допустимых значений<a class="headerlink" href="#35" title="Permanent link">¶</a></h3>
+<p><code>bigint → integer</code>, <code>text → varchar(16)</code>, изменение <code>numeric</code> scale/precision, ужесточение <code>NOT NULL</code> — требуют отдельного анализа существующих данных и поведения обеих версий. Некоторые преобразования типов могут пройти без rewrite, но многие требуют переработки физического представления таблицы. Избегаем правила «ALTER TYPE всегда быстро» и столь же неверного «ALTER TYPE всегда переписывает таблицу».</p>
+<p><strong>Инженерный вывод.</strong> Безопасная миграция — последовательность маленьких совместимых шагов с проверками инвариантов. Даже метаданные, изменяемые за миллисекунды, могут нарушить контракт приложения.</p>
+<hr/>
+<h2 id="4-expand-migrate-contract-full_name">4. Expand / Migrate / Contract: безопасный переход с <code>full_name</code> на два поля<a class="headerlink" href="#4-expand-migrate-contract-full_name" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Почему три слова не являются алгоритмом сами по себе<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p><code>Expand → Migrate → Contract</code> часто рисуют как три блока. Но между первым и третьим блоком приложения продолжают писать данные. У нас возникает гонка: backfill прочитал старый <code>full_name</code>, клиент изменил его через старый API, а backfill позднее записал уже устаревшие <code>first_name</code>/<code>last_name</code>. В результате база не падает и SQL не возвращает ошибки, но данные расходятся.</p>
+<p>Поэтому протокол должен задавать <strong>источник истины для каждого этапа, правило записи, способ повторной обработки и условие переключения чтения</strong>.</p>
+<h3 id="42-expand">4.2. Фаза Expand: добавляем поля и совместимый код<a class="headerlink" href="#42-expand" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Пока старая версия использует только <code>full_name</code>, новая переходная версия должна принимать старый формат и, если бизнес-семантика допускает, формировать оба представления. Простое разделение произвольного полного имени по пробелу нельзя выдавать за корректное для всех языков и фамилий преобразование: это отдельная предметная задача. Для учебного алгоритма предположим, что правила преобразования определены и проверены бизнесом.</p>
+<p>Дальше необходимо выбрать стратегию источника истины:</p>
+<ul>
+<li><strong>Переходная двойная запись в одной транзакции.</strong> Код при изменении имени сохраняет <code>full_name</code>, <code>first_name</code>, <code>last_name</code> согласованно. Обе версии кода должны оставаться совместимыми с этим форматом. Если старая версия продолжает писать только <code>full_name</code>, одной новой двойной записи недостаточно: нужен механизм синхронизации или ограничение окна сосуществования.</li>
+<li><strong>Временное представление через чтение из старого поля.</strong> Пока исторические строки не перенесены, новая версия строит ответ из <code>full_name</code>, если новые поля пусты; чтение новых колонок включается позже.</li>
+<li><strong>Вынесенная синхронизация.</strong> В отдельных архитектурах согласование обеспечивается триггером либо другим управляемым механизмом. Это повышает сложность и требует отдельной проверки порядка и ошибок.</li>
+</ul>
+<p>Выбор зависит от возможности изменить все писатели одновременно. Нельзя заявлять, что «dual-write решает все», если старые экземпляры продолжают записывать только одну сторону контракта.</p>
+<h3 id="43-migrate-backfill">4.3. Фаза Migrate: ограничиваем стоимость backfill<a class="headerlink" href="#43-migrate-backfill" title="Permanent link">¶</a></h3>
+<p>На таблице в 80 млн строк такой SQL может создать огромную транзакцию:</p>
+<div class="highlight"><pre><span></span><code><span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...,</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">...</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Он создаст много новых версий, увеличит WAL, удержит ресурсы до завершения, а при ошибке откатит большое количество работы. Правильнее переносить данные небольшими порциями с ключом прогресса и наблюдением за задержками.</p>
+<p>Учебный шаблон (правило выделения имен обозначено условной функцией; не запускайте без определения этой функции):</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- УЧЕБНЫЙ ПСЕВДО-SQL: parse_name(...) — бизнес-функция,</span>
+<span class="c1">-- которая в реальной системе должна быть определена заранее.</span>
+<span class="k">WITH</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">customers</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="n">last_id</span>
+<span class="w">    </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span>
+<span class="w">    </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">1000</span>
+<span class="p">)</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parse_name</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">full_name</span><span class="p">).</span><span class="k">first</span><span class="p">,</span>
+<span class="w">    </span><span class="n">last_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">parse_name</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">full_name</span><span class="p">).</span><span class="k">last</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">b</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Для <strong>воспроизводимого исполняемого</strong> примера с простым преобразованием возьмем таблицу, где значение уже подготовлено в отдельном столбце:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Транзакция одной небольшой порции; :from_id/:to_id задает приложение.</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">staging_first_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">last_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">staging_last_name</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="err">$</span><span class="mi">2</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Интервалы по id удобны для возобновления, но не обязательно покрывают строки, вставленные позднее в «старый» интервал. Поэтому после основного прохода необходим повторный контроль остатка и правило синхронизации конкурентных записей.</p>
+<p>Ключевые ограничения на batch: число обработанных строк; максимальная длительность одной транзакции; интенсивность записи WAL; влияние на рабочие запросы; состояние репликации, если она используется; место на диске; возможность остановить и продолжить. Объем порции выбирается измерением, а не универсальной константой 1000.</p>
+<h3 id="44-backfill">4.4. Гонка между backfill и клиентской записью<a class="headerlink" href="#44-backfill" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>T1  Backfill читает full_name = 'A B'
+T2  Приложение меняет full_name = 'C D'
+T3  Backfill сохраняет first_name='A', last_name='B'
+T4  Новая версия читает 'A B', хотя full_name уже 'C D'
+</code></pre></div>
+<p>Если batch читает значения и обновляет их в одной SQL-команде, вычисление происходит по версиям и блокировкам этой команды, но это не отменяет проблем с параллельной логикой на разных представлениях. Для строгой корректности нужен согласованный протокол: например, единственный источник истины в переходном периоде и атомарное обновление обоих представлений, либо версия записи и проверка актуальности на момент применения backfill. Конкретный вариант определяется бизнес-инвариантами.</p>
+<h3 id="45">4.5. Условие переключения чтения<a class="headerlink" href="#45" title="Permanent link">¶</a></h3>
+<p>Нельзя переключать код только потому, что миграционный скрипт вернул <code>UPDATE N</code>. Перед переключением проверяем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">not_migrated</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Такая проверка осмысленна, только если <code>NULL</code> в новых колонках по контракту запрещен для всех записей. Если бизнес допускает неполное имя, нужен другой признак завершения. Далее проверяются расхождения между старым и новым представлениями, а также продолжающиеся писатели старого формата.</p>
+<h3 id="46-contract">4.6. Contract: последним шагом удаляем старый контракт<a class="headerlink" href="#46-contract" title="Permanent link">¶</a></h3>
+<p>Только когда все версии приложения и вспомогательные процессы перестали читать/писать <code>full_name</code>, можно планировать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">DROP</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">full_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Удаление колонки не обязательно немедленно вернет место файловой системе: PostgreSQL 18 обычно помечает колонку невидимой и постепенно избавляется от старого физического содержимого при переписывании версий строк. Указание «потом DROP COLUMN» не означает «после DROP размер heap уменьшится на размер поля».</p>
+<h3 id="47-rollback">4.7. Реальный rollback<a class="headerlink" href="#47-rollback" title="Permanent link">¶</a></h3>
+<p>При ошибке новой версии во время Migrate обычно откатывают приложение к совместимой версии, оставляя новые поля. Если новый код уже писал данные только в новый формат и старое поле осталось без обновлений, возврат к старому бинарнику может быть невозможен без обратной синхронизации. Поэтому проверка rollback — обязательная часть протокола, а не импровизация после инцидента.</p>
+<p><strong>Инженерный вывод.</strong> Expand/Migrate/Contract — протокол согласованного изменения двух контрактов во времени. Самая тяжелая часть — корректность одновременных записей и критерий завершения переноса.</p>
+<h2 id="5-dangerous-alter-table-ddl-sql">5. Dangerous <code>ALTER TABLE</code>: почему стоимость DDL непредсказуема по длине SQL<a class="headerlink" href="#5-dangerous-alter-table-ddl-sql" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Три класса операций<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Первый класс — <strong>metadata-only</strong>: изменение системных каталогов без физического обхода всех строк. Второй — <strong>validation scan</strong>: чтение большой таблицы ради проверки ограничения. Третий — <strong>table rewrite</strong>: создание нового физического представления таблицы, перенос строк и обслуживание зависимых структур. Реальная операция может объединять несколько этих работ.</p>
+<table>
+<thead>
+<tr>
+<th>Изменение PostgreSQL 18</th>
+<th>Типичная физическая цена</th>
+<th>Важная оговорка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ADD COLUMN</code> без сложных ограничений</td>
+<td>Метаданные</td>
+<td>Краткий сильный lock все равно возможен</td>
+</tr>
+<tr>
+<td><code>ADD COLUMN DEFAULT 'x'</code></td>
+<td>Метаданные</td>
+<td>Если default неволатильный</td>
+</tr>
+<tr>
+<td><code>ADD COLUMN DEFAULT clock_timestamp()</code></td>
+<td>Rewrite</td>
+<td>Волатильное значение для существующих строк</td>
+</tr>
+<tr>
+<td><code>SET DEFAULT</code></td>
+<td>Метаданные</td>
+<td>Не исправляет старые строки</td>
+</tr>
+<tr>
+<td><code>DROP COLUMN</code></td>
+<td>Обычно метаданные</td>
+<td>Размер файла сразу не уменьшается</td>
+</tr>
+<tr>
+<td><code>ADD CONSTRAINT CHECK (...)</code></td>
+<td>Проверка данных</td>
+<td><code>NOT VALID</code> отделяет валидацию</td>
+</tr>
+<tr>
+<td><code>ALTER COLUMN TYPE</code></td>
+<td>Часто rewrite</td>
+<td>Есть бинарно-совместимые исключения</td>
+</tr>
+<tr>
+<td><code>SET NOT NULL</code></td>
+<td>Обычно проверка данных</td>
+<td>В PG18 можно разделить ввод и validation</td>
+</tr>
+</tbody>
+</table>
+<p>Это типичные механизмы из документации, не полная матрица блокировок. Отдельные формы <code>ALTER TABLE</code> имеют специальные правила и исключения.</p>
+<h3 id="52-ddl">5.2. Почему быстрое DDL может задержать весь сервис<a class="headerlink" href="#52-ddl" title="Permanent link">¶</a></h3>
+<p>Допустим, само изменение каталога занимает 2 мс, но ему нужен <code>ACCESS EXCLUSIVE</code>. Старый запрос удерживает конфликтующий lock 20 секунд. DDL встает в очередь. Новые запросы, конфликтующие с ожидающим DDL, тоже могут начать ожидать. Получается каскад задержек от операции, физическая работа которой ничтожна.</p>
+<p>Нагрузка выглядит так:</p>
+<div class="highlight"><pre><span></span><code>S1: длительный SELECT ─────────────────────────── COMMIT
+S2:               ALTER TABLE → WAIT ───── RUN ── COMMIT
+S3:                        SELECT → WAIT ───────── RUN
+S4:                        UPDATE → WAIT ───────── RUN
+</code></pre></div>
+<p>Сами режимы блокировок мы уже разбирали в 08.2. Здесь достаточно инженерного следствия: <strong>время ожидания DDL определяется транзакциями вокруг него, а не только числом измененных байтов</strong>.</p>
+<p>Для ограниченного ожидания можно использовать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">lock_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2s'</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="k">source</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Если блокировка не получена вовремя, транзакция откатится с ошибкой. Это полезнее, чем оставлять миграцию в неопределенно долгой очереди. Но <code>lock_timeout</code> не ограничивает время всех вычислений; для ограничения времени команды отдельно существует <code>statement_timeout</code> с собственной семантикой.</p>
+<h3 id="53-rewrite">5.3. Rewrite и временное место<a class="headerlink" href="#53-rewrite" title="Permanent link">¶</a></h3>
+<p>Таблица в 400 ГиБ не меняется «на месте» просто потому, что SQL короткий. Операция rewrite может потребовать новый heap и перестроенные индексы, дополнительные записи и I/O. Во время такого преобразования может временно потребоваться объем места, сопоставимый с размером старых объектов, и заметные ресурсы для WAL/других операций. Нельзя закладывать правило «есть еще 10 ГиБ свободно, значит хватит».</p>
+<p>В PostgreSQL документация отдельно отмечает, что rewrite формы <code>ALTER TABLE</code> имеют MVCC-оговорки: для транзакций с ранее взятым snapshot переписанная таблица может выглядеть пустой. Это редкая, но важная эксплуатационная граница: такие изменения требуют тестирования окна совместимости и поведения долгоживущих транзакций.</p>
+<h3 id="54-drop-column">5.4. <code>DROP COLUMN</code>: почему диск не освободился<a class="headerlink" href="#54-drop-column" title="Permanent link">¶</a></h3>
+<p>Удаление колонки из логической схемы не означает, что PostgreSQL переписал все физические tuples. Старое место может сохраняться до появления новых версий строк или отдельного rewrite. Требование уменьшить физический размер сразу — отдельная дорогая операция с другим профилем блокировок и I/O.</p>
+<h3 id="55">5.5. Как оценить риск до запуска<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p>На целевой базе смотрим размер таблицы и индексов:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_indexes_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">indexes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_total_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+</code></pre></div>
+<p>Проверяем SQL-операцию на тестовой БД сопоставимого размера и распределения данных; фиксируем блокировки, объем изменения файлов, длительность и I/O. Для production заранее составляем список «что считать успехом» и «при каких признаках остановиться».</p>
+<p><strong>Инженерный вывод.</strong> Риск DDL складывается из совместимости схемы, блокировки, объема физической работы и условий конкурентной нагрузки. Время одиночного выполнения на пустой таблице не переносится в production.</p>
+<h2 id="6-create-index-concurrently">6. <code>CREATE INDEX CONCURRENTLY</code>: индекс без длительного запрета записи<a class="headerlink" href="#6-create-index-concurrently" title="Permanent link">¶</a></h2>
+<h3 id="61-create-index">6.1. Почему обычный CREATE INDEX мешает работе сервиса<a class="headerlink" href="#61-create-index" title="Permanent link">¶</a></h3>
+<p>В таблице <code>orders</code> нет индекса по <code>customer_id</code>. Планировщик вынужден делать дорогие чтения. Кажется, достаточно выполнить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">orders_customer_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Но обычное построение индекса на живой таблице блокирует конкурентные модификации строк до завершения создания. Если операция займет 40 минут, backend-сервис может потерять возможность принимать заказы. При этом обычные читатели обычно продолжают выполнять <code>SELECT</code>.</p>
+<p><code>CREATE INDEX CONCURRENTLY</code> специально снижает это ограничение:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">orders_customer_idx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Конкурентные <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> продолжаются, но построение дороже и требует нескольких транзакционных стадий.</p>
+<h3 id="62">6.2. Почему нужно больше одного прохода<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p>Пока мы строим индекс, таблица меняется. Одного сканирования недостаточно, чтобы гарантировать полноту результатов на границе старых и новых версий. Документация PostgreSQL 18 описывает два сканирования таблицы с ожиданиями транзакций до/после соответствующих фаз.</p>
+<p>Упрощенная временная схема:</p>
+<div class="highlight"><pre><span></span><code>Регистрация индекса INVALID
+          │
+          ▼
+Ожидание старых изменяющих транзакций
+          │
+          ▼
+Скан №1 (строим индекс; DML продолжается)
+          │
+          ▼
+Ожидание соответствующих транзакций
+          │
+          ▼
+Скан №2 (дополняем индекс)
+          │
+          ▼
+Ожидание необходимых старых снимков
+          │
+          ▼
+Помечаем индекс VALID
+</code></pre></div>
+<p>Точные ожидания зависят от формы индекса и снимков; формальная последовательность и флаги каталогов будут предметом 09.1. Здесь принцип: <strong>меньше блокировки записи означает больше координации и дополнительное I/O</strong>.</p>
+<h3 id="63-begin">6.3. Нельзя внутри <code>BEGIN</code> миграции<a class="headerlink" href="#63-begin" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">orders_customer_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+<span class="c1">-- ERROR: CREATE INDEX CONCURRENTLY cannot run inside a transaction block</span>
+</code></pre></div>
+<p>Поэтому создаем отдельный нетранзакционный шаг, а мигратор должен фиксировать его результат отдельно. Смешивать его в одном миграционном файле с транзакционными операциями без понимания поведения инструмента опасно.</p>
+<h3 id="64-invalid-index">6.4. Ошибка оставляет <code>INVALID</code> index<a class="headerlink" href="#64-invalid-index" title="Permanent link">¶</a></h3>
+<p>При нарушении уникальности, deadlock или иной ошибке PostgreSQL может оставить в каталоге невалидный индекс, который еще занимает место и может создавать стоимость обновления. Для уникального индекса важно еще хуже: уникальность может начать проверяться раньше, чем весь индекс будет объявлен валидным. Некоторые ошибки уникальности могут появляться у других транзакций уже во время построения.</p>
+<p>Проверить состояние:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indisvalid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indisready</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_index</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">i</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indexrelid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+</code></pre></div>
+<p>При невалидном индексе сначала устанавливаем, что именно произошло и не используется ли объект другой операцией. Типовой путь — <code>DROP INDEX CONCURRENTLY</code> (тоже вне transaction block), затем исправление причины и повторное создание; для ряда случаев возможен <code>REINDEX INDEX CONCURRENTLY</code>.</p>
+<h3 id="65">6.5. Наблюдаем прогресс<a class="headerlink" href="#65" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">index_relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">command</span><span class="p">,</span><span class="w"> </span><span class="n">phase</span><span class="p">,</span>
+<span class="w">    </span><span class="n">blocks_total</span><span class="p">,</span><span class="w"> </span><span class="n">blocks_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tuples_total</span><span class="p">,</span><span class="w"> </span><span class="n">tuples_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">lockers_total</span><span class="p">,</span><span class="w"> </span><span class="n">lockers_done</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_progress_create_index</span><span class="p">;</span>
+</code></pre></div>
+<p>Не следует трактовать <code>blocks_done / blocks_total</code> как общий процент завершения всей команды: фазы различаются, а ожидания транзакций могут занимать существенную часть общего времени.</p>
+<p><strong>Инженерный вывод.</strong> <code>CONCURRENTLY</code> защищает сервис от длительной остановки DML, но увеличивает стоимость работы и добавляет состояния частичной готовности. В production нужна отдельная стратегия мониторинга и восстановления после ошибки.</p>
+<h3 id="i_1">Резюме раздела I<a class="headerlink" href="#i_1" title="Permanent link">¶</a></h3>
+<ol>
+<li>Миграции — упорядоченный протокол с явным состоянием применения.</li>
+<li>Совместимость определяется одновременно работающими версиями приложения.</li>
+<li>Безопасная миграция отделяет расширение схемы, перенос данных и удаление старого контракта.</li>
+<li>Дороговизна DDL определяется не только объемом данных, но и очередью блокировок.</li>
+<li><code>CREATE INDEX CONCURRENTLY</code> позволяет записи продолжаться, однако требует нескольких проходов, отдельных транзакционных стадий и обработки <code>INVALID</code> индекса.</li>
+</ol>
+<hr/>
+<h1 id="ii-backup-restore">II. Backup &amp; Restore: копия есть, но можно ли вернуть сервис?<a class="headerlink" href="#ii-backup-restore" title="Permanent link">¶</a></h1>
+<h2 id="7-pg_dump">7. <code>pg_dump</code>: согласованный логический снимок работающей базы<a class="headerlink" href="#7-pg_dump" title="Permanent link">¶</a></h2>
+<h3 id="71-postgresql">7.1. Снимок не означает копирование файлов PostgreSQL<a class="headerlink" href="#71-postgresql" title="Permanent link">¶</a></h3>
+<p>После миграции произошла ошибка приложения и удалены важные данные. Нашей команде говорят: «Ночью делался <code>pg_dump</code>; восстановимся». Начнем с вопроса: что конкретно сохранил <code>pg_dump</code>?</p>
+<p><code>pg_dump</code> экспортирует логическое определение объектов и данные <strong>одной базы</strong>. В формате plain это SQL-команды для воссоздания объектов и данных. В архивных форматах сохраняется структура, которую способен интерпретировать <code>pg_restore</code>. <code>pg_dump</code> не копирует побайтно файлы heap, B-tree, системные страницы и текущий WAL; это важное отличие от физической резервной копии.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Plain SQL: удобно читать, восстанавливается через psql.</span>
+pg_dump<span class="w"> </span>-h<span class="w"> </span>db.internal<span class="w"> </span>-U<span class="w"> </span>backup_user<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="o">=</span>plain<span class="w"> </span>--file<span class="o">=</span>/backup/appdb.sql
+
+<span class="c1"># Custom archive: гибкое восстановление через pg_restore.</span>
+pg_dump<span class="w"> </span>-h<span class="w"> </span>db.internal<span class="w"> </span>-U<span class="w"> </span>backup_user<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="o">=</span>custom<span class="w"> </span>--file<span class="o">=</span>/backup/appdb.dump
+
+<span class="c1"># Directory archive: пригоден для параллельного dump.</span>
+pg_dump<span class="w"> </span>-h<span class="w"> </span>db.internal<span class="w"> </span>-U<span class="w"> </span>backup_user<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="o">=</span>directory<span class="w"> </span>--jobs<span class="o">=</span><span class="m">4</span><span class="w"> </span>--file<span class="o">=</span>/backup/appdb.dir
+</code></pre></div>
+<p>В примерах <code>/backup</code> — отдельное безопасное хранилище с достаточным местом, а способ передачи пароля должен быть безопасным (например, настроенная аутентификация или защищенный <code>.pgpass</code>, без пароля в командной строке).</p>
+<h3 id="72-update">7.2. Как снимок остается согласованным при конкурентных UPDATE<a class="headerlink" href="#72-update" title="Permanent link">¶</a></h3>
+<p>Во время выгрузки приложение продолжает вставлять, обновлять и удалять строки. <code>pg_dump</code> использует транзакционный согласованный snapshot: каждая таблица читается в согласованном логическом состоянии. Существующие записи могут меняться в live-базе, но выгрузка строится по определенным правилам видимости. Не требуется останавливать все пользовательские транзакции только ради логического снимка.</p>
+<p>Однако это <strong>не означает полного отсутствия блокировок</strong>. Выгрузка захватывает необходимые блокировки отношений, которые могут конфликтовать с DDL. При параллельном dump есть отдельная защита от опасной очереди блокировок: worker использует <code>NOWAIT</code> при повторном получении подходящего lock; при конфликте с ожидающим exclusive DDL выгрузка может завершиться ошибкой вместо вечного ожидания.</p>
+<p>Также согласованность snapshot ограничена базой и видом экспортируемых объектов. Отдельные внешние системы, очереди сообщений, данные файлового хранилища и содержимое других БД не становятся атомарно согласованными с SQL-дампом сами собой.</p>
+<h3 id="73">7.3. Форматы и цена выбора<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Формат</th>
+<th>Команда</th>
+<th>Основной плюс</th>
+<th>Основное ограничение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plain</td>
+<td><code>-Fp</code></td>
+<td>Читаемый SQL; <code>psql</code></td>
+<td>Меньше гибкости при выборочном/параллельном restore</td>
+</tr>
+<tr>
+<td>Custom</td>
+<td><code>-Fc</code></td>
+<td>TOC, выборочный restore, <code>-j</code> при восстановлении</td>
+<td>Не является обычным SQL-текстом</td>
+</tr>
+<tr>
+<td>Directory</td>
+<td><code>-Fd</code></td>
+<td>Параллельный dump и restore; несколько файлов</td>
+<td>Нужно сохранять каталог целиком</td>
+</tr>
+<tr>
+<td>Tar</td>
+<td><code>-Ft</code></td>
+<td>Архив в одном файле</td>
+<td>Ограничения parallel/избирательного восстановления</td>
+</tr>
+</tbody>
+</table>
+<p><code>pg_dump -j N</code> создает leader-соединение плюс соединения workers, использует синхронизированные snapshot и увеличивает нагрузку на PostgreSQL и storage. Параллельный dump поддерживается для directory format. Нельзя путать количество jobs с безопасным уровнем параллелизма на загруженной машине.</p>
+<h3 id="74-pg_dump">7.4. Почему <code>pg_dump</code> не сохраняет весь кластер<a class="headerlink" href="#74-pg_dump" title="Permanent link">¶</a></h3>
+<p><code>pg_dump</code> работает с <strong>одной</strong> БД. Роли, tablespaces и ряд глобальных объектов принадлежат уровню кластера. Для их выгрузки используется, например:</p>
+<div class="highlight"><pre><span></span><code>pg_dumpall<span class="w"> </span>-h<span class="w"> </span>db.internal<span class="w"> </span>-U<span class="w"> </span>admin_user<span class="w"> </span>--globals-only<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--file<span class="o">=</span>/backup/globals.sql
+</code></pre></div>
+<p>Даже с <code>pg_dumpall</code> нужно отдельно учитывать конфигурацию инстанса, секреты, сертификаты, внешние расширения и системные зависимости. Восстановить SQL без роли-владельца или требуемого extension может оказаться невозможно без подготовки окружения.</p>
+<h3 id="75-backup">7.5. В какой момент backup считается завершенным<a class="headerlink" href="#75-backup" title="Permanent link">¶</a></h3>
+<p>Успешный exit code <code>pg_dump</code> подтверждает, что утилита завершила экспорт согласно своей логике. Еще нужно проверить существование и доступность результата, целостность передачи в защищенное хранилище, политику хранения, права доступа и возможность выполнения <code>pg_restore</code>/<code>psql</code>. Заголовок или размер файла не доказывают, что все бизнес-данные потом восстановятся корректно.</p>
+<p><strong>Инженерный вывод.</strong> <code>pg_dump</code> создает согласованную логическую выгрузку одной БД. Он полезен для переноса, выборочного восстановления и некоторых сценариев backup, но не заменяет физическое резервное копирование с WAL-архивированием при строгих RPO/RTO.</p>
+<h2 id="8-pg_restore">8. <code>pg_restore</code>: восстановить объекты — только половина задачи<a class="headerlink" href="#8-pg_restore" title="Permanent link">¶</a></h2>
+<h3 id="81-sql-">8.1. Чем отличается SQL-скрипт от архива<a class="headerlink" href="#81-sql-" title="Permanent link">¶</a></h3>
+<p>Plain dump — SQL-текст, поэтому обычно используется:</p>
+<div class="highlight"><pre><span></span><code>createdb<span class="w"> </span>-h<span class="w"> </span>restore-db.internal<span class="w"> </span>-U<span class="w"> </span>restore_user<span class="w"> </span>appdb_test
+psql<span class="w"> </span>-h<span class="w"> </span>restore-db.internal<span class="w"> </span>-U<span class="w"> </span>restore_user<span class="w"> </span>-d<span class="w"> </span>appdb_test<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-v<span class="w"> </span><span class="nv">ON_ERROR_STOP</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>-f<span class="w"> </span>/backup/appdb.sql
+</code></pre></div>
+<p>Custom/directory dump передаем <code>pg_restore</code>:</p>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>-h<span class="w"> </span>restore-db.internal<span class="w"> </span>-U<span class="w"> </span>restore_user<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span>appdb_test<span class="w"> </span>--exit-on-error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/backup/appdb.dump
+</code></pre></div>
+<p>Использование <code>--exit-on-error</code> важно для автоматизации: без явного режима остановки некоторые ошибки могут накапливаться, а восстановление продолжать выполнять другие объекты.</p>
+<h3 id="82-toc">8.2. TOC: почему порядок важен<a class="headerlink" href="#82-toc" title="Permanent link">¶</a></h3>
+<p>Архив содержит <strong>table of contents (TOC)</strong> — список восстанавливаемых объектов и их зависимостей. Для простого понимания удобно разделить работу на три стадии:</p>
+<div class="highlight"><pre><span></span><code>PRE-DATA: схемы, типы, таблицы, функции, базовые определения
+     │
+     ▼
+DATA:     загрузка строк / COPY / большие объекты
+     │
+     ▼
+POST-DATA: индексы, триггеры, многие ограничения
+</code></pre></div>
+<p>Восстанавливать индекс на пустой таблице и затем вставлять миллион строк часто дороже, чем загрузить данные и построить индекс после. Но точный порядок выбирается механизмом зависимостей архива и опциями восстановления.</p>
+<p>Посмотреть TOC:</p>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>--list<span class="w"> </span>/backup/appdb.dump<span class="w"> </span>&gt;<span class="w"> </span>/backup/toc.list
+</code></pre></div>
+<p>Выборочный restore возможен через <code>--table</code>, <code>--schema</code>, <code>--section</code>, <code>--use-list</code>. Здесь нужна дисциплина: восстановление только одной таблицы может не восстановить все объекты, от которых она зависит. Перед запуском проверяем содержимое выбранного набора и подготовку целевой БД.</p>
+<h3 id="83-restore">8.3. Параллельный restore: быстрее, но дороже<a class="headerlink" href="#83-restore" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>-h<span class="w"> </span>restore-db.internal<span class="w"> </span>-U<span class="w"> </span>restore_user<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span>appdb_test<span class="w"> </span>--jobs<span class="o">=</span><span class="m">6</span><span class="w"> </span>--exit-on-error<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/backup/appdb.dump
+</code></pre></div>
+<p><code>-j</code> поддерживается для custom и directory архивов с подходящим входом. Сильное увеличение jobs повышает одновременно потребление CPU, I/O, памяти и числа подключений. Если storage насыщен или идет конкуренция за один объект, ускорение перестает быть линейным.</p>
+<p>Отдельное условие: <strong><code>--jobs</code> нельзя комбинировать с <code>--single-transaction</code></strong>. Это не ограничение конкретного драйвера: параллельные workers используют разные соединения, а единая транзакция охватывает одно соединение.</p>
+<h3 id="84">8.4. Три режима транзакционного восстановления<a class="headerlink" href="#84" title="Permanent link">¶</a></h3>
+<p>По умолчанию <code>pg_restore</code> выполняет команды в отдельных транзакциях. Вариант:</p>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>-d<span class="w"> </span>appdb_test<span class="w"> </span>--single-transaction<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--exit-on-error<span class="w"> </span>/backup/appdb.dump
+</code></pre></div>
+<p>дает all-or-nothing для выполняемых команд, но удерживает множество блокировок и создает длинную транзакцию; для большой БД этот вариант может быть дорогим или непрактичным.</p>
+<p><strong>PostgreSQL 18:</strong> есть также <code>--transaction-size=N</code>, который объединяет команды восстановления в группы до N объектов, например:</p>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>-d<span class="w"> </span>appdb_test<span class="w"> </span>--transaction-size<span class="o">=</span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--exit-on-error<span class="w"> </span>/backup/appdb.dump
+</code></pre></div>
+<p>Это компромисс между числом транзакций и объемом удерживаемых ресурсов. Данный режим не превращает весь restore в одну атомарную операцию: если один из поздних batches завершился ошибкой, предыдущие могли быть уже зафиксированы. Для продакшн-восстановления выбираем целевую отдельную БД/кластер и явно проверяем результат.</p>
+<h3 id="85-clean-if-exists-ownership">8.5. <code>--clean</code>, <code>--if-exists</code>, ownership<a class="headerlink" href="#85-clean-if-exists-ownership" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>pg_restore<span class="w"> </span>--clean<span class="w"> </span>--if-exists<span class="w"> </span>--no-owner<span class="w"> </span>--no-acl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span>appdb_test<span class="w"> </span>/backup/appdb.dump
+</code></pre></div>
+<p><code>--clean</code> формирует удаления объектов, подлежащих восстановлению. Если направить такую команду в живую рабочую БД, последствия могут быть разрушительными. <code>--if-exists</code> уменьшает шум некоторых удалений, но не делает операцию безопасной. <code>--no-owner</code>/<code>--no-acl</code> меняют восстановление собственников и прав: после них нужно восстановить правильный эксплуатационный контракт безопасности.</p>
+<h3 id="86">8.6. Проверка после восстановления<a class="headerlink" href="#86" title="Permanent link">¶</a></h3>
+<p>Нельзя завершать процедуру на сообщении «pg_restore finished». Нужны технические и бизнес-проверки:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">min</span><span class="p">(</span><span class="n">created_at</span><span class="p">),</span><span class="w"> </span><span class="k">max</span><span class="p">(</span><span class="n">created_at</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Но сами по себе эти SQL-примеры только иллюстрируют проверки; реальные условия должны отражать инварианты конкретного приложения. Дополнительно проверяем доступ приложений, расширения, ограничения, индексы, права ролей, выполнение бизнес-сценариев, фактическое время восстановления и отсутствие критических ошибок в логах.</p>
+<p>После массового восстановления может потребоваться актуализация статистики планировщика; это эксплуатационная операция, а не замена проверки данных.</p>
+<p><strong>Инженерный вывод.</strong> Restore — реконструкция зависимой схемы и данных под нагрузкой на ресурсы. Критерий успеха — работающее приложение с проверенными инвариантами, а не отсутствие ошибок у одной команды.</p>
+<h2 id="9-rpo-rto">9. RPO / RTO: что обещает команда эксплуатации<a class="headerlink" href="#9-rpo-rto" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Два разных измерения потери<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p><strong>RPO (Recovery Point Objective)</strong> — максимальная допустимая потеря подтвержденных бизнес-данных по времени. <strong>RTO (Recovery Time Objective)</strong> — максимально допустимое время возвращения сервиса в работоспособное состояние.</p>
+<p>Представим: авария в 15:00, последний пригодный снимок 01:00. Если восстановление из него дает состояние на 01:00, фактическая потенциальная потеря достигает 14 часов. Даже если копия переносится за 10 минут, RPO этой стратегии не становится 10 минутами.</p>
+<p>И наоборот: резервные копии могут позволять восстановление почти к моменту аварии благодаря непрерывному WAL-архивированию, но возврат большого кластера и проверка приложений займут часы. Тогда хорошее RPO соседствует с плохим RTO.</p>
+<h3 id="92">9.2. Считаем на конкретном примере<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Цель:   RPO &lt;= 5 мин, RTO &lt;= 45 мин.
+Авария: 15:00.
+Последняя ночная логическая копия: 02:00.
+Проверенный restore: 2 ч 10 мин.
+</code></pre></div>
+<p>Ночная выгрузка одна не выполняет ни RPO, ни RTO. Нужно менять технологию и частоту защиты данных, производительность восстановления либо договоренность с бизнесом. Даже выгрузка каждые 5 минут могла бы оказаться непригодной для большой БД из-за стоимости и длительности самой операции.</p>
+<p>Для строгих требований PostgreSQL предоставляет физическую копию кластера с нужным диапазоном архивированного WAL и PITR. Эти инструменты позволяют восстанавливать согласованное состояние до выбранной точки, но доступность всех необходимых WAL-файлов и корректность цепочки backup становятся частью гарантии. Внутренний алгоритм REDO мы уже изучали в блоке 7.</p>
+<h3 id="93-backup">9.3. Логический, физический и непрерывный backup<a class="headerlink" href="#93-backup" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Механизм</th>
+<th>Что сохраняет</th>
+<th>Для чего подходит</th>
+<th>Главная граница</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pg_dump</code></td>
+<td>Логические объекты/данные одной БД</td>
+<td>Перенос, выборочное восстановление</td>
+<td>Не обеспечивает PITR по WAL</td>
+</tr>
+<tr>
+<td><code>pg_basebackup</code></td>
+<td>Физические файлы кластера и связанные данные</td>
+<td>Восстановление кластера, база для PITR</td>
+<td>Зависит от корректности physical backup и WAL</td>
+</tr>
+<tr>
+<td>Incremental physical backup</td>
+<td>Измененные блоки относительно предыдущих копий</td>
+<td>Снижение объема больших копий</td>
+<td>Требует всю цепочку и <code>pg_combinebackup</code></td>
+</tr>
+<tr>
+<td>WAL archiving + physical base backup</td>
+<td>Базовая копия плюс последовательный WAL</td>
+<td>Восстановление к заданной точке</td>
+<td>Пропущенный требуемый WAL нарушает восстановление</td>
+</tr>
+</tbody>
+</table>
+<p>PostgreSQL 18 поддерживает инкрементальные физические backup через <code>pg_basebackup --incremental</code>; инкрементальную копию нельзя запускать как полноценный кластер, пока не сформирован synthetic full через <code>pg_combinebackup</code> из полного набора зависимостей. Для проверки физической копии предусмотрен <code>pg_verifybackup</code>. Эти средства изучим глубже в 09.2, сейчас важно понимать принцип и границы.</p>
+<h3 id="94-rto">9.4. Приближенная оценка RTO<a class="headerlink" href="#94-rto" title="Permanent link">¶</a></h3>
+<p>Реальное время восстановления можно разложить:</p>
+<p>[
+T_{RTO} \approx T_{discover} + T_{prepare} + T_{copy} + T_{restore} + T_{replay} + T_{verify} + T_{switch}.
+]</p>
+<p>Для логического restore часто доминируют загрузка данных и построение индексов. Для физического могут доминировать копирование файлов и replay накопленного WAL. Параметры схемы, размер архивов, скорость сети/storage и число workers меняют соотношение.</p>
+<p>Если нужно передать 800 ГиБ при реальных 400 МиБ/с, даже идеальное <strong>только копирование</strong> занимает примерно:</p>
+<p>[
+800 \cdot 1024 / 400 = 2048\text{ с} \approx 34\text{ мин}.
+]</p>
+<p>Это нижняя оценка для данного ограниченного этапа, не полный RTO. Учитываем сеть, распаковку, обработку файлов, replay, верификацию и переключение трафика.</p>
+<h3 id="95">9.5. Резервная копия должна пережить тот же инцидент<a class="headerlink" href="#95" title="Permanent link">¶</a></h3>
+<p>Копия на том же диске, в том же аккаунте без изоляции прав или с теми же разрушительными учетными данными может исчезнуть вместе с рабочей БД. Надежная схема включает отдельное размещение, разграничение прав, контроль целостности, политики удержания, защиту от несанкционированной перезаписи и регулярные упражнения по восстановлению.</p>
+<p>Необходимы практические доказательства: восстановление в чистом окружении, измерение фактического RTO, проверка достигнутой точки по бизнес-данным, проверка приложений и фиксация результатов. Backup без испытания restore остается гипотезой о восстановимости.</p>
+<h3 id="96-rporto">9.6. Как расследовать превышение RPO/RTO<a class="headerlink" href="#96-rporto" title="Permanent link">¶</a></h3>
+<p>Если время восстановления не укладывается в цель, не начинаем с абстрактного «сервер медленный». Разбиваем процесс по стадиям: ожидание доступности копии, пропускная способность передачи, распаковка, создание схемы, загрузка данных, индексы, восстановление прав, запуск API и проверка. На каждом шаге измеряем реальные байты/сек, CPU, I/O и длительность. Если потеря данных велика — проверяем частоту и непрерывность сохранения необходимых WAL/копий и целевую точку восстановления.</p>
+<p><strong>Инженерный вывод.</strong> RPO и RTO — измеряемые условия работы системы. Существование файла <code>backup.dump</code> не доказывает выполнение ни одного из них.</p>
+<h3 id="ii">Резюме раздела II<a class="headerlink" href="#ii" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>pg_dump</code> экспортирует согласованный логический снимок одной базы; глобальные объекты требуют отдельного учета.</li>
+<li>Согласованность выгрузки не означает отсутствие взаимодействия с DDL и нагрузки на систему.</li>
+<li><code>pg_restore</code> восстанавливает граф зависимых объектов; <code>-j</code> ускоряет лишь при достаточных ресурсах.</li>
+<li>В PostgreSQL 18 <code>--transaction-size</code> позволяет управлять размером транзакционных групп при restore.</li>
+<li>RPO — допустимая потеря данных, RTO — допустимая длительность полного возврата сервиса.</li>
+<li>Восстановимость доказывается репетициями, проверкой зависимостей и бизнес-инвариантов.</li>
+</ol>
+<hr/>
+<h1 id="iii-connection-pooling-backend-">III. Connection Pooling: тысячи запросов и ограниченное число backend-процессов<a class="headerlink" href="#iii-connection-pooling-backend-" title="Permanent link">¶</a></h1>
+<h2 id="10-databasesql-pool-postgresql">10. <code>database/sql</code> pool: где запрос ждет до PostgreSQL<a class="headerlink" href="#10-databasesql-pool-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="101-sqldb-socket">10.1. Почему <code>sql.DB</code> — не один socket<a class="headerlink" href="#101-sqldb-socket" title="Permanent link">¶</a></h3>
+<p>Go-приложение создает <code>db</code>, запускает несколько горутин и вызывает <code>QueryContext</code>. Очень удобная модель: каждая горутина просто посылает SQL в базу. Но PostgreSQL не выполняет бесконечное число команд по одному физическому соединению одновременно. Для независимых конкурирующих запросов нужны доступные физические соединения; Go <code>database/sql</code> управляет их повторным использованием.</p>
+<p><code>*sql.DB</code> — потокобезопасный <strong>менеджер пула</strong>. Он может поддерживать несколько открытых соединений, выдавать свободное соединение для операции, создавать новые в пределах ограничений и ставить запрос в очередь, когда все заняты. <code>sql.DB</code> не обязан открывать физическое соединение непосредственно в момент создания объекта; при обычном <code>sql.Open</code> подключение часто устанавливается позже.</p>
+<div class="highlight"><pre><span></span><code>100 goroutine ──► *sql.DB
+                     │
+            ┌────────┴────────┐
+            ▼                 ▼
+       12 InUse          8 Idle / capacity
+            │                 │
+            └────────┬────────┘
+                     ▼
+             Физические sockets
+                     ▼
+             PostgreSQL backend
+</code></pre></div>
+<p>Количество горутин не равно числу открытых соединений. И наоборот: соединение может быть открыто, но простаивать в пуле.</p>
+<h3 id="102">10.2. Четыре основных параметра<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">configureDB</span><span class="p">(</span><span class="nx">db</span><span class="w"> </span><span class="o">*</span><span class="nx">sql</span><span class="p">.</span><span class="nx">DB</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxOpenConns</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxIdleConns</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetConnMaxIdleTime</span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetConnMaxLifetime</span><span class="p">(</span><span class="mi">30</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Нужны импорты стандартной библиотеки <code>database/sql</code> и <code>time</code>. Конкретный драйвер PostgreSQL подключается отдельно; его здесь не выбираем.</p>
+<ul>
+<li><code>SetMaxOpenConns(20)</code>: не более двадцати одновременно открытых физических соединений данного <code>sql.DB</code>, включая занятые и свободные. По умолчанию лимит не задан.</li>
+<li><code>SetMaxIdleConns(10)</code>: не более десяти соединений сохранять idle для повторного использования. Это не максимальная параллельность операций.</li>
+<li><code>SetConnMaxIdleTime</code>: после установленного времени простоя соединение становится кандидатом на закрытие. Закрытие зависит от жизненного цикла пула и его уборки.</li>
+<li><code>SetConnMaxLifetime</code>: ограничение максимального времени существования соединения, а не максимальной длительности одного SQL-запроса. Соединение, выполняющее операцию, не прерывается посередине только из-за достижения lifetime; оно закрывается при подходящем возвращении/проверке.</li>
+</ul>
+<p>Изменения параметров имеют цену. Слишком маленький <code>MaxOpenConns</code> создает очередь, слишком большой — перенасыщает PostgreSQL backend-процессами; слишком маленький <code>MaxIdleConns</code> провоцирует создание подключений; чрезмерно короткий lifetime вызывает churn и новые аутентификации.</p>
+<h3 id="103">10.3. Когда соединение возвращается в пул<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<p>При <code>db.ExecContext</code> соединение обычно возвращается после завершения операции. При <code>db.QueryContext</code> надо <strong>закрывать <code>Rows</code></strong> и дочитывать/обрабатывать результат корректно:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">rows</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span>
+<span class="w">    </span><span class="s">`SELECT id, status FROM orders WHERE customer_id=$1`</span><span class="p">,</span><span class="w"> </span><span class="nx">customerID</span><span class="p">)</span>
+<span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+
+<span class="k">for</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="kt">int64</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="kt">string</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">status</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// Обрабатываем строку без длительных внешних вызовов.</span>
+<span class="p">}</span>
+<span class="k">return</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Err</span><span class="p">()</span>
+</code></pre></div>
+<p>Если держать <code>Rows</code> открытым и внутри цикла выполнять долгую сетевую работу, физическое соединение может оставаться занятым существенно дольше исполнения запроса на PostgreSQL. При <code>QueryRowContext</code> результат нужно завершить через <code>Scan</code>.</p>
+<p>Транзакция через <code>db.BeginTx</code> закрепляет соединение на время <code>Tx</code>; оно возвращается в общий пул после успешного <code>Commit</code> либо <code>Rollback</code>. Если забыть завершить транзакцию, можно исчерпать пул даже при быстром SQL. Для <code>sql.Conn</code> как выделенного соединения вызов <code>Close</code> обязателен после завершения использования.</p>
+<h3 id="104">10.4. Время ожидания свободного соединения<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>Представим: <code>MaxOpenConns=10</code>, пришло 100 независимых запросов, каждый удерживает соединение примерно 40 мс. Десять начали работу, остальные ждут. При идеальном равномерном обслуживании очередь потребует примерно десять волн, поэтому хвостовая задержка может вырасти на сотни миллисекунд <strong>до учета сети и приложения</strong>. Настоящее поведение зависит от распределения времени обслуживания и планирования очереди; эти числа иллюстративны.</p>
+<p>В приложении наблюдаем накопительную статистику:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Stats</span><span class="p">()</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"open=%d in_use=%d idle=%d wait_count=%d wait=%s\n"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">s</span><span class="p">.</span><span class="nx">OpenConnections</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">InUse</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">Idle</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">s</span><span class="p">.</span><span class="nx">WaitCount</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">WaitDuration</span><span class="p">)</span>
+</code></pre></div>
+<p><code>WaitCount</code> и <code>WaitDuration</code> — накопительные счетчики, поэтому для анализа интервала надо вычислить <strong>разницу между двумя измерениями</strong>. <code>WaitCount</code> не означает число клиентов, ожидающих прямо сейчас. Если <code>InUse</code> регулярно упирается в <code>MaxOpenConnections</code>, а за интервал растут <code>WaitCount</code> и <code>WaitDuration</code>, вероятна насыщенность пула. Далее выясняем, почему соединения удерживаются долго: SQL, длительная транзакция, обработка <code>Rows</code>, сеть, зависшее приложение.</p>
+<h3 id="105-contextcontext">10.5. Почему <code>context.Context</code> важен именно здесь<a class="headerlink" href="#105-contextcontext" title="Permanent link">¶</a></h3>
+<p><code>QueryContext</code> и <code>ExecContext</code> могут учитывать отмену запроса как при ожидании свободного соединения, так и при дальнейшей работе — в пределах поведения драйвера и конкретного этапа. Контекст с deadline не обеспечивает мгновенную физическую отмену SQL на сервере при любом сбое сети, поэтому проверяются и клиентское завершение, и состояние backend.</p>
+<p>Пример использования:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span><span class="w"> </span><span class="mi">800</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span><span class="p">)</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+
+<span class="kd">var</span><span class="w"> </span><span class="nx">count</span><span class="w"> </span><span class="kt">int64</span>
+<span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryRowContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span>
+<span class="w">    </span><span class="s">`SELECT count(*) FROM orders WHERE customer_id=$1`</span><span class="p">,</span><span class="w"> </span><span class="nx">customerID</span><span class="p">,</span>
+<span class="p">).</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">count</span><span class="p">)</span>
+<span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>Если бюджет запроса 800 мс, а 700 мс ушло на ожидание пула, оставшееся время на SQL и сеть сокращается до ~100 мс. Добавление индекса здесь может не исправить p99, пока проблема находится в пуле.</p>
+<h3 id="106">10.6. Настраиваем на основании времени удержания<a class="headerlink" href="#106" title="Permanent link">¶</a></h3>
+<p>Для начальной оценки используют закон Литтла в стационарном режиме:</p>
+<p>[
+L = \lambda W,
+]</p>
+<p>где <code>L</code> — среднее число одновременно занятых соединений, <code>λ</code> — интенсивность завершенных операций в секунду, <code>W</code> — среднее время <strong>удержания физического соединения</strong> в секундах. Например, при 500 операций/с и среднем удержании 20 мс получаем <code>L≈10</code>. Это <strong>средняя загрузка</strong>, не готовый размер пула: нужен запас на вариацию времени, пики, транзакции и целевую задержку ожидания.</p>
+<p>Если усложнить приложение так, что время удержания выросло до 80 мс при том же потоке, среднее число одновременно необходимых соединений становится 40. Такой рост не обязательно связан с планом выполнения SQL; он может происходить из-за внешних вызовов внутри транзакции.</p>
+<p><strong>Инженерный вывод.</strong> Для Go важно измерять задержку получения соединения отдельно от SQL. <code>sql.DB</code> — самостоятельная очередь ограниченного ресурса, а неверный размер пула способен создавать деградацию до PostgreSQL.</p>
+<h2 id="11-max_connections-postgresql">11. <code>max_connections</code>: бюджет на уровне PostgreSQL<a class="headerlink" href="#11-max_connections-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="111">11.1. Откуда берется ресурсная цена соединения<a class="headerlink" href="#111" title="Permanent link">¶</a></h3>
+<p>Обычное клиентское соединение PostgreSQL обслуживает отдельный серверный backend process. Каждому нужны служебные структуры, память процесса, локальное состояние сессии, ресурсы сокета и участие в общесерверной конкуренции. Дополнительные соединения не создают пропорционально дополнительные CPU и I/O.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">max_connections</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">reserved_connections</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">superuser_reserved_connections</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">client_backends</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span><span class="p">;</span>
+</code></pre></div>
+<p>В PostgreSQL 18 параметр <code>max_connections</code> по умолчанию обычно равен 100 (но может зависеть от окружения); он задается при старте сервера. Часть слотов может быть зарезервирована для специальных ролей и суперпользователей. Увеличение лимита требует перезапуска и повышает потребление некоторых ресурсов, включая shared memory.</p>
+<h3 id="112">11.2. Почему приложение может упереться в лимит после горизонтального масштабирования<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>12 экземпляров сервиса  ×  30 MaxOpenConns = 360
++ batch workers         ×  20                 20
++ администрирование                              10
+Итого потенциальный спрос                       390
+</code></pre></div>
+<p>Это <strong>потенциальное</strong>, а не фактическое число соединений: <code>sql.DB</code> может не открыть все соединения сразу. Однако при пике разные экземпляры способны попытаться занять эти слоты одновременно. При <code>max_connections=100</code> некоторые подключения будут отвергнуты еще до выполнения SQL. Увеличение только количества инстансов приложения способно ухудшить доступность базы.</p>
+<h3 id="113-connection-budget">11.3. Connection budget<a class="headerlink" href="#113-connection-budget" title="Permanent link">¶</a></h3>
+<p>Практический расчет начинается с определения реального лимита, резерва под администратора/системные процессы и других клиентов. Затем устанавливаем долю для каждого сервиса:</p>
+<p>[
+B_{apps} = B_{usable} - B_{other clients} - B_{operational reserve}.
+]</p>
+<p>Если приложения используют локальные пулы без внешнего мультиплексирования, сумма их возможных одновременных соединений должна соответствовать выбранному бюджету. При динамическом масштабировании учитываем максимальное число реплик, а также кратковременное сосуществование старых и новых экземпляров во время rolling deployment.</p>
+<p>Нельзя раздать каждому сервису одинаковый лимит «по 50» и надеяться, что одновременно он никому не понадобится. Бюджет рассчитывается <strong>по совокупности всех потребителей</strong>.</p>
+<h3 id="114">11.4. Почему просто поднять лимит — сомнительное лечение<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Если PostgreSQL ограничен CPU, I/O или конкуренцией за ресурсы, новые backend-процессы могут увеличить переключения контекста, потребление памяти и очереди. TPS стабилизируется или ухудшается, p99 растет. Поэтому сравниваем результаты при разных размерах общего пула и фиксируем: throughput, latency, CPU, I/O, wait events, ошибки подключения, количество active/idle backend.</p>
+<p>Типовой график имеет область роста пропускной способности, затем насыщение и возможную деградацию. Оптимум определяется нагрузкой и конфигурацией, а не универсальной формулой «число ядер × N».</p>
+<h3 id="115">11.5. Административный резерв<a class="headerlink" href="#115" title="Permanent link">¶</a></h3>
+<p><code>reserved_connections</code> в PostgreSQL 18 предназначен для ролей с <code>pg_use_reserved_connections</code>; <code>superuser_reserved_connections</code> — для суперпользовательского доступа при исчерпании обычных слотов. Эти резервы нужны, чтобы в инциденте сохранялась возможность диагностики. Если сервисную роль сделать суперпользователем ради доступа в переполненную базу, мы разрушим назначение резерва.</p>
+<p><strong>Инженерный вывод.</strong> <code>max_connections</code> — лимит на конечный ресурс PostgreSQL. Управлять им следует совместно с пулом каждого приложения и планом масштабирования.</p>
+<h2 id="12-pgbouncer">12. PgBouncer: два разных количества соединений<a class="headerlink" href="#12-pgbouncer" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1. Для чего нужен внешний посредник<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>У нас 12 экземпляров сервиса, каждый поддерживает собственный Go-пул. Даже при небольшом среднем SQL-трафике эти пулы могут хранить десятки idle соединений каждый. PostgreSQL при этом держит соответствующие backend processes.</p>
+<p>PgBouncer — специализированный легковесный пулер PostgreSQL-протокола. Он принимает <strong>клиентские</strong> соединения приложений и переиспользует более ограниченный набор <strong>серверных</strong> соединений к PostgreSQL. Но уровень переиспользования зависит от выбранного <code>pool_mode</code>.</p>
+<div class="highlight"><pre><span></span><code>12 Go instances
+    │  (много client connections)
+    ▼
+┌─────────────────────────┐
+│        PgBouncer        │
+│  очередь + server pool  │
+└───────────┬─────────────┘
+            │ (меньше server connections)
+            ▼
+       PostgreSQL
+       backend processes
+</code></pre></div>
+<p>PgBouncer не ускоряет один SQL-запрос за счет магии. Его основная выгода — уменьшение стоимости большого числа клиентских подключений и управление конкуренцией за конечные серверные соединения.</p>
+<h3 id="122">12.2. Важные параметры<a class="headerlink" href="#122" title="Permanent link">¶</a></h3>
+<p>Учебный пример <code>pgbouncer.ini</code> (аутентификацию, TLS и полномочия нужно настроить отдельно):</p>
+<div class="highlight"><pre><span></span><code><span class="k">[databases]</span>
+<span class="na">appdb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">host=postgres.internal port=5432 dbname=appdb</span>
+
+<span class="k">[pgbouncer]</span>
+<span class="na">listen_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">127.0.0.1</span>
+<span class="na">listen_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">6432</span>
+<span class="na">pool_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">transaction</span>
+<span class="na">default_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">30</span>
+<span class="na">reserve_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">5</span>
+<span class="na">max_client_conn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">1000</span>
+<span class="na">max_prepared_statements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">100</span>
+</code></pre></div>
+<ul>
+<li><code>max_client_conn</code> ограничивает клиентские подключения к самому PgBouncer; он не равен числу backend PostgreSQL.</li>
+<li><code>default_pool_size</code> задает максимум серверных соединений <strong>на пару база/пользователь</strong> при отсутствии override; при нескольких парах общая сумма может быть больше 30.</li>
+<li><code>reserve_pool_size</code> допускает дополнительный резерв в условиях ожидания по настроенным правилам.</li>
+<li><code>pool_mode</code> определяет, когда серверное соединение освобождается для другого клиента.</li>
+<li><code>max_prepared_statements</code> влияет на поддержку именованных подготовленных команд на уровне протокола в transaction/statement pooling; подробнее в теме 14.</li>
+</ul>
+<p>На реальной системе дополнительно надо обеспечить правильные <code>auth_type</code>, <code>auth_file</code>/<code>auth_query</code>, сетевую безопасность, TLS, лимиты файловых дескрипторов и политику отказов. Не следует копировать этот фрагмент как готовую безопасную конфигурацию production.</p>
+<h3 id="123">12.3. Важная математическая тонкость: число пулов<a class="headerlink" href="#123" title="Permanent link">¶</a></h3>
+<p>Если <code>default_pool_size=30</code>, есть две базы и три набора пользователей, может существовать несколько отдельных серверных пулов. Тогда фраза «PgBouncer держит максимум 30 соединений к PostgreSQL» неверна без анализа конфигурации. К бюджетированию добавляются <code>max_db_connections</code>, <code>max_user_connections</code>, особенности forced-user и другие ограничения, если они настроены.</p>
+<h3 id="124">12.4. Где образуется очередь<a class="headerlink" href="#124" title="Permanent link">¶</a></h3>
+<p>Если все серверные соединения в пуле заняты, следующий клиентский запрос ждет освобождения подходящего сервера. При этом подключение клиента к PgBouncer может оставаться установленным.</p>
+<p>Для диагностики подключаемся к специальной административной базе PgBouncer (с нужными правами):</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">POOLS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">STATS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">CLIENTS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">SERVERS</span><span class="p">;</span>
+</code></pre></div>
+<p><code>SHOW POOLS</code> дает <code>cl_waiting</code>, <code>sv_active</code>, <code>sv_idle</code>, <code>maxwait</code> и другие показатели. <code>SHOW STATS</code> отражает агрегированные запросы/транзакции и интервальные характеристики. При росте <code>cl_waiting</code> и <code>maxwait</code> мы видим очередь <strong>перед PostgreSQL</strong>, а не обязательно блокировку внутри СУБД.</p>
+<p>Административная консоль PgBouncer использует свои ограничения протокола (в частности, simple query protocol), поэтому некоторые драйверы, безусловно использующие extended protocol, для этих команд не подходят. Для демонстраций проще <code>psql</code> с соответствующими правами.</p>
+<p><strong>Инженерный вывод.</strong> PgBouncer отделяет число клиентских подключений от числа серверных. После его установки нужно диагностировать очереди на двух уровнях, иначе узкое место просто переместится и станет менее очевидным.</p>
+<h2 id="13-session-pooling">13. Session pooling: совместимость ценой низкого мультиплексирования<a class="headerlink" href="#13-session-pooling" title="Permanent link">¶</a></h2>
+<h3 id="131-pgbouncer-server-connection">13.1. Когда PgBouncer освобождает server connection<a class="headerlink" href="#131-pgbouncer-server-connection" title="Permanent link">¶</a></h3>
+<p>В session pooling серверное соединение закрепляется за клиентом на <strong>всю клиентскую сессию</strong> и возвращается в пул после ее завершения. Если клиент держит подключение открытым, но ничего не выполняет, серверное соединение может оставаться за ним.</p>
+<div class="highlight"><pre><span></span><code>Client A CONNECT ───────────────────── DISCONNECT
+          │                               │
+          └──── Server connection S1 ─────┘
+          BEGIN, SELECT, COMMIT, idle, ...
+</code></pre></div>
+<p>Это позволяет сессионным механизмам PostgreSQL работать так, как ожидает клиент: серверная сессия остается той же самой между транзакциями.</p>
+<h3 id="132-backend-slots">13.2. Почему это удобно, но не всегда экономит backend slots<a class="headerlink" href="#132-backend-slots" title="Permanent link">¶</a></h3>
+<p>Сервис может поддерживать 200 idle клиентских подключений; в session pooling многие из них продолжают удерживать серверные подключения. Если вместо этого клиентская сессия короткая и подключения освобождаются быстро, повторное использование заметно улучшится. Эффективность зависит от жизненного цикла клиентских соединений.</p>
+<p>Модель «PgBouncer гарантирует в десять раз меньше backend» не выдерживает session pooling с долгоживущими клиентами. При этом посредник все равно может управлять лимитами и очередями, но большого мультиплексирования внутри долгих сессий не будет.</p>
+<h3 id="133">13.3. Какие функции сохраняют сессионный смысл<a class="headerlink" href="#133" title="Permanent link">¶</a></h3>
+<p>Session pooling соответствует ожиданиям для <code>SET</code>, сессионных временных таблиц, SQL-level <code>PREPARE</code>, <code>LISTEN</code>, session-level advisory locks и других механизмов, привязанных к конкретному backend, с обычными оговорками PostgreSQL и PgBouncer. Эти функции сами по себе не являются универсально безопасными для любого жизненного цикла приложения, но сессионная привязка сервера сохраняется.</p>
+<p><strong>Инженерный вывод.</strong> Session pooling выбирают, когда важна привычная семантика сессии или приложение пока не готово к transaction pooling. Цена — серверное соединение может оставаться занятым в период клиентского простоя.</p>
+<h2 id="14-transaction-pooling">14. Transaction pooling: максимум переиспользования, минимум сессионных предположений<a class="headerlink" href="#14-transaction-pooling" title="Permanent link">¶</a></h2>
+<h3 id="141">14.1. Сервер выдается на время транзакции<a class="headerlink" href="#141" title="Permanent link">¶</a></h3>
+<p>В transaction pooling PgBouncer закрепляет серверное соединение только на время транзакции и возвращает его в пул после ее завершения. Следующая транзакция того же клиентского соединения может попасть на другой backend PostgreSQL.</p>
+<div class="highlight"><pre><span></span><code>Client A:  BEGIN ── SQL ── COMMIT        BEGIN ─ SQL ─ COMMIT
+                │                              │
+Server:        S1                             S3
+
+Client B:            BEGIN ─ SQL ─ COMMIT
+                           │
+Server:                   S2
+</code></pre></div>
+<p>В autocommit режиме одиночная команда обычно образует самостоятельную транзакцию. Если приложение держит транзакцию открытой во время внешнего HTTP-вызова, серверное соединение останется закрепленным на весь этот период: PgBouncer не освобождает его просто потому, что PostgreSQL в этот момент не выполняет SQL.</p>
+<h3 id="142-session-state">14.2. Почему session state начинает протекать<a class="headerlink" href="#142-session-state" title="Permanent link">¶</a></h3>
+<p>Клиент может выполнить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">search_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tenant_a</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>В session pooling это два запроса одной физической серверной сессии. В transaction pooling следующий запрос может выполняться в другой сессии; предположение о сохранении <code>search_path</code> становится неверным. Для параметров, которые должны жить только в транзакции, подходит:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">statement_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'500ms'</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="p">...;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p><code>SET LOCAL</code> ограничивает настройку текущей транзакцией. Но это не означает, что <strong>любое</strong> изменение session state автоматически становится допустимым после добавления <code>BEGIN</code>: нужно проверять конкретный механизм и его поддержку PgBouncer.</p>
+<h3 id="143">14.3. Таблица совместимости<a class="headerlink" href="#143" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Возможность PostgreSQL</th>
+<th>Session</th>
+<th>Transaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Простые SQL-операции и транзакции</td>
+<td>Да</td>
+<td>Да</td>
+</tr>
+<tr>
+<td>Session-level <code>SET/RESET</code></td>
+<td>Да</td>
+<td>Нет гарантии сохранения</td>
+</tr>
+<tr>
+<td><code>SET LOCAL</code> внутри транзакции</td>
+<td>Да</td>
+<td>Да, по смыслу транзакции</td>
+</tr>
+<tr>
+<td><code>LISTEN</code></td>
+<td>Да</td>
+<td>Не поддерживается как сессионный механизм</td>
+</tr>
+<tr>
+<td><code>NOTIFY</code></td>
+<td>Да</td>
+<td>Поддерживается</td>
+</tr>
+<tr>
+<td>Session advisory locks</td>
+<td>Да</td>
+<td>Не поддерживаются как сессионный механизм</td>
+</tr>
+<tr>
+<td>Transaction advisory locks</td>
+<td>Да</td>
+<td>Поддерживаются внутри транзакции</td>
+</tr>
+<tr>
+<td>SQL <code>PREPARE</code> / <code>DEALLOCATE</code></td>
+<td>Да</td>
+<td>Не поддерживаются</td>
+</tr>
+<tr>
+<td>Protocol-level named prepared statements</td>
+<td>Да</td>
+<td>При <code>max_prepared_statements &gt; 0</code> и совместимом клиенте</td>
+</tr>
+<tr>
+<td>Temp tables с сохранением строк между транзакциями</td>
+<td>Да</td>
+<td>Не поддерживаются</td>
+</tr>
+<tr>
+<td>Temp tables <code>ON COMMIT DROP</code></td>
+<td>Да</td>
+<td>Поддерживаются по заявленной feature map</td>
+</tr>
+</tbody>
+</table>
+<p>Эта таблица обобщает официальную PgBouncer feature map. Реальную совместимость следует тестировать на конкретных версиях драйвера, PgBouncer и приложении.</p>
+<h3 id="144-prepared-statements">14.4. Почему prepared statements — тонкий вопрос<a class="headerlink" href="#144-prepared-statements" title="Permanent link">¶</a></h3>
+<p>Есть два разных механизма, которые разработчики называют «prepared statements».</p>
+<p><strong>SQL-level:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">PREPARE</span><span class="w"> </span><span class="n">get_order</span><span class="p">(</span><span class="nb">bigint</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="p">;</span>
+<span class="k">EXECUTE</span><span class="w"> </span><span class="n">get_order</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
+</code></pre></div>
+<p>Это состояние PostgreSQL-сессии. После смены backend в transaction pooling такой объект может отсутствовать.</p>
+<p><strong>Protocol-level prepared statements:</strong> клиент использует сообщения extended query protocol (<code>Parse</code>, <code>Bind</code>, <code>Execute</code>, ...). Современный PgBouncer умеет отслеживать именованные подготовленные запросы на протокольном уровне и обеспечивать наличие соответствующего statement на выбранном серверном соединении, <strong>если <code>max_prepared_statements</code> задан ненулевым</strong>.</p>
+<p>Следовательно, утверждение «prepared statements всегда несовместимы с transaction pooling» устарело. Необходимо определить конкретный вид подготовки, версию PgBouncer, параметр и поведение драйвера. На разбор wire protocol можно перейти в углублении 09.3; сейчас достаточно разграничить два механизма.</p>
+<h3 id="145-tps">14.5. Откуда берется выигрыш и почему TPS не растет бесконечно<a class="headerlink" href="#145-tps" title="Permanent link">¶</a></h3>
+<p>Если тысяча клиентов выполняет короткие транзакции редко, transaction pooling позволяет обслуживать их значительно меньшим числом серверных соединений, потому что каждая серверная сессия быстро возвращается в общий пул. Но если 200 операций одновременно занимают сервер в течение секунды, пул из 20 backend способен обслужить лишь ограниченное количество таких операций в единицу времени.</p>
+<p>С уменьшением пула PostgreSQL может работать стабильнее благодаря меньшей конкуренции, однако после некоторой границы очередь PgBouncer начнет расти. Мы управляем trade-off между потреблением серверных ресурсов, временем ожидания и пределом пропускной способности. Это проверяется нагрузкой, а не выбором режима «transaction» как универсальной оптимизации.</p>
+<h3 id="146-go">14.6. Сценарий совместимости с Go<a class="headerlink" href="#146-go" title="Permanent link">¶</a></h3>
+<p><code>database/sql</code> не обещает, что последовательные <code>db.ExecContext</code> без явной <code>sql.Tx</code> выполняются на одном физическом соединении. Поэтому код, зависящий от сессионного состояния между разными вызовами <code>db.Exec</code>, уже содержит скрытое предположение о пуле даже без PgBouncer. В transaction pooling это ограничение становится еще очевиднее.</p>
+<p>Правильный контракт: операции, которые должны составлять атомарную единицу и использовать локальные настройки, выполняются внутри одной <code>sql.Tx</code>; session-level функции разрешаются только после отдельной проверки совместимости выбранного режима.</p>
+<h3 id="147-go-pgbouncer-postgresql">14.7. Как отличить насыщение Go-пула от насыщения PgBouncer и PostgreSQL<a class="headerlink" href="#147-go-pgbouncer-postgresql" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Где искать сначала</th>
+<th>Основные измерения</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Go <code>WaitCount</code> и <code>WaitDuration</code> растут</td>
+<td>Локальный Go-пул</td>
+<td><code>DB.Stats</code>, время получения соединения</td>
+</tr>
+<tr>
+<td>PgBouncer <code>cl_waiting</code>, <code>maxwait</code> растут</td>
+<td>Серверные пулы PgBouncer</td>
+<td><code>SHOW POOLS</code>, <code>SHOW STATS</code></td>
+</tr>
+<tr>
+<td><code>too many clients already</code></td>
+<td>Подключения к PostgreSQL</td>
+<td><code>max_connections</code>, резерв, состав backend</td>
+</tr>
+<tr>
+<td>PgBouncer без очереди, запросы медленные</td>
+<td>PostgreSQL или сеть</td>
+<td><code>pg_stat_activity</code>, wait events, query stats</td>
+</tr>
+<tr>
+<td>После смены режима исчезает состояние сессии</td>
+<td>Неподходящий pooling mode</td>
+<td><code>SET</code>, temp tables, PREPARE, LISTEN</td>
+</tr>
+<tr>
+<td>Транзакции держат сервер по секунде между запросами</td>
+<td>Приложение</td>
+<td>Длительность <code>Tx</code> и внешние вызовы внутри нее</td>
+</tr>
+</tbody>
+</table>
+<p>Один p99 может включать три части: ожидание в <code>database/sql</code>, ожидание server connection в PgBouncer, выполнение/ожидание внутри PostgreSQL. Без разделения стадий можно бесконечно оптимизировать SQL, хотя проблема находится в первой очереди.</p>
+<p><strong>Инженерный вывод.</strong> Transaction pooling особенно полезен для множества коротких транзакций и приложений без зависимостей от session state. Он требует контрактной проверки совместимости и измерения задержок на всех уровнях.</p>
+<h3 id="iii">Резюме раздела III<a class="headerlink" href="#iii" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>sql.DB</code> управляет физическими подключениями и имеет собственную очередь ожидания.</li>
+<li><code>MaxOpenConns</code> ограничивает соединения данного процесса; общий бюджет считается по всем экземплярам.</li>
+<li><code>max_connections</code> ограничивает конечные ресурсы PostgreSQL; его увеличение не создает CPU/I/O.</li>
+<li>PgBouncer отделяет клиентские подключения от серверных и добавляет самостоятельную точку ожидания.</li>
+<li>Session pooling сохраняет сессионный контракт; transaction pooling повышает повторное использование ценой ограничений на session state.</li>
+<li>Protocol-level named prepared statements при соответствующей настройке PgBouncer могут работать в transaction pooling.</li>
+</ol>
+<hr/>
+<h1 id="iv">IV. Собираем расследование целиком<a class="headerlink" href="#iv" title="Permanent link">¶</a></h1>
+<h2 id="15">15. Сквозной сценарий: один релиз, три взаимосвязанных отказа<a class="headerlink" href="#15" title="Permanent link">¶</a></h2>
+<p>Нумерация этого раздела служебная: <strong>это итоговый сценарий, а не новая тема утвержденного списка 1–14</strong>.</p>
+<h3 id="1">Шаг 1. На тесте миграция прошла за секунду<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
+<p>В production <code>ALTER TABLE</code> ждет блокировку. Сразу проверяем, что кодовая версия A еще работает с переходной схемой; выясняем блокирующую транзакцию уже знакомыми инструментами <code>pg_stat_activity</code> и <code>pg_blocking_pids()</code>. Не заставляем приложение ждать DDL бесконечно — у миграционного этапа есть лимит ожидания и состояние для безопасного повторения.</p>
+<h3 id="2">Шаг 2. Создание индекса перешло в третью фазу ожидания<a class="headerlink" href="#2" title="Permanent link">¶</a></h3>
+<p>Запущен <code>CREATE INDEX CONCURRENTLY</code>; он выполняет дополнительные проходы и ожидает старые транзакции. Смотрим <code>pg_stat_progress_create_index.phase</code>, флаги <code>pg_index.indisvalid</code>/<code>indisready</code>, размер индекса и состояние сессий. Если операция неуспешна, не считаем индексы «либо есть, либо нет» — проверяем невалидное промежуточное состояние.</p>
+<h3 id="3">Шаг 3. Новый код записывает в две структуры<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
+<p>Переходная версия приложения должна соблюдать контракт старой версии и не терять обновления во время backfill. Контрольный запрос ищет неперенесенные данные; отдельная проверка ищет расхождения. При ошибке мы откатываем только тот компонент, для которого заранее доказана совместимость, а не автоматически удаляем новые колонки.</p>
+<h3 id="4">Шаг 4. Удалили данные — открыли копию, но восстановление не готово<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<p>Проверяем формат и полноту backup, наличие глобальных объектов, обязательных extensions, права ролей и возможность корректно запустить <code>pg_restore</code>. На изолированном стенде измеряем время по стадиям и проверяем инварианты приложения. Если бизнес требует RPO в минутах, одной ночной логической выгрузки недостаточно — необходим иной план защиты данных.</p>
+<h3 id="5-api-postgresql">Шаг 5. Масштабируем API — и PostgreSQL перестает принимать соединения<a class="headerlink" href="#5-api-postgresql" title="Permanent link">¶</a></h3>
+<p>Считаем совокупный пул: максимальное число экземпляров при rolling deployment, <code>MaxOpenConns</code> каждого, другие сервисы, административный резерв. Если запросы ждут еще на уровне Go, смотрим <code>DB.Stats</code>. Если очередь после PgBouncer — <code>SHOW POOLS</code>. Если сервер перегружен — смотрим PostgreSQL. Нельзя анализировать любую задержку как «медленный SELECT».</p>
+<h3 id="6-pgbouncer-transaction-pooling-session-state">Шаг 6. Переключаем PgBouncer на transaction pooling и обнаруживаем потерю session state<a class="headerlink" href="#6-pgbouncer-transaction-pooling-session-state" title="Permanent link">¶</a></h3>
+<p>Проверяем все зависимости от <code>SET</code>, <code>LISTEN</code>, temp tables, SQL-level <code>PREPARE</code> и session advisory locks. Для протокольных prepared statements отдельно оцениваем настройку <code>max_prepared_statements</code>. Если совместимость не подтверждена, остаемся на session pooling для нужного маршрута либо исправляем клиентскую логику.</p>
+<h2 id="16">16. Что измерять до и после изменений<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Операция</th>
+<th>Риск</th>
+<th>Измерение</th>
+<th>Признак успешного результата</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DDL</td>
+<td>Длинная очередь блокировок</td>
+<td>Ожидание lock, длительность, число ожидающих</td>
+<td>Нет устойчивого роста latency и ошибок</td>
+</tr>
+<tr>
+<td>Backfill</td>
+<td>Большие транзакции, WAL/I/O, гонки</td>
+<td>Batch latency, rows/s, остаток, сверка</td>
+<td>Данные согласованы, batch можно продолжить</td>
+</tr>
+<tr>
+<td><code>CREATE INDEX CONCURRENTLY</code></td>
+<td>Долгое построение, INVALID index</td>
+<td>Progress view, <code>indisvalid</code>, ошибки</td>
+<td>Индекс VALID, запросы не потеряли доступность</td>
+</tr>
+<tr>
+<td><code>pg_dump</code></td>
+<td>Нагрузка, неполная защита</td>
+<td>Exit status, длительность, размер, проверка</td>
+<td>Дамп восстанавливается на отдельном стенде</td>
+</tr>
+<tr>
+<td><code>pg_restore</code></td>
+<td>Долгий RTO, нехватка ресурсов</td>
+<td>Время фаз, jobs, SQL errors</td>
+<td>Проверенные объекты и бизнес-инварианты</td>
+</tr>
+<tr>
+<td><code>sql.DB</code> pool</td>
+<td>Ожидание до БД</td>
+<td><code>InUse</code>, <code>WaitCount/Duration</code> за интервал</td>
+<td>Контролируемая очередь при заданном p99</td>
+</tr>
+<tr>
+<td>PgBouncer</td>
+<td>Ожидание server connection</td>
+<td><code>cl_waiting</code>, <code>maxwait</code>, <code>sv_active</code></td>
+<td>Бюджет backend соблюден без лишних отказов</td>
+</tr>
+</tbody>
+</table>
+<p>Здесь нет одной универсальной метрики «база здорова». Каждая операция имеет собственную цену и отдельную точку наблюдения.</p>
+<h2 id="17-9">17. Главная модель блока 9<a class="headerlink" href="#17-9" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Миграция — распределенное изменение контракта во времени.</strong> Все версии приложения должны быть совместимы с переходной схемой, пока не завершится переключение.</li>
+<li><strong>Дешевое изменение метаданных может быть дорогим для доступности.</strong> Очередь блокировок и длительность транзакций способны превратить миллисекундный DDL в инцидент.</li>
+<li><strong>Backup проверяется restore.</strong> Успешное создание дампа не доказывает достижение RPO/RTO; нужны регулярные восстановления, проверка целостности и бизнес-инвариантов.</li>
+<li><strong>Соединения — конечный ресурс.</strong> Go-пулы, PgBouncer и PostgreSQL образуют разные уровни очередей; измеряем каждый по отдельности.</li>
+<li><strong>Session pooling и transaction pooling предоставляют разные контракты.</strong> Максимальное переиспользование серверных соединений возможно лишь при отказе от небезопасных предположений о сессионном состоянии.</li>
+<li><strong>Изоляция проблем важнее размера конфигурации.</strong> Увеличение лимита, количества workers или числа экземпляров без измерений может ухудшить ситуацию.</li>
+</ol>
+<h2 id="18-9">18. Продолжение внутри блока 9 — только предлагаемая глубина<a class="headerlink" href="#18-9" title="Permanent link">¶</a></h2>
+<p>Эти разделы <strong>не входят</strong> в содержание основной лекции 09.0. Отдельные углубления согласуем после базового материала.</p>
+<p><strong>09.1. PostgreSQL Schema Migration Internals.</strong> DDL execution pipeline, системные каталоги, <code>attmissingval</code>, rewrite, фазы конкурентного создания индекса, онлайн-backfill и планирование риска. Закроет вопрос: почему два внешне похожих <code>ALTER TABLE</code> имеют радикально разную физическую цену.</p>
+<p><strong>09.2. PostgreSQL Backup &amp; Restore Internals.</strong> TOC и граф зависимостей <code>pg_restore</code>, синхронизированные snapshots, parallel dump, физический full/incremental backup, backup manifest, <code>pg_verifybackup</code>, практический PITR и restore drills. Закроет вопрос: какие конкретные условия делают резервную копию восстанавливаемой.</p>
+<p><strong>09.3. PostgreSQL Connection Pooling Internals.</strong> Жизненный цикл <code>sql.DB</code>, алгоритмы очередей и выдачи соединений, архитектура PgBouncer, session state и protocol-level prepared statements, диагностика очередей и reconnect storm. Закроет вопрос: почему ограничение числа backend PostgreSQL может повысить TPS, а после дальнейшего уменьшения начинает ухудшать p99.</p>
+<p>Дополнительный возможный слой внутри 09.3 — <strong>PostgreSQL wire protocol (<code>Parse</code>, <code>Bind</code>, <code>Execute</code>, <code>Sync</code>)</strong>. Он позволит полностью объяснить совместимость подготовленных запросов с transaction pooling. Автоматически в основную лекцию этот слой не включаем.</p>
+<hr/>
+<h2 id="_1">Источники и привязка к версии<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Здесь перечислены официальные материалы, использованные для проверки публичного поведения и синтаксиса. При цитировании внутреннего алгоритма или конкретных флагов в последующих углублениях потребуется дополнительно сверяться с исходниками <code>REL_18_STABLE</code>.</p>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/sql-altertable.html">PostgreSQL 18 — ALTER TABLE</a>: формы DDL, <code>NOT VALID</code>, проверки, metadata-only/rewrite, <code>DROP COLUMN</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-createindex.html">PostgreSQL 18 — CREATE INDEX</a>: <code>CONCURRENTLY</code>, две проверки таблицы, ожидания, INVALID index, unique caveats.</li>
+<li><a href="https://www.postgresql.org/docs/18/monitoring-stats.html">PostgreSQL 18 — Monitoring Statistics</a>: <code>pg_stat_progress_create_index</code> и диагностические представления.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pgdump.html">PostgreSQL 18 — pg_dump</a>: форматы, согласованные снимки, параллельный dump.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pg-dumpall.html">PostgreSQL 18 — pg_dumpall</a>: глобальные объекты кластера.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pgrestore.html">PostgreSQL 18 — pg_restore</a>: TOC, параллельность, <code>--transaction-size</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/backup.html">PostgreSQL 18 — Backup and Restore</a>: логическая и физическая защита данных.</li>
+<li><a href="https://www.postgresql.org/docs/18/continuous-archiving.html">PostgreSQL 18 — Continuous Archiving and PITR</a>: условия для восстановления к заданной точке.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pgbasebackup.html">PostgreSQL 18 — pg_basebackup</a>, <a href="https://www.postgresql.org/docs/18/app-pgcombinebackup.html">pg_combinebackup</a>: физические полные и инкрементальные копии.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-connection.html">PostgreSQL 18 — Connections and Authentication</a>: <code>max_connections</code> и резервные слоты.</li>
+<li><a href="https://go.dev/doc/database/manage-connections">Go — Managing connections</a>, <a href="https://pkg.go.dev/database/sql">database/sql API</a>: управление пулом <code>sql.DB</code>.</li>
+<li><a href="https://www.pgbouncer.org/config.html">PgBouncer — Configuration</a>: <code>pool_mode</code>, <code>default_pool_size</code>, <code>max_client_conn</code>, <code>max_prepared_statements</code>.</li>
+<li><a href="https://www.pgbouncer.org/features.html">PgBouncer — Feature Map</a>: совместимость сессионных механизмов.</li>
+<li><a href="https://www.pgbouncer.org/usage.html">PgBouncer — Usage</a>: <code>SHOW POOLS</code>, <code>SHOW STATS</code>, <code>SHOW CLIENTS</code>, <code>SHOW SERVERS</code>.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: Лекция 08. PostgreSQL Diagnostics &amp;amp; Locks: почему запросы ждут и как найти виновника" class="md-footer__link md-footer__link--prev" href="../8%20-%20Diagnostics%20locks/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 1. Архитектура процессора, память и NUMA" class="md-footer__link md-footer__link--next" href="../Additional/1.1%20-%20CPU%20architecture/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                1. Архитектура процессора, память и NUMA
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

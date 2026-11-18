@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/7.1%20-%20WAL%20Internals/" rel="canonical"/>
+<link href="../6.3%20-%20Hash%20Storage/" rel="prev"/>
+<link href="../7.2%20-%20Durability%20storage/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>7.1. PostgreSQL WAL Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#71-postgresql-wal-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              7.1. PostgreSQL WAL Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL: joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20PostgreSQL%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_10_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_10">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. С чего начинается расследование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    09.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    09.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. С чего начинается расследование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="71-postgresql-wal-internals">7.1. PostgreSQL WAL Internals<a class="headerlink" href="#71-postgresql-wal-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная теоретическая лекция.</strong> Ориентир — PostgreSQL 18, ветка исходного кода <code>REL_18_STABLE</code>. Нумерация тем продолжает основную лекцию 07: <strong>14. WAL buffers и конвейер записи; 15. физическая организация WAL; 16. resource managers и REDO; 17. критические секции и ошибки</strong>.</p>
+<p><strong>Границы.</strong> Основные определения WAL, LSN, <code>COMMIT</code>, checkpoint и <code>fsync</code> известны из лекции 07. Здесь изучаем внутренние механизмы и их причинно-следственные связи. Повторного разбора MVCC, планировщика, индексов как структур поиска, JOIN, репликации, бэкапов, блокировок SQL, пула подключений или тем 07.2–07.3 нет. Код на C приведен как <strong>фрагменты исходников</strong> либо явно обозначенный <strong>учебный псевдокод</strong>. Презентация и лекция не требуют воспроизведения опасных отказов на рабочем сервере.</p>
+<p><strong>Центральный вопрос:</strong> почему множество backend-процессов способны независимо готовить WAL-записи, резервировать позиции в одном глобальном журнале, одновременно заполнять буферы, а затем восстановить все изменения в строгом порядке — и почему ошибка в коротком участке этого пути может привести к <code>PANIC</code>?</p>
+</blockquote>
+<h2 id="0">0. С чего начинается расследование<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>Мы уже знаем правило предварительной записи: до записи измененной страницы в постоянное хранилище соответствующий WAL должен быть долговечно сохранен. Однако эта формулировка оставляет четыре технических пробела.</p>
+<p>Во-первых, <strong>где рождается WAL-запись</strong>? Один <code>UPDATE</code> может изменить heap-страницу и страницу индекса; журналу нужны сведения обо всех затронутых блоках. Во-вторых, <strong>кто назначает позиции LSN</strong> сотням одновременно работающих процессов? Если два процесса выберут одинаковый диапазон журнала, данные будут испорчены. В-третьих, <strong>почему WAL остается читаемым</strong>, если запись разорвалась на две страницы или пересекла границу файла? И наконец: если страница уже изменена в памяти, а создание соответствующего WAL по ошибке не завершилось, можно ли просто отменить SQL и обслуживать следующий запрос?</p>
+<p>Всю лекцию держим перед собой один низкоуровневый сценарий:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь нас не интересует, как найдено <code>id=42</code> и какая версия строки видна читателям: эти темы уже пройдены. Нас интересует конкретная операция записи в странице и сопровождающая ее физическая WAL-запись.</p>
+<p>Упрощенная карта пути:</p>
+<div class="highlight"><pre><span></span><code>Изменить буфер страницы
+     │
+     ├── подготовить данные WAL в частной памяти backend
+     │        XLogBeginInsert → XLogRegister* → XLogRecordAssemble
+     │
+     ├── зарезервировать диапазон глобального WAL
+     │        XLogInsertRecord / insertpos_lck
+     │
+     ├── скопировать запись в общие WAL buffers
+     │        WALInsertLocks + завершение вставки
+     │
+     ├── продвинуть границы write/flush
+     │        XLogWrite / XLogFlush / WAL writer
+     │
+     └── после аварии прочитать WAL и вызвать обработчик REDO
+              XLogReader → rmgr → rm_redo
+</code></pre></div>
+<p>В этой схеме намеренно нет утверждения, что каждый пункт исполняется строго после предыдущего в одном процессе. Вставки разных backend-процессов перекрываются. В частности, запись на диск не обязана происходить в том же процессе, который сформировал WAL.</p>
+<hr/>
+<h1 id="14-wal-buffers">14. WAL Buffers и внутренний конвейер записи<a class="headerlink" href="#14-wal-buffers" title="Permanent link">¶</a></h1>
+<h2 id="141-wal-">14.1. Почему одна WAL-запись начинается вне общей памяти<a class="headerlink" href="#141-wal-" title="Permanent link">¶</a></h2>
+<p>Популярная, но плохая модель: <code>UPDATE</code> напрямую дописывает готовые байты в конец общего WAL-файла. Представим тысячу процессов, которые одновременно пытаются дописать записи. Если каждый будет собирать запись под глобальной блокировкой, весь конвейер станет последовательным даже до обращения к накопителю.</p>
+<p>PostgreSQL разделяет <strong>подготовку записи</strong> и <strong>публикацию записи в общем WAL</strong>.</p>
+<p>На первом этапе backend собирает сведения о своей операции в <strong>частной рабочей памяти</strong>. Другие процессы пока не видят эти данные как новую WAL-запись. Такой подход уменьшает время нахождения в критически важной части конкурентного доступа к общим WAL buffers.</p>
+<p>В <code>src/backend/access/transam/xloginsert.c</code> основные публичные точки интерфейса:</p>
+<div class="highlight"><pre><span></span><code><span class="n">XLogBeginInsert</span><span class="p">();</span>
+<span class="n">XLogRegisterBuffer</span><span class="p">(...);</span>
+<span class="n">XLogRegisterData</span><span class="p">(...);</span>
+<span class="n">XLogRegisterBufData</span><span class="p">(...);</span>
+<span class="n">XLogRecPtr</span><span class="w"> </span><span class="n">end_lsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XLogInsert</span><span class="p">(</span><span class="n">rmid</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+</code></pre></div>
+<p>Это не самостоятельная прикладная программа, а вызовы внутренних функций СУБД. Конкретная последовательность относится к WAL-регистрируемой физической операции, а не к каждой SQL-команде как целому. Один SQL способен породить несколько WAL-записей.</p>
+<h2 id="142-xlogbegininsert">14.2. <code>XLogBeginInsert()</code>: открываем рабочую сборку<a class="headerlink" href="#142-xlogbegininsert" title="Permanent link">¶</a></h2>
+<p><code>XLogBeginInsert()</code> сообщает, что backend начинает формировать новую WAL-запись. Он проверяет состояние рабочей области и допустимость вставки WAL. <strong>LSN при этом еще не резервируется</strong> и запись не получает долговечного состояния.</p>
+<p>Почему важно различать эти действия? Backend может собирать информацию, пока другие процессы резервируют и вставляют собственные записи. Глобальный порядок им пока не нужен — он понадобится в момент вставки.</p>
+<p>Если <code>XLogBeginInsert()</code> уже вызывался и предыдущая сборка не завершена, это ошибка использования внутреннего API. Для отказа от начатой сборки существует <code>XLogResetInsertion()</code>.</p>
+<h2 id="143">14.3. Три вида регистрируемой информации<a class="headerlink" href="#143" title="Permanent link">¶</a></h2>
+<p>Нужен механизм, который по физической операции сможет создать правильное описание для REDO. Но изменения разных узлов хранения совершенно различны.</p>
+<p><strong><code>XLogRegisterBuffer(block_id, buffer, flags)</code></strong> регистрирует ссылку на измененный блок. При восстановлении понадобится идентифицировать не только номер блока, но и конкретное отношение: в записи используются сведения об идентификаторе файла отношения, fork и номере блока. <code>block_id</code> — локальный номер ссылки на блок <strong>внутри одной WAL-записи</strong>, а не физический номер блока таблицы.</p>
+<p><strong><code>XLogRegisterData(data, len)</code></strong> регистрирует основной фрагмент данных записи, не привязанный к определенной ссылке на блок. Например, это могут быть поля, определяющие вид физической операции.</p>
+<p><strong><code>XLogRegisterBufData(block_id, data, len)</code></strong> регистрирует данные, относящиеся к конкретному зарегистрированному блоку. При выборе полного образа этого блока часть дополнительного описания может стать ненужной, потому что снимок страницы уже содержит нужное состояние.</p>
+<p>Представление одной записи:</p>
+<div class="highlight"><pre><span></span><code>XLogRecord (общий заголовок)
+ ├─ block ref 0: отношение, fork, block, доп. данные или образ
+ ├─ block ref 1: отношение, fork, block, доп. данные или образ
+ └─ main data: описание действия для конкретного rmgr
+</code></pre></div>
+<p><strong>Не путать</strong> <code>XLogRegisterBuffer()</code> с помещением всей страницы в WAL. Регистрируется информация о блоке, а решение о включении полного образа зависит от условий и флагов. Подробная политика full-page images — материал основной 07 и следующего углубления 07.2; здесь важен момент принятия решения.</p>
+<h2 id="144-xlogensurerecordspace">14.4. Почему <code>XLogEnsureRecordSpace()</code> должен выполняться заранее<a class="headerlink" href="#144-xlogensurerecordspace" title="Permanent link">¶</a></h2>
+<p>В <code>xloginsert.c</code> есть ограниченный набор слотов для регистрации блоков и фрагментов. Если нестандартной операции нужно больше слотов, она должна заранее вызвать <code>XLogEnsureRecordSpace(max_block_id, ndatas)</code>.</p>
+<p>Существенная деталь исходников: расширение этой рабочей области может потребовать <code>repalloc()</code>, поэтому <strong>его выполняют до <code>XLogBeginInsert()</code> и вне критической секции</strong>.</p>
+<p>Почему такая строгая последовательность? Выделение памяти может завершиться ошибкой. Если память закончится после изменения страницы, но до регистрации WAL, процесс может оставить опасное состояние. Лучше проверить и подготовить ресурсы заранее, пока изменения не начались.</p>
+<div class="highlight"><pre><span></span><code>Заранее: подготовить память и проверить ошибки
+            ↓
+Короткая критическая секция: изменить страницу и записать WAL
+            ↓
+Выход из критической секции
+</code></pre></div>
+<p>Это первый пример проектного решения, которое прямо следует из требования согласованности.</p>
+<h2 id="145-xloginsert">14.5. <code>XLogInsert()</code> не просто копирует готовые байты<a class="headerlink" href="#145-xloginsert" title="Permanent link">¶</a></h2>
+<p>Сначала <code>XLogInsert()</code> вызывает логику сборки записи (<code>XLogRecordAssemble()</code>). Она соединяет зарегистрированные фрагменты в представление WAL-записи, подготавливает заголовки и контрольную сумму. Затем происходит вставка через <code>XLogInsertRecord()</code>.</p>
+<p>Здесь возникает тонкая гонка с checkpoint. В момент начальной сборки backend мог видеть одну позицию <code>RedoRecPtr</code> и одно состояние <code>fullPageWrites</code>. Пока он собирал запись, ситуация могла измениться.</p>
+<p>Поэтому в PostgreSQL 18 после получения вставочного лока <code>XLogInsertRecord()</code> <strong>перепроверяет предпосылки</strong>, важные для полного образа страницы. Если образ был собран на устаревших сведениях, вставка может вернуть <code>InvalidXLogRecPtr</code>, после чего вызывающий <code>XLogInsert()</code> заново собирает запись с актуальной информацией.</p>
+<p>Учебная схема:</p>
+<div class="highlight"><pre><span></span><code>Backend A: собирает запись по состоянию checkpoint C0
+Backend B: checkpoint продвинул RedoRecPtr до C1
+Backend A: получает право на вставку
+Backend A: проверяет, что построенная запись еще допустима
+    ├─ да  → вставляет
+    └─ нет → пересобирает, затем повторяет попытку
+</code></pre></div>
+<p>Эта проверка нужна для correctness, а не только для оптимизации размера WAL. Зафиксировать лишний полный образ обычно дороже, но безопасно; <strong>пропустить обязательный образ</strong> после смены границы защиты — уже опасно.</p>
+<h2 id="146-mutex-wal">14.6. Почему нельзя одним глобальным mutex защищать весь WAL<a class="headerlink" href="#146-mutex-wal" title="Permanent link">¶</a></h2>
+<p>После локальной подготовки запись должна получить место в общем линейном WAL. Если каждому процессу дать один большой lock на все время копирования, они будут вставлять записи строго по очереди. На сервере с десятками ядер появится ненужное узкое место.</p>
+<p>PostgreSQL 18 разделяет вставку на две операции:</p>
+<ol>
+<li><strong>Резервирование диапазона</strong> WAL: выбрать байтовую позицию, которая больше не достанется другому процессу.</li>
+<li><strong>Копирование записи</strong>: заполнить выделенный диапазон общих WAL buffers.</li>
+</ol>
+<p>Позиции резервируются с участием общего <code>insertpos_lck</code>, защищающего состояние вроде <code>CurrBytePos</code>. Это короткий участок синхронизации. Заполненные диапазоны могут копироваться <strong>параллельно разными процессами</strong>.</p>
+<p>Но если копирование параллельно, неизбежен новый вопрос: <strong>может ли более поздняя запись уже быть готовой, пока более ранняя еще копируется?</strong> Да. Резервирование порядка и физическое завершение вставки не одно и то же.</p>
+<h2 id="147-backend-">14.7. Мысленный эксперимент с тремя backend-процессами<a class="headerlink" href="#147-backend-" title="Permanent link">¶</a></h2>
+<p>Пусть глобальная позиция уже дошла до условного LSN 1000. Три backend-процесса резервируют следующие интервалы.</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Зарезервировал WAL</th>
+<th>Завершение копирования</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td><code>[1000, 1200)</code></td>
+<td>Медленно</td>
+</tr>
+<tr>
+<td>B</td>
+<td><code>[1200, 1300)</code></td>
+<td>Быстро</td>
+</tr>
+<tr>
+<td>C</td>
+<td><code>[1300, 1500)</code></td>
+<td>Быстро</td>
+</tr>
+</tbody>
+</table>
+<p>Предположим, B и C закончили первыми. Можно ли немедленно записать на диск непрерывный WAL до 1500?</p>
+<p><strong>Нет.</strong> Интервал <code>[1000,1200)</code> еще не готов. Если выставить долговечную границу 1500, PostgreSQL ложно подтвердит наличие WAL-байтов, которых в общей памяти пока нет.</p>
+<p>Значит, нужно учитывать не только максимальный зарезервированный LSN, но и <strong>наибольший непрерывный завершенный префикс</strong> журнала.</p>
+<p>Это как запись в один общий файл несколькими работниками: порядок мест уже зарезервирован, но отправлять файл дальше можно только после того, как заполнены все предшествующие участки.</p>
+<h2 id="148-walinsertlocks-wal">14.8. <code>WALInsertLocks</code>: кто еще копирует WAL<a class="headerlink" href="#148-walinsertlocks-wal" title="Permanent link">¶</a></h2>
+<p>Во время второй стадии вставки backend использует один из <code>WALInsertLocks</code>. В PostgreSQL их несколько — фиксированный набор, определяемый <code>NUM_XLOGINSERT_LOCKS</code>.</p>
+<p>Содержательно такой лок отражает два факта:</p>
+<ul>
+<li>процесс сейчас выполняет WAL-вставку;</li>
+<li>насколько далеко он продвинулся, если копирование пересекло страницу и требуется разрешить запись предыдущей уже готовой страницы.</li>
+</ul>
+<p>Поле <code>insertingAt</code> помогает сообщать о продвижении вставки. PostgreSQL старается распределять процессы по нескольким вставочным локам и не принуждает все вставки ждать одну общую эксклюзивную блокировку. Количество локов — деталь конкретной реализации, и оно не равно числу backend-процессов или SQL-транзакций.</p>
+<p><strong>Важная граница:</strong> <code>WALInsertLock</code> — внутренняя синхронизация WAL-подсистемы, а не <code>row lock</code> или <code>table lock</code> из будущего блока №8.</p>
+<h2 id="149-waitxloginsertionstofinish-write-insert">14.9. <code>WaitXLogInsertionsToFinish()</code>: почему write ждет insert<a class="headerlink" href="#149-waitxloginsertionstofinish-write-insert" title="Permanent link">¶</a></h2>
+<p>Перед попыткой записать определенный диапазон PostgreSQL должен убедиться, что все относящиеся к нему WAL-вставки завершены. Эту задачу выполняет <code>WaitXLogInsertionsToFinish(upto)</code>.</p>
+<p>Она проверяет состояние вставок и при необходимости ожидает процессы, удерживающие соответствующие вставочные локи. Результат позволяет определить безопасную непрерывную границу готовых WAL-данных.</p>
+<p>Очень важен <strong>порядок захвата локов</strong>. В коде <code>xlog.c</code> отдельно сказано: <strong>ожидание завершения вставок должно происходить до получения <code>WALWriteLock</code></strong>.</p>
+<p>Почему? Вставляющему процессу может потребоваться освободить место в WAL buffers, а для этого, в свою очередь, понадобится операция записи, использующая <code>WALWriteLock</code>. Если другой процесс удерживает write-lock и одновременно ждет завершения вставки, которая сама пытается получить write-lock, возникает цикл ожиданий.</p>
+<div class="highlight"><pre><span></span><code>Неправильный порядок:
+Writer держит WALWriteLock ── ждет Inserter
+Inserter держит insert lock ── ждет WALWriteLock
+                           ЦИКЛ
+
+Правильная идея:
+сначала дождаться допустимой границы вставки
+затем брать WALWriteLock и писать готовые страницы
+</code></pre></div>
+<p>Здесь важна не механика SQL-locks, а конкретный инвариант последовательности двух внутренних стадий WAL.</p>
+<h2 id="1410-wal-buffers">14.10. WAL buffers: кольцо страниц, а не безграничная очередь<a class="headerlink" href="#1410-wal-buffers" title="Permanent link">¶</a></h2>
+<p>WAL buffers — область общей памяти с ограниченным количеством WAL-страниц. Страницы переиспользуются циклически; каждому слоту соответствует определенная логическая WAL-страница.</p>
+<p>Когда поток WAL продвигается достаточно далеко, слот потребуется для следующего участка. Но переиспользовать его нельзя, пока прежние данные, которые еще нужны для записи, не отправлены в WAL-файлы.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>Общие WAL buffers (физические слоты):
++------+------+------+------+------+------+ 
+|  0   |  1   |  2   |  3   |  4   |  5   |
++------+------+------+------+------+------+ 
+   ↑                           ↑
+старое содержимое            новая страница
+можно вытеснить?             требует слот
+</code></pre></div>
+<p>Если слотов не хватает, вставка вынуждена участвовать в обеспечении записи заполненных страниц. Это может превратить обычно быструю операцию <code>XLogInsertRecord()</code> в операцию, связанную с файловым вводом-выводом.</p>
+<p>Именно так давление на WAL buffers оказывается непосредственно в критическом пути изменения страницы.</p>
+<h2 id="1411-wal-buffers-write-flush">14.11. WAL buffers → write → flush: три рубежа и два типа исполнителей<a class="headerlink" href="#1411-wal-buffers-write-flush" title="Permanent link">¶</a></h2>
+<p>Из основной лекции известны три рубежа WAL: <strong>insert</strong>, <strong>write</strong>, <strong>flush</strong>. Теперь добавляем ответственных.</p>
+<ul>
+<li><code>XLogInsertRecord()</code> помещает запись в общие WAL buffers.</li>
+<li><code>XLogWrite()</code> переносит готовые WAL-страницы в файловый слой ОС и в зависимости от режима синхронизации управляет соответствующей долговечностью.</li>
+<li><code>XLogFlush(upto)</code> обеспечивает требуемое продвижение долговечной границы журнала до заданного LSN.</li>
+<li>WAL writer — фоновый процесс, который периодически продвигает запись и, по своей политике, синхронизацию WAL.</li>
+<li>Обычный backend тоже может писать и синхронизировать WAL, если его запрос или подтверждение транзакции этого требует.</li>
+</ul>
+<p>Нельзя представлять WAL writer как единственный процесс, который имеет право писать журнал. И нельзя считать, что <code>XLogInsert()</code> обязательно сам вызывает <code>fsync()</code> для каждой записи: вставка и долговечность — разные стадии.</p>
+<p>По документации PostgreSQL 18 <code>XLogWrite()</code> может вызываться из вставки, <code>XLogFlush()</code> и WAL writer. При <code>wal_sync_method = open_datasync/open_sync</code> системная запись уже имеет требуемую синхронную семантику; при <code>fdatasync/fsync/fsync_writethrough</code> необходима отдельная синхронизация. Подробности гарантий ОС относятся к будущей 07.2.</p>
+<h2 id="1412-wal-writer">14.12. Почему WAL writer может не успевать разгружать буферы<a class="headerlink" href="#1412-wal-writer" title="Permanent link">¶</a></h2>
+<p>Представим большой поток <code>INSERT</code>, в котором WAL генерируется быстро. Вставки идут непрерывно, а фоновые записи и коммиты не всегда успевают освободить новые слоты.</p>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>Много backend-процессов
+      ↓
+Быстрая генерация WAL records
+      ↓
+Заполнение WAL buffers
+      ↓
+XLogInsertRecord нужен следующий слот
+      ↓
+Приходится дождаться/вызвать WAL write
+      ↓
+Увеличение времени критической операции
+</code></pre></div>
+<p>Особенно заметно это может быть при высокой генерации полных образов страниц после checkpoint. Здесь точка связи с уже пройденной темой есть, но мы не уходим заново в устройство checkpoint.</p>
+<p><code>wal_buffers</code> меняет доступный объем такого кольца. Значение <code>-1</code> включает автоматический расчет — около 1/32 от <code>shared_buffers</code>, с нижними и верхними ограничениями. Повышение параметра иногда уменьшает вынужденные записи из критического пути, но не устраняет предел пропускной способности накопителя. <code>wal_buffers</code> изменяется при старте PostgreSQL.</p>
+<p>Дополнительная тонкость: большая буферная область сама по себе не делает <code>COMMIT</code> долговечным быстрее — при требовании flush до нужного LSN соответствующий журнал все равно должен пройти необходимые этапы.</p>
+<h2 id="1413-wal-postgresql-18">14.13. Как измерить проблему конвейера WAL в PostgreSQL 18<a class="headerlink" href="#1413-wal-postgresql-18" title="Permanent link">¶</a></h2>
+<p>Для состояния WAL-подсистемы:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">wal_records</span><span class="p">,</span><span class="w"> </span><span class="n">wal_fpi</span><span class="p">,</span><span class="w"> </span><span class="n">wal_bytes</span><span class="p">,</span><span class="w"> </span><span class="n">wal_buffers_full</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal</span><span class="p">;</span>
+</code></pre></div>
+<p><code>wal_buffers_full</code> — число случаев, когда WAL-буферы оказывались полны и вызывали необходимость их записи. Счетчик накопительный: важна <strong>скорость его роста за интервал</strong>, а не произвольное абсолютное значение.</p>
+<p>Для записи/синхронизации WAL в PostgreSQL 18:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writes</span><span class="p">,</span><span class="w"> </span><span class="n">write_time</span><span class="p">,</span><span class="w"> </span><span class="n">fsyncs</span><span class="p">,</span><span class="w"> </span><span class="n">fsync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'wal'</span><span class="p">;</span>
+</code></pre></div>
+<p>Инструментирование времени требует <code>track_wal_io_timing = on</code>. При интерпретации следует учитывать доступные в конкретной сборке категории строк; отсутствие отдельной строки не доказывает нулевую стоимость всех WAL-операций. Эти счетчики — статистика I/O, а не точное время отдельной WAL-вставки.</p>
+<p>В PostgreSQL 18 старые показатели <code>wal_write</code>, <code>wal_sync</code>, <code>wal_write_time</code>, <code>wal_sync_time</code> в <code>pg_stat_wal</code> больше не используются: статистика WAL I/O перенесена в <code>pg_stat_io</code>.</p>
+<p><strong>Причинная диагностика:</strong> если растет <code>wal_buffers_full</code>, исследуем, успевает ли запись разгружать кольцо, сколько байт WAL формируется, меняется ли число FPI и что показывает реальная задержка WAL write. Не начинаем с механического увеличения <code>wal_buffers</code> без оценки источника нагрузки.</p>
+<h3 id="14">Главное из темы 14<a class="headerlink" href="#14" title="Permanent link">¶</a></h3>
+<ol>
+<li>WAL-запись сначала собирается локально в памяти backend, затем публикуется в общем журнале.</li>
+<li><code>XLogBeginInsert</code> и <code>XLogRegister*</code> подготавливают содержание; <code>XLogInsert</code> собирает и вставляет физическую запись.</li>
+<li>Резервирование места и копирование WAL разделены: позиции уникальны, а копирование может выполняться параллельно.</li>
+<li>Резервированный LSN еще не равен завершенной вставке; запись на диск требует непрерывного готового префикса.</li>
+<li><code>WALInsertLocks</code>, <code>WALWriteLock</code> и ожидание завершения вставок имеют строгий порядок, предотвращающий взаимное ожидание.</li>
+<li>Заполненное кольцо WAL buffers способно вернуть файловый ввод-вывод в критический путь <code>XLogInsertRecord()</code>.</li>
+<li>Под нагрузкой изучают <code>wal_buffers_full</code>, объем WAL и статистику записи в <code>pg_stat_io</code>, а не только число коммитов.</li>
+</ol>
+<hr/>
+<h1 id="15-wal-lsn">15. Физическая организация WAL: страницы, сегменты, LSN и место на диске<a class="headerlink" href="#15-wal-lsn" title="Permanent link">¶</a></h1>
+<h2 id="151">15.1. Логическая последовательность не равна одному бесконечному файлу<a class="headerlink" href="#151" title="Permanent link">¶</a></h2>
+<p>До сих пор мы говорили о WAL как о глобальном упорядоченном потоке. Файловая система хранит конечные файлы. PostgreSQL делит WAL на <strong>сегменты</strong>, а каждый сегмент — на <strong>WAL-страницы</strong>.</p>
+<p>Типовая конфигурация:</p>
+<div class="highlight"><pre><span></span><code>Размер WAL segment: 16 МиБ = 16 777 216 байт
+Размер WAL page:      8 КиБ =      8 192 байта
+Число страниц:                  2 048 на сегмент
+</code></pre></div>
+<p>Размер сегмента задается при создании кластера (<code>initdb --wal-segsize</code>); размер WAL-страницы зависит от сборки. Числа выше типовые, но не универсальны.</p>
+<p>Важно различать WAL page и страницу таблицы: обе часто имеют размер 8 КиБ, но у них разное содержимое и разные заголовки.</p>
+<h2 id="152-64-lsn">15.2. Как 64-битный LSN превращается в адрес<a class="headerlink" href="#152-64-lsn" title="Permanent link">¶</a></h2>
+<p><code>XLogRecPtr</code> — позиция в логическом потоке WAL. Обычно ее отображают в шестнадцатеричном формате <code>X/Y</code>, где <code>X</code> — старшие 32 бита, а <code>Y</code> — младшие 32 бита.</p>
+<p>Математически:</p>
+<div class="highlight"><pre><span></span><code>LSN_bytes = X × 2^32 + Y
+
+segment_number = floor(LSN_bytes / wal_segment_size)
+segment_offset = LSN_bytes mod wal_segment_size
+page_offset    = LSN_bytes mod XLOG_BLCKSZ
+</code></pre></div>
+<p><strong>Учебный расчет:</strong> <code>LSN = 0/02000040</code>, размер сегмента 16 МиБ.</p>
+<div class="highlight"><pre><span></span><code>0x02000040 = 33 554 496 байт
+16 МиБ    = 16 777 216 байт
+
+segment_number = 2
+segment_offset = 64
+page_offset    = 64
+</code></pre></div>
+<p>Точка находится на третьем сегменте (если считать номера с нуля), в 64 байтах от его начала. На первой WAL-странице нового сегмента предусмотрен расширенный заголовок; поэтому произвольное смещение нельзя считать началом валидной WAL-записи.</p>
+<p>На практике полезнее использовать штатные функции, чем самостоятельно интерпретировать границу сегмента:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pg_current_wal_lsn</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">pg_walfile_name</span><span class="p">(</span><span class="n">pg_current_wal_lsn</span><span class="p">()),</span>
+<span class="w">    </span><span class="n">pg_walfile_name_offset</span><span class="p">(</span><span class="n">pg_current_wal_lsn</span><span class="p">());</span>
+</code></pre></div>
+<p>У <code>pg_walfile_name()</code> есть тонкость на точной границе сегмента: функция учитывает соглашение, необходимое для именования завершенного участка WAL. Поэтому формулы позиционирования применяем к <strong>точкам внутри сегмента</strong>, а поведение именования границы проверяем документацией API.</p>
+<h2 id="153-24">15.3. Почему имя сегмента состоит из 24 шестнадцатеричных знаков<a class="headerlink" href="#153-24" title="Permanent link">¶</a></h2>
+<p>В стандартном представлении имя имеет три поля по восемь hex-цифр:</p>
+<div class="highlight"><pre><span></span><code>00000001 00000000 00000002
+└── TLI ┘ └─ log ─┘ └ seg ─┘
+</code></pre></div>
+<p><code>TLI</code> — идентификатор временной линии WAL (<em>timeline identifier</em>). Остальные поля кодируют расположение сегмента в последовательности; при типовом размере 16 МиБ на одну 4-гигабайтную логическую область приходится 256 сегментов.</p>
+<p>Нельзя воспринимать последнее поле файла как простой глобальный десятичный порядковый номер. В исходниках для соответствующего преобразования есть макросы семейства <code>XLByteToSeg</code>, <code>XLogSegmentOffset</code> и функции формирования имени <code>XLogFileName</code>.</p>
+<p>Тема выбора новых timelines относится к восстановлению и репликации; здесь достаточно знать, что TLI входит в идентичность WAL-сегмента.</p>
+<h2 id="154-wal-">15.4. Что находится в начале каждой WAL-страницы<a class="headerlink" href="#154-wal-" title="Permanent link">¶</a></h2>
+<p>В <code>src/include/access/xlog_internal.h</code> определена структура <code>XLogPageHeaderData</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">XLogPageHeaderData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">uint16</span><span class="w">      </span><span class="n">xlp_magic</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint16</span><span class="w">      </span><span class="n">xlp_info</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TimeLineID</span><span class="w">  </span><span class="n">xlp_tli</span><span class="p">;</span>
+<span class="w">    </span><span class="n">XLogRecPtr</span><span class="w">  </span><span class="n">xlp_pageaddr</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint32</span><span class="w">      </span><span class="n">xlp_rem_len</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">XLogPageHeaderData</span><span class="p">;</span>
+</code></pre></div>
+<p><code>xlp_magic</code> проверяет принадлежность формату; <code>xlp_info</code> содержит флаги; <code>xlp_tli</code> идентифицирует timeline; <code>xlp_pageaddr</code> — ожидаемая логическая позиция начала страницы; <code>xlp_rem_len</code> важен при продолжении записи с предыдущей страницы.</p>
+<p>На первой странице сегмента применяется длинный заголовок <code>XLogLongPageHeaderData</code>, который дополнительно содержит идентификатор экземпляра <code>xlp_sysid</code>, размер WAL-сегмента и размер WAL-страницы. Эти поля помогают отвергать данные от неподходящего кластера или с ошибочными параметрами.</p>
+<p>В типовой 64-битной сборке выровненные размеры заголовков составляют <strong>24 байта для короткого</strong> и <strong>40 байт для длинного</strong>. Это деталь C-структур и <code>MAXALIGN</code>; в другой сборке точные значения должны проверяться по <code>SizeOfXLogShortPHD</code> и <code>SizeOfXLogLongPHD</code>.</p>
+<h2 id="155-wal-record">15.5. Почему WAL record может пересекать страницу<a class="headerlink" href="#155-wal-record" title="Permanent link">¶</a></h2>
+<p>Допустим, до конца WAL-страницы осталось 100 байт, а подготовленная запись занимает 300 байт.</p>
+<p>Варианты:</p>
+<ol>
+<li>Выделить новую страницу и потерять 100 байт полезной емкости.</li>
+<li>Продолжить запись на следующей странице.</li>
+</ol>
+<p>PostgreSQL поддерживает <strong>продолжение записи</strong> через границу WAL-страницы.</p>
+<div class="highlight"><pre><span></span><code>Страница N:
+[header][...][первые 100 байт записи]
+
+Страница N+1:
+[header, XLP_FIRST_IS_CONTRECORD]
+[оставшиеся 200 байт записи][другие записи...]
+</code></pre></div>
+<p>Флаг <code>XLP_FIRST_IS_CONTRECORD</code> означает, что после заголовка идет продолжение начатой ранее записи. В <code>xlp_rem_len</code> хранится число оставшихся байт записи, подлежащих продолжению.</p>
+<p>Нельзя трактовать начало любой WAL-страницы как гарантированное начало нового <code>XLogRecord</code>. Читатель обязан сначала проверить заголовок и при необходимости собрать запись из нескольких фрагментов.</p>
+<p>При очень большой записи продолжение может охватить больше двух страниц.</p>
+<h2 id="156">15.6. Что происходит на границе сегмента<a class="headerlink" href="#156" title="Permanent link">¶</a></h2>
+<p>Разделение на сегменты — еще один уровень физической организации того же логического потока. Если запись пересекает конец сегмента, ее продолжение может находиться в следующем файле, начиная после длинного заголовка его первой WAL-страницы.</p>
+<p>Поэтому логический WAL выглядит непрерывным для механизма чтения, хотя фактически состоит из многих файлов и страниц с заголовками.</p>
+<p>Отсюда два ограничения корректного WAL reader:</p>
+<ul>
+<li>он не должен принять границу страницы/сегмента за конец записи;</li>
+<li>он должен проверить, что следующая страница действительно принадлежит ожидаемому потоку и имеет правильный флаг продолжения.</li>
+</ul>
+<h2 id="157-xlogrecord">15.7. Как устроен общий заголовок XLogRecord<a class="headerlink" href="#157-xlogrecord" title="Permanent link">¶</a></h2>
+<p>В <code>src/include/access/xlogrecord.h</code> определен заголовок, общий для разных типов физической операции:</p>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">XLogRecord</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">uint32</span><span class="w">        </span><span class="n">xl_tot_len</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TransactionId</span><span class="w"> </span><span class="n">xl_xid</span><span class="p">;</span>
+<span class="w">    </span><span class="n">XLogRecPtr</span><span class="w">    </span><span class="n">xl_prev</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint8</span><span class="w">         </span><span class="n">xl_info</span><span class="p">;</span>
+<span class="w">    </span><span class="n">RmgrId</span><span class="w">        </span><span class="n">xl_rmid</span><span class="p">;</span>
+<span class="w">    </span><span class="n">pg_crc32c</span><span class="w">     </span><span class="n">xl_crc</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">XLogRecord</span><span class="p">;</span>
+</code></pre></div>
+<p>Это сокращенное изображение структуры: возможные байты выравнивания здесь не показаны. Принципиальные поля:</p>
+<ul>
+<li><code>xl_tot_len</code> — общая длина физической WAL-записи;</li>
+<li><code>xl_xid</code> — идентификатор транзакции, если применим;</li>
+<li><code>xl_prev</code> — указатель на предыдущую WAL-запись в глобальной последовательности;</li>
+<li><code>xl_rmid</code> — идентификатор resource manager, который знает смысл операции;</li>
+<li><code>xl_info</code> — сведения о конкретной разновидности записи и служебных флагах;</li>
+<li><code>xl_crc</code> — CRC-32C для проверки целостности записи.</li>
+</ul>
+<p>После заголовка могут следовать ссылки на блоки, их дополнительные данные, полные образы страниц и основная часть записи. Формат зависит от использующего его обработчика.</p>
+<p><strong>Отдельная осторожность:</strong> наличие <code>xl_xid</code> не означает, что каждой WAL-записи обязательно соответствует отдельная пользовательская транзакция, а <code>xl_prev</code> указывает на предыдущую <em>глобальную</em> WAL-запись, не на предыдущую запись той же SQL-транзакции.</p>
+<h2 id="158">15.8. Проверка записи: зачем заголовков страниц недостаточно<a class="headerlink" href="#158" title="Permanent link">¶</a></h2>
+<p>Прочитанный блок может оказаться поврежденным, относиться к другому месту WAL или содержать неполную запись после аварийного обрыва. Читатель не должен слепо передавать байты обработчику REDO.</p>
+<p>В общем случае <code>XLogReader</code> выполняет проверки:</p>
+<ol>
+<li>Заголовка WAL-страницы и ожидаемого <code>xlp_pageaddr</code>.</li>
+<li>Корректности продолжения между страницами.</li>
+<li>Размеров и структуры WAL-записи.</li>
+<li>Контрольной суммы CRC записи.</li>
+<li>Допустимости идентификатора обработчика и служебной информации.</li>
+</ol>
+<p>CRC позволяет <strong>обнаруживать</strong> повреждение записи, но не восстанавливает отсутствующие байты. Подробный разбор аппаратных ошибок и data checksums оставляем 07.2.</p>
+<h2 id="159-xlog_switch">15.9. <code>XLOG_SWITCH</code>: специальный случай логического позиционирования<a class="headerlink" href="#159-xlog_switch" title="Permanent link">¶</a></h2>
+<p>Существуют специальные WAL-записи, которые меняют организацию потока, например запрос на переключение сегмента. Для инструмента чтения это важно: после такой записи следующая пригодная позиция может относиться уже к новому сегменту, хотя предыдущий файл не был заполнен обычными пользовательскими WAL-записями до последнего байта.</p>
+<p>Из этого следует ограничение: <strong>LSN и размер физических файлов не равны числу полезных байт пользовательских изменений</strong>. В WAL есть заголовки, выравнивание, полные образы страниц, служебные записи и неиспользованное пространство при переключении сегмента.</p>
+<h2 id="1510-postgresql">15.10. Зачем PostgreSQL повторно использует сегменты<a class="headerlink" href="#1510-postgresql" title="Permanent link">¶</a></h2>
+<p>Когда прежние WAL-сегменты больше не нужны для целей текущей конфигурации, PostgreSQL может удалить их либо переименовать для последующего использования.</p>
+<p>Параметры:</p>
+<ul>
+<li><code>wal_recycle = on</code> разрешает повторное использование файла путем переименования;</li>
+<li><code>wal_init_zero = on</code> управляет заполнением нового WAL-файла нулями при создании;</li>
+<li><code>min_wal_size</code> влияет на объем сегментов, которые имеет смысл удерживать для повторного использования;</li>
+<li><code>max_wal_size</code> — расчетный ориентир, влияющий, в частности, на частоту checkpoint, а <strong>не строгий лимит размера каталога</strong>.</li>
+</ul>
+<p>Почему recycle вообще может помогать? Создание файла и его предварительное выделение могут стоить времени. Переименование пригодного сегмента иногда позволяет избежать этой работы.</p>
+<p>Но на файловых системах с копированием при записи (<em>copy-on-write</em>) повторное использование старых файлов может иметь другую цену. Поэтому <code>wal_recycle</code> допускается отключать; универсальной гарантии ускорения нет.</p>
+<h2 id="1511-max_wal_size">15.11. Почему <code>max_wal_size</code> не защищает от заполнения диска<a class="headerlink" href="#1511-max_wal_size" title="Permanent link">¶</a></h2>
+<p>Опасная модель: установили <code>max_wal_size=4GB</code>, значит каталог <code>pg_wal</code> никогда не превысит 4 ГБ.</p>
+<p>Это неверно. Параметр влияет на планирование контрольных точек и удержание сегментов, но не является жестким файловым квотированием. При некоторых условиях журнал может превысить расчетный ориентир. В реальной системе на удержание WAL влияют дополнительные причины, некоторые из которых относятся к отдельным темам курса и здесь намеренно не разбираются.</p>
+<p>Для текущей темы достаточно следующей цепочки:</p>
+<div class="highlight"><pre><span></span><code>Генерация WAL быстрее ожидаемой
+       ↓
+Нужны новые сегменты
+       ↓
+Файловая система близка к заполнению
+       ↓
+Создание или запись WAL может завершиться ошибкой
+       ↓
+Нарушается возможность надежно журналировать изменения
+</code></pre></div>
+<p>Что будет делать PostgreSQL при ошибке — зависит от точки отказа и контекста; особенно опасны ошибки в критической секции. Этому посвящена тема 17.</p>
+<h2 id="1512-pg_waldump">15.12. <code>pg_waldump</code>: как посмотреть настоящий формат<a class="headerlink" href="#1512-pg_waldump" title="Permanent link">¶</a></h2>
+<p><code>pg_waldump</code> — штатный инструмент для исследования WAL. Он работает с файлами, к которым у запускающего пользователя есть права доступа. Для настоящего вывода важно использовать исполняемый файл совместимой версии PostgreSQL.</p>
+<div class="highlight"><pre><span></span><code>pg_waldump<span class="w"> </span>--rmgr<span class="o">=</span>list
+pg_waldump<span class="w"> </span>--path<span class="o">=</span>/path/to/PGDATA/pg_wal<span class="w"> </span>--stats
+pg_waldump<span class="w"> </span>--path<span class="o">=</span>/path/to/PGDATA/pg_wal<span class="w"> </span>--rmgr<span class="o">=</span>Heap<span class="w"> </span>--limit<span class="o">=</span><span class="m">20</span>
+pg_waldump<span class="w"> </span>--path<span class="o">=</span>/path/to/PGDATA/pg_wal<span class="w"> </span>--rmgr<span class="o">=</span>Transaction<span class="w"> </span>--limit<span class="o">=</span><span class="m">20</span>
+</code></pre></div>
+<p>Последние примеры зависят от наличия пригодных сегментов и их расположения. Не нужно удалять или модифицировать WAL-файлы ради учебного эксперимента.</p>
+<p><code>pg_waldump</code> позволяет увидеть тип resource manager, разновидность записи, LSN, размер записи, ссылку на блок и признаки full-page image. Опция <code>--bkp-details</code> раскрывает сведения об образах страниц, а <code>--stats</code> суммирует записи и объем по обработчикам.</p>
+<p><strong>Практическое ограничение:</strong> <code>pg_waldump</code> показывает физические WAL-записи; он не обязан восстанавливать исходную SQL-команду или полный прикладной контекст.</p>
+<h3 id="15">Главное из темы 15<a class="headerlink" href="#15" title="Permanent link">¶</a></h3>
+<ol>
+<li>Один логический WAL делится на конечные сегменты и страницы с заголовками.</li>
+<li>LSN — байтовая позиция; номер сегмента и смещение вычисляются по размеру сегмента.</li>
+<li>Запись может пересекать страницы и границы файлов, поэтому нужен формат продолжений.</li>
+<li>Общий <code>XLogRecord</code> имеет <code>xl_rmid</code>, <code>xl_info</code>, <code>xl_prev</code>, длину и CRC; специфический смысл находится в данных конкретного rmgr.</li>
+<li><code>wal_recycle</code> и <code>wal_init_zero</code> управляют ценой создания и повторного использования файлов, а не корректностью SQL.</li>
+<li><code>max_wal_size</code> не является жестким лимитом дискового пространства.</li>
+<li><code>pg_waldump</code> позволяет исследовать настоящую физическую последовательность, но не восстанавливает исходный SQL.</li>
+</ol>
+<hr/>
+<h1 id="16-resource-managers-redo">16. Resource Managers и физическое REDO<a class="headerlink" href="#16-resource-managers-redo" title="Permanent link">¶</a></h1>
+<h2 id="161-wal">16.1. Почему универсальная функция «повторить WAL» недостаточна<a class="headerlink" href="#161-wal" title="Permanent link">¶</a></h2>
+<p>В журнале могут находиться записи изменения heap-страницы, перестройки B-tree, фиксации транзакции или изменения системного состояния. У всех записей общий заголовок, но <strong>правила применения различаются</strong>.</p>
+<p>Нельзя написать универсальную функцию вида «скопируй содержимое SQL-записи назад в таблицу»: WAL не является журналом SQL, а изменения индекса и данные о транзакции нельзя восстановить одинаково.</p>
+<p>PostgreSQL использует набор <strong>resource managers (<code>rmgr</code>)</strong> — обработчиков физических типов WAL. Это внутренний термин, не роль администратора и не менеджер ресурсов ОС.</p>
+<p>Каждый обработчик знает, как распознать и применить свой класс записей.</p>
+<h2 id="162-xl_rmid">16.2. Диспетчеризация по <code>xl_rmid</code><a class="headerlink" href="#162-xl_rmid" title="Permanent link">¶</a></h2>
+<p>В <code>src/include/access/rmgrlist.h</code> перечислены встроенные обработчики. Среди них:</p>
+<table>
+<thead>
+<tr>
+<th>Идентификатор</th>
+<th>Имя</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RM_XLOG_ID</code></td>
+<td>XLOG</td>
+<td>Служебные записи журнала</td>
+</tr>
+<tr>
+<td><code>RM_XACT_ID</code></td>
+<td>Transaction</td>
+<td>Состояние транзакционных операций, фиксация/откат</td>
+</tr>
+<tr>
+<td><code>RM_HEAP_ID</code></td>
+<td>Heap</td>
+<td>Изменения страниц heap</td>
+</tr>
+<tr>
+<td><code>RM_HEAP2_ID</code></td>
+<td>Heap2</td>
+<td>Другие классы операций heap</td>
+</tr>
+<tr>
+<td><code>RM_BTREE_ID</code></td>
+<td>Btree</td>
+<td>Изменения страниц B-tree</td>
+</tr>
+<tr>
+<td><code>RM_SMGR_ID</code></td>
+<td>Storage</td>
+<td>Операции над файловыми объектами хранения</td>
+</tr>
+</tbody>
+</table>
+<p>Это реальные имена в PostgreSQL; список не исчерпывающий. Состав и порядок перечисления имеют значение для числовых идентификаторов resource managers.</p>
+<p>В <code>rmgr.c</code> формируется таблица <code>RmgrTable[]</code>, по которой PostgreSQL находит необходимые функции обработчика.</p>
+<h2 id="163-rmgrdata">16.3. <code>RmgrData</code>: какие операции умеет обработчик<a class="headerlink" href="#163-rmgrdata" title="Permanent link">¶</a></h2>
+<p>Упрощенный список полей структуры <code>RmgrData</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">RmgrData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">rm_name</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">rm_redo</span><span class="p">)(</span><span class="n">XLogReaderState</span><span class="w"> </span><span class="o">*</span><span class="n">record</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">rm_desc</span><span class="p">)(</span><span class="n">StringInfo</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">XLogReaderState</span><span class="w"> </span><span class="o">*</span><span class="n">record</span><span class="p">);</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="o">*</span><span class="n">rm_identify</span><span class="p">)(</span><span class="n">uint8</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+<span class="w">    </span><span class="cm">/* startup, cleanup, mask, decode и другие поля */</span>
+<span class="p">}</span><span class="w"> </span><span class="n">RmgrData</span><span class="p">;</span>
+</code></pre></div>
+<p><code>rm_redo</code> выполняет физическое повторное применение. <code>rm_identify</code> дает имя разновидности записи; <code>rm_desc</code> строит читаемое описание. Последние функции используются, в частности, диагностическими инструментами.</p>
+<p>Внутри PostgreSQL имеются и другие операции, связанные с жизненным циклом обработчика. Не все они обязательны для каждого rmgr: часть указателей может быть <code>NULL</code>.</p>
+<p><strong>Главная связь:</strong> <code>xl_rmid</code> выбирает семейство механизма, а <code>xl_info</code> — конкретную операцию внутри семейства.</p>
+<h2 id="164-xl_info-resource-manager">16.4. <code>xl_info</code>: почему одного resource manager недостаточно<a class="headerlink" href="#164-xl_info-resource-manager" title="Permanent link">¶</a></h2>
+<p><code>RM_HEAP_ID</code> охватывает несколько разновидностей изменений. Поэтому внутри записи имеется поле <code>xl_info</code>, которое совместно со служебными флагами кодирует вид операции.</p>
+<p>Обработчик использует нужные для него биты, обычно после маскирования общих флагов (<code>XLR_INFO_MASK</code>). Это не произвольное целое число, которое приложение может самостоятельно выбрать в SQL.</p>
+<p>Учебная схема:</p>
+<div class="highlight"><pre><span></span><code>WAL record
+    xl_rmid = RM_HEAP_ID
+    xl_info = разновидность изменения heap
+    payload = данные для воспроизведения
+                   │
+                   v
+             heap_redo(record)
+                   │
+                   v
+             ветка конкретной операции
+</code></pre></div>
+<p>Для B-tree будет выбран другой обработчик — <code>btree_redo</code>. Для транзакционного журнала — <code>xact_redo</code>.</p>
+<h2 id="165-recovery-rm_redo">16.5. Как выглядит путь recovery до <code>rm_redo</code><a class="headerlink" href="#165-recovery-rm_redo" title="Permanent link">¶</a></h2>
+<p>Сильно сокращенная модель рабочего пути:</p>
+<div class="highlight"><pre><span></span><code>Восстановление определило начальную позицию чтения
+             ↓
+XLogReader получает WAL-страницы
+             ↓
+Проверка заголовков, continuation, длины и CRC
+             ↓
+Разбор общего заголовка и ссылок на блоки
+             ↓
+Определение xl_rmid / xl_info
+             ↓
+Выбор обработчика RmgrTable
+             ↓
+Вызов соответствующего rm_redo
+             ↓
+Обновление страниц/системного состояния
+</code></pre></div>
+<p>Это схема <strong>одного прохода применения</strong>, а не полная программа crash recovery. Вопрос, откуда взялась начальная точка и что содержится в <code>pg_control</code>, предназначен для 07.3.</p>
+<h2 id="166">16.6. Почему читатель собирает запись целиком до вызова обработчика<a class="headerlink" href="#166" title="Permanent link">¶</a></h2>
+<p>Предположим, заголовок <code>XLogRecord</code> находится в конце WAL-страницы, а полезные данные продолжаются на следующей.</p>
+<p>Обработчик <code>heap_redo()</code> не должен сам угадывать, сколько байт осталось в первом файле. Иначе каждому resource manager пришлось бы повторять логику WAL-страниц, CRC, сегментов и продолжений.</p>
+<p>Поэтому <code>XLogReader</code> предоставляет обработчикам <strong>декодированную запись</strong>, а общий транспортный формат обрабатывается одним слоем ниже.</p>
+<p>Это разделение обязанностей:</p>
+<ul>
+<li>WAL reader гарантирует пригодное для интерпретации представление записи либо сообщает об ошибке.</li>
+<li>Resource manager интерпретирует смысл физической операции.</li>
+<li>Низкоуровневая работа с нужными страницами поддерживается общими механизмами восстановления.</li>
+</ul>
+<h2 id="167-heap_redo">16.7. <code>heap_redo</code>: физическое изменение страницы<a class="headerlink" href="#167-heap_redo" title="Permanent link">¶</a></h2>
+<p>Рассмотрим учебный случай вставки строки. При обычной работе сервер сформировал WAL-запись с достаточной информацией для восстановления изменения heap-страницы.</p>
+<p>Во время REDO обработчик должен:</p>
+<ol>
+<li>Определить, какая физическая страница затронута.</li>
+<li>Получить страницу в режиме, подходящем для восстановления.</li>
+<li>Проверить, требуется ли повторно применять изменение.</li>
+<li>При необходимости восстановить полный образ либо применить детальные поля записи.</li>
+<li>Привести LSN страницы в согласованное состояние.</li>
+</ol>
+<p>Фактические детали зависят от конкретного вида heap-записи; здесь мы показываем причинную структуру, а не копируем все ветки <code>heap_redo()</code>.</p>
+<h2 id="168-redo-page-lsn">16.8. Почему REDO нельзя применять без проверки page LSN<a class="headerlink" href="#168-redo-page-lsn" title="Permanent link">¶</a></h2>
+<p>Предположим, журнал содержит запись R, которая была применена к странице и даже успела оказаться на диске до аварии.</p>
+<p>После перезапуска recovery читает R снова, поскольку начинает с более ранней позиции журнала. Если безусловно повторить R второй раз, для некоторых операций можно получить двойное изменение.</p>
+<p>Поэтому page LSN используется как признак продвижения страницы.</p>
+<div class="highlight"><pre><span></span><code>WAL record R: end LSN = 0/02000500
+
+Случай A: page LSN = 0/02000600
+  → страница уже содержит изменение R или более новое
+  → повторять обычную операцию R не требуется
+
+Случай B: page LSN = 0/02000400
+  → изменение R еще необходимо восстановить
+</code></pre></div>
+<p>Точные сравнения выполняются в соответствующих вспомогательных функциях работы со страницами. Для обычного REDO правило основано на соотношении LSN записи и страницы, но существуют специальные типы записей и случаи инициализации страниц, где детали отличаются.</p>
+<p><strong>Инженерный вывод:</strong> REDO спроектирован так, чтобы повторное чтение уже отраженного изменения не приводило к его механическому повторному применению.</p>
+<h2 id="169-b-tree-split-wal-">16.9. Почему один B-tree split может потребовать несколько WAL-записей<a class="headerlink" href="#169-b-tree-split-wal-" title="Permanent link">¶</a></h2>
+<p>Более интересный пример — разделение страницы B-tree.</p>
+<p>При обычном split нужно переместить записи на новую страницу и обновить связь на родительском уровне. Однако для сохранения корректного порядка захвата блокировок и ограничения объема одной физической операции этот процесс может быть отражен <strong>несколькими отдельными WAL-действиями</strong>.</p>
+<p>В <code>src/backend/access/transam/README</code> приведен пример: первая запись формирует новую страницу и переносит часть ключей, но указывает, что разделение еще <strong>не завершено</strong>. Следующая WAL-запись отражает необходимое изменение родителя и завершает split.</p>
+<p>Если сбой произойдет после первой записи, recovery может восстановить промежуточное состояние. Оно не должно быть бессмысленным мусором: механизм B-tree умеет распознать незавершенное разделение и завершить его позднее при необходимости.</p>
+<p>Это чрезвычайно важный проектный принцип:</p>
+<blockquote>
+<p><strong>Одна высокоуровневая операция может раскладываться на несколько физических атомарных действий. Каждое восстановимое промежуточное состояние должно быть корректно представимо и обработано алгоритмом.</strong></p>
+</blockquote>
+<p>Здесь мы не разбираем индексный поиск заново; этот пример нужен только для объяснения проектирования физического REDO.</p>
+<h2 id="1610-xact_redo-heap-">16.10. <code>xact_redo</code>: чем запись о транзакции отличается от heap-записи<a class="headerlink" href="#1610-xact_redo-heap-" title="Permanent link">¶</a></h2>
+<p>Условие «в WAL есть запись UPDATE» еще не отвечает на вопрос о подтвержденной транзакции. В журнале присутствуют отдельные записи для транзакционных операций.</p>
+<p>Обработчик <code>xact_redo()</code> интерпретирует соответствующие классы транзакционных записей. Его назначение отличается от <code>heap_redo()</code>:</p>
+<ul>
+<li>heap-обработчик восстанавливает физические изменения страниц;</li>
+<li>транзакционный обработчик восстанавливает необходимые сведения о состоянии транзакционных действий.</li>
+</ul>
+<p>Применять к таким записям универсальный алгоритм «взять страницу heap и изменить поле» невозможно.</p>
+<p>При этом одно значение <code>xl_xid</code> в заголовке не делает обработчик транзакционным. Его определяет прежде всего <code>xl_rmid</code>.</p>
+<h2 id="1611-wal-resource-managers">16.11. Почему порядок WAL-записей важен для разных resource managers<a class="headerlink" href="#1611-wal-resource-managers" title="Permanent link">¶</a></h2>
+<p>Предположим, операция изменяет несколько взаимосвязанных структур и порождает несколько WAL-записей.</p>
+<p>Если восстановление произвольно переставит их местами, оно может попытаться обновить объект, который еще не создан, либо завершить индексное действие до подготовительного изменения.</p>
+<p>Поэтому WAL предоставляет <strong>глобальный порядок физических действий</strong>, а recovery применяет необходимые записи с сохранением этого порядка. Реализация может иметь специализированные оптимизации, но семантика последовательности должна оставаться корректной.</p>
+<p><code>xl_prev</code> позволяет контролировать связность цепочки записей; reader и механизмы восстановления также опираются на позиции страниц, CRC и информацию о continuation.</p>
+<h2 id="1612-redo">16.12. Куда смотреть при проблеме REDO<a class="headerlink" href="#1612-redo" title="Permanent link">¶</a></h2>
+<p>В журнале сервера при аварийном восстановлении полезны сообщения о начале REDO, текущей позиции и ошибке чтения определенной записи. В самих исходниках recovery предусмотрен контекст ошибки, который может включать позицию и описание записи.</p>
+<p><code>pg_waldump</code> позволяет предварительно осмотреть нужный участок:</p>
+<div class="highlight"><pre><span></span><code>pg_waldump<span class="w"> </span>--path<span class="o">=</span>/path/to/PGDATA/pg_wal<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--start<span class="o">=</span><span class="m">0</span>/02000028<span class="w"> </span>--end<span class="o">=</span><span class="m">0</span>/02020000<span class="w"> </span><span class="se">\</span>
+<span class="w">           </span>--rmgr<span class="o">=</span>Heap
+</code></pre></div>
+<p>LSN здесь <strong>искусственные</strong>. Для настоящего экземпляра границы должны соответствовать существующим данным WAL. <code>--rmgr=Transaction</code> и <code>--rmgr=Btree</code> помогают выделить другие классы операций.</p>
+<p>При диагностике важно отличать:</p>
+<ul>
+<li>повреждение физического формата/CRC;</li>
+<li>отсутствие необходимого участка WAL;</li>
+<li>ошибку конкретного обработчика REDO;</li>
+<li>проблему получения соответствующей страницы.</li>
+</ul>
+<p>Это разные классы неисправности, и один <code>pg_waldump</code> не обещает их автоматически исправить.</p>
+<h3 id="16">Главное из темы 16<a class="headerlink" href="#16" title="Permanent link">¶</a></h3>
+<ol>
+<li>Resource manager интерпретирует конкретный тип WAL-записи; универсального SQL-повтора нет.</li>
+<li><code>xl_rmid</code> выбирает семейство обработчика, <code>xl_info</code> — конкретную разновидность операции.</li>
+<li><code>XLogReader</code> отвечает за физический формат, границы страниц, продолжения и проверки; <code>rm_redo</code> — за смысл операции.</li>
+<li>Heap, B-tree и транзакционные записи требуют разных действий восстановления.</li>
+<li>Page LSN позволяет не выполнять обычное физическое изменение второй раз, если страница уже его содержит.</li>
+<li>Сложная операция может состоять из нескольких WAL-шагов с допустимыми промежуточными состояниями.</li>
+<li>Восстановление зависит от последовательности WAL и целостности необходимых записей.</li>
+</ol>
+<hr/>
+<h1 id="17-critical-sections-wal">17. Critical Sections и ошибки WAL<a class="headerlink" href="#17-critical-sections-wal" title="Permanent link">¶</a></h1>
+<h2 id="171-ram-wal">17.1. Опасный промежуток между изменением RAM и готовым WAL<a class="headerlink" href="#171-ram-wal" title="Permanent link">¶</a></h2>
+<p>Теперь самая неприятная часть расследования.</p>
+<p>В предыдущих темах WAL выглядел надежным: изменения страницы сопровождаются записью, читатель умеет интерпретировать журнал, а восстановление повторяет физические операции. Но у процесса есть короткий промежуток, в котором <strong>страница уже изменена в RAM, а WAL-запись еще не завершена</strong>.</p>
+<p>Что произойдет, если в этот момент обычная функция выбросит <code>ERROR</code>, PostgreSQL отменит SQL и продолжит работать?</p>
+<p>Физически измененная страница может оставаться в общем буферном пуле. Другие процессы имеют доступ к этому пулу. Если такое изменение окажется записано на диск без достаточного WAL, после сбоя восстановление не сможет объяснить его происхождение.</p>
+<p>Значит, для некоторых действий недостаточно обычного механизма обработки ошибки SQL. Нужно обеспечить либо полное завершение связки «изменение + регистрация WAL», либо аварийное прекращение использования потенциально опасного состояния.</p>
+<h2 id="172-postgresql">17.2. Что такое критическая секция в PostgreSQL<a class="headerlink" href="#172-postgresql" title="Permanent link">¶</a></h2>
+<p>В исходниках используется пара:</p>
+<div class="highlight"><pre><span></span><code><span class="n">START_CRIT_SECTION</span><span class="p">();</span>
+<span class="cm">/* Физическое изменение общих структур и соответствующее WAL */</span>
+<span class="n">END_CRIT_SECTION</span><span class="p">();</span>
+</code></pre></div>
+<p>Это <strong>внутренний режим обработки ошибок</strong>. Он не равен транзакции SQL и не означает автоматическую блокировку всех других процессов. Не следует путать его с критической секцией ОС, которая обычно означает сам механизм взаимного исключения.</p>
+<p>Для PostgreSQL в данном контексте важна переменная <code>CritSectionCount</code>. Пока она больше нуля, ошибка уровня <code>ERROR</code> или выше повышается до <code>PANIC</code>.</p>
+<p>Смысл: если процесс обнаружил отказ в состоянии, где он уже мог изменить общие структуры без соответствующей долговечной истории, продолжать обычное выполнение опасно.</p>
+<h2 id="173-postgresql">17.3. Порядок действий, рекомендованный разработчиками PostgreSQL<a class="headerlink" href="#173-postgresql" title="Permanent link">¶</a></h2>
+<p>Внутренний <code>src/backend/access/transam/README</code> задает стандартный сценарий WAL-регистрируемого изменения страницы.</p>
+<p><strong>До критической секции:</strong></p>
+<ol>
+<li>Получить нужные страницы в буферах и захватить необходимые защитные блокировки их содержимого.</li>
+<li>Проверить ожидаемые причины ошибок: хватает ли места, корректны ли аргументы и метаданные.</li>
+<li>При необходимости заранее подготовить память под регистрацию сложной WAL-записи через <code>XLogEnsureRecordSpace()</code>.</li>
+</ol>
+<p><strong>Внутри критической секции:</strong></p>
+<ol>
+<li>Выполнить физическое изменение в буфере.</li>
+<li>Пометить его грязным вызовом <code>MarkBufferDirty()</code>.</li>
+<li>Собрать WAL-запись через <code>XLogBeginInsert()</code> и <code>XLogRegister*</code>, затем вставить ее вызовом <code>XLogInsert()</code>.</li>
+<li>Установить странице LSN, возвращенный <code>XLogInsert()</code>.</li>
+<li>Завершить критическую секцию.</li>
+</ol>
+<p><strong>После критической секции:</strong></p>
+<ol>
+<li>Освободить защитные блокировки содержимого и соответствующие буферные ресурсы.</li>
+</ol>
+<p>Кодовая схема (сокращенный <strong>учебный псевдокод</strong>, не готовый фрагмент конкретного <code>heapam.c</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* До секции: взять buffer, защитить его, проверить условия. */</span>
+<span class="n">START_CRIT_SECTION</span><span class="p">();</span>
+
+<span class="n">apply_page_change</span><span class="p">(</span><span class="n">page</span><span class="p">);</span><span class="w">          </span><span class="cm">/* учебное действие */</span>
+<span class="n">MarkBufferDirty</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+
+<span class="n">XLogBeginInsert</span><span class="p">();</span>
+<span class="n">XLogRegisterBuffer</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="n">REGBUF_STANDARD</span><span class="p">);</span>
+<span class="n">XLogRegisterData</span><span class="p">(</span><span class="o">&amp;</span><span class="n">action</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">action</span><span class="p">));</span>
+<span class="n">XLogRecPtr</span><span class="w"> </span><span class="n">end_lsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">XLogInsert</span><span class="p">(</span><span class="n">RM_HEAP_ID</span><span class="p">,</span><span class="w"> </span><span class="n">info</span><span class="p">);</span>
+<span class="n">PageSetLSN</span><span class="p">(</span><span class="n">page</span><span class="p">,</span><span class="w"> </span><span class="n">end_lsn</span><span class="p">);</span>
+
+<span class="n">END_CRIT_SECTION</span><span class="p">();</span>
+<span class="cm">/* Освободить защиту буфера. */</span>
+</code></pre></div>
+<p><strong>Особенно важно:</strong> фактическое изменение буфера может произойти <strong>до</strong> того, как его WAL попадет в общие WAL buffers. Это не нарушение правила WAL: правило требует, чтобы соответствующий журнал был долговечно записан <strong>до записи измененной страницы на постоянный носитель</strong>, а не до любого изменения копии страницы в RAM.</p>
+<p>Именно критическая секция защищает короткий промежуток между этими событиями.</p>
+<h2 id="174-markbufferdirty-wal-insertion">17.4. Почему <code>MarkBufferDirty()</code> должен быть до WAL insertion<a class="headerlink" href="#174-markbufferdirty-wal-insertion" title="Permanent link">¶</a></h2>
+<p>Может показаться, что безопаснее сначала вставить WAL, затем пометить страницу грязной. Но в исходниках PostgreSQL порядок другой: изменение → dirty → WAL insertion → <code>PageSetLSN</code>.</p>
+<p>Причина связана с согласованием буферного менеджера и WAL: нужно корректно учитывать буфер при конкурентной записи страниц. Документация разработчиков прямо требует помечать буфер грязным <strong>до вставки WAL</strong> и отсылает к логике <code>SyncOneBuffer()</code>.</p>
+<p>Нельзя заменить объяснение фразой «главное, чтобы WAL существовал до изменения RAM». Как раз так не реализовано. Работает более точная модель: защитные блокировки буфера, dirty-учет, критическая секция, регистрация WAL и LSN образуют согласованный протокол.</p>
+<h2 id="175-error">17.5. Что именно произойдет при <code>ERROR</code> внутри секции<a class="headerlink" href="#175-error" title="Permanent link">¶</a></h2>
+<p>В <code>src/backend/utils/error/elog.c</code> проверяется состояние критической секции.</p>
+<p>Сокращенный существенный фрагмент:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">elevel</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">ERROR</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">CritSectionCount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="n">elevel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PANIC</span><span class="p">;</span>
+<span class="w">    </span><span class="cm">/* ... */</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Это означает, что обычная ошибка, которая вне секции могла бы отменить текущий запрос, внутри секции становится основанием для <code>PANIC</code>.</p>
+<p>Иначе могло бы произойти следующее:</p>
+<div class="highlight"><pre><span></span><code>Изменили общую страницу в RAM
+      ↓
+WAL еще не вставлен
+      ↓
+ERROR → отменили только SQL
+      ↓
+Другие backend продолжают жить
+      ↓
+Опасная страница может быть использована/записана
+</code></pre></div>
+<p><code>PANIC</code> предотвращает продолжение экземпляра с таким потенциально несогласованным состоянием. При типовом серверном запуске это приводит к аварийному перезапуску соответствующего серверного окружения с процедурой восстановления. Конкретная реакция внешнего supervisor и операционной системы зависит от конфигурации.</p>
+<h2 id="176-error-fatal-panic">17.6. <code>ERROR</code>, <code>FATAL</code>, <code>PANIC</code>: разные последствия<a class="headerlink" href="#176-error-fatal-panic" title="Permanent link">¶</a></h2>
+<p>Три уровня нельзя сваливать в одно слово «ошибка».</p>
+<table>
+<thead>
+<tr>
+<th>Уровень</th>
+<th>Смысл для данной лекции</th>
+<th>Типичный эффект</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ERROR</code></td>
+<td>Операция не может продолжаться, но сервер способен обработать отказ в рамках выполнения</td>
+<td>Отмена текущей операции/транзакции; backend обычно остается работоспособным</td>
+</tr>
+<tr>
+<td><code>FATAL</code></td>
+<td>Продолжать текущий процесс небезопасно или невозможно</td>
+<td>Завершение текущего процесса и соединения</td>
+</tr>
+<tr>
+<td><code>PANIC</code></td>
+<td>Продолжать с данным общим состоянием потенциально опасно</td>
+<td>Экстренное завершение процесса и восстановление экземпляра перед возвращением к обычной работе</td>
+</tr>
+</tbody>
+</table>
+<p>Это <strong>типовая семантика</strong> иерархии сообщений PostgreSQL; конкретная реакция зависит от контекста процесса. Например, <code>ERROR</code> без доступного обработчика исключений тоже может повышаться до более серьезного уровня. А <code>PANIC</code> внутри критической секции обусловлен именно потенциальной несогласованностью общих данных.</p>
+<p>Не нужно представлять <code>PANIC</code> как «PostgreSQL удалил данные»: цель здесь противоположная — прекратить небезопасную работу и восстановить согласованное состояние из пригодного WAL.</p>
+<h2 id="177">17.7. Почему нельзя использовать любые функции внутри секции<a class="headerlink" href="#177" title="Permanent link">¶</a></h2>
+<p>Из принципа <code>ERROR → PANIC</code> следует жесткое инженерное правило: <strong>перед критической секцией выполнить все потенциально отказывающие подготовительные действия, если это возможно</strong>.</p>
+<p>Особенно опасны:</p>
+<ul>
+<li>динамические выделения памяти, которые могут завершиться отказом;</li>
+<li>проверки аргументов и условий, способные выдать обычный <code>ERROR</code>;</li>
+<li>файловые операции с высокой вероятностью ошибки;</li>
+<li>произвольный пользовательский код;</li>
+<li>дополнительные действия, не необходимые для атомарной пары «изменить общую структуру + зарегистрировать WAL».</li>
+</ul>
+<p>Критическая секция должна быть короткой и прогнозируемой. Это одновременно ограничение корректности и производительности: процесс может удерживать внутренние защитные блокировки страниц, пока выполняет WAL insertion.</p>
+<h2 id="178-wal-write">17.8. Что происходит при нехватке места во время WAL write<a class="headerlink" href="#178-wal-write" title="Permanent link">¶</a></h2>
+<p>Предположим, <code>pg_wal</code> находится на почти заполненной файловой системе. Backend подготовил WAL-запись и собирается вставить ее в общие WAL buffers.</p>
+<p>Если свободный слот есть, вставка может завершиться без немедленного обращения к файловой системе. Но если нужен новый WAL-сегмент либо требуется вытеснить старый WAL buffer, возникнет операция с файловым слоем.</p>
+<div class="highlight"><pre><span></span><code>Новый WAL нужен прямо сейчас
+         ↓
+Попытка создать/заполнить сегмент или записать старые страницы
+         ↓
+Файловая система: ENOSPC / I/O error
+         ↓
+Не удалось безопасно продвинуть WAL
+         ↓
+Реакция зависит от места отказа, серьезности ошибки,
+контекста WAL-записи и критической секции
+</code></pre></div>
+<p><strong>Нельзя обещать:</strong> «любой ENOSPC всегда дает только <code>ERROR</code>, после чего сервер продолжает работать» или «любой сбой файловой системы всегда <code>PANIC</code>». Важно место, где произошел отказ. Если ошибка связана с измененной общей страницей до окончания ее WAL-регистрации, PostgreSQL может потребовать <code>PANIC</code>. В других местах имеются другие допустимые пути обработки отказа.</p>
+<p>При ошибке <em>долговечного сохранения</em> также нельзя выдавать клиенту успешную синхронную фиксацию, пока нужная граница WAL не подтверждена. Подробности <code>fsync</code> и гарантий устройства разобраны в 07 и будут углублены в 07.2.</p>
+<h2 id="179">17.9. Почему для операций с файловой системой схема сложнее<a class="headerlink" href="#179" title="Permanent link">¶</a></h2>
+<p>Стандартный прием «защитим изменение + WAL критической секцией» хорошо подходит к коротким изменениям страниц внутри общей памяти: многие ошибки можно проверить <strong>до</strong> секции.</p>
+<p>Но создание реального файла или каталога может внезапно завершиться ошибкой файловой системы. Держать такую потенциально долгую и ошибочную операцию в критической секции часто недопустимо: при отказе она вызовет <code>PANIC</code>, а восстановление снова может столкнуться с той же ошибкой.</p>
+<p>В <code>src/backend/access/transam/README</code> отдельно рассматриваются особенности WAL-журналирования файловых операций. Для них требуются специальные правила, позволяющие правильно согласовать факт создания/удаления объекта с восстановлением.</p>
+<p>В 07.1 достаточно увидеть <strong>границу общего шаблона</strong>: критические секции — точный инструмент для определенных классов изменений, а не обертка для всего SQL и любых системных вызовов.</p>
+<h2 id="1710">17.10. Пример: две похожие ошибки, разные последствия<a class="headerlink" href="#1710" title="Permanent link">¶</a></h2>
+<p><strong>Случай А.</strong> До изменения страницы установили, что в ней не хватает свободного места. Операция может законно завершиться с <code>ERROR</code> или выбрать другой допустимый путь. Опасной несогласованной страницы еще нет.</p>
+<p><strong>Случай Б.</strong> Изменили общую страницу, пометили dirty, затем обнаружили ошибку, препятствующую регистрации WAL. Теперь нельзя просто выполнить SQL rollback и оставить общий буфер как будто ничего не случилось. Внутри критической секции такой отказ повышается до <code>PANIC</code>.</p>
+<p>Умение различать эти временные точки важнее запоминания названий макросов.</p>
+<h2 id="1711">17.11. Как исследовать отказ, не усугубляя ситуацию<a class="headerlink" href="#1711" title="Permanent link">¶</a></h2>
+<p>Для рабочего сервера основной источник — серверные логи, штатные показатели состояния WAL и фактические сообщения об ошибке. Не нужно специально заполнять файловую систему <code>pg_wal</code>, убивать backend во время критической секции или отключать <code>fsync</code> ради лекции на production.</p>
+<p>Разумный порядок:</p>
+<ol>
+<li>Определить, что действительно произошло: обычная SQL-ошибка, <code>FATAL</code>, <code>PANIC</code>, принудительное завершение процесса или перезапуск экземпляра.</li>
+<li>Проверить сообщения WAL write/flush и состояние файловой системы.</li>
+<li>Если есть <code>PANIC</code>, установить, какая операция выполнялась в опасной точке.</li>
+<li>Проверить, смог ли PostgreSQL выполнить восстановление; отсутствие ошибок старта еще не повод игнорировать исходную причину.</li>
+<li>Отдельно измерить скорость генерации WAL, <code>wal_buffers_full</code> и время WAL I/O после возвращения сервиса к работе.</li>
+</ol>
+<p>Подробная программа восстановления поврежденного хранилища, восстановления из резервных копий и эксплуатации реплик остается за пределами этой лекции.</p>
+<h2 id="1712-wal-write-ahead">17.12. Парадокс: изменение страницы до WAL и строгое правило write-ahead<a class="headerlink" href="#1712-wal-write-ahead" title="Permanent link">¶</a></h2>
+<p>Закрепим самое важное разногласие между простой и точной моделями.</p>
+<p><strong>Простое утверждение:</strong> PostgreSQL должен записать WAL, прежде чем вообще изменять данные.</p>
+<p><strong>Где оно ломается:</strong> реальные функции изменяют страницу <strong>в RAM</strong> и отмечают ее грязной <strong>до</strong> завершения <code>XLogInsert()</code>.</p>
+<p><strong>Точная модель:</strong></p>
+<ol>
+<li>Страницу в общей памяти можно изменить внутри защищенной операции.</li>
+<li>Соответствующая WAL-запись должна быть создана и привязана к странице LSN до завершения безопасной критической последовательности.</li>
+<li>Измененная страница <strong>не должна попасть на постоянное хранилище до требуемого WAL flush</strong>.</li>
+<li>Если создание WAL для уже измененной общей страницы срывается, нельзя продолжать эксплуатацию потенциально опасного состояния как после обычного <code>ERROR</code>.</li>
+</ol>
+<p>Именно эта модель позволяет одновременно получить высокую пропускную способность и гарантии crash recovery.</p>
+<h3 id="17">Главное из темы 17<a class="headerlink" href="#17" title="Permanent link">¶</a></h3>
+<ol>
+<li>Критическая секция защищает короткий интервал, когда общее состояние уже может быть изменено, а регистрация его WAL еще не завершена.</li>
+<li><code>START_CRIT_SECTION</code> не является SQL-транзакцией и сам по себе не заменяет защиту доступа к буферу.</li>
+<li>Внутри секции <code>ERROR</code> и более серьезные ошибки повышаются до <code>PANIC</code>.</li>
+<li>Перед секцией готовят память и проверяют ожидаемые ошибки, внутри выполняют только необходимое.</li>
+<li>Правильный порядок: защищенное изменение → dirty → WAL insertion → page LSN → выход.</li>
+<li>Неудача записи WAL может быть опаснее обычного отказа SQL, особенно если произошла после изменения страницы.</li>
+<li>Подобное правило подходит не ко всем файловым операциям: неожиданные ошибки файловой системы требуют специальных протоколов.</li>
+</ol>
+<hr/>
+<h1 id="18-c-redo">18. Сквозное расследование: одна физическая операция от C-кода до REDO<a class="headerlink" href="#18-c-redo" title="Permanent link">¶</a></h1>
+<p>Соберем четыре темы 07.1 на одном физическом действии.</p>
+<h3 id="1">Шаг 1. Подготовка<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
+<p>Backend уже получил нужный буфер и проверил условия, которые могут завершиться обычной ошибкой. Для сложной операции выделены слоты регистрации WAL.</p>
+<h3 id="2">Шаг 2. Критическое изменение<a class="headerlink" href="#2" title="Permanent link">¶</a></h3>
+<p>Он входит в критическую секцию, изменяет страницу и отмечает ее dirty. Теперь нельзя безопасно отказаться от регистрации требуемого WAL и просто обслуживать следующий запрос.</p>
+<h3 id="3">Шаг 3. Локальная сборка<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
+<p><code>XLogBeginInsert()</code> открывает сборку. <code>XLogRegisterBuffer()</code> фиксирует, какой блок затронут. <code>XLogRegisterData()</code> и <code>XLogRegisterBufData()</code> добавляют сведения, нужные обработчику. <code>XLogRecordAssemble()</code> формирует физическую запись.</p>
+<h3 id="4">Шаг 4. Общий порядок<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<p><code>XLogInsertRecord()</code> резервирует диапазон WAL и копирует байты в общие WAL buffers. Другие backend-процессы могут работать параллельно. Завершение конкретной вставки учитывается внутренними локами и границами готового WAL.</p>
+<h3 id="5">Шаг 5. Связь со страницей<a class="headerlink" href="#5" title="Permanent link">¶</a></h3>
+<p>Возвращенный LSN фиксируется в заголовке измененной страницы. Backend выходит из критической секции и освобождает защитные ресурсы.</p>
+<h3 id="6">Шаг 6. Запись и долговечность<a class="headerlink" href="#6" title="Permanent link">¶</a></h3>
+<p>В нужный момент backend или WAL writer обеспечивает перенос готовых WAL-страниц в файлы и дальнейшую синхронизацию до требуемого LSN. Прежде чем записывать грязную data page, механизм записи страниц обязан соблюдать WAL-before-data.</p>
+<h3 id="7-recovery">Шаг 7. Чтение при recovery<a class="headerlink" href="#7-recovery" title="Permanent link">¶</a></h3>
+<p>После сбоя WAL reader разбирает сегменты, страницы, continuation, заголовки и CRC. По <code>xl_rmid</code> выбирает обработчик <code>rm_redo</code>; он восстанавливает необходимое физическое изменение при соблюдении правил page LSN.</p>
+<div class="highlight"><pre><span></span><code>Защитить страницу и подготовить ресурсы
+                  |
+                  v
+       START_CRIT_SECTION
+                  |
+                  v
+         Change + Dirty
+                  |
+                  v
+      XLogBeginInsert / Register*
+                  |
+                  v
+       Assemble / Reserve / Copy
+                  |
+                  v
+              PageSetLSN
+                  |
+                  v
+        END_CRIT_SECTION
+                  |
+                  v
+         WAL write → WAL flush
+                  |
+                  v
+           При сбое: XLogReader
+                  |
+                  v
+            RmgrTable → rm_redo
+</code></pre></div>
+<h3 id="_1">Где можно потерять производительность<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Место</th>
+<th>Ограниченный ресурс</th>
+<th>Симптом</th>
+<th>Что проверять</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Сборка WAL</td>
+<td>CPU, размер record и FPI</td>
+<td>Много WAL-байт на операцию</td>
+<td><code>wal_records</code>, <code>wal_fpi</code>, <code>wal_bytes</code></td>
+</tr>
+<tr>
+<td>Резервирование позиции</td>
+<td>Конкуренция за внутреннее состояние</td>
+<td>Рост времени вставки при множестве backend</td>
+<td>Интенсивность WAL, системные профили, эксперимент с конкуренцией</td>
+</tr>
+<tr>
+<td>Копирование и WAL buffers</td>
+<td>Число слотов и завершенность вставок</td>
+<td>Рост вынужденных записей</td>
+<td><code>wal_buffers_full</code></td>
+</tr>
+<tr>
+<td>WAL write/flush</td>
+<td>Файловый I/O и синхронизация</td>
+<td>Длинный хвост подтверждений</td>
+<td><code>pg_stat_io</code> для <code>object='wal'</code></td>
+</tr>
+<tr>
+<td>Создание/повторное использование сегмента</td>
+<td>Место и работа файловой системы</td>
+<td>Всплески задержек, ошибки <code>pg_wal</code></td>
+<td>Свободное место, логи, интенсивность WAL</td>
+</tr>
+<tr>
+<td>REDO</td>
+<td>Целостность и порядок журнала</td>
+<td>Ошибка recovery на определенной записи</td>
+<td>Серверный журнал и <code>pg_waldump</code></td>
+</tr>
+<tr>
+<td>Критическая операция</td>
+<td>Корректность общего состояния</td>
+<td><code>PANIC</code></td>
+<td>Точная временная точка и контекст отказа</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h1 id="19">19. Семь инженерных выводов лекции<a class="headerlink" href="#19" title="Permanent link">¶</a></h1>
+<ol>
+<li><strong>WAL — конкурентный конвейер.</strong> Backend собирает запись локально, резервирует позицию и копирует ее в общие буферы. Подготовка и публикация разнесены ради производительности.</li>
+<li><strong>Резервирование LSN и завершение вставки — разные события.</strong> До записи на диск PostgreSQL должен получить непрерывный готовый участок журнала.</li>
+<li><strong>Внутренние локи защищают разные стадии.</strong> <code>insertpos_lck</code>, <code>WALInsertLocks</code> и <code>WALWriteLock</code> решают разные задачи. Порядок ожидания нужен для предотвращения взаимных блокировок WAL-подсистемы.</li>
+<li><strong>Формат WAL физически разбит на страницы и сегменты.</strong> <code>XLogReader</code> обязан правильно обрабатывать заголовки, continuation, размеры и CRC.</li>
+<li><strong>REDO делегируется обработчику записи.</strong> <code>xl_rmid</code> и <code>xl_info</code> приводят к соответствующему resource manager; каждый знает свой тип изменений.</li>
+<li><strong>Страница может измениться в RAM до вставки ее WAL.</strong> Гарантия write-ahead относится к постоянной записи страницы; корректность короткого промежутка обеспечивает специальная критическая последовательность.</li>
+<li><strong>Ошибка внутри критической секции имеет другую цену.</strong> Если возникает риск незажурналированного общего изменения, PostgreSQL может предпочесть <code>PANIC</code> и последующее восстановление продолжению работы с опасным состоянием.</li>
+</ol>
+<h2 id="072-073">Что остается для следующих лекций 07.2 и 07.3<a class="headerlink" href="#072-073" title="Permanent link">¶</a></h2>
+<ul>
+<li><strong>07.2 Durability &amp; Storage Internals</strong> ответит, что происходит ниже системного вызова синхронизации и как обнаруживаются повреждения данных. Здесь мы сознательно остановились на внутреннем WAL-конвейере.</li>
+<li><strong>07.3 Checkpoint &amp; Crash Recovery Internals</strong> подробно разберет <code>pg_control</code>, выбор начального LSN восстановления, стоимость writeback и ускорение REDO. Здесь мы рассмотрели только механизм <strong>чтения конкретной WAL-записи и вызова ее обработчика</strong>, поскольку без него невозможно понять роль resource managers.</li>
+</ul>
+<h2 id="_2">Куда можно копнуть еще глубже<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Отдельный следующий слой — <strong><code>WALInsertLock</code> и memory ordering при многопроцессной публикации WAL-страниц</strong>: он закроет вопрос, почему другой процесс видит полностью скопированные байты до продвижения границы готового WAL и как цена cache coherence влияет на вставку под высокой конкуренцией. Это полезно непосредственно для темы 14, но требует анализа низкоуровневой синхронизации и выходит за пределы обязательной лекции 07.1.</p>
+<hr/>
+<h1 id="_3">Источники и статус точности<a class="headerlink" href="#_3" title="Permanent link">¶</a></h1>
+<ol>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/README">PostgreSQL 18 — <code>src/backend/access/transam/README</code></a>: основной протокол WAL-регистрируемого изменения страницы, критические секции, конструирование WAL и промежуточные состояния B-tree.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xloginsert.c">PostgreSQL 18 — <code>xloginsert.c</code></a>: <code>XLogBeginInsert</code>, регистрация блоков и данных, сборка, перепроверка предпосылок full-page images, <code>XLogInsert</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlog.c">PostgreSQL 18 — <code>xlog.c</code></a>: резервирование и вставка, <code>WALInsertLocks</code>, ожидание завершения вставок, <code>XLogWrite</code>, <code>XLogFlush</code>, сегменты.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/access/xlog_internal.h">PostgreSQL 18 — <code>xlog_internal.h</code></a>: WAL page headers, long headers, continuation-флаги и преобразование адресов.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/access/xlogrecord.h">PostgreSQL 18 — <code>xlogrecord.h</code></a>: <code>XLogRecord</code>, <code>xl_rmid</code>, <code>xl_info</code>, <code>xl_prev</code>, CRC и block references.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/access/rmgrlist.h">PostgreSQL 18 — <code>rmgrlist.h</code></a>, <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/rmgr.c"><code>rmgr.c</code></a>: таблица resource managers и их функции.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlogreader.c">PostgreSQL 18 — <code>xlogreader.c</code></a>, <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlogrecovery.c"><code>xlogrecovery.c</code></a>: чтение, валидация и применение WAL.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/error/elog.c">PostgreSQL 18 — <code>elog.c</code></a>, <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/miscadmin.h"><code>miscadmin.h</code></a>: повышение ошибок в критической секции до <code>PANIC</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-configuration.html">Документация PostgreSQL 18 — WAL Configuration</a>: WAL buffers, WAL writer, <code>XLogWrite</code>, <code>wal_sync_method</code>, группировка записи.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-wal.html">Документация PostgreSQL 18 — Write Ahead Log</a>: <code>wal_buffers</code>, <code>wal_recycle</code>, <code>wal_init_zero</code>, размеры и параметры.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-internals.html">Документация PostgreSQL 18 — WAL Internals</a>: сегменты, WAL pages и физическая организация.</li>
+<li><a href="https://www.postgresql.org/docs/18/pgwaldump.html">Документация PostgreSQL 18 — pg_waldump</a>: исследование записей и resource managers.</li>
+<li><a href="https://www.postgresql.org/docs/18/monitoring-stats.html">Документация PostgreSQL 18 — Monitoring Statistics</a>: <code>pg_stat_wal</code>, <code>pg_stat_io</code>, статистика WAL.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища" class="md-footer__link md-footer__link--prev" href="../6.3%20-%20Hash%20Storage/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 7.2. PostgreSQL durability &amp;amp; storage internals" class="md-footer__link md-footer__link--next" href="../7.2%20-%20Durability%20storage/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                7.2. PostgreSQL durability &amp; storage internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

@@ -4,11 +4,11 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <link href="https://lirikonov.github.io/ssu/lectures/Additional/6.1%20-%20Join%20Planner/" rel="canonical"/>
-<link href="../5.3%20-%20PostgreSQL%20Planner/" rel="prev"/>
+<link href="../5.3%20-%20Planner/" rel="prev"/>
 <link href="../6.2%20-%20Join%20Executor/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN - Go</title>
+<title>6.1. PostgreSQL: внутреннее устройство планировщика JOIN - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#061-postgresql-join">
+<a class="md-skip" href="#61-postgresql-join">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+              6.1. PostgreSQL: внутреннее устройство планировщика JOIN
             
           </span>
 </div>
@@ -197,7 +197,7 @@
 <span class="md-ellipsis">
     
   
-    5. PostgreSQL. EXPLAIN и EXPLAIN ANALYZE
+    5. PostgreSQL: Explain
   
 
     
@@ -209,7 +209,43 @@
 <span class="md-ellipsis">
     
   
-    Лекция 6. PostgreSQL: алгоритмы соединения таблиц
+    PostgreSQL: joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20PostgreSQL%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
   
 
     
@@ -217,8 +253,8 @@
 </a>
 </li>
 <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_7" type="checkbox"/>
-<label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
 <span class="md-ellipsis">
     
   
@@ -229,8 +265,8 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="true" aria-labelledby="__nav_2_7_label" class="md-nav" data-md-level="2">
-<label class="md-nav__title" for="__nav_2_7">
+<nav aria-expanded="true" aria-labelledby="__nav_2_10_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_10">
 <span class="md-nav__icon md-icon"></span>
             
   
@@ -252,7 +288,7 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../2.1%20-%20Go%20Runtime%20deep/">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
 <span class="md-ellipsis">
     
   
@@ -396,11 +432,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../5.1%20-%20PostgreSQL%20Cardinality/">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
 <span class="md-ellipsis">
     
   
-    05.1. Внутреннее устройство планировщика PostgreSQL
+    5.1. Внутреннее устройство планировщика PostgreSQL
   
 
     
@@ -408,11 +444,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../5.2%20-%20PostgreSQL%20Cost%20model/">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
 <span class="md-ellipsis">
     
   
-    05.2. PostgreSQL Cost Model
+    5.2. PostgreSQL cost model
   
 
     
@@ -420,11 +456,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../5.3%20-%20PostgreSQL%20Planner/">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
 <span class="md-ellipsis">
     
   
-    05.1. PostgreSQL Planner Internals
+    5.3. PostgreSQL planner internals
   
 
     
@@ -437,7 +473,7 @@
 <span class="md-ellipsis">
     
   
-    Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
   
 
     
@@ -448,7 +484,7 @@
 <span class="md-ellipsis">
     
   
-    Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
   
 
     
@@ -477,7 +513,7 @@
 <span class="md-ellipsis">
     
   
-    06.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
   
 
     
@@ -489,7 +525,115 @@
 <span class="md-ellipsis">
     
   
-    06.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    09.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    09.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.3. PostgreSQL Connection Pooling Internals
   
 
     
@@ -576,23 +720,11 @@
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/1%20-%20Production%20Backend%20Go/">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
 <span class="md-ellipsis">
     
   
-    1 - Production Backend Go
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/1.1%20-%20CPU%20Architecture/">
-<span class="md-ellipsis">
-    
-  
-    1.1 - CPU Architecture
+    1 - Production backend Go
   
 
     
@@ -612,83 +744,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/2.1%20-%20CAS%20Cache%20Coherence/">
-<span class="md-ellipsis">
-    
-  
-    2.1 - CAS Cache Coherence
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
 <a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
 <span class="md-ellipsis">
     
   
     3 - Go Memory pprof
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/3.1%20-%20GC%20%2B%20memory%20internals/">
-<span class="md-ellipsis">
-    
-  
-    3.1 - GC + memory internals
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/3.2%20-%20OS%20Virtual%20Memory/">
-<span class="md-ellipsis">
-    
-  
-    3.2 - OS Virtual Memory
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/3.3%20-%20Linux%20memory%20reclaim/">
-<span class="md-ellipsis">
-    
-  
-    3.3 - Linux memory reclaim
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
-<span class="md-ellipsis">
-    
-  
-    3.4 - Windows, macOS - Memory Pressure
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/3.5%20-%20Linux%20storage%20path/">
-<span class="md-ellipsis">
-    
-  
-    3.5 - Linux storage path
   
 
     
@@ -708,119 +768,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.1%20-%20Go%20structures%20deeper/">
-<span class="md-ellipsis">
-    
-  
-    4.1 - Go structures deeper
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
-<span class="md-ellipsis">
-    
-  
-    4.2 - Channels, select and context deeper
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.3%20-%20Go%20compiler%20under%20the%20hood/">
-<span class="md-ellipsis">
-    
-  
-    4.3 - Go compiler under the hood
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
-<span class="md-ellipsis">
-    
-  
-    4.4 - Go ABI, generics codegen and linker
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
-<span class="md-ellipsis">
-    
-  
-    4.5 - Executable, OS loader and dynamic linking
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/4.6%20-%20Go%20runtime%20startup%20deeper/">
-<span class="md-ellipsis">
-    
-  
-    4.6 - Go runtime startup deeper
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
 <a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
 <span class="md-ellipsis">
     
   
     5 - PostgreSQL Explain
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.1%20-%20Cardinality/">
-<span class="md-ellipsis">
-    
-  
-    5.1 - Cardinality
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.2%20-%20Cost%20model/">
-<span class="md-ellipsis">
-    
-  
-    5.2 - Cost model
-  
-
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/5.3%20-%20Path%20selection%20limit/">
-<span class="md-ellipsis">
-    
-  
-    5.3 - Path selection limit
   
 
     
@@ -840,11 +792,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/6.1%20-%20Join%20planner/">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
 <span class="md-ellipsis">
     
   
-    6.1 - Join planner
+    7 - WAL durability
   
 
     
@@ -852,11 +804,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/6.2%20-%20Join%20executor/">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
 <span class="md-ellipsis">
     
   
-    6.2 - Join executor
+    8 - Diagnostics locks
   
 
     
@@ -864,11 +816,11 @@
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../../../slides/6.3%20-%20Hash%20storage/">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
 <span class="md-ellipsis">
     
   
-    6.3 - Hash storage
+    9 - Migrations backup pooling
   
 
     
@@ -908,7 +860,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="061-postgresql-join">Лекция 06.1. PostgreSQL: внутреннее устройство планировщика JOIN<a class="headerlink" href="#061-postgresql-join" title="Permanent link">¶</a></h1>
+<h1 id="61-postgresql-join">6.1. PostgreSQL: внутреннее устройство планировщика JOIN<a class="headerlink" href="#61-postgresql-join" title="Permanent link">¶</a></h1>
 <blockquote>
 <p><strong>Углубленная теоретическая лекция.</strong> Ориентир: PostgreSQL 18, реализация <code>REL_18_STABLE</code>. Продолжение лекции №6 «Алгоритмы соединения таблиц» и блока 05.1 о статистике и модели стоимости. Здесь разбираем <strong>планировщик</strong>: оценку числа строк после соединения, стоимость трех физических алгоритмов, поиск порядка соединений, допустимые перестановки и генетический оптимизатор GEQO.</p>
 <p><strong>Граница:</strong> без лабораторных работ; SQL-фрагменты и числа используются для теоретического доказательства механизмов. Внутреннее устройство структур хеш-таблицы, повторные чтения на уровне исполнителя и параллельная реализация остаются для 06.2. WAL, запись транзакций и долговечность не рассматриваются.</p>
@@ -1817,7 +1769,6 @@ Executor -&gt; EXPLAIN ANALYZE
 <p>Следующий полезный уровень — <strong>внутренние структуры исполнителя соединений</strong>. Устройство хеш-корзин, перераспределение партий, состояния Merge Join, параметризованные пересканирования и кеш <code>Memoize</code> закроют вопрос, <em>почему</em> уже выбранный план фактически потребляет столько памяти, CPU и временного ввода-вывода. Это предусмотрено для 06.2 и не требует перехода к WAL.</p>
 <hr/>
 <h1 id="_5">Источники и статус математических моделей<a class="headerlink" href="#_5" title="Permanent link">¶</a></h1>
-<p><strong>Версия:</strong> PostgreSQL 18, ветка исходников <code>REL_18_STABLE</code>. Реализационные имена структур и функций могут меняться в будущих версиях.</p>
 <ol>
 <li><a href="https://www.postgresql.org/docs/18/row-estimation-examples.html">PostgreSQL 18 — Row Estimation Examples</a>. Обоснование <code>eqjoinsel</code>, оценок строк, MCV и <code>n_distinct</code> при соединении.</li>
 <li><a href="https://www.postgresql.org/docs/18/planner-stats.html">PostgreSQL 18 — Statistics Used by the Planner</a>. Статистика отдельных таблиц и ее ограничения.</li>
@@ -1829,7 +1780,6 @@ Executor -&gt; EXPLAIN ANALYZE
 <li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">PostgreSQL 18 — Query Planning Settings</a>. <code>join_collapse_limit</code>, <code>from_collapse_limit</code> и параметры GEQO.</li>
 <li><a href="https://www.postgresql.org/docs/18/geqo-pg-intro.html">PostgreSQL 18 — GEQO</a>. Кодирование порядков, популяция, скрещивание и повторяемость <code>geqo_seed</code>.</li>
 </ol>
-<p><strong>Отделяем уровни строгости.</strong> Формулы произведения мощностей, вероятностей MCV и учебные таблицы стоимости — оговоренные <strong>модели для понимания</strong>. Названия <code>eqjoinsel</code>, <code>get_foreign_key_join_selectivity</code>, <code>initial_cost_*</code>, <code>final_cost_*</code>, <code>join_is_legal</code> и параметры GEQO — реальные элементы PostgreSQL 18. Числа в искусственных сценариях не являются снятым с работающего сервера выводом <code>EXPLAIN</code>.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -1841,7 +1791,7 @@ Executor -&gt; EXPLAIN ANALYZE
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 05.1. PostgreSQL Planner Internals" class="md-footer__link md-footer__link--prev" href="../5.3%20-%20PostgreSQL%20Planner/">
+<a aria-label="Назад: 5.3. PostgreSQL planner internals" class="md-footer__link md-footer__link--prev" href="../5.3%20-%20Planner/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -1850,17 +1800,17 @@ Executor -&gt; EXPLAIN ANALYZE
                 Назад
               </span>
 <div class="md-ellipsis">
-                05.1. PostgreSQL Planner Internals
+                5.3. PostgreSQL planner internals
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 06.2. PostgreSQL — внутреннее устройство исполнителя JOIN" class="md-footer__link md-footer__link--next" href="../6.2%20-%20Join%20Executor/">
+<a aria-label="Вперед: 6.2. PostgreSQL — внутреннее устройство исполнителя JOIN" class="md-footer__link md-footer__link--next" href="../6.2%20-%20Join%20Executor/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                06.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+                6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
               </div>
 </div>
 <div class="md-footer__button md-icon">

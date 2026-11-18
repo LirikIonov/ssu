@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/7.3%20-%20Checkpoint%20crash%20recovery/" rel="canonical"/>
+<link href="../7.2%20-%20Durability%20storage/" rel="prev"/>
+<link href="../8.1%20-%20Monitoring%20wait%20events/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>7.3. PostgreSQL checkpoint &amp; crash recovery internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#73-postgresql-checkpoint-crash-recovery-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              7.3. PostgreSQL checkpoint &amp; crash recovery internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL: joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20PostgreSQL%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_10_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_10">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-wal">
+<span class="md-ellipsis">
+      
+        0. Вводное расследование: WAL цел, а сервер все равно должен знать, с чего начать
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    09.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    09.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-wal">
+<span class="md-ellipsis">
+      
+        0. Вводное расследование: WAL цел, а сервер все равно должен знать, с чего начать
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="73-postgresql-checkpoint-crash-recovery-internals">7.3. PostgreSQL checkpoint &amp; crash recovery internals<a class="headerlink" href="#73-postgresql-checkpoint-crash-recovery-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная лекция магистратуры · PostgreSQL 18 · ветка исходников <code>REL_18_STABLE</code> · темы 18 и 22 утвержденной программы блока 7.</strong></p>
+<p>Продолжение лекций 07 «WAL и Durability», 07.1 «WAL Internals», 07.2 «Durability &amp; Storage Internals». Предполагается, что WAL, <code>page LSN</code>, <code>XLogInsert</code>, <code>rmgr</code>, <code>fsync</code>, CRC и FPI уже рассмотрены. Здесь собираем механизм запуска после аварии и определяем цену checkpoint I/O и recovery. Репликация, резервное копирование, миграции и блокировки из последующих блоков остаются за границей лекции.</p>
+<p><strong>Важная особенность реализации PostgreSQL 18:</strong> у обычного <em>online checkpoint</em> две специальные WAL-записи: <code>XLOG_CHECKPOINT_REDO</code> в начале и <code>XLOG_CHECKPOINT_ONLINE</code> после сброса данных. У shutdown checkpoint — одна запись <code>XLOG_CHECKPOINT_SHUTDOWN</code>. Этот механизм прямо следует из <code>src/backend/access/transam/xlog.c</code> в <code>REL_18_STABLE</code>. Две записи нельзя сливать в одну при объяснении того, откуда берется <code>redo LSN</code>.</p>
+<p><strong>Как читать примеры.</strong> Численные LSN, тайминги и объемы в схемах учебные. Точный текст логов, имена столбцов и значения параметров следует проверять на PostgreSQL 18. Административные команды и сценарии остановки выполняются только на отдельном тестовом экземпляре; повреждать работающую базу для эксперимента нельзя.</p>
+</blockquote>
+<hr/>
+<h2 id="0-wal">0. Вводное расследование: WAL цел, а сервер все равно должен знать, с чего начать<a class="headerlink" href="#0-wal" title="Permanent link">¶</a></h2>
+<p>Представим, что PostgreSQL выполнял тысячи транзакций в секунду. Через несколько минут работы машина внезапно отключилась. После восстановления питания СУБД находит десятки WAL-сегментов и тысячи страниц таблиц, часть которых была записана до сбоя, а часть осталась старой.</p>
+<p>Теперь зададим неприятный вопрос: <strong>какую WAL-запись читать первой?</strong></p>
+<p>Простое решение — открыть WAL с самого начала истории базы и повторить все изменения. Если база существует пять лет, такой startup превратился бы в весьма специфическую археологию. Более того, древние сегменты WAL PostgreSQL давно переработал или удалил. Получается, нужен достоверный рубеж, до которого изменения уже материализованы в файлах данных.</p>
+<p>В лекции 07 мы назвали его checkpoint. Но само слово ничего не объясняет. Где PostgreSQL хранит адрес последнего завершенного checkpoint? А если процесс упал посередине записи его страниц? А если контрольная точка сама лежит в WAL, где искать ее адрес после аварии?</p>
+<p>Появляются три самостоятельные сущности:</p>
+<ul>
+<li><strong><code>global/pg_control</code></strong> — небольшие контрольные метаданные всего кластера, в частности адрес последней успешно зарегистрированной checkpoint-записи.</li>
+<li><strong>Checkpoint record</strong> — WAL-запись, описывающая завершенную контрольную точку и содержащая, среди прочего, более раннюю точку начала REDO.</li>
+<li><strong><code>redo LSN</code></strong> — позиция, с которой нужно повторять WAL, чтобы довести файлы данных до согласованного состояния.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>Старые изменения                    Новые изменения
+      │                                   │
+      ▼                                   ▼
+──────┬────────────┬──────────────────────┬────────────► WAL
+     R            ...                    C         E
+     ▲                                   ▲         ▲
+     │                                   │         │
+  redo LSN                       checkpoint     WAL на
+                                 record LSN   момент сбоя
+
+pg_control.checkPoint ────────────────────┘
+checkpoint.redo ──────► R
+
+При обычном online checkpoint: R &lt; C &lt;= E.
+Все показанные адреса условны.
+</code></pre></div>
+<p><strong>Самая важная ловушка:</strong> <code>checkpoint LSN</code> и <code>redo LSN</code> в общем случае различаются. Иначе наш алгоритм потеряет WAL, записанный <strong>пока</strong> checkpointer сохранял грязные страницы.</p>
+<p>Эта лекция отвечает на две группы вопросов:</p>
+<ol>
+<li><strong>Тема 18:</strong> где живет контрольная информация, почему мы ей доверяем, как стартовый процесс выбирает checkpoint и почему иногда отказывается запускаться.</li>
+<li><strong>Тема 22:</strong> какими физическими операциями checkpointer делает контрольную точку надежной, почему они тормозят обычные запросы и как prefetch ускоряет последующее восстановление.</li>
+</ol>
+<hr/>
+<h1 id="18-pg_control">18. <code>pg_control</code> и поиск точки начала восстановления<a class="headerlink" href="#18-pg_control" title="Permanent link">¶</a></h1>
+<h2 id="181-pg_control-wal">18.1. Зачем нужен отдельный <code>pg_control</code>, если уже существует WAL?<a class="headerlink" href="#181-pg_control-wal" title="Permanent link">¶</a></h2>
+<p>Вспомним: WAL — последовательность записей, разделенная на сегменты. Чтобы открыть нужную запись, сначала требуется <strong>знать ее позицию и timeline</strong>. Timeline — идентификатор ветви истории WAL, позволяющий отличать разные линии развития экземпляра после восстановления или переключения роли; детальная репликация здесь не нужна.</p>
+<p>Может быть, PostgreSQL найдет checkpoint, последовательно перебирая каталог <code>pg_wal</code>? Для основного алгоритма старта это плохая идея: сканирование дорожает с увеличением числа сегментов, не все старые сегменты обязаны присутствовать, а порядок файловых имен сам по себе не подтверждает, что конкретный checkpoint завершился.</p>
+<p>Поэтому при успешном checkpoint PostgreSQL обновляет небольшой файл <strong><code>$PGDATA/global/pg_control</code></strong>. <code>$PGDATA</code> — каталог данных кластера. <code>pg_control</code> относится ко всему экземпляру, а не к конкретной базе данных.</p>
+<p>Он хранит не строки пользовательских таблиц и не SQL-транзакции, а ключевые метаданные, необходимые при запуске: состояние экземпляра, идентификатор системы, параметры физического формата, адрес checkpoint-записи, копию данных checkpoint и сведения о recovery.</p>
+<div class="highlight"><pre><span></span><code>$PGDATA/
+  global/
+    pg_control            ← компактный указатель на последнюю
+                            подтвержденную контрольную точку
+  pg_wal/
+    000000010000...       ← последовательность физических изменений
+  base/
+    ...                   ← файлы пользовательских отношений
+</code></pre></div>
+<p>Новая проблема: <strong>если <code>pg_control</code> станет недостоверным, как понять, где начинать?</strong> К этому вернемся после устройства файла.</p>
+<h2 id="182-8192-512">18.2. Физический размер: файл 8192 байта, рабочие данные — не более 512<a class="headerlink" href="#182-8192-512" title="Permanent link">¶</a></h2>
+<p>Здесь полезна неожиданная деталь из <code>src/include/catalog/pg_control.h</code> PostgreSQL 18:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#define PG_CONTROL_MAX_SAFE_SIZE 512</span>
+<span class="cp">#define PG_CONTROL_FILE_SIZE     8192</span>
+</code></pre></div>
+<p>Полный <code>pg_control</code> физически занимает 8192 байта, но сама структура <code>ControlFileData</code> ограничена <strong>512 байтами</strong> при сборке — это проверяется статическим утверждением. Зачем оставлять «пустой» хвост?</p>
+<p>Две причины. Первая — файл имеет постоянный физический размер даже при изменении формата структуры. Вторая — разработчики стремятся укладывать <strong>активные контрольные данные в один типичный 512-байтовый сектор</strong>, чтобы снизить риск частичной записи критической структуры. Это инженерная ставка на атомарность подходящих физических записей, а не универсальная гарантия любого виртуального диска.</p>
+<p>Условия атомарности и корректность <code>fsync</code> зависят от нижележащих слоев, что мы уже разобрали в 07.2. Если файловая система или накопитель нарушает контракт, одного компактного файла недостаточно.</p>
+<h2 id="183-controlfiledata">18.3. <code>ControlFileData</code>: какие поля нужны восстановлению<a class="headerlink" href="#183-controlfiledata" title="Permanent link">¶</a></h2>
+<p>Ветка <code>REL_18_STABLE</code>, файл <code>src/include/catalog/pg_control.h</code>. Ниже <strong>сокращенная учебная схема</strong>, не предназначенная для компиляции и намеренно опускающая многие поля:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* СХЕМА, не полное определение структуры */</span>
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">ControlFileData</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">uint64</span><span class="w"> </span><span class="n">system_identifier</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint32</span><span class="w"> </span><span class="n">pg_control_version</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint32</span><span class="w"> </span><span class="n">catalog_version_no</span><span class="p">;</span>
+<span class="w">    </span><span class="n">DBState</span><span class="w"> </span><span class="n">state</span><span class="p">;</span>
+<span class="w">    </span><span class="n">XLogRecPtr</span><span class="w"> </span><span class="n">checkPoint</span><span class="p">;</span>
+<span class="w">    </span><span class="n">CheckPoint</span><span class="w"> </span><span class="n">checkPointCopy</span><span class="p">;</span>
+<span class="w">    </span><span class="n">XLogRecPtr</span><span class="w"> </span><span class="n">minRecoveryPoint</span><span class="p">;</span>
+<span class="w">    </span><span class="cm">/* ... параметры формата и состояния ... */</span>
+<span class="w">    </span><span class="n">pg_crc32c</span><span class="w"> </span><span class="n">crc</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">ControlFileData</span><span class="p">;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Значение для старта</th>
+<th>Что произойдет при ошибочной интерпретации</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>system_identifier</code></td>
+<td>Уникальная идентичность кластера; связь с принадлежащим ему WAL</td>
+<td>Можно смешать несовместимые файлы</td>
+</tr>
+<tr>
+<td><code>pg_control_version</code>, <code>catalog_version_no</code></td>
+<td>Совместимость формата метаданных и каталога с исполняемым сервером</td>
+<td>Сервер должен отклонить неподходящую сборку</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>Какая стадия жизненного цикла была записана</td>
+<td>Нельзя объявлять crash по одному произвольному логу</td>
+</tr>
+<tr>
+<td><code>checkPoint</code></td>
+<td><strong>Адрес checkpoint record в WAL</strong></td>
+<td>По неверному адресу не найти завершающую запись</td>
+</tr>
+<tr>
+<td><code>checkPointCopy</code></td>
+<td>Сохраненная копия тела последнего checkpoint record</td>
+<td>Здесь есть <code>redo</code>, timeline и другие параметры</td>
+</tr>
+<tr>
+<td><code>minRecoveryPoint</code></td>
+<td>Нижняя граница достижимой согласованности для некоторых режимов archive/standby recovery</td>
+<td>Нельзя объявить восстановленное состояние слишком рано</td>
+</tr>
+<tr>
+<td><code>crc</code></td>
+<td>CRC-32C контрольной структуры</td>
+<td>Можно выявить значительную часть повреждений <code>pg_control</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>minRecoveryPoint</code> не следует принимать за обычный <code>redo LSN</code>. В типичном <strong>локальном crash recovery</strong> PostgreSQL повторяет доступный WAL до его конца; <code>minRecoveryPoint</code> особенно значим для archive recovery и режима standby.</p>
+<h3 id="pg_control">Как контролируется целостность <code>pg_control</code><a class="headerlink" href="#pg_control" title="Permanent link">¶</a></h3>
+<p>При чтении PostgreSQL проверяет версию и вычисляет CRC-32C по структуре <strong>до поля <code>crc</code></strong>. Если сохраненная и вычисленная суммы не совпадают, возникает ошибка вида:</p>
+<div class="highlight"><pre><span></span><code>incorrect checksum in control file
+</code></pre></div>
+<p>CRC отвечает на вопрос «похоже ли содержимое на исходные байты?», а не «можно ли безопасно восстановить контрольный файл из воздуха?». Обнаружение повреждения и его исправление остаются разными задачами.</p>
+<p>Отдельная тонкость: CRC <code>pg_control</code> — самостоятельная проверка. Ее нельзя подменять WAL CRC-32C или checksum пользовательской страницы, которые обсуждались в 07.2.</p>
+<h2 id="184-dbstate">18.4. <code>DBState</code>: что означает состояние экземпляра<a class="headerlink" href="#184-dbstate" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 тип <code>DBState</code> содержит состояния (из исходника):</p>
+<table>
+<thead>
+<tr>
+<th>Значение</th>
+<th>Смысл</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DB_STARTUP</code></td>
+<td>Стартовая/инициализационная стадия</td>
+</tr>
+<tr>
+<td><code>DB_IN_PRODUCTION</code></td>
+<td>Кластер находился в обычной рабочей фазе</td>
+</tr>
+<tr>
+<td><code>DB_SHUTDOWNING</code></td>
+<td>Выполняется корректная остановка</td>
+</tr>
+<tr>
+<td><code>DB_SHUTDOWNED</code></td>
+<td>Записано состояние успешной штатной остановки</td>
+</tr>
+<tr>
+<td><code>DB_IN_CRASH_RECOVERY</code></td>
+<td>Идет восстановление после аварийной остановки</td>
+</tr>
+<tr>
+<td><code>DB_IN_ARCHIVE_RECOVERY</code></td>
+<td>Выполняется восстановление с привлечением архивной истории</td>
+</tr>
+<tr>
+<td><code>DB_SHUTDOWNED_IN_RECOVERY</code></td>
+<td>Сервер корректно остановлен, находясь в recovery</td>
+</tr>
+</tbody>
+</table>
+<p>Нельзя прочитать <code>DB_IN_PRODUCTION</code> и сделать вывод, что таблицы повреждены. Во время нормальной работы это ожидаемое состояние. <strong>Если сервер после сбоя видит, что экземпляр не был корректно остановлен, ему требуется crash recovery.</strong></p>
+<p>Почему маркер полезен? Он позволяет отличить штатную остановку, при которой зафиксирована специальная завершающая контрольная точка, от прерванной работы с недосброшенными страницами.</p>
+<p>И почему одного маркера недостаточно? Он сам находится в файле и должен быть связан с реально существующей WAL-записью. Именно поэтому следующий этап — <strong>прочитать checkpoint record и проверить его содержимое</strong>.</p>
+<h2 id="185-checkpoint">18.5. Структура <code>CheckPoint</code>: указатель внутри указателя<a class="headerlink" href="#185-checkpoint" title="Permanent link">¶</a></h2>
+<p>Сокращенная учебная схема по <code>pg_control.h</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* СХЕМА; в исходнике полей больше */</span>
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CheckPoint</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">XLogRecPtr</span><span class="w"> </span><span class="n">redo</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TimeLineID</span><span class="w"> </span><span class="n">ThisTimeLineID</span><span class="p">;</span>
+<span class="w">    </span><span class="n">TimeLineID</span><span class="w"> </span><span class="n">PrevTimeLineID</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">fullPageWrites</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">wal_level</span><span class="p">;</span>
+<span class="w">    </span><span class="cm">/* nextXid, nextOid, MultiXact, oldestXid, time ... */</span>
+<span class="p">}</span><span class="w"> </span><span class="n">CheckPoint</span><span class="p">;</span>
+</code></pre></div>
+<p><code>checkPoint</code> в <code>ControlFileData</code> — место, где хранится checkpoint-запись. А <code>checkPointCopy.redo</code> — <strong>адрес REDO</strong>. Эта вложенность закономерна: при перезапуске нам нужно сначала найти <strong>подтверждение завершения checkpoint</strong>, а уже из него узнать, откуда безопасно читать историю изменений.</p>
+<p>Предположим, учебный вывод показывает:</p>
+<div class="highlight"><pre><span></span><code>Latest checkpoint location:            0/6800000
+Latest checkpoint's REDO location:     0/5000000
+</code></pre></div>
+<p>Разница — <code>0x1800000</code>, то есть 24 МиБ WAL. Это <strong>не ошибка формата</strong>. Пока checkpoint работал, PostgreSQL продолжал обслуживать запросы и генерировать WAL. Переменная <code>redo</code> описывает начало диапазона, который нужно гарантированно воспроизвести.</p>
+<p>Если начать с <code>0/6800000</code>, мы пропустим часть изменений, произошедших между <code>R</code> и <code>C</code>. Некоторые из них могли относиться к страницам, которые checkpoint не успел записать в нужной версии до момента своего завершения.</p>
+<h2 id="186-online-checkpoint-postgresql-18-wal-">18.6. Online checkpoint в PostgreSQL 18: зачем две WAL-записи<a class="headerlink" href="#186-online-checkpoint-postgresql-18-wal-" title="Permanent link">¶</a></h2>
+<p>Теперь конкретный механизм. Рассмотрим <strong>обычный online checkpoint</strong> — тот, который проходит параллельно обработке пользовательских транзакций.</p>
+<p>Раньше мы говорили «checkpoint сначала фиксирует рубеж, затем сохраняет страницы, после чего помечается завершенным». PostgreSQL 18 позволяет увидеть это буквально двумя отдельными типами WAL-записей:</p>
+<ol>
+<li><strong><code>XLOG_CHECKPOINT_REDO</code></strong> — специальная запись в начале checkpoint. Ее начальная позиция становится <code>checkPoint.redo</code>.</li>
+<li><strong><code>XLOG_CHECKPOINT_ONLINE</code></strong> — завершающая запись, записываемая после переноса необходимых данных в устойчивое состояние. Она содержит структуру <code>CheckPoint</code> с адресом раннего REDO.</li>
+</ol>
+<p>Между ними проходят другие WAL-записи, потому что пользовательские транзакции продолжают работать.</p>
+<div class="highlight"><pre><span></span><code>ВРЕМЯ ───────────────────────────────────────────────────────►
+
+CHECKPOINTER
+  определить redo R  ── скан/сортировка dirty ── writeback ── fsync ── C
+         │                  │                       │             │
+         │                  └───── страницы ────────┘             │
+         ▼                                                     ▼
+WAL:   [XLOG_CHECKPOINT_REDO]  [user WAL] [user WAL]  [XLOG_CHECKPOINT_ONLINE]
+         R                                                     C
+
+PG_CONTROL:
+  до завершения C → старый checkpoint;
+  после надежной записи C → checkPoint = C, checkPointCopy.redo = R.
+</code></pre></div>
+<p>Ветка <code>REL_18_STABLE/src/backend/access/transam/xlog.c</code> прямо описывает эту схему в комментарии к <code>CreateCheckPoint()</code>. Для завершения вызывается <code>XLogFlush()</code> checkpoint-записи и только затем обновляется <code>pg_control</code>.</p>
+<p>Здесь важно <strong>порядковое ограничение</strong>:</p>
+<div class="highlight"><pre><span></span><code>Нужные data pages гарантированно синхронизированы
+                    ↓
+Завершающий checkpoint record внесен в WAL и flush завершился
+                    ↓
+pg_control указывает на checkpoint record
+</code></pre></div>
+<p>Если система отключится <strong>до последнего шага</strong>, после рестарта будет доступен старый, завершенный checkpoint. Он потребует более длинного REDO, но остается корректной отправной точкой. Если бы сервер обновил <code>pg_control</code> в начале работы, он мог бы ссылаться на checkpoint, страницы которого еще не сохранены. Это нарушило бы корректность восстановления.</p>
+<h2 id="187-checkpoint">18.7. Три сценария аварии посреди checkpoint<a class="headerlink" href="#187-checkpoint" title="Permanent link">¶</a></h2>
+<p>Рассмотрим значения <code>R_old</code>, <code>C_old</code> и создание нового checkpoint с <code>R_new</code>, <code>C_new</code>.</p>
+<p><strong>Сценарий А: упали после появления <code>XLOG_CHECKPOINT_REDO</code>, но до завершения записи данных.</strong> Новая контрольная точка не завершена. <code>pg_control</code> все еще ссылается на <code>C_old</code>; PostgreSQL стартует от <code>R_old</code>, поэтому незавершенная контрольная точка не становится ложным подтверждением надежности.</p>
+<p><strong>Сценарий Б: страницы записаны и синхронизированы, завершающая запись еще не зафиксирована.</strong> Снова действителен старый checkpoint. Работа потенциально будет повторена дольше, чем могла бы, но это цена надежной последовательности операций.</p>
+<p><strong>Сценарий В: <code>XLOG_CHECKPOINT_ONLINE</code> долговечна и <code>pg_control</code> успешно обновлен.</strong> Теперь можно стартовать от <code>R_new</code>. Часть изменений на страницах уже сохранена, поэтому REDO проверяет page LSN и пропускает физически выполненные операции.</p>
+<table>
+<thead>
+<tr>
+<th>Точка отказа</th>
+<th>Указатель <code>pg_control</code></th>
+<th>Начало повторения</th>
+<th>Почему корректно</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>До нового checkpoint</td>
+<td><code>C_old</code></td>
+<td><code>R_old</code></td>
+<td>Старая точка завершена</td>
+</tr>
+<tr>
+<td>Во время writeback</td>
+<td><code>C_old</code></td>
+<td><code>R_old</code></td>
+<td>Новая точка еще не подтверждена</td>
+</tr>
+<tr>
+<td>После sync страниц, до завершения</td>
+<td><code>C_old</code></td>
+<td><code>R_old</code></td>
+<td>Возможна лишняя работа, потери обязательной истории нет</td>
+</tr>
+<tr>
+<td>После успешного обновления <code>pg_control</code></td>
+<td><code>C_new</code></td>
+<td><code>R_new</code></td>
+<td>Новая точка удовлетворяет инвариантам</td>
+</tr>
+</tbody>
+</table>
+<p>Это учебная последовательность при корректном storage-контракте. Оборудование, ложно подтверждающее сохранение данных, может нарушить любые программные рассуждения; этот предел разобран в 07.2.</p>
+<h2 id="188-shutdown-checkpoint">18.8. А при штатном shutdown checkpoint зачем две записи?<a class="headerlink" href="#188-shutdown-checkpoint" title="Permanent link">¶</a></h2>
+<p>При корректной остановке PostgreSQL прекращает обычную запись WAL со стороны пользовательских backend-процессов. Следовательно, пока создается завершающий checkpoint, параллельных транзакций, вставляющих новые записи, нет.</p>
+<p>Для этого случая <code>CreateCheckPoint()</code> формирует <strong><code>XLOG_CHECKPOINT_SHUTDOWN</code></strong>. Это одновременно завершающая checkpoint-запись и ее REDO-рубеж. В проверенном коде PostgreSQL 18 есть инвариант:</p>
+<div class="highlight"><pre><span></span><code>shutdown checkpoint:
+    checkpoint.redo == начало XLOG_CHECKPOINT_SHUTDOWN
+</code></pre></div>
+<p>Поэтому на штатной остановке разницы между <code>checkpoint LSN</code> и <code>redo LSN</code> для этой записи нет. Это специфический случай. Объяснять по нему механизм online checkpoint было бы ошибкой.</p>
+<p>При запуске после такого shutdown сервер обычно не вынужден повторять длинную цепочку пользовательских WAL-записей. При этом проверка control file и структуры данных при старте все равно требуется.</p>
+<h2 id="189-pg_control-wal">18.9. Почему нельзя обновить <code>pg_control</code> до долговечного WAL<a class="headerlink" href="#189-pg_control-wal" title="Permanent link">¶</a></h2>
+<p>В лекции 07 уже действовало правило WAL-before-data. Теперь оно проявляется еще на одном уровне: <strong>метаданные, объявляющие безопасный новый рубеж восстановления, нельзя публиковать раньше, чем подготовлена их надежная основа</strong>.</p>
+<p>Представим обратный порядок:</p>
+<div class="highlight"><pre><span></span><code>1. pg_control.checkPoint = C_new
+2. Питание пропало
+3. XLOG_CHECKPOINT_ONLINE еще не сохранена
+</code></pre></div>
+<p>Сервер после рестарта видит адрес контрольной точки, но не может прочитать соответствующую подтверждающую WAL-запись. Старый адрес уже вытеснен. В PostgreSQL 18 автоматический поиск «предыдущего подходящего checkpoint» для этого обычного пути не выполняется; система предпочитает остановиться с ошибкой, чем выбрать сомнительное состояние.</p>
+<p>Реальный порядок другой: после <code>CheckPointGuts()</code> checkpointer вставляет завершающую WAL-запись, вызывает <code>XLogFlush(recptr)</code> и затем обновляет <code>ControlFile-&gt;checkPoint</code> и <code>checkPointCopy</code> через <code>UpdateControlFile()</code>. Обновление контрольного файла также проходит через синхронизацию хранения.</p>
+<p><strong>Цена порядка:</strong> checkpoint может ждать медленного I/O и удерживать необходимость хранить WAL. <strong>Выигрыш:</strong> всегда существует завершенная контрольная точка, на которую можно опереться при нормальном crash recovery.</p>
+<h2 id="1810-commit-checkpoint">18.10. А что если COMMIT попал ровно на границу checkpoint?<a class="headerlink" href="#1810-commit-checkpoint" title="Permanent link">¶</a></h2>
+<p>Здесь простая модель «мы запомним <code>R</code>, а потом когда-нибудь синхронизируем страницы» вновь оказывается недостаточной.</p>
+<p>Дело в том, что изменение страницы, вставка commit-record в WAL и изменение служебного состояния транзакции не обязательно представляют собой одну атомарную операцию во всех структурах PostgreSQL. Во время checkpoint процесс обязан не пропустить такие межструктурные переходы.</p>
+<p>В <code>CreateCheckPoint()</code> PostgreSQL 18 предусмотрены ожидания некоторых backend-процессов, находящихся в особо чувствительных стадиях. В коде используются вызовы:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* ФРАГМЕНТ ИМЕН API, не полный исходник */</span>
+<span class="n">GetVirtualXIDsDelayingChkpt</span><span class="p">(...,</span><span class="w"> </span><span class="n">DELAY_CHKPT_START</span><span class="p">);</span>
+<span class="n">GetVirtualXIDsDelayingChkpt</span><span class="p">(...,</span><span class="w"> </span><span class="n">DELAY_CHKPT_COMPLETE</span><span class="p">);</span>
+<span class="n">CheckPointGuts</span><span class="p">(</span><span class="n">checkPoint</span><span class="p">.</span><span class="n">redo</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">);</span>
+</code></pre></div>
+<p>Идея механизма: если commit-record оказался <strong>до новой границы REDO</strong>, его сопутствующие изменения в служебных файлах должны попасть в надежную checkpoint-картину. В противном случае восстановление началось бы позже commit-record и не смогло бы самостоятельно воспроизвести недосброшенное состояние транзакции.</p>
+<p>Это пример того, почему checkpoint затрагивает не только heap и index pages. Нужно обеспечить согласованность и с <code>pg_xact</code> и другими служебными структурами. Их полное устройство выходит за тему; здесь важен принцип согласования рубежа между подсистемами.</p>
+<h2 id="1811-startupxlog-initwalrecovery-redo">18.11. Путь старта: <code>StartupXLOG()</code> → <code>InitWalRecovery()</code> → REDO<a class="headerlink" href="#1811-startupxlog-initwalrecovery-redo" title="Permanent link">¶</a></h2>
+<p>В исходниках PostgreSQL 18 основной координирующий код старта находится в <code>src/backend/access/transam/xlog.c</code>, а работа с архивным/аварийным восстановлением — в <code>xlogrecovery.c</code>.</p>
+<p>Упрощенная цепочка (названия соответствуют исходникам, схема опускает платформенную инициализацию):</p>
+<div class="highlight"><pre><span></span><code>postmaster запускает startup process
+             │
+             ▼
+проверка pg_control: формат, CRC, состояние
+             │
+             ▼
+StartupXLOG()
+             │
+             ▼
+InitWalRecovery()
+             │
+             ├─ выбрать checkpoint LSN / timeline
+             ├─ прочитать checkpoint record
+             ├─ сверить параметры и redo LSN
+             └─ определить сценарий восстановления
+             │
+             ▼
+PerformWalRecovery()
+             │
+             ├─ WAL reader, проверка WAL-записей
+             ├─ диспетчеризация по rmgr
+             ├─ применение изменений к страницам
+             └─ продвижение replay position
+             │
+             ▼
+FinishWalRecovery() / завершение перехода к работе
+             │
+             ▼
+новая согласованная рабочая точка
+</code></pre></div>
+<p>Как выбрать сценарий? Например, по сохраненному состоянию и наличию специальных признаков восстановления. Для обычного старта существующего экземпляра без <code>backup_label</code> берется checkpoint из <code>pg_control</code>. <strong><code>backup_label</code> при восстановлении резервной копии может задать другую checkpoint-позицию</strong> — это важное исключение к учебной схеме, но процедуру backup мы не раскрываем до блока 9.</p>
+<h2 id="1812-pg_control-wal-record">18.12. Почему стартовый процесс читает и <code>pg_control</code>, и WAL record<a class="headerlink" href="#1812-pg_control-wal-record" title="Permanent link">¶</a></h2>
+<p>Здесь можно ошибочно решить, что <code>checkPointCopy</code> уже содержит <code>redo</code>, поэтому обращаться к WAL вообще незачем. Но в <code>InitWalRecovery()</code> PostgreSQL 18 выполняет чтение записи по <code>ControlFile-&gt;checkPoint</code>, проверяя, что она действительно существует и имеет допустимый тип checkpoint.</p>
+<div class="highlight"><pre><span></span><code>pg_control (адрес C, копия redo R)
+                 │
+                 ▼
+       открыть checkpoint record по C
+                 │
+          запись валидна?
+             /       \
+            да       нет
+            │         │
+    извлечь CheckPoint  ошибка запуска
+            │
+     проверить R и timeline
+            │
+     начать replay от R
+</code></pre></div>
+<p>Проверка защищает от случая, когда структура <code>pg_control</code> формально читается, но указывает на недоступную или неприемлемую WAL-запись. Ее CRC самой по себе недостаточно, чтобы доказать доступность истории.</p>
+<p><strong>Важно для версии 18:</strong> если обычный startup не может прочитать checkpoint record по указанному адресу, ветка <code>REL_18_STABLE</code> не выполняет автоматический возврат к «предыдущей резервной checkpoint-записи». В исходнике есть прямое замечание об отказе от старого алгоритма. Сбой здесь должен расследоваться как проблема целостности/доступности данных, а не решаться произвольным подбором LSN.</p>
+<h2 id="1813-checkpoint-record-wal-record-redo">18.13. Как из checkpoint record получается первый WAL record для REDO<a class="headerlink" href="#1813-checkpoint-record-wal-record-redo" title="Permanent link">¶</a></h2>
+<p>Для online checkpoint сервер получает из <code>CheckPoint.redo</code> ранний адрес и читает специальную запись <code>XLOG_CHECKPOINT_REDO</code> в этой позиции. После нее читаются последующие WAL-записи для восстановления. Для shutdown checkpoint начало совпадает с завершающей записью; после нее читают следующую запись, если она существует.</p>
+<p>Почему это важно? Потому что <code>redo LSN</code> — адрес физической позиции <strong>начального маркера</strong>, а не «примерное время последней транзакции». Ни <code>checkpoint_timeout</code>, ни timestamp в файле контроля не вычисляют эту позицию задним числом.</p>
+<p>Само воспроизведение изменений мы уже разобрали в 07.1: WAL reader читает запись, <code>rmgr</code> выбирает обработчик, <code>page LSN</code> предотвращает повторное применение к странице, состояние которой уже новее. Здесь нас интересует, как startup выбирает начало, а также почему может быть вынужден читать гораздо больше WAL, чем хотелось бы.</p>
+<h2 id="1814-wal">18.14. Что означает «восстановиться до конца WAL»<a class="headerlink" href="#1814-wal" title="Permanent link">¶</a></h2>
+<p>В обычном локальном crash recovery сервер должен прочитать всю <strong>доступную, корректную и требуемую</strong> последовательность WAL, восстановить физические изменения и определить состояние транзакций. При этом конец файла WAL-сегмента сам по себе не обязан означать конец истории: сегменты заранее создаются, могут содержать незаполненное место, а последняя записанная WAL-операция определяется читателем с проверкой формата.</p>
+<p>Здесь три понятия:</p>
+<ul>
+<li><strong>record start LSN</strong> — начало WAL-записи;</li>
+<li><strong>record end LSN</strong> — позиция сразу после нее;</li>
+<li><strong>replay LSN</strong> — прогресс уже примененных к состоянию сервера записей.</li>
+</ul>
+<p>Если после аварии хвост WAL физически не был подтвержден как долговечный, он может отсутствовать. При корректной конфигурации это согласуется с тем, какие транзакции могли быть подтверждены. Но если потеряны <strong>обязательные уже подтвержденные</strong> записи из-за нарушения storage-контракта, восстановить их из отсутствующих байтов нельзя.</p>
+<p>Распространенная строка в конце recovery вроде <code>invalid record length at ...: expected at least 24, got 0</code> может обозначать обычное достижение конца корректной WAL-истории. Сама по себе она не доказывает повреждение. Ее оценивают вместе с предшествующими записями журнала и итогом запуска.</p>
+<h2 id="1815-pg_controldata">18.15. <code>pg_controldata</code>: как увидеть все эти адреса<a class="headerlink" href="#1815-pg_controldata" title="Permanent link">¶</a></h2>
+<p><code>pg_controldata</code> — штатная утилита PostgreSQL, которая читает контрольную информацию кластера. Запускать ее необходимо от пользователя, имеющего права на каталог данных; обычно это пользователь ОС <code>postgres</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># На тестовом Linux-узле с PostgreSQL 18</span>
+pg_controldata<span class="w"> </span>-D<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">"</span>
+</code></pre></div>
+<p>Ищем поля, названия которых могут быть локализованы окружением:</p>
+<div class="highlight"><pre><span></span><code>Database cluster state:               in production
+Latest checkpoint location:           0/6800000
+Latest checkpoint's REDO location:    0/5000000
+Latest checkpoint's REDO WAL file:   000000010000000000000005
+Latest checkpoint's TimeLineID:       1
+Time of latest checkpoint:            ...
+</code></pre></div>
+<p><strong>Пример учебный.</strong> Значение WAL file и остальные поля зависят от реальных LSN, timeline и размера сегмента; нельзя переносить их в скрипты как константы. В частности, файл <code>redo</code> нужен, чтобы чтение истории могло начаться с нужного сегмента.</p>
+<p>Команда <strong>не запускает восстановление и не модифицирует файлы данных</strong>. Это средство наблюдения.</p>
+<p>На работающем сервере также доступны SQL-функции:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">checkpoint_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">redo_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">redo_wal_file</span><span class="p">,</span>
+<span class="w">       </span><span class="n">timeline_id</span><span class="p">,</span>
+<span class="w">       </span><span class="n">checkpoint_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_checkpoint</span><span class="p">();</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">system_identifier</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_control_version</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_control_last_modified</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_system</span><span class="p">();</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_recovery</span><span class="p">();</span>
+</code></pre></div>
+<p>Учетные права: эти функции показывают системную информацию и могут требовать привилегий; не стоит бездумно выдавать их всем ролям приложения. Результат живой функции — моментальный снимок состояния и может измениться после следующего checkpoint. Не смешивайте его с <code>pg_current_wal_lsn()</code>, который отражает текущую позицию записи WAL, а не последний завершенный checkpoint.</p>
+<h2 id="1816-wal-pg_waldump">18.16. Зачем смотреть в WAL через <code>pg_waldump</code><a class="headerlink" href="#1816-wal-pg_waldump" title="Permanent link">¶</a></h2>
+<p>После того как <code>pg_controldata</code> показал две позиции, можно проверить наличие checkpoint-записи в WAL.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Только на тестовом экземпляре или на неизменяемой копии WAL.</span>
+<span class="c1"># Команда должна использовать реальные LSN и доступные сегменты.</span>
+pg_waldump<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">/pg_wal"</span><span class="w"> </span>-s<span class="w"> </span><span class="s1">'0/5000000'</span><span class="w"> </span>-n<span class="w"> </span><span class="m">20</span>
+</code></pre></div>
+<p><code>-s</code> задает стартовый LSN, <code>-n</code> ограничивает число выводимых записей. При необходимости можно указать каталог через <code>-p</code>. Точное положение нужного checkpoint может требовать корректировки LSN и сохраненных WAL-сегментов.</p>
+<p>В PostgreSQL 18 также существует <code>pg_walinspect</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Требуется расширение и соответствующие права.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pg_walinspect</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">start_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">resource_manager</span><span class="p">,</span><span class="w"> </span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="n">description</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_get_wal_records_info</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'0/5000000'</span><span class="p">::</span><span class="n">pg_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'0/6801000'</span><span class="p">::</span><span class="n">pg_lsn</span>
+<span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">resource_manager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'XLOG'</span><span class="p">;</span>
+</code></pre></div>
+<p>Этот пример демонстрационный и намеренно ограничен небольшим интервалом. У <code>pg_walinspect</code> есть ограничения видимости timeline и доступного WAL. На production нельзя устраивать многогигабайтное диагностическое сканирование «на всякий случай».</p>
+<p>Что ищем: начало <code>CHECKPOINT_REDO</code> и завершающую <code>CHECKPOINT_ONLINE</code> у одной контрольной точки. Названия записей в разных версиях и инструментах могут отображаться с небольшими отличиями. Основание для механизма — <code>REL_18_STABLE</code>.</p>
+<h2 id="1817-pg_control">18.17. Что случится, если <code>pg_control</code> поврежден<a class="headerlink" href="#1817-pg_control" title="Permanent link">¶</a></h2>
+<p>Построим цепочку:</p>
+<div class="highlight"><pre><span></span><code>Старт PostgreSQL
+     │
+     ▼
+Чтение global/pg_control
+     │
+     ├── файл отсутствует / не читается → ошибка запуска
+     │
+     ├── версия/формат несовместимы   → отказ от запуска
+     │
+     ├── CRC неправильная             → отказ от запуска
+     │
+     └── контроль валиден
+                 │
+                 ▼
+       открыть checkpoint record
+                 │
+                 ├── нет нужного WAL → отказ от запуска
+                 └── запись валидна → определить redo → replay
+</code></pre></div>
+<p>Опасное упрощение: «если не находим checkpoint, выберем предыдущий WAL-сегмент». Во-первых, нельзя гарантировать, что нужные старые страницы и WAL образуют согласованный набор. Во-вторых, у WAL-сегмента нет самостоятельной гарантии, что он соответствует текущему состоянию <code>global/pg_control</code> и данного кластера. В-третьих, PostgreSQL 18 сознательно не выполняет такой автоматический fallback при обычном старте.</p>
+<p><strong>Производственный вывод:</strong> отсутствие контрольного файла или обязательного WAL — это инцидент хранения. Сначала сохранить исходные файлы и журналы, проверить инфраструктуру, определить наличие пригодной копии/архивов, и только затем выбирать путь восстановления.</p>
+<h2 id="1818-pg_resetwal">18.18. Чего точно не делать: <code>pg_resetwal</code> не создает пропавшую историю<a class="headerlink" href="#1818-pg_resetwal" title="Permanent link">¶</a></h2>
+<p>Утилита <code>pg_resetwal</code> существует, и в документации PostgreSQL 18 она названа <strong>крайней мерой</strong> при поврежденном WAL или control file. Она может переписать контрольную информацию и обнулить историю журнала. При этом полностью потерянные изменения, незавершенные структуры и несогласованные страницы <strong>сами собой не становятся корректными</strong>.</p>
+<p>Поэтому в рабочем инциденте нельзя действовать по рецепту «выполнить <code>pg_resetwal -f</code>, чтобы сервис скорее поднялся». Даже если процесс стартует, бизнес-данные могут оказаться частично поврежденными. Это потенциальная потеря доказательств для последующего анализа.</p>
+<p>Правильная последовательность при проблеме запуска:</p>
+<ol>
+<li>Остановить автоматические перезапуски и сохранить логи.</li>
+<li>Снять копию каталога данных/тома, если это технически и организационно допустимо.</li>
+<li>Прочитать <code>pg_controldata</code> и определить контрольную точку, timeline, состояние.</li>
+<li>Проверить наличие <strong>нужных</strong> WAL-сегментов и правильность их принадлежности кластеру.</li>
+<li>Проверить ошибки ОС/диска и доступность надежной резервной копии.</li>
+<li>Восстанавливать по утвержденной процедуре. <code>pg_resetwal</code> — только как отдельно санкционированный аварийный способ извлечения данных с последующей полной проверкой и переносом в новый кластер.</li>
+</ol>
+<p>Непосредственная процедура backup и PITR относится к блоку 9. Здесь достаточно понять, почему отсутствие обязательного WAL нельзя исправить параметром checkpoint.</p>
+<h2 id="1819-wal">18.19. Сколько нужно WAL для старта и почему контрольная точка одновременно освобождает место<a class="headerlink" href="#1819-wal" title="Permanent link">¶</a></h2>
+<p>Пусть последний завершенный checkpoint имеет <code>redo LSN = R</code>, а корректный WAL продолжается до позиции <code>E</code>. Чтобы пройти crash recovery, PostgreSQL должен располагать <strong>необходимой цепочкой записей начиная с R</strong> и до требуемого конца.</p>
+<p>Теперь понятно, почему успешный checkpoint разрешает удалить или переработать старые сегменты WAL: изменения до новой безопасной границы уже представлены согласованными файлами данных. Но здесь есть оговорки — сегменты могут требоваться другим механизмам (например, архивированию или удерживающим WAL потребителям), поэтому <strong>успешный checkpoint не гарантирует, что все файлы до R немедленно исчезнут</strong>.</p>
+<p>Если checkpoint завершается редко, рубеж восстановления отстает, <code>pg_wal</code> хранит больше истории, а запуск после аварии потенциально работает дольше.</p>
+<p>Наконец цена: ускорить recovery частыми checkpoint можно, но мы платим дополнительными writeback/sync и более частым появлением full-page images после очередной контрольной точки. Именно этот обмен ресурсов — вторая тема лекции.</p>
+<h3 id="18">Главное из темы 18<a class="headerlink" href="#18" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>pg_control</code> хранит метаданные <strong>всего кластера</strong>, включая адрес последней завершенной checkpoint-записи.</li>
+<li>Адрес checkpoint record <code>C</code> и <code>redo LSN</code> <code>R</code> различаются у обычного online checkpoint: PostgreSQL 18 создает отдельные <code>CHECKPOINT_REDO</code> и <code>CHECKPOINT_ONLINE</code>.</li>
+<li>При штатном shutdown checkpoint используется <code>CHECKPOINT_SHUTDOWN</code>, где точка REDO совпадает с началом checkpoint record.</li>
+<li>Обновление <code>pg_control</code> происходит <strong>после</strong> успешного сохранения нужных данных и checkpoint WAL record. Незавершенный checkpoint не должен становиться отправной точкой recovery.</li>
+<li><code>pg_controldata</code> и <code>pg_control_checkpoint()</code> позволяют проверить указатель и REDO; WAL должен быть доступен на правильной timeline.</li>
+<li>Повреждение control file или отсутствие обязательного WAL — причина расследования и восстановления из доверенной копии, а не повод автоматически обнулять журнал.</li>
+</ol>
+<hr/>
+<h1 id="22-writeback-checkpoint-io-crash-recovery">22. Writeback, Checkpoint I/O и ускорение Crash Recovery<a class="headerlink" href="#22-writeback-checkpoint-io-crash-recovery" title="Permanent link">¶</a></h1>
+<h2 id="221-checkpoint">22.1. Главная цена checkpoint: страницы надо действительно записать<a class="headerlink" href="#221-checkpoint" title="Permanent link">¶</a></h2>
+<p>В первой половине лекции мы увидели, <strong>зачем checkpoint нужен recovery</strong>. Теперь восстановим обычную рабочую нагрузку, при которой он создается.</p>
+<p>На сервере PostgreSQL десятки тысяч dirty buffers. Background writer что-то успел выгрузить, но часть страниц активно изменяется и остается в памяти. Начинается checkpoint. В учебной модели можно было бы просто написать: «checkpointer сохраняет все dirty pages». Пока нагрузка небольшая, такое описание выглядит убедительно.</p>
+<p>А теперь добавим 24 ГиБ грязных страниц и накопитель, который способен устойчиво записывать в этом профиле нагрузки несколько сотен МиБ/с. Вопрос: <strong>когда именно писать эти 24 ГиБ?</strong> Все сразу? Тогда в течение заметного времени запросы конкурируют с checkpoint за I/O. Равномерно в течение интервала? Тогда нужно управлять темпом. А если запросы продолжают менять те же страницы и WAL растет быстрее ожиданий?</p>
+<p>Вот здесь появляется реальный I/O-конвейер контрольной точки. В него входят сканирование буферного пула, сортировка кандидатов для записи, соблюдение WAL-before-data, запись data pages, подсказки на writeback операционной системе, конечные файловые sync и подтверждение checkpoint в WAL.</p>
+<p>Важно: <strong>checkpoint — длительная согласованная операция, а не один системный вызов</strong>.</p>
+<h2 id="222-write-writeback-fsync">22.2. Разделяем операции <code>write</code>, writeback и <code>fsync</code><a class="headerlink" href="#222-write-writeback-fsync" title="Permanent link">¶</a></h2>
+<p>После лекции 07.2 нам знакомы три уровня:</p>
+<ol>
+<li><strong>Dirty в PostgreSQL <code>shared_buffers</code></strong> — актуальная версия страницы существует в памяти СУБД.</li>
+<li><strong><code>write()</code> страницы файла</strong> — PostgreSQL отправляет данные файловой системе; при обычном буферизованном I/O они могут оказаться в page cache ОС.</li>
+<li><strong>Синхронизация файла</strong> — система должна завершить требуемое сохранение согласно контракту <code>fsync</code>/<code>fdatasync</code> и устройства.</li>
+</ol>
+<p>Между шагами 2 и 3 может происходить <strong>writeback</strong> — запуск отправки грязных страниц из page cache в сторону устройства. Writeback может инициироваться автоматически ядром или подсказками приложения. Сам факт отправки <strong>еще не доказывает завершение устойчивого сохранения</strong>.</p>
+<div class="highlight"><pre><span></span><code>       shared_buffers                 page cache           storage
+  ┌──────────────────┐           ┌────────────────┐  ┌──────────────────┐
+  │ dirty 8 KiB page │--write()─►│ dirty filepage │──►│ pending I/O      │
+  └──────────────────┘           └────────────────┘  └──────────────────┘
+                                          │                     │
+                                     writeback              device
+                                     (начать I/O)           completion
+                                          │                     │
+                                          └─────────┬───────────┘
+                                                    ▼
+                                       fsync / sync confirmation
+</code></pre></div>
+<p>Если спутать «передали <code>write()</code>» и «завершили <code>fsync()</code>», невозможно объяснить checkpoint с длительным <code>sync_time</code>, хотя общий <code>write_time</code> выглядит умеренным.</p>
+<h2 id="223-createcheckpoint-checkpointguts">22.3. <code>CreateCheckPoint()</code> и <code>CheckPointGuts()</code>: два уровня механизма<a class="headerlink" href="#223-createcheckpoint-checkpointguts" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 координацией checkpoint занимается <code>CreateCheckPoint()</code> в <code>src/backend/access/transam/xlog.c</code>. А фактическую запись нужного состояния организует <code>CheckPointGuts()</code>.</p>
+<p>Набор ключевых вызовов из исходника — <strong>учебная сокращенная последовательность</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Последовательность основных этапов, не полная функция */</span>
+<span class="n">SyncPreCheckpoint</span><span class="p">();</span>
+<span class="cm">/* зафиксировать redo LSN и подготовить CheckPoint */</span>
+<span class="cm">/* ... DELAY_CHKPT_START ... */</span>
+<span class="n">CheckPointGuts</span><span class="p">(</span><span class="n">checkPoint</span><span class="p">.</span><span class="n">redo</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="p">);</span>
+<span class="cm">/* ... DELAY_CHKPT_COMPLETE ... */</span>
+<span class="cm">/* вставить XLOG_CHECKPOINT_ONLINE и сделать XLogFlush */</span>
+<span class="cm">/* обновить pg_control */</span>
+</code></pre></div>
+<p>Внутри <code>CheckPointGuts()</code> вызываются подсистемы с названиями:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Порядок ключевых подсистем, сопутствующий код опущен */</span>
+<span class="n">CheckPointCLOG</span><span class="p">();</span>
+<span class="n">CheckPointCommitTs</span><span class="p">();</span>
+<span class="n">CheckPointSUBTRANS</span><span class="p">();</span>
+<span class="n">CheckPointMultiXact</span><span class="p">();</span>
+<span class="n">CheckPointBuffers</span><span class="p">(</span><span class="n">flags</span><span class="p">);</span>
+<span class="n">ProcessSyncRequests</span><span class="p">();</span>
+</code></pre></div>
+<p><code>CLOG</code> в старом имени соответствующего кода связан с <code>pg_xact</code> — хранилищем статусов транзакций. Здесь важен масштаб: checkpoint обеспечивает согласованность <strong>не только пользовательских таблиц</strong>, но и тех служебных данных, без которых физически восстановленные страницы не имеют понятной транзакционной интерпретации.</p>
+<h3 id="checkpointbuffers-processsyncrequests">Почему <code>CheckPointBuffers()</code> и <code>ProcessSyncRequests()</code> разделены?<a class="headerlink" href="#checkpointbuffers-processsyncrequests" title="Permanent link">¶</a></h3>
+<p>Первый этап отвечает за проход по буферному пулу и выпуск записей страниц отношений. Второй обрабатывает накопленные требования синхронизации файлов. Это разделение позволяет не делать отдельный <code>fsync</code> после каждого 8-КБ блока. Возникает возможность группировать запись и синхронизацию по файлам, распределять нагрузку и уменьшать лишние системные операции.</p>
+<h2 id="224-buffersync">22.4. Что делает <code>BufferSync()</code>: сначала собрать кандидатов<a class="headerlink" href="#224-buffersync" title="Permanent link">¶</a></h2>
+<p>В коде <code>src/backend/storage/buffer/bufmgr.c</code> PostgreSQL 18 функция <code>BufferSync()</code> анализирует shared buffers и выбирает страницы, которые необходимо обеспечить в checkpoint.</p>
+<p>Внутри буферного дескриптора есть флаги, включая <code>BM_DIRTY</code> — измененная страница — и <code>BM_CHECKPOINT_NEEDED</code> — необходимость учесть ее в текущем checkpoint. Здесь сталкиваются две конкурентные деятельности: checkpointer хочет получить устойчивую копию, а обычный backend может продолжать менять страницу.</p>
+<p>После сканирования выбранные идентификаторы буферов сортируются по физическим признакам: tablespace, relation и block number. Это снижает долю случайного I/O там, где порядок записи дает преимущество.</p>
+<p>Затем реализация учитывает распределение страниц между tablespaces и пытается <strong>сбалансировать запись</strong>, чтобы не писать все страницы одного tablespace прежде, чем перейти к другому.</p>
+<div class="highlight"><pre><span></span><code>Грязные буферы в shared_buffers:
+  A: rel10 blk7, A: rel10 blk2, B: rel5 blk8, A: rel10 blk3 ...
+                 │
+                 ▼
+      выделить snapshot кандидатов
+                 │
+                 ▼
+      sort: tablespace/relation/block
+                 │
+                 ▼
+      балансировка между tablespaces
+                 │
+                 ▼
+       SyncOneBuffer / writeback
+</code></pre></div>
+<p>Почему это касается производительности backend? Потому что физическое расположение записи определяет <strong>долю случайных операций, очередь запросов на диск и скорость завершения checkpoint</strong>. На SSD механическая составляющая seek отсутствует, но объединение соседних операций, очереди и логика контроллера по-прежнему имеют значение.</p>
+<h2 id="225-dirty-buffers">22.5. Снимок dirty buffers не означает заморозку базы<a class="headerlink" href="#225-dirty-buffers" title="Permanent link">¶</a></h2>
+<p>Важный момент: checkpoint не останавливает все backend-процессы на время записи десятков гигабайт. Он фиксирует необходимый рубеж в WAL, выбирает страницы, а конкурирующие запросы продолжают изменять новые и уже существующие буферы.</p>
+<p>Появляется вопрос: если страница поменялась после начала checkpoint, обязан ли checkpoint обязательно записать самую новую версию? <strong>Для корректности восстановления нет.</strong> Его задача — обеспечить достаточно устойчивое состояние для ранней границы REDO. Новые изменения после <code>R</code> можно повторить при recovery.</p>
+<p>Поэтому checkpoint может записать версию страницы, после чего backend снова пометит ее dirty. Сама архитектура WAL допускает такой сценарий: начальная точка восстановления выбрана раньше, чем заканчивается checkpoint.</p>
+<p>Отсюда два инженерных следствия:</p>
+<ul>
+<li>часть страниц придется писать несколько раз за относительно короткое время при высокой доле обновлений;</li>
+<li>количество dirty pages на конец checkpoint <strong>не обязано быть нулевым</strong> — параллельная нагрузка постоянно создает новые изменения.</li>
+</ul>
+<p>Неправильная модель «checkpoint полностью очищает весь shared_buffers» приводит к ошибкам при анализе флагов буферов и оценке I/O.</p>
+<h2 id="226-wal-before-data-synconebuffer">22.6. WAL-before-data внутри <code>SyncOneBuffer()</code><a class="headerlink" href="#226-wal-before-data-synconebuffer" title="Permanent link">¶</a></h2>
+<p>Что, если checkpointer хочет записать страницу, <code>page LSN</code> которой указывает на WAL, еще не подтвержденный устойчивым сохранением?</p>
+<p>Здесь вступает старый инвариант из лекции 07. Если мы сохраним новую data page, но соответствующие записи WAL потеряются, после аварии получится состояние без нужной истории для восстановления.</p>
+<p>Поэтому путь записи буферной страницы должен гарантировать необходимый <strong>WAL flush до сохранения ее версии как долговечной data page</strong>. Это не значит, что checkpointer запускает <code>fsync</code> WAL отдельно на каждую страницу; могут работать уже имеющиеся границы и группировка flush. Но порядок обязателен.</p>
+<div class="highlight"><pre><span></span><code>В RAM страница page LSN = L
+              │
+              ▼
+  требуется запись data page
+              │
+              ▼
+   WAL до L уже устойчив?
+       │            │
+      да           нет
+       │            ▼
+       │         XLogFlush(L)
+       │            │
+       └────────────┘
+              │
+              ▼
+      write(data page)
+              │
+              ▼
+  file sync в составе checkpoint
+</code></pre></div>
+<p>Значит, обычный запрос и checkpointer иногда конкурируют за инфраструктуру WAL даже тогда, когда пользовательская транзакция уже завершила свой SQL. Поведение зависит от того, насколько далеко продвинут WAL flush и от какого момента страница стала dirty.</p>
+<h2 id="227-checkpoint_flush_after">22.7. <code>checkpoint_flush_after</code>: что именно он пытается ускорить<a class="headerlink" href="#227-checkpoint_flush_after" title="Permanent link">¶</a></h2>
+<p>Представим, что checkpointer быстро выполнил много <code>write()</code> страниц. Они попали в page cache Linux, но ядро пока не отправило значительную часть данных на накопитель.</p>
+<p>Теперь checkpointer вызывает файловые sync, и ядру приходится разом завершать большой объем накопленного I/O. Запросы приложений, использующие тот же диск, начинают ждать. Выглядит как загадка: основная часть checkpoint шла сравнительно ровно, а в конце все резко замедлилось.</p>
+<p><strong><code>checkpoint_flush_after</code></strong> предназначен для распределения этого давления по времени. Когда checkpointer записывает очередной объем данных, PostgreSQL пытается подтолкнуть ОС к началу writeback ранее записанных файловых страниц.</p>
+<div class="highlight"><pre><span></span><code>Без раннего writeback:
+   write write write write write ...   [ОГРОМНЫЙ sync]
+                                         ▲
+                                 возможный всплеск задержек
+
+С checkpoint_flush_after:
+   write → writeback advice → write → writeback advice ... → sync
+          ▲                         ▲                   ▲
+          фоновая работа             работа раньше        меньше хвост
+</code></pre></div>
+<p>Ключевое различие:</p>
+<blockquote>
+<p><strong><code>checkpoint_flush_after</code> задает подсказки/попытки инициировать writeback, а не количество байтов, гарантированно устойчивых после каждого шага.</strong> Финальная синхронизация checkpoint все равно требуется.</p>
+</blockquote>
+<p>Параметр может быть неэффективен на отдельных платформах или даже ухудшать производительность при определенном профиле кеширования. Это оптимизация I/O-поведения, а не усиление durability.</p>
+<h2 id="228-checkpoint_flush_after">22.8. Единицы, значения по умолчанию и границы <code>checkpoint_flush_after</code><a class="headerlink" href="#228-checkpoint_flush_after" title="Permanent link">¶</a></h2>
+<p>Для PostgreSQL 18:</p>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th>По умолчанию</th>
+<th>Что ограничивает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>checkpoint_flush_after</code></td>
+<td><code>256kB</code> на Linux; <code>0</code> на других платформах</td>
+<td>Примерный объем записи между попытками writeback</td>
+</tr>
+<tr>
+<td>Минимальное значение</td>
+<td><code>0</code></td>
+<td>Отключает принудительные writeback-подсказки</td>
+</tr>
+<tr>
+<td>Максимальное значение</td>
+<td><code>2MB</code> при обычном <code>BLCKSZ</code></td>
+<td>Ограничивает периодичность подсказок</td>
+</tr>
+<tr>
+<td>Единица без суффикса</td>
+<td><code>BLCKSZ</code>, обычно 8 КиБ</td>
+<td><code>32</code> примерно соответствует 256 КиБ</td>
+</tr>
+</tbody>
+</table>
+<p>При сборке с другим <code>BLCKSZ</code> соответствующие значения масштабируются. Источник: <a href="https://www.postgresql.org/docs/18/runtime-config-wal.html">PostgreSQL 18 — Write Ahead Log settings</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_flush_after</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">block_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Почему <code>256kB</code> не следует трактовать как «каждые 256 КиБ точно завершился disk write»? Во-первых, параметр касается размера запрашиваемого writeback, а не аппаратного подтверждения. Во-вторых, ОС может переупорядочивать или объединять команды. В-третьих, при высокой очереди I/O такие подсказки могут лишь переносить нагрузку по времени.</p>
+<h3 id="_1">Когда может стать хуже<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Документация отдельно предупреждает про нагрузку, которая <strong>больше <code>shared_buffers</code>, но меньше page cache ОС</strong>. В таких условиях cache reuse может быть выгоднее, чем преждевременное вытеснение или активное продвижение записи; дополнительный writeback иногда конкурирует с полезными чтениями. Поэтому эксперимент должен смотреть и на throughput, и на задержки, и на write amplification, и на состояние устройства.</p>
+<h2 id="229-fsync">22.9. Кто в итоге вызывает <code>fsync</code>: очередь запросов на синхронизацию<a class="headerlink" href="#229-fsync" title="Permanent link">¶</a></h2>
+<p>Большая часть страницы таблицы записывается через storage manager. При выполнении <code>write()</code> соответствующий файл отмечается как требующий последующей синхронизации. PostgreSQL использует механизм запросов sync: несколько backend-процессов и фоновых исполнителей могут сообщать о необходимости обеспечить устойчивое сохранение соответствующих файлов, а checkpointer обрабатывает накопленный набор.</p>
+<p>Зачем это разделение? Если тысяча страниц относится к одному файлу отношения, делать тысячу независимых <code>fsync</code> после каждой страницы было бы дорого. Checkpointer может сначала выпустить серию page writes и затем синхронизировать затронутый файл.</p>
+<div class="highlight"><pre><span></span><code>Backend A ── write rel_10 ─────┐
+Backend B ── write rel_10 ─────┼── sync requests ──► checkpointer
+Bgwriter  ── write rel_21 ─────┘                         │
+                                                       ▼
+                                                ProcessSyncRequests
+                                                       │
+                                           ┌───────────┴───────────┐
+                                           ▼                       ▼
+                                        fsync rel_10           fsync rel_21
+</code></pre></div>
+<p>Это концептуальная схема; конкретный учет файлов, слияние требований, повторные попытки и взаимодействие с чекпоинтером зависят от исходников. Главная мысль — <strong>финальная sync-фаза отдельна от поштучной записи буферов</strong>.</p>
+<p>Если очередь запросов на sync не обслуживается вовремя или checkpointer перегружен, отдельные backend-процессы могут быть вынуждены выполнять больше I/O самостоятельно. Эта ситуация видна в статистике и влияет на p95/p99 пользовательских запросов.</p>
+<h2 id="2210-write_time-sync_time">22.10. Почему <code>write_time</code> и <code>sync_time</code> могут показывать разные проблемы<a class="headerlink" href="#2210-write_time-sync_time" title="Permanent link">¶</a></h2>
+<p>Рассмотрим два условных checkpoint:</p>
+<div class="highlight"><pre><span></span><code>Сервер A:
+  write = 68.0 s
+  sync  =  0.4 s
+
+Сервер B:
+  write =  9.0 s
+  sync  = 41.0 s
+</code></pre></div>
+<p>На сервере A основная стоимость в фазе выпуска страниц: низкая реальная пропускная способность записи, большое количество страниц, очередь I/O, возможно конкуренция с запросами. На сервере B страницы быстро передали в ОС, но <strong>долговечное завершение</strong> оказалось дорогим. Причина может быть в writeback накопленного кеша, latency устройства, файловой системе или виртуальном storage.</p>
+<p>Сразу оговорка: <code>write_time</code> и <code>sync_time</code> — измеренные временные интервалы разных стадий checkpoint. Они не говорят сами по себе, какая часть времени прошла на физическом NAND, и не дают полный профиль накопителя. Для диагноза нужны общесистемные I/O-метрики.</p>
+<p>Практический смысл: единый показатель «checkpoint занимал 60 секунд» недостаточен. Нужно разложить его на стадии.</p>
+<h2 id="2211-checkpoint_timeout-restart">22.11. <code>checkpoint_timeout</code>: почему короткий интервал ускоряет возможный restart<a class="headerlink" href="#2211-checkpoint_timeout-restart" title="Permanent link">¶</a></h2>
+<p><code>checkpoint_timeout</code> — максимальный временной интервал между автоматическими checkpoint по расписанию. В PostgreSQL 18 его значение по умолчанию — <strong>5 минут</strong>, допустимый диапазон — от 30 секунд до 1 суток.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_timeout</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_wal_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь свяжем с первым разделом. Если с последнего завершенного checkpoint накопилось немного WAL, после аварии потребуется меньше чтения и физического replay. Более частые checkpoint в среднем приближают <code>redo LSN</code> к текущей позиции записи.</p>
+<p>Но цена немедленная: каждую контрольную точку нужно оплачивать I/O, а после нее первая модификация страниц чаще добавляет full-page images в WAL (<code>full_page_writes</code>). Укорачивая интервал, мы способны уменьшить время старта после аварии и одновременно ухудшить throughput обычной работы.</p>
+<p>Слово «максимальный» нельзя читать как жесткий таймер гарантированного завершения. Checkpoint может затянуться под нагрузкой или наступить по ограничению WAL раньше расписания. Если с предыдущей точки не было существенной WAL-активности, PostgreSQL вправе пропустить очередную плановую точку.</p>
+<h2 id="2212-max_wal_size-checkpoint">22.12. <code>max_wal_size</code>: вторая причина начать checkpoint раньше<a class="headerlink" href="#2212-max_wal_size-checkpoint" title="Permanent link">¶</a></h2>
+<p>Даже при <code>checkpoint_timeout = '15min'</code> checkpoint может начаться значительно раньше, если накопилось много WAL. За это отвечает ориентир <code>max_wal_size</code>.</p>
+<p>Здесь один важный момент: <code>max_wal_size</code> — <strong>мягкий предел</strong>, а не строгая квота на каталог <code>pg_wal</code>. Он может превышаться из-за высокой нагрузки и дополнительных причин удержания WAL. Вся тонкость retention была разобрана в 07.1; здесь нас интересует влияние на schedule и RTO.</p>
+<div class="highlight"><pre><span></span><code>Профиль А: WAL растет медленно
+  checkpoint_timeout ──────────► плановый checkpoint
+
+Профиль Б: WAL растет быстро
+  max_wal_size достигнут раньше ─► запрошенный checkpoint
+</code></pre></div>
+<p>Если число <strong>requested</strong> checkpoints резко растет, а интервал между ними сокращается, проблема может быть в высокой генерации WAL, а не в самом <code>checkpoint_timeout</code>. Любое изменение размера WAL без измерений может лишь перераспределить пиковую стоимость.</p>
+<h2 id="2213-checkpoint_completion_target">22.13. <code>checkpoint_completion_target</code>: скорость записи тоже является настройкой<a class="headerlink" href="#2213-checkpoint_completion_target" title="Permanent link">¶</a></h2>
+<p>Допустим, начало checkpoint определено. Можно попытаться сразу выгрузить все страницы с максимальной скоростью. На быстром SSD это может казаться разумным, пока одновременно не придут пользовательские запросы, использующие тот же storage.</p>
+<p>Параметр <strong><code>checkpoint_completion_target</code></strong> задает долю интервала между checkpoint, в течение которой PostgreSQL старается распределить запись страниц. В PostgreSQL 18 значение по умолчанию — <strong><code>0.9</code></strong>.</p>
+<div class="highlight"><pre><span></span><code>checkpoint_timeout = 300 секунд
+checkpoint_completion_target = 0.9
+
+целевой интервал распределения записи ≈ 270 секунд
+
+0s               135s             270s      300s
+|------------------|-----------------|---------|
+  └─── writeback checkpoint ─────────┘  запас времени
+</code></pre></div>
+<p>Это <strong>ориентир управления темпом</strong>, не договор о том, что операция точно закончится на 270-й секунде. Если накопитель медленнее необходимого темпа, внутренние очереди заполнены или порог <code>max_wal_size</code> наступил раньше, поведение будет отличаться.</p>
+<p>Слишком маленькое значение <code>checkpoint_completion_target</code> превращает операцию в более резкий поток записи: быстрее завершили checkpoint, зато за короткое время отобрали большую долю I/O у пользовательских запросов. Документация PostgreSQL рекомендует значение не выше <code>0.9</code> в типичном сценарии и не советует уменьшать его без причины.</p>
+<h2 id="2214-24-dirty-pages">22.14. Пошаговый расчет: сколько стоит распределить 24 ГиБ dirty pages<a class="headerlink" href="#2214-24-dirty-pages" title="Permanent link">¶</a></h2>
+<p>Возьмем учебный профиль:</p>
+<ul>
+<li>checkpoint должен записать <strong>24 ГиБ</strong> выбранных dirty pages;</li>
+<li><code>checkpoint_timeout = 300s</code>;</li>
+<li><code>checkpoint_completion_target = 0.9</code>;</li>
+<li>игнорируем повторные изменения страниц, служебные записи и ограничения IOPS для первой оценки.</li>
+</ul>
+<p>Целевой интервал записи: <code>300 × 0.9 = 270s</code>.</p>
+<p>24 ГиБ = 24 × 1024 МиБ = 24 576 МиБ.</p>
+<p>Требуемая <strong>средняя полезная скорость записи data pages</strong>:</p>
+<p>[
+B_{required}=\frac{24576 \text{MiB}}{270 \text{s}}\approx 91.0 \text{MiB/s}.
+]</p>
+<p>Если же мы заставили checkpoint закончить аналогичную запись за одну минуту:</p>
+<p>[
+B_{burst}=\frac{24576}{60}\approx 409.6 \text{MiB/s}.
+]</p>
+<p>Второй вариант требует примерно в 4.5 раза большего темпа и поэтому гораздо сильнее конкурирует с I/O запросов. Но это не означает, что первый вариант всегда быстрее для клиентских транзакций: влияние зависит от фактической смеси чтений/записей, страницы могут быть уже отправлены фоном, а устройство может менять скорость из-за кеша и внутренних операций.</p>
+<p><strong>Инженерный смысл расчета:</strong> сначала оцениваем порядок объемов, затем сопоставляем его с наблюдаемым устройством и только после этого выбираем параметры.</p>
+<h2 id="2215-pacing">22.15. Где в исходниках реализовано pacing<a class="headerlink" href="#2215-pacing" title="Permanent link">¶</a></h2>
+<p>Функция <code>BufferSync()</code> вызывает <code>CheckpointWriteDelay()</code> во время прохода по выбранным буферам. Она передает долю уже обработанных кандидатов. Checkpointer соотносит этот прогресс с прошедшим временем и целевым сроком, при необходимости замедляя выпуск следующего I/O.</p>
+<p>Это значит, что распределение нагрузки создается <strong>не обычным <code>sleep(270 секунд)</code> в конце операции</strong>. Механизм периодически корректирует темп по мере продвижения по буферам.</p>
+<p>Почему это полезно? При бесконтрольной записи 24 ГиБ диск может быстро достигнуть saturation, и пользовательские p99 вырастут. При постепенной записи очередь меньше, а пропускная способность сервиса стабильнее.</p>
+<p>Но если checkpointer оказался позади графика, он должен увеличивать темп или отказываться от дальнейших задержек. Договориться с накопителем, который физически не вывозит объем, одним <code>completion_target</code> невозможно.</p>
+<h2 id="2216-dirty-pages-checkpoint">22.16. Откуда берется разница между объемом dirty pages и объемом записи за checkpoint<a class="headerlink" href="#2216-dirty-pages-checkpoint" title="Permanent link">¶</a></h2>
+<p>На первый взгляд можно умножить долю грязных страниц на размер <code>shared_buffers</code> и получить точное количество байтов. На практике это лишь грубая оценка.</p>
+<p>Возможны причины отклонений:</p>
+<ul>
+<li>Один и тот же буфер может измениться повторно во время checkpoint.</li>
+<li>Background writer или пользовательский backend могли уже записать нужную версию страницы.</li>
+<li>Часть выбранных буферов потеряла необходимость checkpoint-записи к моменту обработки.</li>
+<li>Есть SLRU- и другие служебные файлы, не сводящиеся к heap/index shared buffers.</li>
+<li>Устройства и файловая система могут преобразовывать логические <code>write()</code> в другой набор физических операций.</li>
+</ul>
+<p>Поэтому <code>buffers_written</code> из <code>pg_stat_checkpointer</code> — наблюдаемый счетчик записанных буферов, <strong>а не точный объем NAND writes или полный объем I/O всей контрольной точки</strong>.</p>
+<p>Здесь снова протекает абстракция: страницы PostgreSQL — удобная единица учета, но аппаратные записи живут на своем уровне.</p>
+<h2 id="2217-postgresql-18-pg_stat_checkpointer">22.17. Главный прибор PostgreSQL 18: <code>pg_stat_checkpointer</code><a class="headerlink" href="#2217-postgresql-18-pg_stat_checkpointer" title="Permanent link">¶</a></h2>
+<p>Начиная с актуальных для курса версий PostgreSQL, статистику checkpoint нужно читать из отдельного представления <strong><code>pg_stat_checkpointer</code></strong>, а не пользоваться старыми рецептами с несуществующими полями <code>pg_stat_bgwriter</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">num_timed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_requested</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sync_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">buffers_written</span><span class="p">,</span>
+<span class="w">       </span><span class="n">slru_written</span><span class="p">,</span>
+<span class="w">       </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Что означает</th>
+<th>Что позволяет заподозрить</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>num_timed</code></td>
+<td>Плановые обращения к checkpoint</td>
+<td>Насколько велика активность по таймеру</td>
+</tr>
+<tr>
+<td><code>num_requested</code></td>
+<td>Запрошенные точки (например, из-за WAL)</td>
+<td>Насколько часто checkpoint нужен раньше плана</td>
+</tr>
+<tr>
+<td><code>num_done</code></td>
+<td>Реально выполненные checkpoint</td>
+<td>Сколько точек завершилось</td>
+</tr>
+<tr>
+<td><code>write_time</code></td>
+<td>Время стадии записи файлов, мс</td>
+<td>Цена записи dirty buffers</td>
+</tr>
+<tr>
+<td><code>sync_time</code></td>
+<td>Время стадии sync файлов, мс</td>
+<td>Возможный хвост устойчивого I/O</td>
+</tr>
+<tr>
+<td><code>buffers_written</code></td>
+<td>Записанные shared buffers</td>
+<td>Масштаб data-page записи</td>
+</tr>
+<tr>
+<td><code>slru_written</code></td>
+<td>Записанные SLRU buffers</td>
+<td>Дополнительный служебный I/O</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Оговорка PostgreSQL 18:</strong> плановые и запрошенные счетчики могут включать попытки, которые были пропущены при отсутствии изменений. Поэтому <code>num_timed + num_requested</code> не обязательно равно <code>num_done</code>.</p>
+<p>Чтобы измерить скорость, нужны <strong>дельты счетчиков за интервал</strong>, а не единственный снимок с момента сброса статистики.</p>
+<h2 id="2218">22.18. Две диагностические выборки и вычисление дельты<a class="headerlink" href="#2218" title="Permanent link">¶</a></h2>
+<p>Снимем показатели до нагрузочного интервала и через 60 секунд в диагностическом приложении или вручную. В SQL:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">sampled_at</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_timed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_requested</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">       </span><span class="n">buffers_written</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+</code></pre></div>
+<p>Два результата сохраняем с временами <code>t0</code>, <code>t1</code>. Затем считаем:</p>
+<p>[
+\Delta buffers = buffers(t_1)-buffers(t_0),
+]</p>
+<p>[
+\Delta write_time = write_time(t_1)-write_time(t_0),
+]</p>
+<p>[
+\Delta requested = requested(t_1)-requested(t_0).
+]</p>
+<p>Может быть важно рассчитать темп логической записи:</p>
+<p>[
+B_{buffer} \approx \frac{\Delta buffers \times 8192}{t_1-t_0}.
+]</p>
+<p>Это корректно при стандартном <code>block_size = 8192</code>, не равняется фактическому физическому throughput устройства и включает только выбранный счетчик.</p>
+<p>Если между снимками статистика сброшена или сервер прошел unclean restart, разности некорректны. Сначала сравниваем <code>stats_reset</code>.</p>
+<h2 id="2219-pg_stat_io">22.19. Второй прибор: <code>pg_stat_io</code> покажет, кто на самом деле пишет<a class="headerlink" href="#2219-pg_stat_io" title="Permanent link">¶</a></h2>
+<p>С ростом нагрузки checkpoint, background writer и пользовательские backend-процессы могут одновременно выполнять I/O. Если считать только <code>buffers_written</code> checkpointer, упустим важную часть картины.</p>
+<p>В PostgreSQL 18 используем представление <strong><code>pg_stat_io</code></strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span>
+<span class="w">       </span><span class="k">object</span><span class="p">,</span>
+<span class="w">       </span><span class="n">context</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writebacks</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writeback_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">fsyncs</span><span class="p">,</span>
+<span class="w">       </span><span class="n">fsync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'checkpointer'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'background writer'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'client backend'</span>
+<span class="p">)</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'relation'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">;</span>
+</code></pre></div>
+<p>Поля с неприменимым типом операций могут содержать <code>NULL</code>; нельзя автоматически считать такой <code>NULL</code> «нулем выполненных операций». Временные колонки для обычных файловых операций требуют включенного <code>track_io_timing</code>.</p>
+<p>Смысл ключевых столбцов:</p>
+<ul>
+<li><code>writes</code>, <code>write_bytes</code> — операции и байты, записанные на уровне PostgreSQL;</li>
+<li><code>writebacks</code>, <code>writeback_time</code> — запросы инициировать writeback и время соответствующих операций;</li>
+<li><code>fsyncs</code>, <code>fsync_time</code> — явные операции sync и потраченное время;</li>
+<li><code>backend_type</code> — какой тип процесса выполнял работу;</li>
+<li><code>context</code> — к какому контексту учета относится I/O.</li>
+</ul>
+<p><strong>Симптом:</strong> <code>client backend</code> неожиданно делает много <code>writes</code> или <code>fsyncs</code> на отношениях. Это признак, что часть нагрузки на запись/синхронизацию лежит непосредственно на пользовательских процессах; следует проверить работу checkpointer, размер <code>shared_buffers</code>, темп изменения страниц и источник давления на I/O.</p>
+<h2 id="2220-wal-pg_stat_io">22.20. А WAL в <code>pg_stat_io</code> где?<a class="headerlink" href="#2220-wal-pg_stat_io" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 статистика операций записи и fsync WAL находится в том же <code>pg_stat_io</code>, отдельно по <code>object = 'wal'</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span>
+<span class="w">       </span><span class="n">context</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">fsyncs</span><span class="p">,</span>
+<span class="w">       </span><span class="n">fsync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'wal'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">;</span>
+</code></pre></div>
+<p>Для времени WAL нужно включить <code>track_wal_io_timing</code>; если он выключен, нулевые временные показатели не означают бесплатный I/O.</p>
+<p>Отдельно полезны <strong>объемы генерации</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">wal_records</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wal_fpi</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wal_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal</span><span class="p">;</span>
+</code></pre></div>
+<p>Почему <code>wal_fpi</code> интересен именно checkpoint? Чем чаще checkpoint, тем чаще на первой модификации страницы после точки могут возникать full-page images. Повышение <code>wal_fpi</code> и <code>wal_bytes</code> при неизменном профиле SQL иногда объясняет падение throughput, даже если сами checkpoint выполняются быстрее.</p>
+<p>Не перепутайте <code>pg_stat_wal.wal_bytes</code> с количеством байтов, которые устройство реально записало: логические объемы WAL и физические блочные операции могут различаться.</p>
+<h2 id="2221-checkpoint">22.21. Журнал checkpoint: почему без него счетчики недостаточны<a class="headerlink" href="#2221-checkpoint" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 параметр <strong><code>log_checkpoints</code> по умолчанию включен</strong>. Лог сообщает начало и завершение checkpoint, а также время записи, время sync, число затронутых буферов, количество файлов с sync и другие показатели.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">log_checkpoints</span><span class="p">;</span>
+</code></pre></div>
+<p>Пример <strong>учебного</strong> сообщения:</p>
+<div class="highlight"><pre><span></span><code>checkpoint starting: time
+checkpoint complete: wrote 42000 buffers (...),
+  wrote 125 SLRU buffers; ...
+  write=18.500 s, sync=2.300 s, total=21.100 s; ...
+  lsn=... redo lsn=...
+</code></pre></div>
+<p>Почему логи особенно полезны? <code>pg_stat_checkpointer</code> агрегирует события, а лог позволяет привязать <strong>конкретный checkpoint</strong> к просадке p99 и увидеть его параметры в тот же момент, когда приложение зафиксировало рост задержки.</p>
+<p>Нужно различать: <code>write_time</code> и <code>sync_time</code> могут попадать в разные агрегаты, а измеренные интервалы отдельных этапов не обязаны суммироваться с точностью до миллисекунды в наблюдаемое пользователем время.</p>
+<h2 id="2222">22.22. И еще один слой: что проверять в ОС<a class="headerlink" href="#2222" title="Permanent link">¶</a></h2>
+<p>PostgreSQL не знает, что происходит внутри контроллера SSD. Если по его статистике sync занимал 2 секунды, источник может находиться в очереди блочного устройства, throttling контейнера/виртуальной машины, лимитах IOPS или аппаратном состоянии накопителя.</p>
+<p>На Linux полезны наблюдения в тот же интервал:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># При наличии sysstat и достаточных правах</span>
+<span class="w"> </span>iostat<span class="w"> </span>-xz<span class="w"> </span><span class="m">1</span>
+
+<span class="c1"># Базовые показатели памяти и writeback</span>
+<span class="w"> </span>cat<span class="w"> </span>/proc/meminfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'Dirty:|Writeback:'</span>
+
+<span class="c1"># Пример сведений о давлении на I/O</span>
+<span class="w"> </span>cat<span class="w"> </span>/proc/pressure/io
+</code></pre></div>
+<p>Смотрите на утилизацию, ожидания, длину очереди, write throughput, PSI и системные сообщения об ошибках накопителя. Но не выводите одну-единственную причину из <code>await</code>: на современных устройствах параллельная работа и многослойное планирование делают интерпретацию сложнее.</p>
+<p><strong>Цепочка диагностики:</strong> <code>checkpoint sync_time</code> вырос → <code>pg_stat_io</code> показывает интенсивность sync/writeback → ОС показывает очередь и задержки устройства → определяем, где заканчивается собственная стоимость СУБД и начинается storage bottleneck.</p>
+<h2 id="2223-checkpoint">22.23. Почему длительность checkpoint связана с временем восстановления<a class="headerlink" href="#2223-checkpoint" title="Permanent link">¶</a></h2>
+<p>Свяжем две линии времени.</p>
+<div class="highlight"><pre><span></span><code>0 мин                  5 мин                  10 мин
+|───────────────────────|───────────────────────|
+C0                      C1                      C2
+         ▲                  ▲
+         │                  │
+  redo становится       после C1 redo
+  старше со временем    можно сдвинуть вперед
+
+                        X crash
+                        │
+                        ▼
+            читаем WAL от redo последнего
+            ЗАВЕРШЕННОГО checkpoint
+</code></pre></div>
+<p>Чем дольше между завершенными checkpoint и текущим WAL, тем больше потенциально требуется REDO. Но <strong>объем WAL — только один из факторов времени восстановления</strong>. Replay включает чтение журнала, декодирование, работу rmgr, обращения к страницам данных, возможное создание файлов и финальную подготовку согласованного состояния.</p>
+<p>Условная модель:</p>
+<p>[
+T_{recovery} = T_{startup} + T_{WAL read} + T_{redo apply} + T_{I/O wait} + T_{finish}.
+]</p>
+<p>Эта сумма — аналитическая декомпозиция, а не точное описание внутренних фаз, которые частично перекрываются. Измерить реальный RTO исключительно по количеству WAL нельзя.</p>
+<p>Короткий checkpoint interval <strong>не гарантирует</strong> короткий RTO, если storage медленный или отсутствует нужный сегмент WAL. Он лишь сокращает одну из важных составляющих задачи.</p>
+<h2 id="2224-rto-wal">22.24. Пример RTO: одинаковый WAL, разная структура изменений<a class="headerlink" href="#2224-rto-wal" title="Permanent link">¶</a></h2>
+<p>Два сервера потеряли питание. Оба имеют по 12 ГиБ WAL после последнего checkpoint.</p>
+<p><strong>Сервер A</strong>: записи преимущественно затрагивают страницы, уже оказавшиеся в page cache ОС, и повторно меняют один небольшой набор отношений. Во время REDO часто происходит попадание в кеш.</p>
+<p><strong>Сервер B</strong>: записи затрагивают большой набор случайно распределенных страниц десятков файлов, которые еще не прочитаны после старта. Replay приходится постоянно ждать новые data-page reads.</p>
+<p>Размер WAL одинаков. Но задержка может существенно отличаться из-за числа обращений к холодным страницам и возможности наложить чтения друг на друга.</p>
+<div class="highlight"><pre><span></span><code>      WAL scanner
+           │
+      decode record
+           │
+       need page?
+        /     \
+      hit     miss
+       │       │
+      REDO   random data-page read ──► REDO
+                    ▲
+                 I/O wait
+</code></pre></div>
+<p>Следующий инженерный вопрос возникает сам: <strong>если WAL заранее говорит, какие страницы скоро понадобятся, почему не попросить ОС читать их до фактического применения записи?</strong> Так появляется prefetch.</p>
+<h2 id="2225-recovery_prefetch-wal">22.25. <code>recovery_prefetch</code>: WAL позволяет заглянуть вперед<a class="headerlink" href="#2225-recovery_prefetch-wal" title="Permanent link">¶</a></h2>
+<p><strong>Предвыборка (prefetch)</strong> — попытка инициировать чтение страницы в память заранее, пока текущая работа еще выполняется. При recovery PostgreSQL может просматривать будущие WAL-записи, извлекать ссылки на data blocks и запрашивать их чтение до того, как redo обработчик дойдет до соответствующей операции.</p>
+<div class="highlight"><pre><span></span><code>                 WAL decoder / lookahead
+            R1       R2       R3       R4       R5
+            │        │        │        │        │
+         page A    page D   page E    page A   page K
+            │        │        │        │        │
+            ├────────┼────────┼────────┼────────┘
+            │        │        │        │
+       prefetch A  prefetch D  prefetch E  prefetch K
+            │        │        │        │
+            ▼        ▼        ▼        ▼
+           I/O выполняется, пока REDO применяет предыдущие записи
+</code></pre></div>
+<p>Почему prefetch вообще может помогать? Последовательность REDO логически упорядочена, но <strong>чтения</strong> некоторых будущих data pages можно начать раньше, если известны их адреса и не нарушаются зависимости. Подсказка к чтению не означает преждевременное применение WAL и потому не меняет логическую последовательность восстановления.</p>
+<p>Этот механизм особенно полезен, если значительная часть replay time уходит на ожидание случайных чтений страниц, а накопитель способен выполнять несколько запросов параллельно.</p>
+<h2 id="2226-recovery_prefetch-postgresql-18">22.26. Три режима <code>recovery_prefetch</code> в PostgreSQL 18<a class="headerlink" href="#2226-recovery_prefetch-postgresql-18" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">recovery_prefetch</span><span class="p">;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Значение</th>
+<th>Поведение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>Отключить механизм prefetch в recovery</td>
+</tr>
+<tr>
+<td><code>on</code></td>
+<td>Включить попытки prefetch в поддерживаемой реализации</td>
+</tr>
+<tr>
+<td><code>try</code></td>
+<td><strong>Значение по умолчанию:</strong> использовать prefetch, если ОС умеет принимать read-ahead advice</td>
+</tr>
+</tbody>
+</table>
+<p>Точная польза зависит от операционной системы, ее кеша, нагрузки и типа диска. <code>try</code> — разумный стандартный режим именно потому, что API предвыборки и его фактический эффект неодинаковы на разных платформах.</p>
+<p>При эксплуатации нельзя утверждать «<code>recovery_prefetch=on</code> означает, что все следующие страницы уже загружены». Advisory I/O может быть проигнорирован, ограничен или не завершиться к моменту реального обращения.</p>
+<h2 id="2227-prefetch">22.27. Когда prefetch не нужен или бессилен<a class="headerlink" href="#2227-prefetch" title="Permanent link">¶</a></h2>
+<p>Рассмотрим четыре случая.</p>
+<p><strong>Первый — страница уже в shared buffers.</strong> Ее предвыбирать бессмысленно: в наличии актуальный буфер PostgreSQL.</p>
+<p><strong>Второй — WAL содержит full-page image.</strong> В некоторых случаях REDO может восстановить страницу из полного образа, поэтому отдельный fetch старой страницы не требуется. Это связывает prefetch с механизмом FPI из 07.2.</p>
+<p><strong>Третий — WAL создает или расширяет отношения.</strong> Страница, которая должна быть инициализирована с нуля или еще не существует в файле, не нуждается в обычном чтении старого содержимого.</p>
+<p><strong>Четвертый — узкое место не в data reads.</strong> Если чтение WAL уже медленное, CPU упирается в декодирование или применение сложных rmgr-операций, дополнительная предвыборка почти не изменит общее время.</p>
+<p>Общий принцип: <strong>prefetch ускоряет ожидаемое ожидание чтения, но не любую работу recovery</strong>.</p>
+<h2 id="2228-wal_decode_buffer_size">22.28. <code>wal_decode_buffer_size</code>: насколько далеко можно смотреть вперед<a class="headerlink" href="#2228-wal_decode_buffer_size" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 параметр:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">wal_decode_buffer_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Имеет значение по умолчанию <strong><code>512kB</code></strong>. Он ограничивает, насколько далеко сервер может просматривать WAL вперед для определения блоков, которые стоит предвыбрать. Это значение относится к <strong>байтам WAL</strong>, а не к размеру data-page кеша и не к числу 8-КБ страниц для гарантированной загрузки.</p>
+<p>Почему нельзя декодировать бесконечно далеко вперед? Любой lookahead потребляет память и несет работу по чтению/анализу будущих записей. Если prefetch начнет опережать применение слишком сильно, он может вытеснить из page cache действительно нужные сейчас страницы и создать лишний I/O.</p>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code>wal_decode_buffer_size = 512 KiB
+
+Текущий replay LSN
+      │
+      ├──── будущие записи WAL в пределах ~512 KiB ────┤
+      │                                                 │
+  применять сейчас                              посмотреть блочные ссылки
+                                                и запланировать prefetch
+</code></pre></div>
+<p>Это концептуальная область опережения; фактическая глубина ограничивается также буферами, доступностью WAL, алгоритмом и числом запросов на I/O.</p>
+<p>Параметр устанавливается <strong>при старте сервера</strong>, поэтому его изменение требует перезапуска; это не ручка, эффект которой можно проверить одним <code>SET</code> в пользовательской транзакции.</p>
+<h2 id="2229-prefetch">22.29. Два ограничителя prefetch: расстояние и параллелизм<a class="headerlink" href="#2229-prefetch" title="Permanent link">¶</a></h2>
+<p>В документации PostgreSQL 18 рядом с <code>recovery_prefetch</code> упоминаются:</p>
+<ul>
+<li><code>wal_decode_buffer_size</code> — ограничение <strong>расстояния опережения</strong> в байтах WAL;</li>
+<li><code>maintenance_io_concurrency</code> — параметр, влияющий на <strong>степень параллельного I/O</strong> при предвыборке.</li>
+</ul>
+<p>Это разные ресурсы. Можно посмотреть далеко по WAL, но запускать немного чтений одновременно. Можно разрешить больше параллельных запросов, но при малом окне просмотра просто не найти достаточно будущих страниц для заполнения очереди.</p>
+<div class="highlight"><pre><span></span><code>             lookahead window
+          &lt;-------------------&gt;
+WAL:      R1 R2 R3 R4 R5 R6 R7 R8
+          │     │  │     │
+          ▼     ▼  ▼     ▼
+         block A B  C     D
+                   │
+              I/O depth = N
+              одновременно не все
+              запросы обязаны выполняться
+</code></pre></div>
+<p>Для SSD с высокой эффективной глубиной очереди это может дать выигрыш. Для storage, который уже насыщен другой работой, рост числа предварительных чтений способен увеличить общую задержку или ухудшить поведение соседних workload.</p>
+<h2 id="2230">22.30. Математика выигрыша от предвыборки: где модель ломается<a class="headerlink" href="#2230" title="Permanent link">¶</a></h2>
+<p>Предположим, при recovery приходится прочитать <code>N = 180000</code> холодных data pages, а средняя задержка независимого чтения — <code>3 ms</code>.</p>
+<p>Если <strong>все</strong> чтения зависели бы одно от другого и выполнялись последовательно, одна только сумма ожиданий дала бы:</p>
+<p>[
+T_{serial} = 180000 \times 0.003 \approx 540 \text{s}.
+]</p>
+<p>Теперь предположим идеальное перекрытие 32 независимых запросов на чтение:</p>
+<p>[
+T_{ideal,32}=\frac{540}{32}\approx 16.9 \text{s}.
+]</p>
+<p>Это <strong>верхняя иллюстрация возможного выигрыша от перекрытия</strong>, а не прогноз PostgreSQL: страницы могут находиться в кеше, операции зависят друг от друга, WAL-декодер не видит все ссылки сразу, effective queue depth ограничен, storage пропускной способностью и CPU, а некоторые reads окажутся бесполезными.</p>
+<p>Правильный инженерный вопрос: сколько времени <strong>действительно</strong> уходит на неперекрытое ожидание чтения, и что поменялось после включения prefetch? Ответ дают статистика, логи и повторяемый эксперимент на копии нагрузки.</p>
+<h2 id="2231-pg_stat_recovery_prefetch">22.31. <code>pg_stat_recovery_prefetch</code>: как измерять пользу<a class="headerlink" href="#2231-pg_stat_recovery_prefetch" title="Permanent link">¶</a></h2>
+<p>Для PostgreSQL 18 предусмотрено системное представление <strong><code>pg_stat_recovery_prefetch</code></strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">prefetch</span><span class="p">,</span>
+<span class="w">       </span><span class="n">hit</span><span class="p">,</span>
+<span class="w">       </span><span class="n">skip_init</span><span class="p">,</span>
+<span class="w">       </span><span class="n">skip_new</span><span class="p">,</span>
+<span class="w">       </span><span class="n">skip_fpw</span><span class="p">,</span>
+<span class="w">       </span><span class="n">skip_rep</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wal_distance</span><span class="p">,</span>
+<span class="w">       </span><span class="n">block_distance</span><span class="p">,</span>
+<span class="w">       </span><span class="n">io_depth</span><span class="p">,</span>
+<span class="w">       </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_recovery_prefetch</span><span class="p">;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Счетчик</th>
+<th>Инженерная интерпретация</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prefetch</code></td>
+<td>Сколько блоков было запрошено заранее, поскольку их не нашли в buffer pool</td>
+</tr>
+<tr>
+<td><code>hit</code></td>
+<td>Ссылки на блоки, уже находившиеся в buffer pool</td>
+</tr>
+<tr>
+<td><code>skip_init</code></td>
+<td>Не запрашивали чтение, потому что блок предстоит инициализировать</td>
+</tr>
+<tr>
+<td><code>skip_new</code></td>
+<td>Блок еще не существовал и не нуждался в чтении</td>
+</tr>
+<tr>
+<td><code>skip_fpw</code></td>
+<td>Пропуск из-за full-page image в WAL</td>
+</tr>
+<tr>
+<td><code>skip_rep</code></td>
+<td>Блок уже недавно предвыбирался</td>
+</tr>
+<tr>
+<td><code>wal_distance</code></td>
+<td>Текущая дистанция опережения в WAL, байты</td>
+</tr>
+<tr>
+<td><code>block_distance</code></td>
+<td>Текущая дистанция опережения в блоках</td>
+</tr>
+<tr>
+<td><code>io_depth</code></td>
+<td>Сколько prefetch-запросов инициировано, но завершение еще неизвестно</td>
+</tr>
+</tbody>
+</table>
+<p>Счетчики можно наблюдать после recovery, если статистика сохранилась для чтения, или во время доступного для мониторинга режима восстановления. Важно помнить: после unclean restart совокупная статистика PostgreSQL может сбрасываться. Для полной картины собирайте также логи запуска и внешние I/O-метрики.</p>
+<p>Высокий <code>hit</code> может означать, что ОС и shared buffers уже обеспечивают нужные страницы. Большое число <code>skip_fpw</code> показывает, что части страниц не требуется старое содержимое. Высокий <code>prefetch</code> сам по себе <strong>не доказывает</strong> сокращение startup time; необходимо измерять фактическую длительность recovery.</p>
+<h2 id="2232-recovery_prefetchoff-try">22.32. Как выглядит правильное сравнение <code>recovery_prefetch=off</code> и <code>try</code><a class="headerlink" href="#2232-recovery_prefetchoff-try" title="Permanent link">¶</a></h2>
+<p>В учебном исследовании используем <strong>отдельный одноразовый кластер</strong> с воспроизводимой нагрузкой, одинаковым набором WAL и сопоставимым состоянием кеша. Нельзя просто дважды перезапустить уже восстановленный рабочий кластер: второй запуск не повторит тот же REDO.</p>
+<p>Что фиксируем:</p>
+<ol>
+<li>Время от старта процесса до завершения recovery/готовности к работе.</li>
+<li>Объем WAL от <code>redo LSN</code> до конечной replay-позиции.</li>
+<li><code>pg_stat_recovery_prefetch</code> и доступные счетчики I/O.</li>
+<li>CPU saturation и wait-for-I/O в ОС.</li>
+<li>Состояние page cache, storage cache, параллельную нагрузку и повторяемость эксперимента.</li>
+</ol>
+<p>Гипотеза: prefetch помогает, когда большое количество холодных data pages и storage умеет выполнять независимые reads параллельно. Контрпример: replay упирается в CPU, большинство страниц уже в кеше, или накопитель занят конкурентными операциями. На таком профиле prefetch может ничего не ускорить.</p>
+<h2 id="2233-checkpoint_timeout-rto">22.33. <code>checkpoint_timeout</code> и реальный RTO: почему связь статистическая<a class="headerlink" href="#2233-checkpoint_timeout-rto" title="Permanent link">¶</a></h2>
+<p>Поставим рядом два разных параметра качества:</p>
+<ul>
+<li><strong>Обычная работа:</strong> throughput, p95/p99 запросов, задержка COMMIT, write amplification, нагрузка storage.</li>
+<li><strong>После аварии:</strong> startup time, WAL read/replay, восстановление в согласованное состояние и время возвращения сервиса к обслуживанию запросов.</li>
+</ul>
+<p>Предположим, мы увеличили <code>checkpoint_timeout</code> с 5 до 15 минут. На типичной нагрузке это может уменьшить частоту checkpoint и объем full-page images. Взамен после аварии потенциально нужно читать больший диапазон WAL, а запуски могут длиться дольше.</p>
+<p>Но при большом <code>wal_bytes/s</code> система может все равно вызывать checkpoint по <code>max_wal_size</code>; тогда изменение времени почти ничего не даст. При низкой активности PostgreSQL может пропускать пустые checkpoints. При random-I/O-heavy восстановлении время определяется не только размером WAL, но и количеством холодных страниц.</p>
+<p>Поэтому <strong>нельзя обещать «в три раза больше timeout — в три раза больше recovery»</strong>. Мы управляем количеством потенциальной работы, а задержка зависит от фактического физического профиля.</p>
+<h2 id="2234">22.34. Экономика параметров: таблица компромиссов<a class="headerlink" href="#2234" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Изменение</th>
+<th>В обычной работе</th>
+<th>При recovery</th>
+<th>Риск/ограничение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Увеличить <code>checkpoint_timeout</code></td>
+<td>Реже checkpoint, потенциально меньше FPI</td>
+<td>Потенциально длиннее WAL replay</td>
+<td>Может ограничиваться <code>max_wal_size</code></td>
+</tr>
+<tr>
+<td>Увеличить <code>max_wal_size</code></td>
+<td>Реже WAL-triggered checkpoint</td>
+<td>Потенциально больше WAL для REDO</td>
+<td>Больше требований к свободному месту; мягкий лимит</td>
+</tr>
+<tr>
+<td>Снизить <code>checkpoint_completion_target</code></td>
+<td>Интенсивнее checkpoint I/O</td>
+<td>Контрольная точка может завершаться раньше</td>
+<td>Пики latency, рекомендовать только после измерений</td>
+</tr>
+<tr>
+<td>Увеличить <code>checkpoint_flush_after</code></td>
+<td>Ранний writeback ОС, иной I/O-профиль</td>
+<td>Прямого ускорения REDO не гарантирует</td>
+<td>Может ухудшить page-cache workload</td>
+</tr>
+<tr>
+<td>Включить/настроить <code>recovery_prefetch</code></td>
+<td>На обычную работу первичной БД не нацелено</td>
+<td>Может перекрыть чтения холодных страниц</td>
+<td>Эффект зависит от I/O и ОС</td>
+</tr>
+<tr>
+<td>Увеличить <code>wal_decode_buffer_size</code></td>
+<td>При обычном выполнении запросов не ключевая стоимость</td>
+<td>Более длинное окно prefetch</td>
+<td>Дополнительная память/работа, нужен restart</td>
+</tr>
+</tbody>
+</table>
+<p>Таблица не предлагает менять все параметры одновременно. Сначала формулируется симптом: в нормальной работе высокий p99 или после crash неприемлемый RTO. Затем выбирается параметр, влияющий на <strong>конкретный ограниченный ресурс</strong>.</p>
+<h2 id="2235-no1-checkpoint-io">22.35. Инцидент №1: checkpoint регулярно вырывает I/O у запросов<a class="headerlink" href="#2235-no1-checkpoint-io" title="Permanent link">¶</a></h2>
+<p>Предположим, сервис показывает стабильный p99 в течение четырех минут, а затем на 15–30 секунд задержка резко увеличивается. При этом <code>pg_stat_checkpointer</code> показывает рост <code>num_timed</code>, а логи — длинный <code>sync_time</code>. На ОС одновременно растут writeback и задержки блочного устройства.</p>
+<p>Упрощенная цепочка:</p>
+<div class="highlight"><pre><span></span><code>много dirty buffers
+        ↓
+checkpointer сделал массу write()
+        ↓
+ядро накопило dirty file pages
+        ↓
+фаза fsync → burst I/O
+        ↓
+общая очередь на storage
+        ↓
+p99 пользовательских транзакций вырос
+</code></pre></div>
+<p>Что проверяем: режим <code>checkpoint_flush_after</code>, профиль device I/O, свободное место и производительность тома, фактические dirty/writeback kernel counters, данные <code>pg_stat_io</code>. Что <strong>не делаем</strong>: не выключаем <code>fsync</code>, не включаем опасные режимы долговечности и не ставим случайное значение <code>checkpoint_completion_target</code> наугад.</p>
+<p>Инженерный вывод: checkpoint может создавать <strong>хвост задержки через общий storage</strong>, даже если сам SQL-запрос не вызывает <code>CHECKPOINT</code>.</p>
+<h2 id="2236-no2-requested-checkpoints-40">22.36. Инцидент №2: requested checkpoints каждые 40 секунд<a class="headerlink" href="#2236-no2-requested-checkpoints-40" title="Permanent link">¶</a></h2>
+<p>Профиль: <code>checkpoint_timeout = 5min</code>, но в логах контрольные точки возникают примерно каждые 40 секунд. Администратор пытается увеличить <code>checkpoint_timeout</code> до 15 минут, однако картина почти не меняется.</p>
+<p>Причина может быть в пороге <strong><code>max_wal_size</code></strong>, который достигается раньше таймера. <code>num_requested</code> растет быстрее <code>num_timed</code>; <code>pg_stat_wal.wal_bytes</code> показывает большой поток WAL.</p>
+<p>Модель:</p>
+<div class="highlight"><pre><span></span><code>высокий UPDATE/INSERT rate
+            ↓
+   быстрый рост WAL
+            ↓
+  порог max_wal_size
+            ↓
+ checkpoint раньше timeout
+            ↓
+больше FPI после новых checkpoint
+            ↓
+    дополнительный WAL
+</code></pre></div>
+<p>Последняя стрелка показывает возможную <strong>положительную обратную связь</strong>: слишком частые checkpoints сами могут добавлять WAL через FPI. Решение начинается с оценки WAL generation rate, свободного места и фактической частоты checkpoint.</p>
+<h2 id="2237-no3-wal-recovery">22.37. Инцидент №3: короткий WAL, долгий recovery<a class="headerlink" href="#2237-no3-wal-recovery" title="Permanent link">¶</a></h2>
+<p>Допустим, после аварии <code>redo LSN</code> близок к концу корректного WAL; данных относительно немного, но запуск длится минуты. Увеличивать частоту checkpoint кажется логичным, однако это может быть ложным решением.</p>
+<p>Возможные причины:</p>
+<ul>
+<li>почти каждая WAL-запись обращается к новой холодной странице;</li>
+<li>storage обслуживает random data-page reads с большой задержкой;</li>
+<li>prefetch выключен или не поддерживается;</li>
+<li>CPU занят декодированием/применением redo;</li>
+<li>конечная запись и sync восстановленных файлов занимают существенное время;</li>
+<li>виртуальное хранилище перегружено независимо от PostgreSQL.</li>
+</ul>
+<p>Диагноз требует раздельно исследовать WAL read, data read I/O и redo CPU. Здесь <strong>количество WAL не является заменой профиля page access</strong>.</p>
+<h2 id="2238-no4-pg_control-checkpoint-record">22.38. Инцидент №4: <code>pg_control</code> читается, но checkpoint record не существует<a class="headerlink" href="#2238-no4-pg_control-checkpoint-record" title="Permanent link">¶</a></h2>
+<p>Картина:</p>
+<div class="highlight"><pre><span></span><code>pg_controldata → показывает checkpoint LSN
+pg_waldump     → не удается прочитать необходимый WAL по этому LSN
+startup log    → ошибка проверки checkpoint record
+</code></pre></div>
+<p>Не нужно «лечить» это увеличением <code>checkpoint_timeout</code> или <code>recovery_prefetch</code>. Эти параметры влияют на обычное расписание и стоимость восстановления <strong>при наличии корректных данных</strong>, а не создают отсутствующую историческую запись.</p>
+<p>Проверяем принадлежность WAL кластеру, timeline, недостающие сегменты, ошибки файловой системы и надежную копию. Это случай <strong>доступности и целостности восстановления</strong>; любые действия с исходной директорией сначала согласуются как аварийная процедура.</p>
+<h2 id="2239-checkpoint">22.39. Мини-эксперимент: посмотреть checkpoint без повреждения данных<a class="headerlink" href="#2239-checkpoint" title="Permanent link">¶</a></h2>
+<p>Для отдельного тестового кластера PostgreSQL 18:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">checkpoint_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">redo_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">checkpoint_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_checkpoint</span><span class="p">();</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">num_timed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_requested</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">       </span><span class="n">buffers_written</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+</code></pre></div>
+<p>Создаем контролируемую запись на <strong>тестовой</strong> таблице, не меняя производственную БД:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">checkpoint_demo</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">g</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">repeat</span><span class="p">(</span><span class="s1">'x'</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">payload</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">100000</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">g</span><span class="p">;</span>
+
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">checkpoint_demo</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">repeat</span><span class="p">(</span><span class="s1">'y'</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</code></pre></div>
+<p>Затем при наличии необходимых прав на тестовом кластере:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CHECKPOINT</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">checkpoint_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">redo_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">checkpoint_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_checkpoint</span><span class="p">();</span>
+</code></pre></div>
+<p>После этого снова считываем статистику и логи. Студенты увидят два принципиально разных значения LSN при online checkpoint и цену записи данных. <strong><code>CHECKPOINT</code> не предназначен для регулярного вызова в production</strong>: принудительные точки влияют на I/O и объем WAL.</p>
+<h3 id="_2">Почему этот эксперимент нужен в лекции<a class="headerlink" href="#_2" title="Permanent link">¶</a></h3>
+<p>Он связывает теоретическую цепочку «<code>pg_control</code> → checkpoint record → redo LSN» с реальным наблюдением. При этом не требуется ломать сервер или терять данные, чтобы увидеть структуру контрольной точки.</p>
+<h2 id="2240">22.40. Эксперимент с аварией — только на одноразовом кластере<a class="headerlink" href="#2240" title="Permanent link">¶</a></h2>
+<p>Если требуется продемонстрировать recovery руками, создайте отдельный одноразовый PostgreSQL-кластер на изолированном томе, запишите тестовые данные и остановите сервер в <strong>immediate</strong>-режиме. Это специально вызывает необходимость crash recovery при последующем запуске.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># ТОЛЬКО отдельный тестовый экземпляр, не production!</span>
+pg_ctl<span class="w"> </span>-D<span class="w"> </span><span class="s2">"</span><span class="nv">$TEST_PGDATA</span><span class="s2">"</span><span class="w"> </span>stop<span class="w"> </span>-m<span class="w"> </span>immediate
+pg_ctl<span class="w"> </span>-D<span class="w"> </span><span class="s2">"</span><span class="nv">$TEST_PGDATA</span><span class="s2">"</span><span class="w"> </span>-l<span class="w"> </span><span class="s2">"</span><span class="nv">$TEST_PGDATA</span><span class="s2">/server.log"</span><span class="w"> </span>start
+</code></pre></div>
+<p>После старта изучаем строки журнала с указанием начала redo, его завершения и записи новой контрольной точки. Сравниваем <code>pg_controldata</code>, текущее состояние и лог.</p>
+<p>Этот опыт доказывает нормальную работу recovery после <strong>контролируемой аварийной остановки процесса</strong>, но не имитирует реальный обрыв питания с повреждением кешей накопителя. Для тестирования storage durability нужны другие средства и безопасная испытательная инфраструктура; их мы уже обсуждали в 07.2.</p>
+<h2 id="2241">22.41. Контрольная таблица: симптом → механизм → измерение → действие<a class="headerlink" href="#2241" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятный слой</th>
+<th>Первичная проверка</th>
+<th>Дальнейшее действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Длинный <code>write_time</code></td>
+<td>Checkpoint buffer writes, storage throughput</td>
+<td><code>pg_stat_checkpointer</code>, <code>pg_stat_io</code>, <code>iostat</code></td>
+<td>Уменьшать I/O-пик, исследовать устройство</td>
+</tr>
+<tr>
+<td>Длинный <code>sync_time</code></td>
+<td>OS page cache / file sync</td>
+<td>Checkpoint log, <code>pg_stat_io.fsync_time</code>, dirty/writeback ОС</td>
+<td>Проверить writeback и storage latency</td>
+</tr>
+<tr>
+<td>Много <code>num_requested</code></td>
+<td>Частые WAL-triggered checkpoints</td>
+<td><code>pg_stat_wal.wal_bytes</code>, <code>max_wal_size</code></td>
+<td>Пересмотреть частоту checkpoint с учетом места</td>
+</tr>
+<tr>
+<td>Клиентские backend делают много writes</td>
+<td>Недостаточный фоновый прогресс/вытеснения</td>
+<td><code>pg_stat_io</code> по <code>backend_type</code></td>
+<td>Проверить распределение I/O и буферы</td>
+</tr>
+<tr>
+<td>Большой диапазон <code>redo → end WAL</code></td>
+<td>Далеко отстоящая завершенная точка</td>
+<td><code>pg_controldata</code>, checkpoint log</td>
+<td>Уточнить scheduling и цену более частых точек</td>
+</tr>
+<tr>
+<td>Мало WAL, медленный startup</td>
+<td>Холодные страницы, I/O/CPU при REDO</td>
+<td>Startup log, device metrics, prefetch stats</td>
+<td>Проверять <code>recovery_prefetch</code> и bottleneck</td>
+</tr>
+<tr>
+<td>Checkpoint record отсутствует</td>
+<td>Недостаток/повреждение обязательного WAL</td>
+<td><code>pg_controldata</code>, <code>pg_waldump</code>, filesystem logs</td>
+<td>Восстановить из доверенных источников</td>
+</tr>
+<tr>
+<td>CRC ошибки <code>pg_control</code></td>
+<td>Повреждение метаданных</td>
+<td>Startup log, файл на копии, storage diagnostics</td>
+<td>Аварийная процедура восстановления</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2242-22">22.42. Семь инженерных выводов темы 22<a class="headerlink" href="#2242-22" title="Permanent link">¶</a></h2>
+<ol>
+<li>Checkpoint создает <strong>согласованную устойчивую границу</strong>, записывая не только heap/index pages, но и служебные данные, а затем синхронизируя нужные файлы.</li>
+<li>В PostgreSQL 18 <code>BufferSync()</code> собирает кандидатов, сортирует их, балансирует I/O между tablespaces и дозирует запись через <code>CheckpointWriteDelay()</code>.</li>
+<li><code>checkpoint_flush_after</code> <strong>пытается начать writeback раньше</strong> и смягчить финальный sync; сам по себе не делает промежуточные <code>write()</code> долговечными.</li>
+<li><code>checkpoint_timeout</code>, <code>max_wal_size</code> и <code>checkpoint_completion_target</code> определяют частоту и темп checkpoint. Выигрыш по RTO приходится оплачивать обычным I/O и возможным ростом full-page images.</li>
+<li>Главные средства наблюдения — <code>pg_stat_checkpointer</code>, <code>pg_stat_io</code>, <code>pg_stat_wal</code>, <code>log_checkpoints</code> и метрики ОС; в PostgreSQL 18 важно использовать актуальные имена полей.</li>
+<li><code>recovery_prefetch</code> позволяет начать чтение будущих data blocks, не меняя логического порядка REDO. <code>wal_decode_buffer_size</code> ограничивает дистанцию lookahead, <code>maintenance_io_concurrency</code> — активность I/O.</li>
+<li>Выбор настроек должен опираться на <strong>реальный узкий ресурс</strong>: WAL volume, writeback/sync, random reads или CPU. Никакая настройка не восстановит отсутствующий WAL.</li>
+</ol>
+<hr/>
+<h1 id="073-pg_control">Итог лекции 07.3. Вся цепочка от <code>pg_control</code> до согласованного экземпляра<a class="headerlink" href="#073-pg_control" title="Permanent link">¶</a></h1>
+<p>Теперь можно собрать полный путь так, чтобы каждая стрелка означала конкретный механизм, а не красивое слово.</p>
+<div class="highlight"><pre><span></span><code>                НОРМАЛЬНАЯ РАБОТА
+
+      dirty buffers в shared_buffers
+                       │
+                       ▼
+     CreateCheckPoint() выбирает redo R
+                       │
+                       ▼
+              XLOG_CHECKPOINT_REDO
+                       │
+                       ▼
+       BufferSync(): select → sort
+                       │
+                       ▼
+           CheckpointWriteDelay()
+                       │
+                       ▼
+       page writes → OS page cache
+                       │
+                       ▼
+    checkpoint_flush_after: writeback advice
+                       │
+                       ▼
+           ProcessSyncRequests()
+                       │
+                       ▼
+     XLOG_CHECKPOINT_ONLINE + XLogFlush
+                       │
+                       ▼
+       pg_control.checkPoint = C
+       pg_control.checkPointCopy.redo = R
+                       │
+                       ▼
+                 ВНЕЗАПНЫЙ СБОЙ
+                       │
+                       ▼
+                    STARTUP
+                       │
+                       ▼
+             read/validate pg_control
+                       │
+                       ▼
+           load checkpoint record C
+                       │
+                       ▼
+           determine redo position R
+                       │
+                       ▼
+            scan/replay WAL from R
+                       │
+               ┌───────┴─────────┐
+               │                 │
+           prefetch          redo apply
+        future blocks        (rmgr + page LSN)
+               │                 │
+               └───────┬─────────┘
+                       │
+                       ▼
+              consistent server state
+                       │
+                       ▼
+              normal operation resumes
+</code></pre></div>
+<p>В этой схеме <strong><code>XLOG_CHECKPOINT_REDO</code> и <code>XLOG_CHECKPOINT_ONLINE</code></strong> относятся к обычному online checkpoint PostgreSQL 18; штатный shutdown использует однозаписную схему <code>XLOG_CHECKPOINT_SHUTDOWN</code>.</p>
+<h2 id="_3">Пять ключевых ментальных моделей<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Checkpoint — обещание о файлах данных.</strong> Обещание становится надежным после sync и durable checkpoint record, а <code>pg_control</code> помогает найти эту запись при старте.</li>
+<li><strong><code>C</code> и <code>R</code> — разные координаты.</strong> <code>C</code> говорит, где находится завершенная запись checkpoint; <code>R</code> говорит, с какого WAL record требуется восстановление. В online checkpoint <code>R</code> раньше <code>C</code>.</li>
+<li><strong>Crash recovery — повторение с проверкой физического состояния.</strong> Часть страниц уже содержит нужные изменения, поэтому page LSN предотвращает лишнее повторное применение; часть придется прочитать и изменить.</li>
+<li><strong>Checkpoint I/O и recovery I/O платятся в разные моменты.</strong> Частые checkpoint увеличивают стоимость обычной работы, зато обычно сокращают объем последующего REDO. Prefetch улучшает использование I/O при восстановлении, когда есть что читать.</li>
+<li><strong>Корректность важнее быстрого старта.</strong> Если контрольная точка или необходимая WAL-история недоступны, PostgreSQL может отказать в запуске. Это правильнее, чем молча объявить несогласованные данные восстановленными.</li>
+</ol>
+<h2 id="backend-">Диагностический минимум для backend-инженера<a class="headerlink" href="#backend-" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1">-- 1. Версия сервера и параметры checkpoint/recovery</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">server_version</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_timeout</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_completion_target</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_flush_after</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_wal_size</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">recovery_prefetch</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_decode_buffer_size</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">maintenance_io_concurrency</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">track_io_timing</span><span class="p">;</span>
+
+<span class="c1">-- 2. Где находится завершенный checkpoint и REDO</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">checkpoint_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">redo_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">redo_wal_file</span><span class="p">,</span>
+<span class="w">       </span><span class="n">timeline_id</span><span class="p">,</span><span class="w"> </span><span class="n">checkpoint_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_control_checkpoint</span><span class="p">();</span>
+
+<span class="c1">-- 3. Сколько checkpoint выполнено и сколько стоили фазы</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">num_timed</span><span class="p">,</span><span class="w"> </span><span class="n">num_requested</span><span class="p">,</span><span class="w"> </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">       </span><span class="n">buffers_written</span><span class="p">,</span><span class="w"> </span><span class="n">write_time</span><span class="p">,</span><span class="w"> </span><span class="n">sync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+
+<span class="c1">-- 4. Кто выполняет запись и sync relation-файлов</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writes</span><span class="p">,</span><span class="w"> </span><span class="n">write_bytes</span><span class="p">,</span><span class="w"> </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">       </span><span class="n">writebacks</span><span class="p">,</span><span class="w"> </span><span class="n">fsyncs</span><span class="p">,</span><span class="w"> </span><span class="n">fsync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'relation'</span><span class="p">;</span>
+
+<span class="c1">-- 5. Какой объем WAL формируется</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">wal_records</span><span class="p">,</span><span class="w"> </span><span class="n">wal_fpi</span><span class="p">,</span><span class="w"> </span><span class="n">wal_bytes</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal</span><span class="p">;</span>
+</code></pre></div>
+<p>Дополняем <code>pg_controldata</code>, <code>pg_waldump</code>, серверным логом checkpoint и recovery, <code>iostat</code> и метриками физического/виртуального хранения.</p>
+<h2 id="_4">Куда можно копнуть глубже<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<p><strong>Дополнительный слой А — <code>XLogPrefetcher</code> и Linux read-ahead:</strong> как декодер WAL безопасно опережает фактический REDO, какие структуры отслеживают уже предвыбранные блоки и почему предвыборка отдельных random reads выигрывает у простого чтения по требованию. Это объяснит, при каких значениях <code>wal_decode_buffer_size</code> и I/O depth рост памяти действительно превращается в меньший RTO.</p>
+<p><strong>Дополнительный слой Б — <code>SyncRequest</code>/<code>PendingWriteback</code> и VFS:</strong> как <code>BufferSync</code> превращает 8-КБ операции в запросы файлового writeback, что делают системные примитивы Linux и почему финальный <code>fsync</code> иногда остается самым дорогим этапом. Это полезно для диагностики периодических всплесков p99, совпадающих с checkpoint.</p>
+<p>Оба слоя выходят за утвержденные темы 18 и 22. В программу автоматически их не добавляем.</p>
+<hr/>
+<h1 id="_5">Источники и границы точности<a class="headerlink" href="#_5" title="Permanent link">¶</a></h1>
+<p>Материал основан на документации PostgreSQL 18 и исходниках <strong>ветки <code>REL_18_STABLE</code></strong>. Ниже перечислены основные проверяемые первоисточники.</p>
+<h2 id="_6">Документация<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/wal-configuration.html">PostgreSQL 18: WAL Configuration</a> — checkpoint, частота, writeback, restartpoints и recovery prefetch.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-wal.html">PostgreSQL 18: WAL parameters</a> — <code>checkpoint_timeout</code>, <code>checkpoint_completion_target</code>, <code>checkpoint_flush_after</code>, <code>recovery_prefetch</code>, <code>wal_decode_buffer_size</code> и их значения по умолчанию.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-internals.html">PostgreSQL 18: WAL Internals</a> — связь <code>pg_control</code>, checkpoint record и REDO.</li>
+<li><a href="https://www.postgresql.org/docs/18/functions-info.html">PostgreSQL 18: System Information Functions</a> — <code>pg_control_checkpoint</code>, <code>pg_control_system</code>, <code>pg_control_recovery</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pgcontroldata.html">PostgreSQL 18: pg_controldata</a> — штатный инспектор control file.</li>
+<li><a href="https://www.postgresql.org/docs/18/monitoring-stats.html">PostgreSQL 18: Monitoring Statistics</a> — <code>pg_stat_checkpointer</code>, <code>pg_stat_io</code>, <code>pg_stat_recovery_prefetch</code>, особенности статистики на сбоях.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-logging.html">PostgreSQL 18: Logging Configuration</a> — <code>log_checkpoints</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/pgwalinspect.html">PostgreSQL 18: pg_walinspect</a> — анализ WAL через SQL.</li>
+<li><a href="https://www.postgresql.org/docs/18/app-pgresetwal.html">PostgreSQL 18: pg_resetwal</a> — предназначение, риски и ограничения крайней меры.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-reliability.html">PostgreSQL 18: Reliability</a> — гарантия системы хранения и пределы защиты.</li>
+</ol>
+<h2 id="rel_18_stable">Исходники <code>REL_18_STABLE</code><a class="headerlink" href="#rel_18_stable" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/catalog/pg_control.h"><code>src/include/catalog/pg_control.h</code></a> — <code>ControlFileData</code>, <code>CheckPoint</code>, <code>DBState</code>, <code>XLOG_CHECKPOINT_REDO</code>, ограничения размеров.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlog.c"><code>src/backend/access/transam/xlog.c</code></a> — <code>StartupXLOG</code>, <code>CreateCheckPoint</code>, <code>CheckPointGuts</code>, <code>ReadControlFile</code>, <code>UpdateControlFile</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlogrecovery.c"><code>src/backend/access/transam/xlogrecovery.c</code></a> — <code>InitWalRecovery</code>, <code>PerformWalRecovery</code>, проверка checkpoint record, начало REDO.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/buffer/bufmgr.c"><code>src/backend/storage/buffer/bufmgr.c</code></a> — <code>BufferSync</code>, выбор dirty buffers, сортировка, writeback и pacing.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/postmaster/checkpointer.c"><code>src/backend/postmaster/checkpointer.c</code></a> — цикл работы checkpointer и взаимодействие с backend.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlogprefetcher.c"><code>src/backend/access/transam/xlogprefetcher.c</code></a> — предвыборка по future WAL block references.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 7.2. PostgreSQL durability &amp;amp; storage internals" class="md-footer__link md-footer__link--prev" href="../7.2%20-%20Durability%20storage/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                7.2. PostgreSQL durability &amp; storage internals
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 08.1. PostgreSQL Monitoring &amp;amp; Wait Events Internals: от наблюдения к доказательству причины задержки" class="md-footer__link md-footer__link--next" href="../8.1%20-%20Monitoring%20wait%20events/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

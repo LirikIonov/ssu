@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/7%20-%20PostgreSQL%20WAL%20durability/" rel="canonical"/>
+<link href="../6%20-%20PostgreSQL%20Join%20algorithms/" rel="prev"/>
+<link href="../8%20-%20Diagnostics%20locks/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>PostgreSQL WAL и durability - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#postgresql-wal-durability">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              PostgreSQL WAL и durability
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20PostgreSQL%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL: joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    PostgreSQL WAL и durability
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-commit">
+<span class="md-ellipsis">
+      
+        0. Техническое расследование: COMMIT был успешным, а сервер выключился
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-wal">
+<span class="md-ellipsis">
+      
+        1. WAL: зачем запись впереди данных
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-shared-buffers">
+<span class="md-ellipsis">
+      
+        2. Shared buffers: где реально меняется строка
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-dirty-pages">
+<span class="md-ellipsis">
+      
+        3. Dirty pages: почему запись откладывается и кто за нее платит
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-commit">
+<span class="md-ellipsis">
+      
+        4. COMMIT: когда транзакция становится подтвержденной
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-wal-record">
+<span class="md-ellipsis">
+      
+        5. WAL Record: из чего состоит восстановимая история
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-lsn">
+<span class="md-ellipsis">
+      
+        6. LSN: общий порядок журнала и отдельные границы его сохранения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-fsync-write">
+<span class="md-ellipsis">
+      
+        7. fsync: почему write() еще не означает надежную запись
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-synchronous_commit">
+<span class="md-ellipsis">
+      
+        8. synchronous_commit: какую гарантию выбирает транзакция
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-checkpoint-wal">
+<span class="md-ellipsis">
+      
+        9. Checkpoint: зачем сбрасывать страницы, если WAL уже долговечен
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-crash-recovery">
+<span class="md-ellipsis">
+      
+        10. Crash Recovery: что происходит после внезапной остановки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-full_page_writes-wal">
+<span class="md-ellipsis">
+      
+        11. full_page_writes: зачем WAL иногда содержит всю страницу
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-batch-commits-group-commit-1000-1000-fsync">
+<span class="md-ellipsis">
+      
+        12. Batch Commits и Group Commit: почему 1000 транзакций не требуют 1000 fsync
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-transaction-latency-p95">
+<span class="md-ellipsis">
+      
+        13. Transaction Latency: как гарантия долговечности превращается в p95
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14_1">
+<span class="md-ellipsis">
+      
+        14. Четыре временные линии: что именно выживает после аварии
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-13">
+<span class="md-ellipsis">
+      
+        15. Сводная карта всех 13 тем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Семь инженерных выводов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Источники и границы точности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.0. PostgreSQL Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_10" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_10_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_10">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go глубже: от rt0 до main.main
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    08.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    08.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    08.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    09.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    09.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-commit">
+<span class="md-ellipsis">
+      
+        0. Техническое расследование: COMMIT был успешным, а сервер выключился
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-wal">
+<span class="md-ellipsis">
+      
+        1. WAL: зачем запись впереди данных
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-shared-buffers">
+<span class="md-ellipsis">
+      
+        2. Shared buffers: где реально меняется строка
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-dirty-pages">
+<span class="md-ellipsis">
+      
+        3. Dirty pages: почему запись откладывается и кто за нее платит
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-commit">
+<span class="md-ellipsis">
+      
+        4. COMMIT: когда транзакция становится подтвержденной
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-wal-record">
+<span class="md-ellipsis">
+      
+        5. WAL Record: из чего состоит восстановимая история
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-lsn">
+<span class="md-ellipsis">
+      
+        6. LSN: общий порядок журнала и отдельные границы его сохранения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-fsync-write">
+<span class="md-ellipsis">
+      
+        7. fsync: почему write() еще не означает надежную запись
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-synchronous_commit">
+<span class="md-ellipsis">
+      
+        8. synchronous_commit: какую гарантию выбирает транзакция
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-checkpoint-wal">
+<span class="md-ellipsis">
+      
+        9. Checkpoint: зачем сбрасывать страницы, если WAL уже долговечен
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-crash-recovery">
+<span class="md-ellipsis">
+      
+        10. Crash Recovery: что происходит после внезапной остановки
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-full_page_writes-wal">
+<span class="md-ellipsis">
+      
+        11. full_page_writes: зачем WAL иногда содержит всю страницу
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-batch-commits-group-commit-1000-1000-fsync">
+<span class="md-ellipsis">
+      
+        12. Batch Commits и Group Commit: почему 1000 транзакций не требуют 1000 fsync
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-transaction-latency-p95">
+<span class="md-ellipsis">
+      
+        13. Transaction Latency: как гарантия долговечности превращается в p95
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14_1">
+<span class="md-ellipsis">
+      
+        14. Четыре временные линии: что именно выживает после аварии
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-13">
+<span class="md-ellipsis">
+      
+        15. Сводная карта всех 13 тем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Семь инженерных выводов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Источники и границы точности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="postgresql-wal-durability">PostgreSQL WAL и durability<a class="headerlink" href="#postgresql-wal-durability" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Основная лекция магистратуры · PostgreSQL 18 · обязательный материал.</strong></p>
+<p>Рассматриваем 13 тем согласованной программы: WAL, <code>shared_buffers</code>, dirty pages, <code>COMMIT</code>, WAL record, LSN, <code>fsync</code>, <code>synchronous_commit</code>, checkpoint, crash recovery, <code>full_page_writes</code>, batch/group commit и transaction latency. Исходники — <code>REL_18_STABLE</code>, если явно не оговорено другое. Здесь формируем физическую и инженерную модель. Детальное устройство WAL buffers, C-кода вставки и resource managers относится к 07.1; аппаратные подробности storage — к 07.2; детальное устройство <code>pg_control</code> и REDO — к 07.3. Уже разобранные ранее planner, JOIN, MVCC и распределители памяти не повторяем; блоки 08–09 не затрагиваем.</p>
+<p><strong>Условность примеров.</strong> Планы, миллисекунды, LSN и размеры записей в примерах учебные. Значения настроек сверяйте с реальным экземпляром: они зависят от версии, сборки и конфигурации. Время операций ОС и накопителя нельзя вывести из PostgreSQL cost units.</p>
+</blockquote>
+<h2 id="0-commit">0. Техническое расследование: COMMIT был успешным, а сервер выключился<a class="headerlink" href="#0-commit" title="Permanent link">¶</a></h2>
+<p>Начнем с транзакции, которая затрагивает несколько разных страниц таблиц и индексов:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">transfer_log</span><span class="p">(</span><span class="n">transfer_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">7001</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Предположим, клиент получил ответ об успешном <code>COMMIT</code>. Через миллисекунду пропало питание. У одного перевода могло измениться несколько heap-страниц, индексных страниц и служебных структур. Все эти страницы физически расположены в разных местах файла или даже разных файлов. Как вернуть базу к состоянию, в котором перевод подтвержден целиком?</p>
+<p>Наивное решение: при <code>COMMIT</code> немедленно записать все измененные страницы на диск. Но изменения может делать много транзакций одновременно; одна и та же страница может содержать данные нескольких транзакций; одна транзакция может изменить сотни разных страниц. Синхронно записывать и подтверждать все эти страницы при каждом небольшом <code>COMMIT</code> — дорогая операция, а одиночная запись страницы сама по себе еще не атомарна относительно отключения питания.</p>
+<p>PostgreSQL использует другой инвариант: <strong>изменения можно записать в компактный журнал, а страницы таблиц синхронизировать позднее.</strong> Но нужно строго понимать, что именно журналируется, когда запись журнала становится долговечной и какие события можно переставлять.</p>
+<div class="highlight"><pre><span></span><code>SQL UPDATE/INSERT
+     │
+     ├──► измененные страницы в shared_buffers
+     │           │
+     │           └──► dirty → запись data page позднее
+     │
+     └──► WAL records → WAL buffers → WAL write → WAL flush
+                                                   │
+                                    commit record ──┘
+                                                   │
+                                     подтверждение COMMIT
+
+После сбоя: страницы с накопителя + долговечный WAL → REDO
+</code></pre></div>
+<p>Эта схема показывает отношения между событиями. Фактически изменение страницы и формирование WAL выполняются согласованно в рамках операции; <strong>не следует понимать ее как право сначала сбросить грязную страницу на диск, а когда-нибудь затем создать WAL.</strong> Строгий порядок записи на долговечное хранилище проверим отдельно.</p>
+<h2 id="1-wal">1. WAL: зачем запись впереди данных<a class="headerlink" href="#1-wal" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Что гарантируем<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Долговечность (<em>durability</em>) в смысле ACID означает: если транзакция успешно подтверждена в синхронном режиме, ее изменения должны пережить предусмотренные моделью отказов сбои, в том числе остановку процесса и сбой ОС, если надежно работает подсистема постоянного хранения. Это не обещание против уничтожения единственной копии накопителя, ложного подтверждения <code>fsync</code> неисправным устройством или произвольного повреждения носителя.</p>
+<p><strong>WAL (Write-Ahead Logging)</strong> — журнал предварительной записи. Главный порядок:</p>
+<div class="highlight"><pre><span></span><code>WAL, необходимый для восстановления изменения страницы,
+должен быть надежно сохранен ПРЕЖДЕ, чем измененная страница
+окажется надежно записана в файл данных.
+</code></pre></div>
+<p>В PostgreSQL это гарантируется через сопоставление <code>page LSN</code> и границы долговечно сохраненного WAL. Грязную страницу разрешено записать до <code>COMMIT</code> транзакции, если WAL изменений этой страницы уже синхронизирован. Поэтому нельзя объяснять систему правилом «страница на диск только после COMMIT» — это неправильное ограничение.</p>
+<h3 id="12">1.2. Почему это дает производительность<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>Без WAL маленький перевод может потребовать синхронизировать множество страниц нескольких файлов. С WAL, в обычном случае, для подтверждения требуется продвинуть долговечную границу <strong>последовательного потока журнала</strong> до записи о фиксации транзакции. Запись страниц можно отложить, сгруппировать, частично переиспользовать и выполнять фоном.</p>
+<p>Дешевле ли это всегда? Нет. На WAL тоже тратятся CPU, память, файловые записи и синхронизация. Если WAL становится узким местом, его последовательность превращается в общий ограниченный ресурс для конкурентных транзакций.</p>
+<h3 id="13-wal">1.3. Что WAL не означает<a class="headerlink" href="#13-wal" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Не журнал SQL-команд.</strong> Из одной SQL-команды могут появиться разные WAL records, которые восстанавливают изменения страниц и служебное состояние.</li>
+<li><strong>Не гарантия записи data page при COMMIT.</strong> Страница может остаться грязной после подтверждения транзакции.</li>
+<li><strong>Не автоматический резервный экземпляр данных.</strong> WAL необходим для аварийного восстановления, но при утрате нужного журнала локальное восстановление невозможно.</li>
+<li><strong>Не способ отменить любые последствия вне PostgreSQL.</strong> Внешнее действие не возвращается назад с помощью WAL.</li>
+</ul>
+<h3 id="14">1.4. Проверка модели отключением питания<a class="headerlink" href="#14" title="Permanent link">¶</a></h3>
+<p>Представим две ситуации.</p>
+<p><strong>Ситуация А:</strong> на диске старая страница; WAL изменения и записи COMMIT уже долговечны. После сбоя PostgreSQL сможет воспроизвести изменения из WAL.</p>
+<p><strong>Ситуация Б:</strong> на диске уже новая страница; WAL изменения еще не долговечен. При обрыве записи страницы мы можем потерять единственный источник корректного восстановления. WAL-инвариант не допускает такой порядок надежного сброса.</p>
+<p>Итак, вся система держится на <em>упорядочивании долговечных эффектов</em>, а не на синхронной записи каждой таблицы.</p>
+<p><strong>Главная модель раздела:</strong> журнал → долговечная граница журнала → разрешение записывать соответствующую страницу → восстановление при необходимости.</p>
+<h2 id="2-shared-buffers">2. Shared buffers: где реально меняется строка<a class="headerlink" href="#2-shared-buffers" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Версия страницы в памяти<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Таблицы и индексы PostgreSQL хранятся в файлах, разбитых на блоки; в обычной сборке размер блока 8 КиБ. При изменении строки исполнитель работает с буфером страницы в общем пуле <code>shared_buffers</code>. Если нужной страницы там нет, она загружается из файлового слоя.</p>
+<div class="highlight"><pre><span></span><code>Файл таблицы на storage                shared_buffers
+┌───────────┐                          ┌───────────┐
+│ блок 100  │ ─────► загрузить ─────►  │ buffer #7 │
+│ старое    │                          │ блок 100  │
+└───────────┘                          └─────┬─────┘
+                                           │ UPDATE
+                                           ▼
+                                      │ новые байты │
+                                      │ dirty = yes │
+</code></pre></div>
+<p><code>shared_buffers</code> хранит <strong>рабочую копию страницы</strong>, а не самостоятельную долговечную версию. Общее слово «кеш» здесь опасно: нам важно, что именно в этой памяти PostgreSQL меняет данные и должен затем организовать надежную запись.</p>
+<h3 id="22-update">2.2. Что изменяет UPDATE<a class="headerlink" href="#22-update" title="Permanent link">¶</a></h3>
+<p><code>UPDATE accounts ...</code> модифицирует физические структуры, включая страницы heap и при необходимости индексов. Для нашей темы достаточно следующего:</p>
+<ol>
+<li>PostgreSQL получает нужные буферы и координирует доступ к их содержимому.</li>
+<li>Модификация страницы и регистрация требуемого WAL согласуются как одна операция изменения состояния.</li>
+<li>Для страницы фиксируется идентификатор последнего относящегося к ней изменения журнала — <code>page LSN</code>.</li>
+<li>Буфер помечается грязным.</li>
+<li>SQL может завершиться, хотя соответствующая страница еще не записана в data file.</li>
+</ol>
+<p>Мы не углубляемся в устройство версий строк — оно уже относится к ранее пройденному MVCC. Для WAL принципиально <strong>количество и расположение физических изменений</strong>, а не SQL-синтаксис сам по себе.</p>
+<h3 id="23">2.3. Почему буфер можно менять многократно<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p>Представим, что 1000 транзакций последовательно увеличивают счетчик на одной странице. Между их изменениями эта страница не обязана записываться на диск 1000 раз. Она может оставаться в памяти с последним состоянием, пока WAL фиксирует необходимую последовательность изменений.</p>
+<div class="highlight"><pre><span></span><code>Дисковая страница: x = 0
+RAM: x = 1 → x = 2 → ... → x = 1000
+WAL: последовательность зарегистрированных изменений
+Дисковая страница позднее: x = 1000
+</code></pre></div>
+<p>В реальности часть изменений может оказаться на других страницах и журнал может содержать дополнительную информацию. Схема показывает экономию <strong>записей data pages</strong>, а не количество или формат WAL records.</p>
+<h3 id="24-shared_buffers">2.4. Где граница shared_buffers и файлового кеша ОС<a class="headerlink" href="#24-shared_buffers" title="Permanent link">¶</a></h3>
+<p>У PostgreSQL есть собственный пул буферов. ОС может дополнительно держать файловые страницы в своем кеше. Запись из PostgreSQL в файл через системный вызов еще не означает, что накопитель гарантированно удержит байты после потери питания. Именно поэтому позже понадобятся <code>fsync</code> и понятие WAL flush.</p>
+<p><strong>Инженерный вывод:</strong> <code>UPDATE</code> работает с памятью и регистрирует журнал; подтвержденный <code>COMMIT</code> не требует, чтобы каждая затронутая heap-страница уже покинула <code>shared_buffers</code>.</p>
+<h2 id="3-dirty-pages">3. Dirty pages: почему запись откладывается и кто за нее платит<a class="headerlink" href="#3-dirty-pages" title="Permanent link">¶</a></h2>
+<h3 id="31-dirty">3.1. Dirty ≠ на диске<a class="headerlink" href="#31-dirty" title="Permanent link">¶</a></h3>
+<p>Грязная страница (<em>dirty page</em>) — буфер, содержимое которого отличается от надежно сохраненной версии соответствующей страницы файла. Даже если операционная система уже приняла какие-то байты в свой файловый кеш, вопрос долговечности остается отдельным.</p>
+<div class="highlight"><pre><span></span><code>clean: RAM соответствует версии файла данных
+UPDATE: изменили RAM, buffer → dirty
+write: передаем новую страницу в файловый слой
+sync: обеспечиваем требуемую надежность записей файла
+</code></pre></div>
+<p>Данные могут успеть записаться в файл до фиксации транзакции. Это нормально: восстановление и сведения о статусе транзакции обеспечат корректную логическую картину. Dirty bit связан с необходимостью записать страницу, а не с тем, зафиксированы ли все транзакции, чьи изменения она содержит.</p>
+<h3 id="32">3.2. Кто записывает грязные страницы<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p><strong>Background writer (bgwriter)</strong> старается заранее записывать грязные буферы, уменьшая вероятность того, что процессу запроса придется делать эту работу при потребности в свободном буфере.</p>
+<p><strong>Checkpointer</strong> выполняет работу по контрольной точке: обеспечивает запись и синхронизацию необходимых страниц, чтобы ограничить объем работы при будущем crash recovery.</p>
+<p><strong>Client backend</strong> тоже может столкнуться с необходимостью записи буфера, например при выборе жертвы для замещения. Значит, даже когда приложению кажется, что оно только меняет одну строку, оно может косвенно оплатить дополнительную файловую работу.</p>
+<p>Нельзя приписывать одному <code>bgwriter</code> обязанность синхронно сохранять все изменения к моменту <code>COMMIT</code>.</p>
+<h3 id="33-wal">3.3. Защита правила WAL при записи страницы<a class="headerlink" href="#33-wal" title="Permanent link">¶</a></h3>
+<p>Пусть последний изменивший страницу WAL record заканчивается на <code>LSN = L_page</code>. Перед надежной записью страницы PostgreSQL должен обеспечить:</p>
+<div class="highlight"><pre><span></span><code>durable_wal_lsn &gt;= L_page
+</code></pre></div>
+<p>Если журнал еще не синхронизирован до этой позиции, его необходимо продвинуть. Иначе на storage может оказаться новая версия страницы, для которой не существует надежного описания изменений.</p>
+<p>Важное следствие: <strong>сохранение грязной страницы и подтверждение COMMIT — разные причины потребовать WAL flush</strong>. На практике checkpoint, запись при вытеснении и фиксация транзакции взаимодействуют через общую долговечную границу журнала.</p>
+<h3 id="34">3.4. Что произойдет под нагрузкой<a class="headerlink" href="#34" title="Permanent link">¶</a></h3>
+<p>В спокойном режиме страницы постепенно записываются в фоне. Добавим много конкурентных изменений, затрагивающих широкий набор страниц.</p>
+<ul>
+<li>Растет поток dirty buffers.</li>
+<li>Фоновые процессы должны успевать готовить и записывать их.</li>
+<li>При замещении буфера backend может столкнуться с записью грязной страницы.</li>
+<li>Синхронизация файлов во время checkpoint добавляет нагрузку на накопитель.</li>
+<li>Если WAL и data files конкурируют за одно устройство, рост data-page I/O способен увеличить задержку WAL flush и тем самым задержку <code>COMMIT</code>.</li>
+</ul>
+<p>Признаки исследуем через узкоспециализированные счетчики <code>pg_stat_bgwriter</code> и <code>pg_stat_checkpointer</code>; общую диагностику ожиданий оставим блоку 08.</p>
+<p><strong>Главная модель:</strong> dirty pages — отложенный долг по записи data files. WAL делает такую отсрочку корректной; фоновая запись и checkpoint определяют, когда и какой ценой долг погашается.</p>
+<h2 id="4-commit">4. COMMIT: когда транзакция становится подтвержденной<a class="headerlink" href="#4-commit" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Факт изменения страницы не равен фиксации<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>Вот транзакция:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>После <code>UPDATE</code> в памяти и WAL уже могли появиться изменения. Но клиент еще не получил подтверждение. Если сервер упадет здесь, транзакция не должна превратиться в частично зафиксированный перевод.</p>
+<p>Для успешного подтверждения необходимо зарегистрировать факт фиксации транзакции. В журнале для этого формируется <strong>commit record</strong>. Он отделяет физическую историю изменений от решения, что все изменения транзакции стали зафиксированными.</p>
+<h3 id="42">4.2. Два уровня состояния: физический и транзакционный<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<p>Неприятный вопрос: если WAL о первом <code>UPDATE</code> попал на диск, а WAL о <code>COMMIT</code> — нет, что сделает REDO?</p>
+<p>Механизм восстановления может воспроизвести физические изменения страницы, описанные долговечным WAL. Это <strong>не означает</strong>, что транзакция логически считается зафиксированной. Статус транзакции и отсутствие надежного подтверждения не позволят выдать ее изменения как результат завершенной транзакции.</p>
+<p>Для понимания достаточно разделить:</p>
+<ul>
+<li><strong>Физическое состояние страниц</strong>: какие байты были изменены и воспроизведены.</li>
+<li><strong>Состояние транзакции</strong>: какие изменения подтверждены и должны быть видимы как зафиксированные.</li>
+</ul>
+<p>Подробности хранения статусов и MVCC относятся к ранее пройденной теме; здесь нужна только граница между WAL REDO и зафиксированностью.</p>
+<h3 id="43-commit">4.3. Синхронный COMMIT: что ожидаем<a class="headerlink" href="#43-commit" title="Permanent link">¶</a></h3>
+<p>Для обычного локального <code>synchronous_commit = on</code> без настроенного ожидания синхронных standby основной порядок следующий:</p>
+<ol>
+<li>Зарегистрировать необходимые изменения и запись о фиксации.</li>
+<li>Получить целевую позицию WAL, покрывающую commit record.</li>
+<li>Обеспечить долговечное сохранение WAL до требуемой позиции.</li>
+<li>Завершить протокол подтверждения и вернуть успешный ответ.</li>
+</ol>
+<p>Это <strong>не</strong> означает синхронную запись всех data pages. А запись журнала до позиции COMMIT покрывает все предшествующие записи того же потока, в том числе WAL изменений данной транзакции.</p>
+<h3 id="44">4.4. Потерянный ответ и неопределенный исход<a class="headerlink" href="#44" title="Permanent link">¶</a></h3>
+<p>Предположим, PostgreSQL сделал WAL flush, зафиксировал транзакцию, но сетевое соединение оборвалось до доставки ответа. Клиент видит timeout.</p>
+<p>Возможны два состояния: транзакция уже успешно зафиксирована либо еще не была зафиксирована. Timeout не различает их.</p>
+<p>Для backend это практическая граница durability: <strong>нельзя автоматически трактовать таймаут после отправленного COMMIT как ROLLBACK</strong>. Безопасное прикладное решение основано на проверке результата по бизнес-идентификатору операции и контроле повторного применения; реализацию протокола идемпотентности здесь не рассматриваем.</p>
+<h3 id="45-commit-wal-">4.5. Когда COMMIT не создает обычной WAL-записи<a class="headerlink" href="#45-commit-wal-" title="Permanent link">¶</a></h3>
+<p>У некоторых транзакций, например только читающих данные без операций, требующих фиксации изменений, нет необходимости создавать обычную запись физического COMMIT для изменения постоянных данных. Поэтому число команд <code>COMMIT</code> со стороны приложения не обязано точно совпадать с числом соответствующих WAL commit records и тем более с числом <code>fsync</code>.</p>
+<p><strong>Главный вывод:</strong> подтверждение транзакции определяется достижением необходимой границы долговечного WAL и транзакционным протоколом; изменения файлов данных могут сохраняться раньше или позже.</p>
+<h2 id="5-wal-record">5. WAL Record: из чего состоит восстановимая история<a class="headerlink" href="#5-wal-record" title="Permanent link">¶</a></h2>
+<h3 id="51-wal-sql">5.1. Почему «WAL хранит SQL» неверно<a class="headerlink" href="#51-wal-sql" title="Permanent link">¶</a></h3>
+<p>Одна команда:</p>
+<div class="highlight"><pre><span></span><code><span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>может затронуть страницу строки, индексные страницы и служебные метаданные. В журнале PostgreSQL требуются записи, необходимые для повторного применения соответствующих физических операций, а не текст <code>UPDATE</code> с надеждой когда-нибудь выполнить его заново.</p>
+<p>Это важно для корректности. Во время восстановления нельзя просто повторить SQL в новой транзакции: условия, индексы, конкуренция и порядок изменений могли бы быть другими.</p>
+<h3 id="52">5.2. Логическое устройство записи<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p>WAL record имеет общий заголовок с длиной, информацией о типе, связями по последовательности и контрольной суммой. Нагрузочная часть зависит от подсистемы, зарегистрировавшей изменение. На учебном уровне:</p>
+<div class="highlight"><pre><span></span><code>┌───────────────────────────────────┐
+│ XLogRecord: общий заголовок        │
+│ длина, xid, prev, rmgr, CRC и др. │
+├───────────────────────────────────┤
+│ ссылки/описания блоков             │
+├───────────────────────────────────┤
+│ данные изменений                  │
+├───────────────────────────────────┤
+│ при необходимости full-page image │
+└───────────────────────────────────┘
+</code></pre></div>
+<p><code>XLogRecord</code> — структура текущей реализации. Названия C-полей и точная упаковка — материал 07.1. Сейчас важны три свойства:</p>
+<ol>
+<li>Журнал образует <strong>последовательность</strong> записей.</li>
+<li>Каждая запись имеет достаточно сведений, чтобы соответствующая подсистема могла применить изменение при REDO.</li>
+<li>Запись защищена контрольной суммой, позволяющей обнаруживать повреждение WAL record. Это не заменяет надежность накопителя.</li>
+</ol>
+<h3 id="53">5.3. Мелкие изменения и полные образы страницы<a class="headerlink" href="#53" title="Permanent link">¶</a></h3>
+<p>Для большинства операций журнал хранит необходимые изменения, а не целиком каждую страницу. Но при первом подходящем изменении страницы после checkpoint может потребоваться полный образ — <em>full-page image</em> (FPI), чтобы пережить частичную запись data page. Поэтому «одна измененная строка = несколько байт WAL» — плохая модель: даже короткое изменение способно создать запись с образом страницы порядка килобайт.</p>
+<h3 id="54-wal">5.4. Сегменты WAL<a class="headerlink" href="#54-wal" title="Permanent link">¶</a></h3>
+<p>WAL хранится в <code>pg_wal</code>. Это единый логический поток, разбитый на WAL-страницы и сегментные файлы; типичный сегмент — <strong>16 МиБ</strong>, типичная WAL-страница — <strong>8 КиБ</strong>. Сборка и <code>initdb</code> допускают другие размеры.</p>
+<p>Сегмент — единица файловой организации, а WAL record — единица зарегистрированного изменения. Запись может пересекать границы страниц. Не следует считать один segment одним коммитом или одной транзакцией.</p>
+<h3 id="55-wal">5.5. Как исследовать объем WAL одной операции<a class="headerlink" href="#55-wal" title="Permanent link">¶</a></h3>
+<p>Для грубого экспериментального масштаба можно читать <code>pg_current_wal_insert_lsn()</code> до и после исследуемых операций и вычислить разницу. Но на работающем сервере WAL формируется также <strong>другими backend-процессами</strong> — разница глобальных LSN не является точным счетчиком WAL исключительно данного SQL.</p>
+<p>Для SQL-наблюдения полезнее <code>EXPLAIN (ANALYZE, WAL)</code> в контролируемом окружении: он показывает записи, образы страниц и объем WAL, произведенные при выполнении анализируемого плана. Сам <code>EXPLAIN ANALYZE</code> <strong>реально выполняет изменяющий запрос</strong>; использовать его на production для <code>UPDATE/DELETE</code> без учета последствий нельзя.</p>
+<p><strong>Главная модель:</strong> WAL records сохраняют физически восстановимую историю; SQL-текст и количество записей журнала не находятся в соотношении один-к-одному.</p>
+<h2 id="6-lsn">6. LSN: общий порядок журнала и отдельные границы его сохранения<a class="headerlink" href="#6-lsn" title="Permanent link">¶</a></h2>
+<h3 id="61-lsn">6.1. Что такое LSN<a class="headerlink" href="#61-lsn" title="Permanent link">¶</a></h3>
+<p><code>LSN</code> (<em>Log Sequence Number</em>) — логическая позиция в WAL, которая монотонно увеличивается при продвижении журнала. Тип PostgreSQL — <code>pg_lsn</code>. Запись <code>0/16B6C50</code> — пример представления LSN в двух шестнадцатеричных частях, разделенных <code>/</code>.</p>
+<p>LSN позволяет упорядочивать действия и измерять расстояние в байтах между позициями. Это <strong>не</strong> отметка времени. Две WAL-записи с соседними LSN могут относиться к разным транзакциям.</p>
+<h3 id="62-insert-write-flush">6.2. Три границы: insert, write и flush<a class="headerlink" href="#62-insert-write-flush" title="Permanent link">¶</a></h3>
+<p>Построение WAL не завершает его долговечное сохранение.</p>
+<div class="highlight"><pre><span></span><code>                 insert LSN      write LSN        flush LSN
+                 ──────────      ─────────       ─────────
+WAL buffers:       вставлен
+Файловый слой:                     записан
+Storage:                                           sync завершен
+
+Обычно: flush LSN ≤ write LSN ≤ insert LSN
+</code></pre></div>
+<ul>
+<li><strong>Insert LSN</strong>: запись уже вставлена в внутренние WAL buffers.</li>
+<li><strong>Write LSN</strong>: журнал продвинут из внутренних буферов PostgreSQL в файловый слой; это еще не гарантия сохранения после потери питания.</li>
+<li><strong>Flush LSN</strong>: журнал синхронизирован настолько, что PostgreSQL считает его долговечным при корректном поведении ОС и storage.</li>
+</ul>
+<p>Именно третья граница важна для обычного синхронного <code>COMMIT</code>.</p>
+<h3 id="63-page-lsn-wal">6.3. Page LSN и инвариант WAL<a class="headerlink" href="#63-page-lsn-wal" title="Permanent link">¶</a></h3>
+<p>В заголовке data page содержится <code>page LSN</code>: позиция WAL последнего зарегистрированного изменения этой страницы. В примере:</p>
+<div class="highlight"><pre><span></span><code>page LSN  = 0/2000800
+flush LSN = 0/2000400
+</code></pre></div>
+<p>Журнал еще не синхронизирован до нужной позиции. Значит, безопасная запись этой версии страницы на долговечное хранилище требует сначала продвинуть flush LSN.</p>
+<p>После:</p>
+<div class="highlight"><pre><span></span><code>flush LSN = 0/2000A00
+</code></pre></div>
+<p>требование для данной страницы выполнено.</p>
+<p><code>page LSN</code> полезен и при REDO: если на странице уже есть состояние не старше требуемой WAL-записи, повторное применение соответствующего изменения обычно не требуется. Подробности исключений и алгоритма чтения страницы — 07.3.</p>
+<h3 id="64-postgresql-18">6.4. Измерение в PostgreSQL 18<a class="headerlink" href="#64-postgresql-18" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pg_current_wal_insert_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">insert_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_current_wal_lsn</span><span class="p">()</span><span class="w">        </span><span class="k">AS</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_current_wal_flush_lsn</span><span class="p">()</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_current_wal_lsn()</code> возвращает именно <strong>write</strong>-позицию. Название без слова <code>write</code> — частый источник путаницы.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_size_pretty</span><span class="p">(</span>
+<span class="w">    </span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="s1">'0/2000A00'</span><span class="p">::</span><span class="n">pg_lsn</span><span class="p">,</span>
+<span class="w">                    </span><span class="s1">'0/2000400'</span><span class="p">::</span><span class="n">pg_lsn</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">);</span>
+</code></pre></div>
+<p><code>pg_wal_lsn_diff()</code> измеряет количество байт между позициями. Для демонстрационных LSN разница равна <code>0x600 = 1536</code> байтам.</p>
+<p><strong>Запомнить:</strong> <code>insert</code> описывает готовность WAL в памяти; <code>write</code> — передачу файловому слою; <code>flush</code> — границу предполагаемой долговечности. Именно смешение этих трех состояний ломает большинство объяснений WAL.</p>
+<h2 id="7-fsync-write">7. fsync: почему write() еще не означает надежную запись<a class="headerlink" href="#7-fsync-write" title="Permanent link">¶</a></h2>
+<h3 id="71-write-ram">7.1. После write() данные могут быть в RAM ОС<a class="headerlink" href="#71-write-ram" title="Permanent link">¶</a></h3>
+<p>До сих пор у нас был единый термин «записать WAL». На деле есть несколько стадий:</p>
+<div class="highlight"><pre><span></span><code>WAL buffer PostgreSQL
+       │
+       ▼
+write()/pwrite() и файловые операции
+       │
+       ▼
+кеш страниц ОС
+       │
+       ▼
+команды синхронизации/сброса
+       │
+       ▼
+накопитель, сообщивший о долговечном сохранении
+</code></pre></div>
+<p>ОС может принять байты в свой кеш и вернуть успех из <code>write()</code>, хотя данные еще не стали устойчивыми к потере питания. Системные механизмы <code>fsync()</code> и <code>fdatasync()</code>, а также соответствующие режимы открытия файлов позволяют потребовать необходимую синхронизацию. Но даже здесь реальная гарантия зависит от корректности драйвера, файловой системы, контроллера и накопителя.</p>
+<p>Ключевая формулировка: <strong>PostgreSQL может гарантировать установленный порядок долговечных записей только при условии, что нижние уровни честно выполняют контракты синхронизации.</strong> Разбор PLP, кеша контроллера и команд устройства отложен до 07.2.</p>
+<h3 id="72-xlogflush-fsync">7.2. Как связан XLogFlush и системный fsync<a class="headerlink" href="#72-xlogflush-fsync" title="Permanent link">¶</a></h3>
+<p>На концептуальном уровне:</p>
+<div class="highlight"><pre><span></span><code>Потребовалась долговечность до LSN = X
+        │
+        ▼
+XLogFlush(X) — обеспечить требуемую flush-позицию
+        │
+        ├──► если durable WAL уже ≥ X, дополнительная работа не нужна
+        │
+        └──► иначе выполнить необходимые записи и синхронизацию
+                        │
+                        ▼
+                flush LSN продвигается до X или дальше
+</code></pre></div>
+<p><code>XLogFlush()</code> — функция текущей реализации, доступная для изучения в 07.1. Это не синоним «каждый вызов выполняет отдельный fsync». Журнал может оказаться уже надежно записан другим процессом, а одно продвижение flush-позиции может покрывать несколько конкурентных транзакций.</p>
+<h3 id="73-wal_sync_method">7.3. wal_sync_method<a class="headerlink" href="#73-wal_sync_method" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL поддерживаются несколько способов обеспечить синхронизацию WAL:</p>
+<table>
+<thead>
+<tr>
+<th><code>wal_sync_method</code></th>
+<th>Принцип</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fdatasync</code></td>
+<td><code>fdatasync()</code> после записи; стандартное значение на Linux и FreeBSD в PG18</td>
+</tr>
+<tr>
+<td><code>fsync</code></td>
+<td><code>fsync()</code> для WAL-файла</td>
+</tr>
+<tr>
+<td><code>open_datasync</code></td>
+<td>Запись через файл, открытый с <code>O_DSYNC</code></td>
+</tr>
+<tr>
+<td><code>open_sync</code></td>
+<td>Запись через файл с <code>O_SYNC</code></td>
+</tr>
+<tr>
+<td><code>fsync_writethrough</code></td>
+<td>Платформозависимая синхронизация с дополнительными требованиями write-through</td>
+</tr>
+</tbody>
+</table>
+<p>Доступность и эффективность зависят от платформы. Сравнивать значения только по названию нельзя: на конкретном storage одна реализация может выигрывать, другая проигрывать. Основная лекция фиксирует различия, а системный уровень — 07.2.</p>
+<h3 id="74-fsyncoff">7.4. fsync=off: ошибка в трактовке риска<a class="headerlink" href="#74-fsyncoff" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">fsync</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_sync_method</span><span class="p">;</span>
+</code></pre></div>
+<p>При <code>fsync = off</code> PostgreSQL прекращает надежно принуждать нужные записи к долговечному сохранению. После сбоя ОС или питания возможна <strong>не только потеря последних подтвержденных транзакций</strong>, но и необратимое повреждение согласованности файлов данных и WAL.</p>
+<p><strong>Сравнение, которое нужно удержать:</strong></p>
+<ul>
+<li><code>fsync = on</code>, <code>synchronous_commit = off</code>: есть риск потерять недавно подтвержденные транзакции, но сохранена стратегия согласованного восстановления при корректном storage.</li>
+<li><code>fsync = off</code>: ослаблены собственно гарантии последовательности надежных записей; возможна серьезная порча кластера при сбое ОС/оборудования.</li>
+</ul>
+<p>Отключать <code>fsync</code> на рабочей базе ради TPS недопустимо как обычный прием оптимизации. В документации PostgreSQL это допускается только для легко восстанавливаемых или одноразовых экземпляров.</p>
+<h3 id="75">7.5. Как ведет себя система под нагрузкой<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<p>Пусть накопитель в среднем выполняет требуемую синхронизацию за 0,7 мс. Если 1000 маленьких транзакций были бы строго последовательно синхронизированы по одной, только эта работа заняла бы примерно 700 мс. В реальности несколько транзакций могут разделить один WAL flush, а обработка может перекрываться с другими действиями. Поэтому число <code>COMMIT</code> нельзя механически приравнивать числу физических синхронизаций.</p>
+<p>Важнее измерять:</p>
+<ul>
+<li>количество WAL writes и WAL fsyncs;</li>
+<li>суммарное время этих операций;</li>
+<li>число транзакций и интенсивность WAL;</li>
+<li>p50/p95/p99 наблюдаемой задержки подтверждения;</li>
+<li>конкурентную нагрузку и состояние устройства.</li>
+</ul>
+<p>В PG18 WAL I/O находится в <code>pg_stat_io</code>, а не в старых полях <code>pg_stat_wal</code>. К этому вернемся в разделе 13.</p>
+<p><strong>Главная модель:</strong> <code>write</code> сообщает о передаче данных файловому слою; <code>flush</code> задает границу надежности, на которую опирается стандартный <code>COMMIT</code>.</p>
+<h2 id="8-synchronous_commit">8. synchronous_commit: какую гарантию выбирает транзакция<a class="headerlink" href="#8-synchronous_commit" title="Permanent link">¶</a></h2>
+<h3 id="81-commit-fsync">8.1. Наивное представление: «COMMIT всегда делает fsync»<a class="headerlink" href="#81-commit-fsync" title="Permanent link">¶</a></h3>
+<p>Теперь проверим очевидное допущение. Если каждая транзакция всегда ждет надежной записи своего WAL, небольшие некритичные операции могут оплачивать ненужную задержку. Но в PostgreSQL предусмотрен выбор момента, после которого клиенту разрешено вернуть успех.</p>
+<p>Основная настройка:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">synchronous_commit</span><span class="p">;</span>
+</code></pre></div>
+<p>Она контролирует, <strong>какой уровень обработки WAL должен быть достигнут до сообщения об успешной фиксации</strong>. Это настройка момента подтверждения, а не того, будут ли в принципе регистрироваться WAL records.</p>
+<h3 id="82-on-off">8.2. Локальная гарантия: on и off<a class="headerlink" href="#82-on-off" title="Permanent link">¶</a></h3>
+<p>При обычном локальном <code>on</code> транзакция, которая требует WAL-синхронизации, ждет локального WAL flush, покрывающего фиксацию.</p>
+<p>При <code>off</code> транзакция может подтвердиться до того, как ее WAL станет долговечным. Изменения доступны другим транзакциям как зафиксированные при работающем сервере, но после аварийного завершения последние подтвержденные изменения могут исчезнуть.</p>
+<div class="highlight"><pre><span></span><code>synchronous_commit = on:
+  WAL record → локальный WAL flush → ответ OK
+
+synchronous_commit = off:
+  WAL record → логический COMMIT → ответ OK
+                    │
+                    └──► WAL flush позднее
+</code></pre></div>
+<p>Ключевая тонкость: <strong><code>off</code> не превращает одну транзакцию в «частично подтвержденную» после recovery</strong>. Если ее commit record не пережил сбой, восстановленное состояние будет соответствовать отсутствию этой транзакции как успешно зафиксированной. В документации PG18 верхняя граница окна риска описана как до трех интервалов <code>wal_writer_delay</code> при нормальной работе механизма WAL writer. Это ориентир механизма, не обещание поведения неисправного storage.</p>
+<h3 id="83-off">8.3. Как включить off только на одну транзакцию<a class="headerlink" href="#83-off" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">synchronous_commit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">off</span><span class="p">;</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">diagnostic_events</span><span class="p">(</span><span class="n">event_type</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">'heartbeat'</span><span class="p">,</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">());</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Это <strong>иллюстрация конфигурации</strong>, предполагающая существующую таблицу <code>diagnostic_events</code>; выполнение меняет данные. <code>SET LOCAL</code> действует до конца текущей транзакции.</p>
+<p>Для какого класса данных прием уместен? Для событий, которые можно восстановить или потеря небольшой свежей порции которых явно разрешена требованиями. Для финансового списания, подтвержденного внешнему миру, такой выбор обычно недопустим.</p>
+<h3 id="84">8.4. Все пять режимов и граница темы<a class="headerlink" href="#84" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 допустимы <code>off</code>, <code>local</code>, <code>remote_write</code>, <code>on</code>, <code>remote_apply</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Режим</th>
+<th>Локальное ожидание</th>
+<th>Дополнительное ожидание при настроенном синхронном standby</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>Не ждет обязательного локального flush</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>local</code></td>
+<td>Ждет локального WAL flush</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>remote_write</code></td>
+<td>Ждет локального WAL flush</td>
+<td>Подтверждение записи WAL в файловый слой standby</td>
+</tr>
+<tr>
+<td><code>on</code></td>
+<td>Ждет локального WAL flush</td>
+<td>Подтверждение flush WAL на standby</td>
+</tr>
+<tr>
+<td><code>remote_apply</code></td>
+<td>Ждет локального WAL flush</td>
+<td>Подтверждение применения записи на standby</td>
+</tr>
+</tbody>
+</table>
+<p>Если <strong>не настроены синхронные standby</strong>, <code>local</code>, <code>remote_write</code>, <code>on</code> и <code>remote_apply</code> имеют одинаковую локальную гарантию. Удаленные режимы упоминаются только для правильной интерпретации параметра; устройство репликации относится к другим курсам и здесь не раскрывается.</p>
+<p>У <code>off</code> есть исключения: некоторые операции, требующие особой согласованности с файловой системой (например <code>DROP TABLE</code>), а также подготовка двухфазной транзакции, выполняются синхронно независимо от выбранного режима. Поэтому нельзя считать <code>synchronous_commit=off</code> универсальной отменой всякого ожидания.</p>
+<h3 id="85">8.5. Что измерять и чего нельзя обещать<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p><code>off</code> может уменьшить задержку коротких транзакций, если значительную ее часть занимал WAL flush. Но если задержка определяется дорогостоящей работой до <code>COMMIT</code>, результат будет небольшим. И наоборот, успешный async COMMIT не равен долговечно подтвержденному результату, поэтому изменение политики может нарушить требования приложения даже при лучшем TPS.</p>
+<p><strong>Вывод:</strong> <code>synchronous_commit</code> — явный выбор контракта подтверждения. Нельзя сравнивать производительность двух режимов, игнорируя различия их гарантий.</p>
+<h2 id="9-checkpoint-wal">9. Checkpoint: зачем сбрасывать страницы, если WAL уже долговечен<a class="headerlink" href="#9-checkpoint-wal" title="Permanent link">¶</a></h2>
+<h3 id="91-redo">9.1. Проблема бесконечного REDO<a class="headerlink" href="#91-redo" title="Permanent link">¶</a></h3>
+<p>Допустим, сервер работает месяц, каждый день записывает тысячи гигабайт WAL, а страницы данных никогда целенаправленно не синхронизирует. После сбоя для восстановления понадобилось бы воспроизвести огромную историю изменений.</p>
+<p>Контрольная точка (<em>checkpoint</em>) ограничивает этот долг. Она устанавливает такое состояние файлов данных, при котором для аварийного восстановления достаточно начать REDO с известного рубежа журнала.</p>
+<h3 id="92-checkpoint">9.2. Что входит в checkpoint<a class="headerlink" href="#92-checkpoint" title="Permanent link">¶</a></h3>
+<p>В общих чертах checkpointer:</p>
+<ol>
+<li>Определяет рубеж контрольной точки и набор изменений, которые необходимо учесть.</li>
+<li>Обеспечивает запись грязных страниц, относящихся к контрольному рубежу, с соблюдением WAL-инварианта.</li>
+<li>Обеспечивает требуемую синхронизацию файлов данных.</li>
+<li>Формирует checkpoint record и фиксирует информацию, необходимую для следующего старта recovery.</li>
+</ol>
+<p>В результате изменения до <code>redo</code>-рубежа этой контрольной точки гарантированно представлены в сохраненных data files так, что их не нужно повторно восстанавливать с более ранних WAL-записей. Важная тонкость: <code>checkpoint record</code> и его <code>redo LSN</code> могут указывать на <strong>разные позиции</strong> журнала. Глубокая организация этой процедуры — 07.3.</p>
+<h3 id="93-checkpoint">9.3. Почему checkpoint не обязан остановить весь мир<a class="headerlink" href="#93-checkpoint" title="Permanent link">¶</a></h3>
+<p>Проверка модели: если для checkpoint надо сбросить тысячи страниц, не получится ли большой скачок задержки?</p>
+<p>PostgreSQL старается распределять запись по времени, а не выполнять весь объем одновременно. На это влияет <code>checkpoint_completion_target</code>. При типичном значении <code>0.9</code> работа планируется на значительную часть интервала до следующей контрольной точки.</p>
+<p>Важно понимать компромисс: запись можно сгладить, но нельзя отменить потребность в физической записи накопленных dirty pages. И в конце checkpoint может потребоваться синхронизация файлов, которая создает заметный пик I/O.</p>
+<h3 id="94-checkpoint">9.4. Когда запускается checkpoint<a class="headerlink" href="#94-checkpoint" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 основные настройки:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_timeout</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_wal_size</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_completion_target</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">checkpoint_warning</span><span class="p">;</span>
+</code></pre></div>
+<p>Ориентиры стандартной конфигурации: <code>checkpoint_timeout = 5min</code>, <code>max_wal_size = 1GB</code>, <code>checkpoint_completion_target = 0.9</code>. Контрольная точка может начинаться по времени либо по давлению объема WAL. <code>max_wal_size</code> — <strong>мягкая цель</strong>, а не гарантированный предел каталога <code>pg_wal</code>: реальный объем может ее превысить. При отсутствии новых WAL изменений очередной checkpoint может быть пропущен.</p>
+<h3 id="95">9.5. Две противоположные крайности<a class="headerlink" href="#95" title="Permanent link">¶</a></h3>
+<p><strong>Очень частые checkpoint:</strong></p>
+<ul>
+<li>больше работы по синхронизации файлов;</li>
+<li>больше повторных full-page images после новых контрольных точек;</li>
+<li>чаще возможные всплески I/O;</li>
+<li>потенциально меньше хвост WAL для последующего crash recovery.</li>
+</ul>
+<p><strong>Очень редкие checkpoint:</strong></p>
+<ul>
+<li>меньше частых операций checkpoint и FPI на том же наборе страниц;</li>
+<li>больше WAL между гарантированными рубежами;</li>
+<li>потенциально длительное восстановление после сбоя;</li>
+<li>другой профиль фоновой записи и использования дискового пространства.</li>
+</ul>
+<p>Следовательно, нельзя выбирать <code>checkpoint_timeout</code> только по одному показателю TPS. Это компромисс между обычной нагрузкой и будущей ценой восстановления.</p>
+<h3 id="96-bgwriter-checkpointer">9.6. Bgwriter и checkpointer — две разные задачи<a class="headerlink" href="#96-bgwriter-checkpointer" title="Permanent link">¶</a></h3>
+<p><code>bgwriter</code> стремится снизить вероятность, что backend будет сам писать грязные буферы при их замещении. <code>checkpointer</code> должен завершить конкретную долговечную границу для файлов данных и ограничить будущий REDO. Первый оптимизирует доступность буферов, второй закрывает обязательство контрольной точки.</p>
+<h3 id="97-checkpoint-pg18">9.7. Как измерять checkpoint в PG18<a class="headerlink" href="#97-checkpoint-pg18" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">num_timed</span><span class="p">,</span>
+<span class="w">    </span><span class="n">num_requested</span><span class="p">,</span>
+<span class="w">    </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">buffers_written</span><span class="p">,</span>
+<span class="w">    </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь <code>num_timed</code> и <code>num_requested</code> включают запросы checkpoint, которые могли быть пропущены; <code>num_done</code> отражает реально выполненные. <code>write_time</code> и <code>sync_time</code> описывают соответствующие фазы checkpoint/restartpoint, это не средняя задержка пользовательского <code>COMMIT</code>.</p>
+<p><strong>Главная модель:</strong> checkpoint — управление максимальным долгом по восстановлению. Он оплачивает запись data pages сегодня, чтобы не пришлось воспроизводить слишком длинную историю WAL завтра.</p>
+<h2 id="10-crash-recovery">10. Crash Recovery: что происходит после внезапной остановки<a class="headerlink" href="#10-crash-recovery" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1. Сначала различим тип отказа<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p><strong>Сбой одного backend-процесса</strong> и <strong>потеря питания всего сервера</strong> оставляют разные условия. При сбое процесса PostgreSQL может принять решение о перезапуске серверного окружения и восстановлении согласованного состояния. При остановке ОС исчезают ее кеши и volatile RAM. Если устройство надежно сохранило байты, достижимые через flush, PostgreSQL должен уметь восстановить согласованное состояние.</p>
+<p>Здесь предполагаем аварийную потерю памяти и сохранность тех байтов, которые накопитель честно подтвердил как долговечные.</p>
+<h3 id="102-redo">10.2. Откуда начинается REDO<a class="headerlink" href="#102-redo" title="Permanent link">¶</a></h3>
+<p>PostgreSQL использует сведения о последней пригодной контрольной точке и соответствующем <code>redo LSN</code>, затем последовательно читает требуемые WAL records. Для изменения страниц применяются redo-операции, восстанавливающие физическое состояние данных.</p>
+<div class="highlight"><pre><span></span><code>Аварийное включение
+       │
+       ▼
+Найти пригодную checkpoint-информацию
+       │
+       ▼
+Получить redo LSN
+       │
+       ▼
+Читать долговечный WAL в порядке записей
+       │
+       ▼
+Применять требуемые изменения к страницам
+       │
+       ▼
+Восстановить согласованное транзакционное состояние
+       │
+       ▼
+Продолжить обычную работу
+</code></pre></div>
+<p>За отправной точкой стоит файл <code>pg_control</code> и checkpoint record. Его бинарная структура и все состояния запуска относятся к 07.3.</p>
+<h3 id="103-wal">10.3. Почему можно повторять WAL без двойного применения<a class="headerlink" href="#103-wal" title="Permanent link">¶</a></h3>
+<p>На data page хранится <code>page LSN</code>. Если страница уже отражает данное изменение или более позднее, исполнитель REDO обычно может пропустить повторное применение этой записи к странице. Это один из механизмов идемпотентности восстановления физических изменений.</p>
+<p>Если страница старее, REDO применяет необходимые изменения. Если в WAL хранится full-page image, она также может восстановить целостное состояние страницы перед применением дальнейших изменений.</p>
+<h3 id="104">10.4. Пример четырех временных точек сбоя<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>Вернемся к переводу.</p>
+<table>
+<thead>
+<tr>
+<th>Момент сбоя</th>
+<th>Что уже долговечно</th>
+<th>Ожидаемый результат после корректного recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. До устойчивого сохранения WAL изменений</strong></td>
+<td>Нужных записей может не быть</td>
+<td>Незавершенная транзакция не подтверждается; ее изменения не могут считаться долговечными</td>
+</tr>
+<tr>
+<td><strong>B. Изменения в WAL есть, COMMIT record еще не долговечен</strong></td>
+<td>Физические изменения могут быть восстановимы, факт фиксации — нет</td>
+<td>Транзакция не считается успешно зафиксированной</td>
+</tr>
+<tr>
+<td><strong>C. Commit record уже долговечен, data page еще старая</strong></td>
+<td>WAL содержит необходимую историю и фиксацию</td>
+<td>REDO восстанавливает подтвержденные изменения</td>
+</tr>
+<tr>
+<td><strong>D. Data page записана частично</strong></td>
+<td>Нужны предшествующий WAL и механизм защиты страницы</td>
+<td>Full-page image позволяет исправить torn page при выполнении условий защиты</td>
+</tr>
+</tbody>
+</table>
+<p>Критически важно не говорить «все WAL-записи до сбоя — это все успешные транзакции». REDO восстанавливает физическую историю; <strong>транзакционная фиксация определяется отдельно</strong>.</p>
+<h3 id="105-undo">10.5. Почему не требуется общее физическое UNDO каждой страницы<a class="headerlink" href="#105-undo" title="Permanent link">¶</a></h3>
+<p>Физическая страница может содержать эффекты изменения, транзакция которого так и не была подтверждена. Для такого случая PostgreSQL использует модель видимости и состояния транзакций; незавершенные транзакции после recovery не превращаются в успешно зафиксированные.</p>
+<p>В рамках этой лекции важно следствие: нет необходимости перезаписывать все измененные страницы обратно в предыдущее физическое состояние с помощью отдельного классического UNDO-журнала. Механизм восстановления и транзакционные статусы совместно обеспечивают согласованность. Структуру MVCC повторно не разбираем.</p>
+<h3 id="106-recovery">10.6. Сколько длится recovery<a class="headerlink" href="#106-recovery" title="Permanent link">¶</a></h3>
+<p>Время зависит от расстояния между REDO-началом и концом долговечного WAL, количества записей, чтений страниц данных, CPU работы redo-операций, наличия FPI и производительности накопителя. Время восстановления не вычисляется как «размер WAL / скорость SSD» без учета операций со страницами и структуры журнала.</p>
+<p>В обычном режиме база платит за более частые checkpoint; в режиме аварии — за количество работы, оставшейся после последнего checkpoint. Эти расходы нельзя оптимизировать независимо.</p>
+<h3 id="107-wal">10.7. Что WAL не сможет восстановить<a class="headerlink" href="#107-wal" title="Permanent link">¶</a></h3>
+<p>Если отсутствует необходимый WAL record, накопитель испортил файл журнала, или хранилище ложно подтвердило синхронизацию, инвариант восстановления может оказаться нарушен. WAL — механизм восстановления на основании <strong>сохранившейся надежной истории</strong>, а не инструмент генерации утраченной информации.</p>
+<p><strong>Инженерный вывод:</strong> crash recovery — последовательное REDO от известного рубежа на фоне различения физического состояния страниц и факта фиксации транзакций.</p>
+<h2 id="11-full_page_writes-wal">11. full_page_writes: зачем WAL иногда содержит всю страницу<a class="headerlink" href="#11-full_page_writes-wal" title="Permanent link">¶</a></h2>
+<h3 id="111-8">11.1. Новая проблема: запись 8 КиБ не обязана быть атомарной<a class="headerlink" href="#111-8" title="Permanent link">¶</a></h3>
+<p>Представим страницу данных размером 8 КиБ. ОС начала ее записывать на накопитель. Устройство успело сохранить первые секторы, затем питание пропало. На носителе осталась смесь старых и новых байтов.</p>
+<div class="highlight"><pre><span></span><code>Нормальная страница: [старые 8 КиБ]
+Новая страница:      [новые 8 КиБ]
+Torn page:           [новые 4 КиБ | старые 4 КиБ]  (учебный пример)
+</code></pre></div>
+<p>Это <strong>torn page</strong>, частично записанная страница. Граница разрыва не обязана приходиться ровно на 4 КиБ; она зависит от устройства и файловой подсистемы. Если WAL содержал только небольшое описание изменения, этого может быть недостаточно для восстановления всей внутренне согласованной страницы с перемешанными старыми и новыми байтами.</p>
+<h3 id="112-full-page-image">11.2. Full-page image<a class="headerlink" href="#112-full-page-image" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL при <code>full_page_writes=on</code> при первом подходящем изменении страницы после checkpoint в WAL записывается полный образ страницы (<em>full-page image</em>, FPI). Если после аварии disk page оказалась частично записанной, можно восстановить целый образ страницы из WAL и затем применить последующие изменения.</p>
+<p>Почему после каждого checkpoint? Потому что восстановление начинается с контрольного рубежа. Нужен надежный образ первой измененной после него страницы; дальше обычные redo-изменения могут продвигать ее состояние.</p>
+<h3 id="113">11.3. Временная линия одной страницы<a class="headerlink" href="#113" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Checkpoint завершен
+       │
+       ├── первое изменение page A → WAL record + FPI(A)
+       │
+       ├── второе изменение page A → обычный WAL record (типично)
+       │
+       ├── третье изменение page A → обычный WAL record (типично)
+       │
+       └── следующий checkpoint → новый рубеж защиты
+</code></pre></div>
+<p>Это учебная модель: точный выбор полного образа зависит от специфики WAL-регистрации страниц, page LSN, hint-bit updates и иных условий. Но утверждение «каждый UPDATE всегда журналирует 8 КиБ» неверно, как и обратное «WAL всегда содержит только несколько измененных байтов».</p>
+<h3 id="114">11.4. Цена безопасности<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Пусть после checkpoint впервые изменились 100 000 разных страниц. Даже без учета сжатия и дополнительного содержимого это соответствует потенциальному масштабу:</p>
+<div class="highlight"><pre><span></span><code>100 000 × 8192 байта = 819 200 000 байт ≈ 781,25 МиБ
+</code></pre></div>
+<p>Это <strong>не прогноз полного WAL</strong>: FPI может исключать свободную область страницы, сжиматься и иметь накладные расходы, а перечень страниц зависит от поведения СУБД. Расчет нужен, чтобы почувствовать масштаб нагрузки от первого изменения множества страниц.</p>
+<p>При следующем checkpoint тот же массив страниц может снова потребовать FPI при следующем изменении. Значит, слишком частые checkpoint способны увеличить WAL traffic на рабочей нагрузке с большим набором изменяемых страниц.</p>
+<h3 id="115-wal_compression">11.5. wal_compression<a class="headerlink" href="#115-wal_compression" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">full_page_writes</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_compression</span><span class="p">;</span>
+</code></pre></div>
+<p>Сжатие полных образов страниц снижает их размер в WAL, если данные хорошо сжимаются, ценой дополнительной CPU-работы при формировании и декодировании. В PostgreSQL 18 поддерживаются <code>pglz</code>, а при соответствующей сборке — <code>lz4</code> и <code>zstd</code>. Вариант <code>on</code> исторически означает <code>pglz</code>.</p>
+<p>Эффект зависит от содержимого страниц: уже сжатые данные и случайные байты дают меньший выигрыш. Нельзя обещать фиксированный коэффициент сжатия.</p>
+<h3 id="116-full_page_writes">11.6. Почему нельзя просто выключить full_page_writes<a class="headerlink" href="#116-full_page_writes" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">full_page_writes</span><span class="p">;</span>
+</code></pre></div>
+<p>При <code>off</code> PostgreSQL перестает обеспечивать штатную защиту от частично записанных страниц посредством FPI. При определенных гарантиях файловой системы и накопителя такой риск может решаться на нижнем уровне, но это требует доказанной атомарности. По умолчанию в PG18 <code>full_page_writes = on</code>; для рабочей базы необоснованно отключать его ради сокращения WAL опасно.</p>
+<p>Контрольные суммы помогают <strong>обнаруживать</strong> некоторые повреждения, но сами по себе не восстанавливают утраченную целую страницу. Подробную связь checksums и storage оставим 07.2.</p>
+<p><strong>Главная модель:</strong> WAL нужен не только для последовательного повторения изменений. FPI защищает от ситуации, когда сама исходная дисковая страница оказалась физически неполной.</p>
+<h2 id="12-batch-commits-group-commit-1000-1000-fsync">12. Batch Commits и Group Commit: почему 1000 транзакций не требуют 1000 fsync<a class="headerlink" href="#12-batch-commits-group-commit-1000-1000-fsync" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1. Три похожих названия, три разных механизма<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>Сначала разделим:</p>
+<ol>
+<li><strong>Одна большая транзакция</strong>: приложение выполняет несколько INSERT/UPDATE и один <code>COMMIT</code>.</li>
+<li><strong>Batch SQL</strong>: приложение передает несколько операций SQL эффективнее по протоколу, но это само по себе не гарантирует один <code>COMMIT</code>.</li>
+<li><strong>Group Commit</strong>: несколько <em>разных транзакций</em> могут дождаться одного общего продвижения долговечного WAL.</li>
+</ol>
+<p>Нельзя подменять одно другим. В основной теме WAL нас особенно интересует третье.</p>
+<h3 id="122">12.2. Единый журнал — условие для объединения синхронизаций<a class="headerlink" href="#122" title="Permanent link">¶</a></h3>
+<p>Пусть три backend-процесса вставили commit records, заканчивающиеся на таких позициях:</p>
+<div class="highlight"><pre><span></span><code>T1: COMMIT LSN = 0/100100
+T2: COMMIT LSN = 0/100200
+T3: COMMIT LSN = 0/100300
+</code></pre></div>
+<p>Если синхронизация продвинула flush LSN до <code>0/100300</code>, она покрыла все предшествующие позиции:</p>
+<div class="highlight"><pre><span></span><code>flush LSN &gt;= LSN(T3)
+        ⇒ WAL до T1, T2 и T3 долговечен
+</code></pre></div>
+<p>Поэтому трем транзакциям не обязательно запускать три отдельных аппаратных flush. Один процесс может выполнить синхронизацию до достаточно поздней границы, а остальные обнаружат, что их требования уже выполнены.</p>
+<h3 id="123">12.3. Конкуренция может помочь группировке<a class="headerlink" href="#123" title="Permanent link">¶</a></h3>
+<p>На небольшом числе последовательных транзакций каждое подтверждение может само инициировать синхронизацию. При наличии большого числа конкурентных коротких транзакций их WAL-записи могут накопиться до одной операции flush.</p>
+<p>Это неожиданная сторона конкуренции: при определенном профиле нагрузки средняя стоимость синхронизации <strong>на транзакцию</strong> уменьшается.</p>
+<p>Но общая нагрузка на WAL buffers, CPU, файловый слой и очередь ожиданий растет. Поэтому Group Commit не означает бесконечной масштабируемости TPS.</p>
+<h3 id="124-commit_delay-commit_siblings">12.4. commit_delay и commit_siblings<a class="headerlink" href="#124-commit_delay-commit_siblings" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">commit_delay</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">commit_siblings</span><span class="p">;</span>
+</code></pre></div>
+<p><code>commit_delay</code> задает дополнительное ожидание перед инициированием WAL flush (в микросекундах). <code>commit_siblings</code> определяет минимальное число других активных транзакций, при котором PostgreSQL рассматривает такую задержку как потенциально полезную. При <code>fsync=off</code> задержка не используется.</p>
+<p><strong>По умолчанию <code>commit_delay = 0</code>.</strong> Group Commit все равно может происходить естественным образом: общий лог и конкурентные запросы создают возможность разделить синхронизацию без искусственной паузы.</p>
+<p>Добавление <code>commit_delay</code> может увеличить throughput при достаточной конкуренции, но добавляет задержку в хвост отдельной транзакции. Его нельзя автоматически рекомендовать как ускорение.</p>
+<h3 id="125">12.5. Числовая симуляция<a class="headerlink" href="#125" title="Permanent link">¶</a></h3>
+<p>Учебные предположения:</p>
+<div class="highlight"><pre><span></span><code>1000 транзакций
+одна физическая синхронизация занимает 0,5 мс
+один flush способен покрыть WAL 20 транзакций
+</code></pre></div>
+<p>Если бы flush происходил отдельно на каждую транзакцию, суммарное время синхронизаций составляло бы:</p>
+<div class="highlight"><pre><span></span><code>1000 × 0,5 мс = 500 мс
+</code></pre></div>
+<p>При идеальных группах по 20:</p>
+<div class="highlight"><pre><span></span><code>1000 / 20 = 50 flush
+50 × 0,5 мс = 25 мс
+</code></pre></div>
+<p>Мы уменьшили суммарное число и стоимость flush-операций. <strong>Но это не означает, что весь запрос завершится за 25 мс или TPS вырастет ровно в 20 раз.</strong> Остались обработка SQL, WAL insertion, CPU, ожидания, запись data pages и протокольная работа.</p>
+<h3 id="126">12.6. Цена одной большой прикладной транзакции<a class="headerlink" href="#126" title="Permanent link">¶</a></h3>
+<p>Может возникнуть идея объединить миллион изменений в один <code>BEGIN ... COMMIT</code>. При этом уменьшается число границ подтверждения и может улучшиться пакетная запись, но растут длительность транзакции и удерживаемые ею ресурсы, увеличивается объем работы до подтверждения, а откат крупной бизнес-операции меняет ее семантику. Управление транзакциями и блокировками детально рассматривалось или будет рассматриваться в других блоках; здесь фиксируем только принцип: <strong>уменьшение числа COMMIT не делает выполнение бесплатным</strong>.</p>
+<p><strong>Главная модель:</strong> WAL — один упорядоченный поток; flush до поздней позиции покрывает ранние commit records, поэтому несколько транзакций могут разделить синхронизацию.</p>
+<h2 id="13-transaction-latency-p95">13. Transaction Latency: как гарантия долговечности превращается в p95<a class="headerlink" href="#13-transaction-latency-p95" title="Permanent link">¶</a></h2>
+<h3 id="131">13.1. Из каких компонентов складывается задержка<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<p>Теперь соберем весь путь от SQL до подтверждения:</p>
+<div class="highlight"><pre><span></span><code>T_transaction = T_execute_updates
+              + T_register_WAL
+              + T_finish_transaction
+              + T_wait_for_required_WAL_flush
+              + T_client_response
+              + другие необходимые накладные расходы
+</code></pre></div>
+<p>Это <strong>учебная декомпозиция для поиска причины</strong>, а не точная формула измеряемых независимых фаз. Некоторые операции перекрываются по времени; другие выполняются внутри уже показанных. Сетевое ожидание, пул соединений и HTTP-обработка относятся к более широкой задержке backend-запроса, а здесь нас интересует цена завершения транзакции на стороне PostgreSQL.</p>
+<h3 id="132-update">13.2. Секунды могут появиться после быстрых UPDATE<a class="headerlink" href="#132-update" title="Permanent link">¶</a></h3>
+<p>Предположим, сами изменения записей заняли 2 мс, а ответ на <code>COMMIT</code> получен через 80 мс. Это не доказывает, что <code>fsync</code> именно этой транзакции длился 78 мс. Возможно:</p>
+<ul>
+<li>WAL flush уже выполнялся другим процессом;</li>
+<li>накопитель обслуживает конкурирующие операции записи data pages;</li>
+<li>возникла очередь к сериализуемому ресурсу WAL;</li>
+<li>совпали фазы checkpoint и пользовательского write workload;</li>
+<li>приложение измеряет также сеть и ожидание соединения.</li>
+</ul>
+<p>Диагноз требует <strong>раздельно</strong> измерять генерацию WAL, файловые записи, синхронизации и общий путь транзакции.</p>
+<h3 id="133-1-wal">13.3. Наблюдение 1: сколько WAL генерирует кластер<a class="headerlink" href="#133-1-wal" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">wal_records</span><span class="p">,</span>
+<span class="w">    </span><span class="n">wal_fpi</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">wal_bytes</span><span class="p">::</span><span class="nb">bigint</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">wal_generated</span><span class="p">,</span>
+<span class="w">    </span><span class="n">wal_buffers_full</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal</span><span class="p">;</span>
+</code></pre></div>
+<p>Для PostgreSQL 18 эти столбцы подтверждены документацией:</p>
+<ul>
+<li><code>wal_records</code> — количество зарегистрированных WAL records;</li>
+<li><code>wal_fpi</code> — число полных образов страниц;</li>
+<li><code>wal_bytes</code> — объем сгенерированного WAL;</li>
+<li><code>wal_buffers_full</code> — события, когда запись WAL инициировалась из-за заполнения внутренних буферов.</li>
+</ul>
+<p>Это накопленная статистика <strong>всего кластера с момента сброса</strong>, а не текущий TPS или счетчик конкретной транзакции. Для анализа нагрузки нужны интервальные дельты, полученные между двумя моментами наблюдения.</p>
+<h3 id="134-2-write-fsync-wal-pg18">13.4. Наблюдение 2: что стоит write и fsync WAL в PG18<a class="headerlink" href="#134-2-write-fsync-wal-pg18" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 счетчики WAL I/O находятся в <code>pg_stat_io</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">backend_type</span><span class="p">,</span>
+<span class="w">    </span><span class="n">context</span><span class="p">,</span>
+<span class="w">    </span><span class="n">writes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">write_bytes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">fsyncs</span><span class="p">,</span>
+<span class="w">    </span><span class="n">fsync_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'wal'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">;</span>
+</code></pre></div>
+<p>Значения <code>write_time</code> и <code>fsync_time</code> заполняются при включенном <code>track_wal_io_timing</code>. При выключенном измерении нули не означают, что работа физически бесплатна.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">track_wal_io_timing</span><span class="p">;</span>
+</code></pre></div>
+<p>Важное отличие от старых версий: поля <code>wal_write</code>, <code>wal_sync</code>, <code>wal_write_time</code>, <code>wal_sync_time</code> <strong>удалены из <code>pg_stat_wal</code> в PostgreSQL 18</strong>. Переносить старые диагностические запросы без адаптации нельзя.</p>
+<p><code>pg_stat_io</code> показывает агрегированную работу по типам backend-процессов и контекстам. Его <code>fsyncs</code> нельзя отождествлять с числом команд COMMIT. У WAL есть также контекст <code>init</code>, в котором учитывается инициализация сегментов: при исследовании собственно записи/синхронизации журналов необходимо смотреть значение <code>context</code>.</p>
+<h3 id="135-3-checkpoint">13.5. Наблюдение 3: checkpoint и фоновая запись<a class="headerlink" href="#135-3-checkpoint" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">num_timed</span><span class="p">,</span>
+<span class="w">    </span><span class="n">num_requested</span><span class="p">,</span>
+<span class="w">    </span><span class="n">num_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">write_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sync_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">buffers_written</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_checkpointer</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">buffers_clean</span><span class="p">,</span><span class="w"> </span><span class="n">maxwritten_clean</span><span class="p">,</span><span class="w"> </span><span class="n">buffers_alloc</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_bgwriter</span><span class="p">;</span>
+</code></pre></div>
+<p>Рост <code>sync_time</code> checkpointer не является прямой мерой ожидания одного <code>COMMIT</code>, но способен указывать на значительную конкурирующую нагрузку файловой подсистемы. Высокие значения <code>maxwritten_clean</code> показывают, что background writer регулярно достигал собственного предела очищения буферов.</p>
+<h3 id="136-4-wal">13.6. Наблюдение 4: WAL от конкретной операции<a class="headerlink" href="#136-4-wal" title="Permanent link">¶</a></h3>
+<p>В отдельном <strong>учебном</strong> экземпляре или безопасном окружении:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">WAL</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">,</span><span class="w"> </span><span class="n">TIMING</span><span class="w"> </span><span class="k">OFF</span><span class="p">)</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Команда <strong>реально выполняет UPDATE</strong>. Для SELECT, не выполняющего WAL-логируемых изменений, отсутствие WAL records естественно. Для UPDATE в <code>EXPLAIN</code> можно увидеть записи WAL, FPI и общий объем WAL, но это не измеряет автоматически время долговечного COMMIT: измерение работы SQL и измерение подтверждения транзакции требуют раздельной интерпретации.</p>
+<h3 id="137">13.7. Какая причина соответствует какому признаку<a class="headerlink" href="#137" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Наблюдение</th>
+<th>Первая гипотеза</th>
+<th>Что проверить дальше</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Очень много <code>wal_bytes</code></td>
+<td>Приложение создает большой поток зарегистрированных изменений</td>
+<td>Интенсивность обновлений, ширина изменений, FPI</td>
+</tr>
+<tr>
+<td>Растет <code>wal_fpi</code></td>
+<td>Много первых изменений страниц после checkpoint</td>
+<td>Частоту checkpoint, долю FPI, сжатие WAL</td>
+</tr>
+<tr>
+<td>Растет <code>wal_buffers_full</code></td>
+<td>При построении WAL приходится сбрасывать заполненные буферы</td>
+<td>Интенсивность вставки журнала, параметры <code>wal_buffers</code>, конкуренцию</td>
+</tr>
+<tr>
+<td>Высокие <code>fsync_time</code> и <code>fsyncs</code> в <code>pg_stat_io</code> для <code>wal</code></td>
+<td>Дорогие синхронизации журнала</td>
+<td>Измерения по интервалам, storage, конкурентные commits</td>
+</tr>
+<tr>
+<td>Большой <code>write_time</code> для <code>wal</code></td>
+<td>Высокая стоимость файловой записи WAL</td>
+<td>Пропускную способность I/O, объем WAL, файловый слой</td>
+</tr>
+<tr>
+<td>Растут <code>num_requested</code>, <code>sync_time</code> checkpoint</td>
+<td>Слишком частые или дорогие контрольные точки</td>
+<td><code>checkpoint_timeout</code>, <code>max_wal_size</code>, график генерации WAL</td>
+</tr>
+<tr>
+<td>Высокая задержка при небольших WAL I/O</td>
+<td>Тормозит не только durable WAL</td>
+<td>Время выполнения SQL, конкуренцию и другие части транзакции</td>
+</tr>
+</tbody>
+</table>
+<p>Это таблица <strong>гипотез</strong>, а не способ установить причинность по одному накопленному счетчику. Измерения сравниваются на одинаковом интервале под сопоставимой нагрузкой.</p>
+<h3 id="138-throughput-latency">13.8. Throughput и latency: что происходит с ростом конкуренции<a class="headerlink" href="#138-throughput-latency" title="Permanent link">¶</a></h3>
+<p>Обозначим:</p>
+<ul>
+<li><code>TPS</code> — число завершенных транзакций в секунду;</li>
+<li><code>latency</code> — время от начала операции до полученного подтверждения;</li>
+<li><code>p95</code> — порог, ниже которого укладывается 95% измерений;</li>
+<li><code>concurrency</code> — количество одновременно находящихся в системе операций.</li>
+</ul>
+<p>Пока конкуренции немного, дополнительная параллельность может помочь Group Commit — общий WAL flush обслуживает несколько транзакций. Но затем общий WAL-ресурс, CPU или storage насыщаются. Очередь ожидающих транзакций начинает расти, даже если число fsync на транзакцию продолжает уменьшаться.</p>
+<p>Учебная картина:</p>
+<div class="highlight"><pre><span></span><code>Мало конкуренции:    TPS растет, p95 невысокий
+Умеренная нагрузка:   группировка flush улучшает эффективность
+Насыщение ресурса:    TPS почти не растет, p95 заметно увеличивается
+Перегрузка:          очередь и хвост задержек растут резко
+</code></pre></div>
+<p>Нельзя делать вывод о производительности по одному максимальному TPS. Для backend важны <strong>скорость и границы задержки под целевой конкурентной нагрузкой</strong>, причем с сохранением требуемого контракта durability.</p>
+<h3 id="139">13.9. Почему отдельные настройки нельзя крутить независимо<a class="headerlink" href="#139" title="Permanent link">¶</a></h3>
+<p><code>checkpoint_timeout</code> влияет на частоту checkpoint и объем FPI; <code>max_wal_size</code> — на условия контрольной точки; <code>synchronous_commit</code> — на момент ответа клиенту; <code>fsync</code> — на фундаментальную надежность синхронизации; <code>wal_compression</code> — на объем WAL и CPU. Эти параметры воздействуют на <strong>разные</strong> компоненты.</p>
+<p>Плохой подход: увеличить все лимиты памяти, отключить <code>fsync</code> и назвать рост TPS оптимизацией. Так мы изменили требования к надежности и условия конкуренции, не установив настоящего узкого места.</p>
+<p>Правильный процесс: определить гарантию, установить симптом, измерить ограниченный ресурс, изменить <strong>одну обоснованную причину</strong>, повторить измерение на том же профиле нагрузки.</p>
+<p><strong>Главная модель раздела:</strong> успешный COMMIT — конкретный контракт durable WAL; задержка определяется работой, необходимой для достижения этой границы, и состоянием конкурирующих ресурсов.</p>
+<hr/>
+<h2 id="14_1">14. Четыре временные линии: что именно выживает после аварии<a class="headerlink" href="#14_1" title="Permanent link">¶</a></h2>
+<p>Это итоговая проверка всей лекции. Предполагаем обычное логируемое изменение постоянной таблицы, <code>fsync=on</code>, <code>full_page_writes=on</code>, исправную файловую систему и накопитель.</p>
+<h3 id="141-ram-wal-flush">14.1. Изменили RAM, но WAL еще не flush<a class="headerlink" href="#141-ram-wal-flush" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Data page на диске: старая
+Shared buffer:        новая, dirty
+WAL insert:           выполнен
+WAL flush:            еще не достиг изменения
+COMMIT:               не подтвержден
+</code></pre></div>
+<p>Потеря питания уничтожит volatile-изменения. Успешного долговечного COMMIT не было. Страница данных не должна оказаться надежно записанной раньше ее WAL.</p>
+<h3 id="142-wal-flush-commit-record-flush">14.2. WAL изменения flush, но commit record не flush<a class="headerlink" href="#142-wal-flush-commit-record-flush" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>WAL изменения:        долговечен
+WAL COMMIT:           недолговечен либо отсутствует
+Data page:            может быть старой или новой
+</code></pre></div>
+<p>После recovery физические изменения могут быть восстановлены, но транзакция не считается подтвержденной. Это демонстрирует разделение WAL REDO и фиксации.</p>
+<h3 id="143-wal-commit-flush-data-page">14.3. WAL до COMMIT flush, но data page еще старая<a class="headerlink" href="#143-wal-commit-flush-data-page" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>WAL изменения:        долговечен
+WAL COMMIT:           долговечен
+Data page:            старая
+</code></pre></div>
+<p>Обычный успешный синхронный <code>COMMIT</code> уже вправе ответить клиенту. После сбоя REDO применит недостающие изменения; подтвержденная транзакция не должна исчезнуть.</p>
+<h3 id="144-data-page">14.4. DATA page частично записана<a class="headerlink" href="#144-data-page" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>WAL с full-page image: долговечен
+Data page:                torn write
+</code></pre></div>
+<p>Recovery восстанавливает целое состояние страницы из подходящего FPI и необходимого хвоста WAL. Защита зависит от <code>full_page_writes</code> и корректного порядка WAL/data writes.</p>
+<p><strong>Из этих четырех сценариев студент должен уметь объяснить</strong>, почему «COMMIT записывает страницу», «write равен fsync», «WAL хранит SQL» и «на диске не бывает незавершенных изменений» — неправильные объяснения работы PostgreSQL.</p>
+<h2 id="15-13">15. Сводная карта всех 13 тем<a class="headerlink" href="#15-13" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>                                 ┌───────────────────────┐
+                                 │ SQL UPDATE / INSERT   │
+                                 └──────────┬────────────┘
+                                            │
+                      ┌─────────────────────┴─────────────────────┐
+                      │                                           │
+                      ▼                                           ▼
+                shared_buffers                              WAL record
+                      │                                           │
+                 dirty pages                                WAL insert LSN
+                      │                                           │
+                      │                                      WAL buffers
+                      │                                           │
+                      │                                       WAL write
+                      │                                           │
+                      │                                       WAL flush
+                      │                                           │
+                      │                                    commit record
+                      │                                           │
+                      │                                     COMMIT reply
+                      │                                           │
+                      │                               Group Commit / sync mode
+                      │                                           │
+                      └─────────────────────┬─────────────────────┘
+                                            │
+                                            ▼
+                          WAL-before-data-page invariant
+                                            │
+                  ┌─────────────────────────┴─────────────────────┐
+                  │                                               │
+                  ▼                                               ▼
+          data-page write                                  checkpoint
+                  │                                               │
+                  └─────────────────────────┬─────────────────────┘
+                                            │
+                                    при аварии
+                                            ▼
+                        Checkpoint redo LSN + WAL records
+                                            │
+                                            ▼
+                              Crash Recovery / REDO
+                                            │
+                                            ▼
+                           согласованное состояние БД
+</code></pre></div>
+<p>Эта карта концептуальная. По времени пути страницы и WAL перекрываются, причем checkpoint не является обязательным шагом для <strong>каждого</strong> <code>COMMIT</code>. Потоки связаны инвариантами и фоновыми процессами, а не жесткой последовательностью «вызови каждую коробку один раз».</p>
+<h2 id="16">16. Семь инженерных выводов<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>WAL разрешает откладывать запись data pages.</strong> Для сохранения подтвержденных транзакций достаточно долговечной истории изменений и их фиксации, даже если сами страницы таблиц еще старые.</li>
+<li><strong><code>shared_buffers</code> и dirty pages отражают рабочую память, а не гарантию сохранения.</strong> Страницы могут записываться до или после COMMIT при соблюдении WAL-инварианта.</li>
+<li><strong>WAL insert, write и flush — разные границы.</strong> Стандартная локальная долговечность COMMIT опирается на flush-позицию, а не на факт вставки записи в RAM или успешного <code>write()</code>.</li>
+<li><strong><code>synchronous_commit</code> меняет контракт подтверждения, а <code>fsync=off</code> ломает защитный механизм.</strong> Эти настройки не взаимозаменяемы.</li>
+<li><strong>Checkpoint сокращает стоимость будущего REDO ценой текущей файловой работы.</strong> Частота влияет также на число FPI и объем WAL.</li>
+<li><strong><code>full_page_writes</code> закрывает риск torn page.</strong> Краткое описание изменения может оказаться недостаточным, если физическая запись страницы оборвалась посередине.</li>
+<li><strong>Group Commit уменьшает число необходимых синхронизаций на транзакцию, но не отменяет конкуренцию.</strong> Под нагрузкой нужно отдельно измерять WAL generation, WAL I/O, checkpoint и задержку ответа.</li>
+</ol>
+<h3 id="_1">Куда копнуть глубже — по согласованной программе<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>07.1 WAL Internals</strong>: WAL buffers, блокировки и путь <code>XLogInsert → XLogWrite → XLogFlush</code>. Закроет вопрос, как несколько backend-процессов упорядочивают и синхронизируют единый журнал.</li>
+<li><strong>07.2 Durability &amp; Storage Internals</strong>: контракт <code>fsync</code> на уровне ОС и накопителя, контрольные суммы и <code>UNLOGGED</code>. Закроет вопрос, где находятся физические границы гарантий.</li>
+<li><strong>07.3 Checkpoint &amp; Crash Recovery Internals</strong>: <code>pg_control</code>, redo LSN, подробный replay, writeback. Закроет вопрос, как сервер находит точку восстановления и почему процедура остается корректной при частичных data-page writes.</li>
+</ul>
+<p>Эти слои здесь только обозначены. Основная лекция №07 завершена без повторения прежних тем и без перехода к блокам №08–09.</p>
+<hr/>
+<h2 id="_2">Источники и границы точности<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/wal-intro.html">PostgreSQL 18 — Write-Ahead Logging (WAL)</a> — правило предварительной записи, REDO и Group Commit.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-internals.html">PostgreSQL 18 — WAL Internals</a> — LSN, страницы/сегменты WAL, checkpoint record и начало recovery.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-async-commit.html">PostgreSQL 18 — Asynchronous Commit</a> — гарантии <code>synchronous_commit</code>, окно риска и принципиальное отличие от <code>fsync=off</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-wal.html">PostgreSQL 18 — Write Ahead Log: Settings</a> — <code>fsync</code>, <code>wal_sync_method</code>, <code>synchronous_commit</code>, <code>wal_writer_delay</code>, <code>full_page_writes</code>, <code>wal_compression</code>, checkpoint settings, <code>commit_delay</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-configuration.html">PostgreSQL 18 — WAL Configuration</a> — checkpoint и стоимость компромисса с recovery.</li>
+<li><a href="https://www.postgresql.org/docs/18/wal-reliability.html">PostgreSQL 18 — Reliability</a> — page cache, устройство хранения, torn page и предпосылки долговечности.</li>
+<li><a href="https://www.postgresql.org/docs/18/monitoring-stats.html">PostgreSQL 18 — Runtime Statistics</a> — <code>pg_stat_wal</code>, <code>pg_stat_io</code>, <code>pg_stat_checkpointer</code>, <code>pg_stat_bgwriter</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/functions-admin.html">PostgreSQL 18 — System Administration Functions</a> — <code>pg_current_wal_insert_lsn</code>, <code>pg_current_wal_lsn</code>, <code>pg_current_wal_flush_lsn</code>, <code>pg_wal_lsn_diff</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-explain.html">PostgreSQL 18 — EXPLAIN</a> — <code>EXPLAIN (ANALYZE, WAL)</code> и пределы безопасной интерпретации.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-resource.html">PostgreSQL 18 — Resource Consumption</a> — роль <code>shared_buffers</code> и background writer.</li>
+<li><a href="https://www.postgresql.org/docs/18/release-18.html">PostgreSQL 18 — release notes</a> — перенос WAL I/O в <code>pg_stat_io</code> и удаление старых WAL write/sync полей из <code>pg_stat_wal</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xlog.c">PostgreSQL 18 — xlog.c</a>, <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xloginsert.c">xloginsert.c</a>, <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/xact.c">xact.c</a> — путь WAL и фиксации транзакций на уровне реализации.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: PostgreSQL: joins" class="md-footer__link md-footer__link--prev" href="../6%20-%20PostgreSQL%20Join%20algorithms/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                PostgreSQL: joins
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: Лекция 08. PostgreSQL Diagnostics &amp;amp; Locks: почему запросы ждут и как найти виновника" class="md-footer__link md-footer__link--next" href="../8%20-%20Diagnostics%20locks/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                Лекция 08. PostgreSQL Diagnostics &amp; Locks: почему запросы ждут и как найти виновника
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
