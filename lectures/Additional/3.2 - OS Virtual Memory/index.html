@@ -8,7 +8,7 @@
 <link href="../3.3%20-%20Linux%20memory%20reclaim/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>3.1. Виртуальная память ОС: от адреса Go до физической RAM - Go</title>
+<title>3.1. Виртуальная память ОС - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#31-go-ram">
+<a class="md-skip" href="#31">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              3.1. Виртуальная память ОС: от адреса Go до физической RAM
+              3.1. Виртуальная память ОС
             
           </span>
 </div>
@@ -292,7 +292,7 @@
 <span class="md-ellipsis">
     
   
-    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+    2. Рантайм Go глубже
   
 
     
@@ -304,7 +304,7 @@
 <span class="md-ellipsis">
     
   
-    3. Аллокатор памяти и GC Go глубже
+    3. Аллокатор памяти и GC Go
   
 
     
@@ -317,7 +317,7 @@
 <span class="md-ellipsis">
     
   
-    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+    3.1. Виртуальная память ОС
   
 
     
@@ -329,7 +329,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux
   
 
     
@@ -341,7 +341,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+    3.3. Управление памятью Windows и macOS
   
 
     
@@ -353,7 +353,7 @@
 <span class="md-ellipsis">
     
   
-    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+    3.4. Путь записи в Linux
   
 
     
@@ -365,7 +365,7 @@
 <span class="md-ellipsis">
     
   
-    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+    4.1. Структуры Go
   
 
     
@@ -377,7 +377,7 @@
 <span class="md-ellipsis">
     
   
-    4.2. Каналы, select и context глубже
+    4.2. Каналы, select и context
   
 
     
@@ -389,7 +389,7 @@
 <span class="md-ellipsis">
     
   
-    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+    4.3. Компилятор Go под капотом
   
 
     
@@ -413,7 +413,7 @@
 <span class="md-ellipsis">
     
   
-    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+    4.5. Запуск процесса
   
 
     
@@ -425,7 +425,7 @@
 <span class="md-ellipsis">
     
   
-    4.6. Startup рантайма Go глубже: от rt0 до main.main
+    4.6. Startup рантайма Go
   
 
     
@@ -817,7 +817,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="31-go-ram">3.1. Виртуальная память ОС: от адреса Go до физической RAM<a class="headerlink" href="#31-go-ram" title="Permanent link">¶</a></h1>
+<h1 id="31">3.1. Виртуальная память ОС<a class="headerlink" href="#31" title="Permanent link">¶</a></h1>
 <blockquote>
 <p>Дополнительная углублённая лекция к теме «Память Go, GC и pprof».</p>
 <p>Главная задача этой лекции — открыть слой справа от цепочки:</p>
@@ -2733,7 +2733,7 @@ swap / сжатие ↑
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 3. Аллокатор памяти и GC Go глубже" class="md-footer__link md-footer__link--prev" href="../3.1%20-%20GC%20deep/">
+<a aria-label="Назад: 3. Аллокатор памяти и GC Go" class="md-footer__link md-footer__link--prev" href="../3.1%20-%20GC%20deep/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -2742,17 +2742,17 @@ swap / сжатие ↑
                 Назад
               </span>
 <div class="md-ellipsis">
-                3. Аллокатор памяти и GC Go глубже
+                3. Аллокатор памяти и GC Go
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM" class="md-footer__link md-footer__link--next" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<a aria-label="Вперед: 3.2. Освобождение памяти Linux" class="md-footer__link md-footer__link--next" href="../3.3%20-%20Linux%20memory%20reclaim/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+                3.2. Освобождение памяти Linux
               </div>
 </div>
 <div class="md-footer__button md-icon">

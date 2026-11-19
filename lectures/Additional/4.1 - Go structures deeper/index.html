@@ -8,7 +8,7 @@
 <link href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы - Go</title>
+<title>4.1. Структуры Go - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#41-go-slice-map-syncmap">
+<a class="md-skip" href="#41-go">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+              4.1. Структуры Go
             
           </span>
 </div>
@@ -292,7 +292,7 @@
 <span class="md-ellipsis">
     
   
-    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+    2. Рантайм Go глубже
   
 
     
@@ -304,7 +304,7 @@
 <span class="md-ellipsis">
     
   
-    3. Аллокатор памяти и GC Go глубже
+    3. Аллокатор памяти и GC Go
   
 
     
@@ -316,7 +316,7 @@
 <span class="md-ellipsis">
     
   
-    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+    3.1. Виртуальная память ОС
   
 
     
@@ -328,7 +328,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux
   
 
     
@@ -340,7 +340,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+    3.3. Управление памятью Windows и macOS
   
 
     
@@ -352,7 +352,7 @@
 <span class="md-ellipsis">
     
   
-    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+    3.4. Путь записи в Linux
   
 
     
@@ -365,7 +365,7 @@
 <span class="md-ellipsis">
     
   
-    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+    4.1. Структуры Go
   
 
     
@@ -376,7 +376,7 @@
 <span class="md-ellipsis">
     
   
-    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+    4.1. Структуры Go
   
 
     
@@ -405,7 +405,7 @@
 <span class="md-ellipsis">
     
   
-    4.2. Каналы, select и context глубже
+    4.2. Каналы, select и context
   
 
     
@@ -417,7 +417,7 @@
 <span class="md-ellipsis">
     
   
-    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+    4.3. Компилятор Go под капотом
   
 
     
@@ -441,7 +441,7 @@
 <span class="md-ellipsis">
     
   
-    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+    4.5. Запуск процесса
   
 
     
@@ -453,7 +453,7 @@
 <span class="md-ellipsis">
     
   
-    4.6. Startup рантайма Go глубже: от rt0 до main.main
+    4.6. Startup рантайма Go
   
 
     
@@ -860,7 +860,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="41-go-slice-map-syncmap">4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы<a class="headerlink" href="#41-go-slice-map-syncmap" title="Permanent link">¶</a></h1>
+<h1 id="41-go">4.1. Структуры Go<a class="headerlink" href="#41-go" title="Permanent link">¶</a></h1>
 <blockquote>
 <p>Материал ориентирован на Go 1.27.x.</p>
 <p>Эта лекция продолжает тему «Go под капотом». Здесь мы уже не строим первую ментальную модель <code>slice</code>, <code>map</code>, <code>sync.Map</code> и интерфейсов, а открываем конкретные алгоритмы текущей реализации: <code>growslice</code>, <code>nextslicecap</code>, битовые операции Swiss Table, пробирование, рост через каталог и разделение таблиц, <code>HashTrieMap</code>, ABI интерфейсов, преобразования, проверки типов и динамический вызов.</p>
@@ -3882,7 +3882,7 @@ src/cmd/compile/internal/devirtualize/
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD" class="md-footer__link md-footer__link--prev" href="../3.5%20-%20Linux%20storage%20path/">
+<a aria-label="Назад: 3.4. Путь записи в Linux" class="md-footer__link md-footer__link--prev" href="../3.5%20-%20Linux%20storage%20path/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -3891,17 +3891,17 @@ src/cmd/compile/internal/devirtualize/
                 Назад
               </span>
 <div class="md-ellipsis">
-                3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+                3.4. Путь записи в Linux
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 4.2. Каналы, select и context глубже" class="md-footer__link md-footer__link--next" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<a aria-label="Вперед: 4.2. Каналы, select и context" class="md-footer__link md-footer__link--next" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                4.2. Каналы, select и context глубже
+                4.2. Каналы, select и context
               </div>
 </div>
 <div class="md-footer__button md-icon">

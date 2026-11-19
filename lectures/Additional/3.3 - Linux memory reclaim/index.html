@@ -8,7 +8,7 @@
 <link href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/" rel="next"/>
 <link href="../../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM - Go</title>
+<title>3.2. Освобождение памяти Linux - Go</title>
 <link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#32-linux-lrumglru-swap-psi-cgroup-v2-oom">
+<a class="md-skip" href="#32-linux">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+              3.2. Освобождение памяти Linux
             
           </span>
 </div>
@@ -292,7 +292,7 @@
 <span class="md-ellipsis">
     
   
-    2. Рантайм Go глубже: планировщик, парковка и синхронизация
+    2. Рантайм Go глубже
   
 
     
@@ -304,7 +304,7 @@
 <span class="md-ellipsis">
     
   
-    3. Аллокатор памяти и GC Go глубже
+    3. Аллокатор памяти и GC Go
   
 
     
@@ -316,7 +316,7 @@
 <span class="md-ellipsis">
     
   
-    3.1. Виртуальная память ОС: от адреса Go до физической RAM
+    3.1. Виртуальная память ОС
   
 
     
@@ -329,7 +329,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux
   
 
     
@@ -340,7 +340,7 @@
 <span class="md-ellipsis">
     
   
-    3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM
+    3.2. Освобождение памяти Linux
   
 
     
@@ -369,7 +369,7 @@
 <span class="md-ellipsis">
     
   
-    3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+    3.3. Управление памятью Windows и macOS
   
 
     
@@ -381,7 +381,7 @@
 <span class="md-ellipsis">
     
   
-    3.4. Путь записи в Linux глубже: страничный кеш, изменённые страницы, writeback, write(), fsync(), блочный слой и NVMe/SSD
+    3.4. Путь записи в Linux
   
 
     
@@ -393,7 +393,7 @@
 <span class="md-ellipsis">
     
   
-    4.1. Структуры Go глубже: slice, map, sync.Map и интерфейсы
+    4.1. Структуры Go
   
 
     
@@ -405,7 +405,7 @@
 <span class="md-ellipsis">
     
   
-    4.2. Каналы, select и context глубже
+    4.2. Каналы, select и context
   
 
     
@@ -417,7 +417,7 @@
 <span class="md-ellipsis">
     
   
-    4.3. Компилятор Go под капотом: IR, SSA, lowering и машинный код
+    4.3. Компилятор Go под капотом
   
 
     
@@ -441,7 +441,7 @@
 <span class="md-ellipsis">
     
   
-    4.5. Запуск процесса глубже: executable, загрузчик ОС и dynamic linking
+    4.5. Запуск процесса
   
 
     
@@ -453,7 +453,7 @@
 <span class="md-ellipsis">
     
   
-    4.6. Startup рантайма Go глубже: от rt0 до main.main
+    4.6. Startup рантайма Go
   
 
     
@@ -860,7 +860,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="32-linux-lrumglru-swap-psi-cgroup-v2-oom">3.2. Освобождение памяти Linux глубже: LRU/MGLRU, swap, PSI, cgroup v2 и OOM<a class="headerlink" href="#32-linux-lrumglru-swap-psi-cgroup-v2-oom" title="Permanent link">¶</a></h1>
+<h1 id="32-linux">3.2. Освобождение памяти Linux<a class="headerlink" href="#32-linux" title="Permanent link">¶</a></h1>
 <blockquote>
 <p>Углублённая лекция к теме виртуальной памяти ОС.</p>
 <p>Конкретные структуры и эвристики освобождения памяти зависят от версии и конфигурации ядра Linux. Отдельно различаем устойчивую модель, публичные интерфейсы Linux и детали текущей реализации.</p>
@@ -2732,7 +2732,7 @@ PSI
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 3.1. Виртуальная память ОС: от адреса Go до физической RAM" class="md-footer__link md-footer__link--prev" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<a aria-label="Назад: 3.1. Виртуальная память ОС" class="md-footer__link md-footer__link--prev" href="../3.2%20-%20OS%20Virtual%20Memory/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -2741,17 +2741,17 @@ PSI
                 Назад
               </span>
 <div class="md-ellipsis">
-                3.1. Виртуальная память ОС: от адреса Go до физической RAM
+                3.1. Виртуальная память ОС
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap" class="md-footer__link md-footer__link--next" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<a aria-label="Вперед: 3.3. Управление памятью Windows и macOS" class="md-footer__link md-footer__link--next" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                3.3. Управление памятью Windows и macOS глубже: Working Set, Commit, сжатие и swap
+                3.3. Управление памятью Windows и macOS
               </div>
 </div>
 <div class="md-footer__button md-icon">
