@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/13%20-%20Security%20row%20level%20security/" rel="canonical"/>
+<link href="../12%20-%20Advanced%20index%20types/" rel="prev"/>
+<link href="../14%20-%20Sharding%20distributed%20data/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>13. PostgreSQL Security &amp; Row-Level Security - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#13-postgresql-security-row-level-security">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              13. PostgreSQL Security &amp; Row-Level Security
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: приложению выдали доступ к одной таблице, а оно прочитало чужие данные
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-threat-model">
+<span class="md-ellipsis">
+      
+        1. Threat model: что именно мы защищаем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-pg_hbaconf">
+<span class="md-ellipsis">
+      
+        2. pg_hba.conf: первая граница допуска
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-scram-tls">
+<span class="md-ellipsis">
+      
+        3. SCRAM, TLS и идентичность сервера
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-roles">
+<span class="md-ellipsis">
+      
+        4. Roles: от кого сервер проверяет полномочия
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-grantrevoke">
+<span class="md-ellipsis">
+      
+        5. GRANT/REVOKE: почему право на таблицу состоит из нескольких разрешений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-ownership">
+<span class="md-ellipsis">
+      
+        6. Ownership: право владения — отдельная власть
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-search_path-sql">
+<span class="md-ellipsis">
+      
+        7. search_path: кто подставит имя объекта в SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-security-definer">
+<span class="md-ellipsis">
+      
+        8. SECURITY DEFINER: повышенные привилегии внутри функции
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-default-privileges">
+<span class="md-ellipsis">
+      
+        9. Default Privileges: почему новая таблица внезапно недоступна приложению
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-row-level-security">
+<span class="md-ellipsis">
+      
+        10. Row-Level Security: защищаем строки внутри разрешенной таблицы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-rls-policies">
+<span class="md-ellipsis">
+      
+        11. RLS Policies: комбинации, команды и неочевидная цена
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-rls-bypass-bypassrls">
+<span class="md-ellipsis">
+      
+        12. RLS Bypass: владельцы, BYPASSRLS и межарендная изоляция
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-security-diagnostics">
+<span class="md-ellipsis">
+      
+        13. Security Diagnostics: как доказать наличие ограничений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14">
+<span class="md-ellipsis">
+      
+        14. Сквозной эксперимент: настроили, сломали, диагностировали, исправили
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        15. Что студент должен запомнить
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Дополнительный технический слой — только при необходимости
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#postgresql-18">
+<span class="md-ellipsis">
+      
+        Первичные источники: PostgreSQL 18
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: приложению выдали доступ к одной таблице, а оно прочитало чужие данные
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-threat-model">
+<span class="md-ellipsis">
+      
+        1. Threat model: что именно мы защищаем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-pg_hbaconf">
+<span class="md-ellipsis">
+      
+        2. pg_hba.conf: первая граница допуска
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-scram-tls">
+<span class="md-ellipsis">
+      
+        3. SCRAM, TLS и идентичность сервера
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-roles">
+<span class="md-ellipsis">
+      
+        4. Roles: от кого сервер проверяет полномочия
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-grantrevoke">
+<span class="md-ellipsis">
+      
+        5. GRANT/REVOKE: почему право на таблицу состоит из нескольких разрешений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-ownership">
+<span class="md-ellipsis">
+      
+        6. Ownership: право владения — отдельная власть
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-search_path-sql">
+<span class="md-ellipsis">
+      
+        7. search_path: кто подставит имя объекта в SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-security-definer">
+<span class="md-ellipsis">
+      
+        8. SECURITY DEFINER: повышенные привилегии внутри функции
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-default-privileges">
+<span class="md-ellipsis">
+      
+        9. Default Privileges: почему новая таблица внезапно недоступна приложению
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-row-level-security">
+<span class="md-ellipsis">
+      
+        10. Row-Level Security: защищаем строки внутри разрешенной таблицы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-rls-policies">
+<span class="md-ellipsis">
+      
+        11. RLS Policies: комбинации, команды и неочевидная цена
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-rls-bypass-bypassrls">
+<span class="md-ellipsis">
+      
+        12. RLS Bypass: владельцы, BYPASSRLS и межарендная изоляция
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-security-diagnostics">
+<span class="md-ellipsis">
+      
+        13. Security Diagnostics: как доказать наличие ограничений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14">
+<span class="md-ellipsis">
+      
+        14. Сквозной эксперимент: настроили, сломали, диагностировали, исправили
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        15. Что студент должен запомнить
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Дополнительный технический слой — только при необходимости
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#postgresql-18">
+<span class="md-ellipsis">
+      
+        Первичные источники: PostgreSQL 18
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="13-postgresql-security-row-level-security">13. PostgreSQL Security &amp; Row-Level Security<a class="headerlink" href="#13-postgresql-security-row-level-security" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · основная лекция блока 13.</strong><br/>
+<strong>Цель:</strong> построить точную модель того, кто может подключиться к PostgreSQL, от чьего имени исполняется SQL, к каким объектам есть доступ и какие строки доступны внутри разрешенной таблицы.<br/>
+<strong>Фокус:</strong> <code>pg_hba.conf</code>, SCRAM/TLS, роли и наследование, <code>GRANT/REVOKE</code>, ownership, <code>search_path</code>, <code>SECURITY DEFINER</code>, default privileges, RLS, обход политик, изоляция арендаторов, тестирование безопасности и production-диагностика.<br/>
+<strong>Уже изучено:</strong> SQL, MVCC, планировщик, транзакции, блокировки, WAL, миграции и PgBouncer. Их устройство не повторяем.<br/>
+<strong>Граница материала:</strong> PostgreSQL 18 и обычный backend-сервис; это не учебник криптографии и не аудит конкретной инфраструктуры. В примерах действия администратора явно отделены от запросов прикладной роли. Все опасные эксперименты выполняются только на учебном кластере.</p>
+</blockquote>
+<h2 id="0">0. Инцидент: приложению выдали доступ к одной таблице, а оно прочитало чужие данные<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>Представим мультиарендный backend: в одной таблице <code>invoices</code> хранятся счета нескольких организаций. API должен возвращать счета только той организации, к которой относится проверенный пользователь. Разработчик пишет аккуратный запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>На review все выглядит правильно. Но позже появляется новый endpoint с запросом <code>SELECT * FROM app.invoices ORDER BY created_at DESC LIMIT 100</code>. Фильтр потеряли. SQL синтаксически корректен, права на таблицу у роли приложения есть. И сервер возвращает чужие счета.</p>
+<p>Первое очевидное решение: запретить приложению читать таблицу. Но тогда оно не прочитает и свои счета. Второе: назначить каждому арендатору собственную роль PostgreSQL. Это может работать, но усложняет жизненный цикл подключений, пулов и учетных записей. Третье: настроить ограничение строк непосредственно в PostgreSQL — Row-Level Security (RLS). Теперь вопрос: <strong>кто гарантирует, что контекст арендатора нельзя подменить?</strong> И почему владелец таблицы может неожиданно обходить RLS?</p>
+<p>Перед тем как писать политику, нужно разобрать уровни допуска. Их нельзя смешивать.</p>
+<div class="highlight"><pre><span></span><code>Клиент → сеть/TLS → pg_hba.conf → аутентификация → CONNECT к БД
+                → роль / членство → USAGE схемы → привилегия объекта
+                → RLS для конкретной команды и строки
+                → ограничения данных / триггеры / выполнение
+</code></pre></div>
+<p>Один отказ на любом уровне останавливает конкретную операцию. Но успех на первом уровне не заменяет последующие проверки. <strong>Пользователь, которому разрешили подключение, не становится автоматически владельцем таблиц. Пользователь с <code>SELECT</code> не получает автоматически все строки, если действует RLS. И RLS не проверяет подлинность бизнес-пользователя за приложение.</strong></p>
+<p>В этой лекции один сквозной пример: схема <code>app</code>, таблица счетов <code>app.invoices</code>, владельческая роль <code>app_owner</code>, роль приложения <code>app_runtime</code> и разные арендаторы. Мы начнем с заведомо небезопасной конфигурации и постепенно закроем ее слабые места.</p>
+<h3 id="_1">Контракт безопасности: четыре вопроса<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Уровень</th>
+<th>Вопрос</th>
+<th>Механизм</th>
+<th>Типовая ошибка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Подключение</td>
+<td>Кто может установить сессию?</td>
+<td><code>listen_addresses</code>, HBA, SCRAM/TLS, <code>CONNECT</code></td>
+<td>Широкая сеть / неверный HBA</td>
+</tr>
+<tr>
+<td>Объект</td>
+<td>Может ли роль обращаться к объекту?</td>
+<td>Roles, ownership, <code>USAGE</code>, <code>GRANT</code></td>
+<td>Приложение владеет всем или имеет <code>SUPERUSER</code></td>
+</tr>
+<tr>
+<td>Строка</td>
+<td>Какая строка видна/изменяема?</td>
+<td>RLS <code>USING</code> / <code>WITH CHECK</code></td>
+<td>Нет политики на UPDATE или владелец обходит RLS</td>
+</tr>
+<tr>
+<td>Прикладной субъект</td>
+<td>Кому принадлежит запрос?</td>
+<td>Проверенный identity и серверный контекст</td>
+<td>Клиент сам задает <code>tenant_id</code></td>
+</tr>
+</tbody>
+</table>
+<p>Практическое правило: <strong>проверяем все четыре уровня, иначе один успешный тест <code>SELECT</code> мало что доказывает.</strong></p>
+<hr/>
+<h2 id="1-threat-model">1. Threat model: что именно мы защищаем<a class="headerlink" href="#1-threat-model" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Угроза — это конкретная способность атакующего<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Начинаем с реалистичной модели. У нас есть клиентский API, приложение с ролью БД и PostgreSQL на отдельном сервере. Возможные нарушители имеют разные возможности: внешний пользователь может отправлять любые допустимые HTTP-параметры; атакующий при SQL injection способен влиять на часть SQL; злоумышленник с украденными учетными данными может открыть прямую сессию; разработчик ошибочно выдает <code>GRANT</code>; отдельный администратор владеет кластером. <strong>Защита от владельца кластера и суперпользователя не обеспечивается обычными RLS-политиками.</strong> Это граница доверия, а не баг.</p>
+<p>Под каждый сценарий формулируем свой инвариант. Например: <code>app_runtime</code> не умеет изменять DDL, не может читать <code>app.secret_keys</code>, не имеет доступа к строкам чужого арендатора; мигратор может менять схему, но не используется для HTTP-запросов; отчетная роль имеет только <code>SELECT</code>; администратор имеет отдельный канал доступа с аудитом.</p>
+<h3 id="12">1.2. Матрица субъектов и операций<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Субъект</th>
+<th><code>SELECT invoices</code></th>
+<th><code>INSERT invoices</code></th>
+<th>DDL</th>
+<th>Смена владельца</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app_runtime</code></td>
+<td>Только строки текущего арендатора</td>
+<td>Только текущий арендатор</td>
+<td>Нет</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>report_reader</code></td>
+<td>Разрешенная отчетная область</td>
+<td>Нет</td>
+<td>Нет</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>app_migrator</code></td>
+<td>По задаче миграции</td>
+<td>По задаче миграции</td>
+<td>Да, в доверенной схеме</td>
+<td>Административная процедура</td>
+</tr>
+<tr>
+<td><code>app_owner</code></td>
+<td>Владеет таблицей</td>
+<td>Может управлять ею</td>
+<td>Да</td>
+<td>Через разрешенные операции</td>
+</tr>
+<tr>
+<td>PostgreSQL superuser</td>
+<td>Почти неограниченно</td>
+<td>Почти неограниченно</td>
+<td>Да</td>
+<td>Да</td>
+</tr>
+</tbody>
+</table>
+<p>Почему нельзя ограничиться одним <code>GRANT ALL ON ALL TABLES TO app_runtime</code>? Потому что приложение с DDL-правами превращает любую ошибку в гораздо более серьезный инцидент: возможность менять структуры, запускать опасные функции, создавать объекты в недоверенной схеме или отключить RLS через владение. Именно поэтому runtime и мигратор разделяются.</p>
+<h3 id="13-least-privilege-defense-in-depth">1.3. Least privilege и defense in depth<a class="headerlink" href="#13-least-privilege-defense-in-depth" title="Permanent link">¶</a></h3>
+<p>Минимальные полномочия (least privilege) означают, что субъект получает только операции, необходимые для своей роли. Глубокоэшелонированная защита (defense in depth) означает независимые проверки на API, сетевом уровне и в БД. Они нужны одновременно: RLS помогает при забытом <code>WHERE</code>, но не защитит, если атакующий получил superuser; проверка tenant на API помогает против произвольного пользовательского параметра, но может быть забыта в новом SQL.</p>
+<p>И не путайте <em>confidentiality</em> (конфиденциальность), <em>integrity</em> (целостность) и <em>availability</em> (доступность). Ошибка RLS — утечка строк; избыточный UPDATE — нарушение целостности; дорогостоящая функция в политике может увеличить latency и ухудшить доступность. Модель угроз определяет, какие из этих свойств проверяем.</p>
+<p><strong>Инженерный вывод:</strong> безопасность PostgreSQL проектируется от возможностей конкретной роли и злоумышленника; список включенных настроек сам по себе не описывает гарантий.</p>
+<hr/>
+<h2 id="2-pg_hbaconf">2. <code>pg_hba.conf</code>: первая граница допуска<a class="headerlink" href="#2-pg_hbaconf" title="Permanent link">¶</a></h2>
+<h3 id="21-postgresql">2.1. Запрос дошел до PostgreSQL. Почему сервер может отказать?<a class="headerlink" href="#21-postgresql" title="Permanent link">¶</a></h3>
+<p>Сначала важное разграничение: <code>listen_addresses</code> определяет интерфейсы, на которых postmaster слушает TCP; firewall решает, достигает ли пакет сервера; <code>pg_hba.conf</code> определяет допустимое правило аутентификации для уже пришедшего подключения. Нельзя заменить один из механизмов другим. Например, HBA с разрешением для подсети не откроет порт, если PostgreSQL слушает только loopback.</p>
+<p><code>pg_hba.conf</code> читается при запуске и при reload (<code>SELECT pg_reload_conf();</code>) на Unix-подобных системах. В Windows файл перечитывается для новых соединений сразу. Файл состоит из <strong>упорядоченных</strong> правил. PostgreSQL выбирает первое совпавшее по типу соединения, базе, роли и адресу. Если аутентификация по нему провалилась, к следующему правилу сервер не переходит.</p>
+<div class="highlight"><pre><span></span><code># Пример для отдельного защищенного сервера; адреса учебные.
+hostssl  finance  app_runtime  10.30.0.0/24  scram-sha-256
+hostssl  finance  report_reader 10.31.4.0/24 scram-sha-256
+host     all      all          0.0.0.0/0    reject
+</code></pre></div>
+<p>Здесь важно: строка <code>host</code> совпадает и с TLS-, и с обычным TCP-подключением. <code>hostssl</code> — только с TLS. Если широкое <code>host ... trust</code> поставить <em>выше</em> <code>hostssl ... scram-sha-256</code>, сервер выберет первое правило и более строгое правило не сработает.</p>
+<h3 id="22">2.2. Типы соединений и опасные допущения<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Тип</th>
+<th>Что соответствует</th>
+<th>Практический смысл</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>local</code></td>
+<td>Unix-domain socket</td>
+<td>Отдельные правила для локальных процессов</td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td>TCP, с TLS или без него</td>
+<td>Нельзя считать автоматическим требованием шифрования</td>
+</tr>
+<tr>
+<td><code>hostssl</code></td>
+<td>TCP с TLS</td>
+<td>Требует включенного <code>ssl</code> и соответствующей сборки</td>
+</tr>
+<tr>
+<td><code>hostnossl</code></td>
+<td>TCP без TLS</td>
+<td>Допускает отдельную политику запрета незашифрованного доступа</td>
+</tr>
+<tr>
+<td><code>hostgssenc</code></td>
+<td>TCP с GSSAPI encryption</td>
+<td>Специализированная корпоративная среда</td>
+</tr>
+</tbody>
+</table>
+<p><code>trust</code> означает доверять заявленному имени без парольной проверки и обычно неприемлем для удаленного production-доступа. <code>peer</code> для локального Unix socket сопоставляет пользователя ОС и роль БД; этот механизм не работает как замена паролю для удаленного TCP-клиента.</p>
+<h3 id="23">2.3. Конфликт приоритетов правил: воспроизводимый случай<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code># НЕБЕЗОПАСНО: слишком широкое правило стоит первым.
+host     all      all          10.0.0.0/8    trust
+hostssl  finance  app_runtime  10.30.0.0/24  scram-sha-256
+</code></pre></div>
+<p>Клиент из <code>10.30.0.12</code> попадает в первую строку. Следующая строка не рассматривается. Это типовая проблема конфигурации: автор читает файл как набор независимых разрешений, хотя фактически работает <strong>первое совпадение</strong>.</p>
+<h3 id="24">2.4. Как диагностировать правила без перебора вслепую<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">hba_file</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">listen_addresses</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">ssl</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">line_number</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="k">database</span><span class="p">,</span><span class="w"> </span><span class="n">user_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">address</span><span class="p">,</span><span class="w"> </span><span class="n">auth_method</span><span class="p">,</span><span class="w"> </span><span class="n">error</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_hba_file_rules</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">line_number</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_reload_conf</span><span class="p">();</span><span class="w">  </span><span class="c1">-- выполняет роль с соответствующим правом</span>
+</code></pre></div>
+<p><code>pg_hba_file_rules</code> показывает разобранную текущую конфигурацию файла и ошибки синтаксиса. Это полезно, но не заменяет анализ реально использованного HBA-правила и журналов аутентификации. Ранее подключенные сессии не становятся автоматически другими после редактирования HBA.</p>
+<p>Применять разрешения «для удобства» через <code>0.0.0.0/0</code> + пароль — плохая практика для банковского контура. Требуется сетевое ограничение, строгая проверка клиента и централизованное управление секретами.</p>
+<p><strong>Модель:</strong> <code>listen_addresses</code> → доступность TCP, firewall → доступность сети, <code>pg_hba.conf</code> → первое правило аутентификации, <code>CONNECT</code> → разрешение войти в конкретную БД. Проверка пароля не отменяет <code>CONNECT</code>.</p>
+<hr/>
+<h2 id="3-scram-tls">3. SCRAM, TLS и идентичность сервера<a class="headerlink" href="#3-scram-tls" title="Permanent link">¶</a></h2>
+<h3 id="31-postgresql">3.1. Почему пароль нельзя просто отправить PostgreSQL текстом<a class="headerlink" href="#31-postgresql" title="Permanent link">¶</a></h3>
+<p>SCRAM-SHA-256 — механизм challenge-response на основе пароля. Клиент и сервер обмениваются значениями, позволяющими доказать знание пароля, не отправляя его непосредственно как открытый текст внутри протокольного сообщения. Это <strong>не заменяет TLS</strong>: защищенное хранение проверочного значения и шифрование транспорта решают разные задачи. Пароль может быть украден в приложении, логах, конфигурации или при неверной передаче секретов.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">password_encryption</span><span class="p">;</span><span class="w">  </span><span class="c1">-- обычно scram-sha-256</span>
+<span class="c1">-- Пароль задаем административно через безопасный механизм управления секретами.</span>
+<span class="c1">-- Не храним настоящие production-пароли в SQL-миграциях и shell history.</span>
+</code></pre></div>
+<p>Поддержка MD5-парольных verifier в PostgreSQL 18 устарела; переключение инфраструктуры требует проверить совместимость драйверов и способ хранения существующих паролей. Параметр <code>password_encryption</code> влияет на создание/смену verifier, а не волшебным образом перевыпускает все существующие учетные данные.</p>
+<h3 id="32-tls">3.2. TLS: шифрование недостаточно без проверки сервера<a class="headerlink" href="#32-tls" title="Permanent link">¶</a></h3>
+<p>У клиента <code>libpq</code> есть <code>sslmode</code>. Важные режимы: <code>disable</code>, <code>prefer</code>, <code>require</code>, <code>verify-ca</code>, <code>verify-full</code>. <code>require</code> требует защищенное TLS-соединение, но детали проверки CA зависят от наличия корневого сертификата; <strong><code>verify-full</code> явно проверяет и доверенную цепочку сертификатов, и имя сервера</strong>. Для удаленного production-доступа это сильная исходная модель.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Пример libpq: реальные пароль и сертификаты приходят из секретного хранилища.</span>
+psql<span class="w"> </span><span class="s1">'host=db.internal.example dbname=finance user=app_runtime \</span>
+<span class="s1">      sslmode=verify-full sslrootcert=/etc/ssl/db-root.crt'</span>
+</code></pre></div>
+<p>Если злоумышленник контролирует DNS/сеть, но клиент принимает произвольный сертификат, соединение может быть перехвачено. Значит, вопрос не только «зашифрован ли канал?», но и «с кем именно установлено соединение?».</p>
+<h3 id="33">3.3. Проверка реального соединения<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">usename</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">client_addr</span><span class="p">,</span>
+<span class="w">       </span><span class="n">s</span><span class="p">.</span><span class="n">ssl</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="k">version</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">cipher</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">a</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_stat_ssl</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_backend_pid</span><span class="p">();</span>
+</code></pre></div>
+<p><code>pg_stat_ssl.ssl = true</code> говорит о TLS у данного backend. Но это не доказывает, что <strong>клиент</strong> проверял сертификат сервера в режиме <code>verify-full</code>. Эту гарантию обеспечивают настройки клиента и инфраструктура управления сертификатами.</p>
+<p>TLS и SCRAM дают цену в CPU и времени установки соединения. В нормальной backend-архитектуре соединения переиспользуются; на пике reconnect storm дорогое создание соединений может стать дополнительным узким местом. Устройство пулов мы уже изучили, поэтому здесь достаточно увидеть связь «строгая аутентификация → стоимость handshake → необходимость корректного пула».</p>
+<h3 id="34-tls">3.4. Сертификаты клиентов и обязательность TLS<a class="headerlink" href="#34-tls" title="Permanent link">¶</a></h3>
+<p>PostgreSQL поддерживает аутентификацию сертификатом клиента (<code>cert</code>) и дополнительную проверку клиентского сертификата для <code>hostssl</code> через <code>clientcert=verify-ca</code> / <code>clientcert=verify-full</code>. Это отдельная политика доступа, требующая управления CA, выдачей, отзывом и обновлением сертификатов. Не следует считать, что любой <code>hostssl</code> автоматически проверяет сертификат клиента: по умолчанию TLS устанавливает защищенный канал с сервером, а пользователь далее проходит выбранную HBA-аутентификацию.</p>
+<p><strong>Инженерный вывод:</strong> аутентификация пользователя, проверка сервера и защита канала — три разных вопроса. Диагностировать их нужно раздельно.</p>
+<hr/>
+<h2 id="4-roles">4. Roles: от кого сервер проверяет полномочия<a class="headerlink" href="#4-roles" title="Permanent link">¶</a></h2>
+<h3 id="41-postgresql">4.1. Роль в PostgreSQL — это субъект и группа полномочий<a class="headerlink" href="#41-postgresql" title="Permanent link">¶</a></h3>
+<p>PostgreSQL использует единый механизм ролей. Роль с <code>LOGIN</code> может выступать учетной записью подключения; роль без <code>LOGIN</code> удобно использовать как группу прав или владельца объектов. Поэтому каждая новая таблица не должна автоматически становиться собственностью прикладного логина.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполняет администратор учебного кластера.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_owner</span><span class="w"> </span><span class="n">NOLOGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_reader</span><span class="w"> </span><span class="n">NOLOGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_writer</span><span class="w"> </span><span class="n">NOLOGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_runtime</span><span class="w"> </span><span class="n">LOGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_migrator</span><span class="w"> </span><span class="n">LOGIN</span><span class="p">;</span>
+
+<span class="c1">-- Система управления секретами назначает пароль app_runtime отдельно.</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="n">app_reader</span><span class="p">,</span><span class="w"> </span><span class="n">app_writer</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span><span class="p">;</span>
+</code></pre></div>
+<p>В реальной системе роль мигратора получает административную возможность на строго необходимой схеме, а runtime — нет. В примерах возможны временные роли для учебных проверок, но production-пароли в SQL не печатаем.</p>
+<h3 id="42-inherit-set-admin">4.2. Членство: <code>INHERIT</code>, <code>SET</code>, <code>ADMIN</code> — три разных права<a class="headerlink" href="#42-inherit-set-admin" title="Permanent link">¶</a></h3>
+<p>Предположим, <code>app_runtime</code> включен в <code>app_reader</code>. Но означает ли это, что ему всегда доступны права чтения? PostgreSQL 18 учитывает опции конкретного членства:</p>
+<ul>
+<li><code>INHERIT TRUE</code> — разрешает автоматически использовать полномочия группы через соответствующую цепочку членств;</li>
+<li><code>SET TRUE</code> — позволяет выполнить <code>SET ROLE</code> в эту роль;</li>
+<li><code>ADMIN TRUE</code> — позволяет управлять членством в этой роли с учетом правил PostgreSQL.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">GRANT</span><span class="w"> </span><span class="n">app_reader</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="w">  </span><span class="k">WITH</span><span class="w"> </span><span class="n">INHERIT</span><span class="w"> </span><span class="k">TRUE</span><span class="p">,</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">FALSE</span><span class="p">;</span>
+
+<span class="c1">-- app_runtime автоматически использует объектные привилегии app_reader,</span>
+<span class="c1">-- но не получает право SET ROLE app_reader через это членство.</span>
+</code></pre></div>
+<p>Если одна цепочка членства содержит <code>INHERIT FALSE</code>, автоматическое наследование по ней прекращается. Специальные атрибуты вроде <code>SUPERUSER</code>, <code>CREATEDB</code>, <code>CREATEROLE</code> не передаются как обычные права на таблицы.</p>
+<h3 id="43-session_user-current_user">4.3. <code>session_user</code> против <code>current_user</code><a class="headerlink" href="#43-session_user-current_user" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">session_user</span><span class="p">,</span><span class="w"> </span><span class="k">current_user</span><span class="p">;</span>
+<span class="c1">-- После SET ROLE current_user может измениться, session_user останется логином.</span>
+
+<span class="k">SET</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_reader</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">session_user</span><span class="p">,</span><span class="w"> </span><span class="k">current_user</span><span class="p">;</span>
+<span class="k">RESET</span><span class="w"> </span><span class="k">ROLE</span><span class="p">;</span>
+</code></pre></div>
+<p><code>session_user</code> — исходный идентификатор сессии (возможны специальные административные изменения). <code>current_user</code> — эффективный субъект проверки полномочий. При <code>SECURITY DEFINER</code> временно применяется владелец функции. Это различие критично для политики <code>USING (owner_name = current_user)</code>: если вы ошиблись в том, кто является <code>current_user</code>, политика защищает не того субъекта, которого вы задумали.</p>
+<h3 id="44-superuser-createrole-bypassrls">4.4. Почему <code>SUPERUSER</code>, <code>CREATEROLE</code>, <code>BYPASSRLS</code> запрещены прикладной роли<a class="headerlink" href="#44-superuser-createrole-bypassrls" title="Permanent link">¶</a></h3>
+<p><code>SUPERUSER</code> способен обходить обычные проверки доступа; <code>BYPASSRLS</code> обходит политики RLS; <code>CREATEROLE</code> расширяет административные возможности. Давать такие атрибуты runtime-сервису ради удобства — фактически выключить важные уровни изоляции. Нужны отдельные учетные записи для администрирования и приложения, раздельные секреты и аудит изменений прав.</p>
+<p>Для проверки:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">rolname</span><span class="p">,</span><span class="w"> </span><span class="n">rolcanlogin</span><span class="p">,</span><span class="w"> </span><span class="n">rolsuper</span><span class="p">,</span><span class="w"> </span><span class="n">rolcreaterole</span><span class="p">,</span>
+<span class="w">       </span><span class="n">rolbypassrls</span><span class="p">,</span><span class="w"> </span><span class="n">rolinherit</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_roles</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">rolname</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'app_owner'</span><span class="p">,</span><span class="s1">'app_reader'</span><span class="p">,</span><span class="s1">'app_writer'</span><span class="p">,</span><span class="s1">'app_runtime'</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>Инженерный вывод:</strong> названия ролей — договоренность разработчиков; настоящие гарантии определяются атрибутами, членством и проверками конкретной команды.</p>
+<hr/>
+<h2 id="5-grantrevoke">5. <code>GRANT</code>/<code>REVOKE</code>: почему право на таблицу состоит из нескольких разрешений<a class="headerlink" href="#5-grantrevoke" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Доступ к схеме и к объекту проверяется раздельно<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Итак, <code>app_runtime</code> успешно подключился к БД. Выполняем <code>SELECT</code> из <code>app.invoices</code>, получаем <code>permission denied for schema app</code>. В чем ошибка? <code>GRANT SELECT ON app.invoices</code> не дает автоматически <code>USAGE ON SCHEMA app</code>. Схема — отдельный объект доступа.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Администратор создает схему, владеет ею отдельная роль.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">AUTHORIZATION</span><span class="w"> </span><span class="n">app_owner</span><span class="p">;</span>
+
+<span class="k">GRANT</span><span class="w"> </span><span class="k">USAGE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_reader</span><span class="p">,</span><span class="w"> </span><span class="n">app_writer</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_reader</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">INSERT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">,</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_writer</span><span class="p">;</span>
+</code></pre></div>
+<p><code>USAGE ON SCHEMA</code> дает возможность разрешать имена объектов внутри схемы при наличии объектных разрешений; оно не дает создавать таблицы. Для создания объектов требуется <code>CREATE ON SCHEMA</code>. Более того, права на таблицы не передают автоматически права на последовательности: при необходимости <code>nextval()</code> потребуется отдельный <code>USAGE</code>/<code>UPDATE</code> на sequence или соответствующий механизм управления идентификаторами.</p>
+<h3 id="52">5.2. Различие между объектными операциями<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Право</th>
+<th>Разрешает</th>
+<th>Не означает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SELECT</code></td>
+<td>Читать разрешенные данные</td>
+<td>Изменять данные или обходить RLS</td>
+</tr>
+<tr>
+<td><code>INSERT</code></td>
+<td>Добавлять строки</td>
+<td>Читать существующие строки</td>
+</tr>
+<tr>
+<td><code>UPDATE</code></td>
+<td>Изменять разрешенные колонки/строки</td>
+<td>Удалять строки</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td>Удалять разрешенные строки</td>
+<td><code>TRUNCATE</code></td>
+</tr>
+<tr>
+<td><code>TRUNCATE</code></td>
+<td>Очищать таблицу</td>
+<td>Подпадает под RLS-фильтрацию строк</td>
+</tr>
+<tr>
+<td><code>REFERENCES</code></td>
+<td>Создавать FK-ссылки при соответствующих условиях</td>
+<td>Читать все строки напрямую</td>
+</tr>
+<tr>
+<td><code>MAINTAIN</code></td>
+<td>Выполнять определенные операции обслуживания</td>
+<td>Владеть таблицей</td>
+</tr>
+</tbody>
+</table>
+<p><code>TRUNCATE</code> не фильтруется RLS по строкам; это отдельная privilege. Следовательно, роль приложения с <code>TRUNCATE</code>, полученным «за компанию», может обойти бизнес-идею «удаляй только свои строки». Это важная ловушка безопасности.</p>
+<h3 id="53-revoke">5.3. <code>REVOKE</code> и членство: один путь убрали, другой остался<a class="headerlink" href="#53-revoke" title="Permanent link">¶</a></h3>
+<p>Если роль имеет <code>SELECT</code> напрямую и через другую роль, удаление прямого права не заберет у нее наследуемый доступ. Права нужно проверять по <strong>эффективному</strong> субъекту.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">  </span><span class="n">has_schema_privilege</span><span class="p">(</span><span class="s1">'app_runtime'</span><span class="p">,</span><span class="w"> </span><span class="s1">'app'</span><span class="p">,</span><span class="w"> </span><span class="s1">'USAGE'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">schema_usage</span><span class="p">,</span>
+<span class="w">  </span><span class="n">has_table_privilege</span><span class="p">(</span><span class="s1">'app_runtime'</span><span class="p">,</span><span class="w"> </span><span class="s1">'app.invoices'</span><span class="p">,</span><span class="w"> </span><span class="s1">'SELECT'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">select_ok</span><span class="p">,</span>
+<span class="w">  </span><span class="n">has_table_privilege</span><span class="p">(</span><span class="s1">'app_runtime'</span><span class="p">,</span><span class="w"> </span><span class="s1">'app.invoices'</span><span class="p">,</span><span class="w"> </span><span class="s1">'DELETE'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">delete_ok</span><span class="p">;</span>
+</code></pre></div>
+<p>Эти функции отвечают на вопрос об объектных разрешениях. Они не доказывают, какие строки пропустит RLS. Для строковой политики нужны отдельные поведенческие тесты.</p>
+<h3 id="54-public">5.4. <code>PUBLIC</code> — специальная группа, которой принадлежат все роли<a class="headerlink" href="#54-public" title="Permanent link">¶</a></h3>
+<p><code>PUBLIC</code> в <code>GRANT</code>/<code>REVOKE</code> — псевдороль, охватывающая всех пользователей. По умолчанию для новых БД <code>PUBLIC</code> имеет <code>CONNECT</code> и <code>TEMPORARY</code>, для новых функций часто <code>EXECUTE</code>. На новых таблицах default public privileges нет. Но все это может быть изменено настройками и миграциями.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Пример ужесточения для отдельной БД после оценки зависимостей.</span>
+<span class="k">REVOKE</span><span class="w"> </span><span class="k">CONNECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">finance</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">PUBLIC</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">CONNECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">finance</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span><span class="p">,</span><span class="w"> </span><span class="n">app_migrator</span><span class="p">;</span>
+</code></pre></div>
+<p>Существующие подключения не будут автоматически разорваны при <code>REVOKE CONNECT</code>. Команду следует применять с учетом служебных ролей и подключений администраторов.</p>
+<h3 id="55">5.5. Права на колонки и обход через представления<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p>PostgreSQL допускает <code>GRANT SELECT (col1)</code> и <code>GRANT UPDATE (col2)</code>. Это полезно, но не заменяет модель чувствительных данных: функции, представления, <code>SECURITY DEFINER</code> и некорректные дополнительные GRANT могут открыть косвенный путь. Необязательно выдавать прямой <code>SELECT</code> на таблицу, если API работает через безопасное представление или функцию; однако тогда необходимо проверить, <strong>чьи</strong> полномочия используются внутри этой прослойки.</p>
+<p><strong>Вывод:</strong> успешная аутентификация → подключение к БД → схема → объект → колонка → строка. Каждая граница имеет собственные проверки.</p>
+<hr/>
+<h2 id="6-ownership">6. Ownership: право владения — отдельная власть<a class="headerlink" href="#6-ownership" title="Permanent link">¶</a></h2>
+<h3 id="61-grant">6.1. Почему <code>GRANT</code> не превращает пользователя во владельца<a class="headerlink" href="#61-grant" title="Permanent link">¶</a></h3>
+<p>Права <code>SELECT/INSERT/UPDATE/DELETE</code> разрешают операции с данными. <strong>Владелец</strong> объекта управляет самим объектом: меняет его определение, назначает привилегии и, в типичном случае, обходит RLS для собственной таблицы. Владение не является обычной privilege, которую можно выдать командой <code>GRANT SELECT</code>; это другая граница власти.</p>
+<p>Поэтому полезна конструкция: <code>app_owner NOLOGIN</code> владеет схемой и таблицами, <code>app_migrator</code> получает необходимое право действовать от имени владельца при миграциях, <code>app_runtime</code> не состоит в <code>app_owner</code>. Роли для разных бизнес-функций получают только рабочие привилегии. При этом реальную необходимость членства/SET нужно проектировать с учетом конкретного инструмента миграций, а не выдавать всем <code>GRANT app_owner</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполняет администратор. Роль, создающая объект,</span>
+<span class="c1">-- должна иметь соответствующее CREATE в схеме.</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_owner</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="w">  </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">now</span><span class="p">()</span>
+<span class="p">);</span>
+<span class="k">RESET</span><span class="w"> </span><span class="k">ROLE</span><span class="p">;</span>
+
+<span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_reader</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">INSERT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">,</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_writer</span><span class="p">;</span>
+</code></pre></div>
+<p>Важное различие: <code>app_runtime</code> не обязан владеть <code>app.invoices</code>, чтобы выполнять SQL. А для <code>ALTER TABLE ... DISABLE ROW LEVEL SECURITY</code> обычного <code>UPDATE</code> недостаточно.</p>
+<h3 id="62">6.2. Как убедиться, кто владелец<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">schema_name</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_userbyid</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relowner</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">owner_name</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relrowsecurity</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relforcerowsecurity</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relnamespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'app'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'invoices'</span><span class="p">;</span>
+</code></pre></div>
+<p><code>relrowsecurity</code> показывает, включена ли RLS, <code>relforcerowsecurity</code> — принудительное применение для владельца. Эти поля не описывают все возможные обходы: superuser и <code>BYPASSRLS</code> все равно обойдут политики.</p>
+<h3 id="63-public">6.3. Схема <code>public</code> и исторические права<a class="headerlink" href="#63-public" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 новый кластер обычно уже не выдает <code>CREATE ON SCHEMA public</code> всем через <code>PUBLIC</code>. Но <strong>обновленный</strong> с давней версии кластер может сохранять старые привилегии. Нельзя преподавать универсальное «в public любой может создать функцию» и нельзя автоматически считать ее защищенной. Проверяем реальные ACL:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">nspname</span><span class="p">,</span><span class="w"> </span><span class="n">nspacl</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_namespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">nspname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'public'</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">has_schema_privilege</span><span class="p">(</span><span class="s1">'app_runtime'</span><span class="p">,</span><span class="w"> </span><span class="s1">'public'</span><span class="p">,</span><span class="w"> </span><span class="s1">'CREATE'</span><span class="p">);</span>
+</code></pre></div>
+<p>Если в доверенном пути поиска находится схема, доступная для CREATE недоверенной роли, эта роль может создать объект с именем, которого не ожидала вызывающая функция. Здесь abstraction начинает протекать: разрешение имен само становится частью модели безопасности.</p>
+<hr/>
+<h2 id="7-search_path-sql">7. <code>search_path</code>: кто подставит имя объекта в SQL<a class="headerlink" href="#7-search_path-sql" title="Permanent link">¶</a></h2>
+<h3 id="71-postgresql-accounts">7.1. PostgreSQL не обязан понимать, какую именно <code>accounts</code> вы имели в виду<a class="headerlink" href="#71-postgresql-accounts" title="Permanent link">¶</a></h3>
+<p>SQL <code>SELECT * FROM invoices</code> содержит неквалифицированное имя. PostgreSQL разрешает его относительно <code>search_path</code>. Для таблиц, функций и операторов правила отличаются в деталях; также участвуют системная и временная схемы. Поэтому безопасная практика для привилегированных функций — квалифицировать критичные объекты и исключить из пути схемы, доступные недоверенным пользователям.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">search_path</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">current_schemas</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+
+<span class="c1">-- Явная адресация лучше, чем зависимость от клиентского search_path:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь представим <code>SECURITY DEFINER</code>-функцию, читающую <code>SELECT secret FROM settings</code>, но ее <code>search_path</code> включает схему, в которой атакующий может создавать объекты. Подмена <code>settings</code> может изменить смысл операции. Ошибка здесь гораздо серьезнее обычного <code>relation does not exist</code>, поскольку функция исполняется с правами владельца.</p>
+<h3 id="72">7.2. Неожиданная роль временной схемы<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<p><code>pg_temp</code> участвует в разрешении имен временных отношений. Важная особенность: для отношений и типов временная схема может искаться раньше явно заданных обычных схем, если не указать ее место. Поэтому в документации PostgreSQL для <code>SECURITY DEFINER</code> приведен надежный шаблон <code>SET search_path = trusted_schema, pg_temp</code>, где <code>pg_temp</code> явно стоит последней.</p>
+<p>Для операторов и функций все тоньше; одного «мы написали имя таблицы с префиксом» не всегда достаточно, если в запросе вызываются неквалифицированные функции или операторы. По этой причине безопасный код должен контролировать весь контекст разрешения имен и не принимать произвольный <code>search_path</code> вызывающей стороны.</p>
+<h3 id="73-revoke-create-on-schema-public">7.3. Ограничения <code>REVOKE CREATE ON SCHEMA public</code><a class="headerlink" href="#73-revoke-create-on-schema-public" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Административное ужесточение; сначала проверяем зависимости.</span>
+<span class="k">REVOKE</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">PUBLIC</span><span class="p">;</span>
+</code></pre></div>
+<p>Это закрывает конкретный путь создания новых объектов, но не отменяет уже созданные объекты и не заменяет аудит <code>search_path</code> во всех <code>SECURITY DEFINER</code>-функциях. Кроме того, объект в другой схеме, доступной для записи, может быть столь же опасен.</p>
+<p><strong>Вывод:</strong> схема — пространство имен и отдельная граница полномочий. Путь поиска является частью исполняемого контракта SQL и может влиять на безопасность, даже если ни один GRANT на исходную таблицу не менялся.</p>
+<hr/>
+<h2 id="8-security-definer">8. <code>SECURITY DEFINER</code>: повышенные привилегии внутри функции<a class="headerlink" href="#8-security-definer" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Для чего он нужен и где возникает риск<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>По умолчанию SQL-функция выполняется как <code>SECURITY INVOKER</code>, то есть с правами вызывающего пользователя. <code>SECURITY DEFINER</code> временно использует полномочия <strong>владельца функции</strong>. Это удобно, если надо открыть приложению строго ограниченную операцию над закрытой таблицей. Но фактически мы строим маленький привилегированный API внутри PostgreSQL.</p>
+<p>Пример задачи: прикладная роль не может читать таблицу <code>admin.payments_secret</code>, но может вызвать функцию, возвращающую агрегированный публичный статус. Если функция позволяет задавать произвольный SQL, подменять <code>search_path</code> или извлекать все секреты через диагностический вывод, ограничение будет бессмысленным.</p>
+<h3 id="82">8.2. Безопасный шаблон функции<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Создание выполняет доверенная роль-владелец admin-схемы.</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">invoice_count</span><span class="p">(</span><span class="n">p_tenant</span><span class="w"> </span><span class="nb">bigint</span><span class="p">)</span>
+<span class="k">RETURNS</span><span class="w"> </span><span class="nb">bigint</span>
+<span class="k">LANGUAGE</span><span class="w"> </span><span class="k">sql</span>
+<span class="k">SECURITY</span><span class="w"> </span><span class="k">DEFINER</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">search_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">admin</span><span class="p">,</span><span class="w"> </span><span class="n">pg_temp</span>
+<span class="k">AS</span><span class="w"> </span><span class="err">$$</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="w">  </span><span class="k">FROM</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">i</span>
+<span class="w">  </span><span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p_tenant</span><span class="p">;</span>
+<span class="err">$$</span><span class="p">;</span>
+
+<span class="k">REVOKE</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">invoice_count</span><span class="p">(</span><span class="nb">bigint</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">PUBLIC</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">EXECUTE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">invoice_count</span><span class="p">(</span><span class="nb">bigint</span><span class="p">)</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Этот шаблон демонстрирует контроль пути поиска и ACL, <strong>но не является безопасной бизнес-функцией для мультиарендного приложения</strong>: вызывающий может подставить любой <code>p_tenant</code>. В production субъект должен определяться доверенным способом, а функция должна сама проверять, что он вправе читать запрошенный tenant. Показательно, как легко сделать синтаксически защищенную функцию с неправильной бизнес-авторизацией.</p>
+<p>Для действительно минимально привилегированной функции желательно выполнять только строго заданную операцию, не соединять произвольный пользовательский текст в динамический SQL и по возможности ссылаться на объекты полностью квалифицированно.</p>
+<h3 id="83-revoke-execute-from-public">8.3. Почему <code>REVOKE EXECUTE FROM PUBLIC</code> нужен в той же транзакции<a class="headerlink" href="#83-revoke-execute-from-public" title="Permanent link">¶</a></h3>
+<p>У новых функций <code>EXECUTE</code> по умолчанию выдается <code>PUBLIC</code>. Если создать <code>SECURITY DEFINER</code>, выполнить COMMIT, а затем отдельной транзакцией удалить право, существует окно, когда функция доступна шире задуманного. Поэтому CREATE/REVOKE/GRANT выполняем атомарно внутри одной миграции.</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">sensitive_operation</span><span class="p">()</span><span class="w"> </span><span class="k">RETURNS</span><span class="w"> </span><span class="n">void</span>
+<span class="k">LANGUAGE</span><span class="w"> </span><span class="n">plpgsql</span><span class="w"> </span><span class="k">SECURITY</span><span class="w"> </span><span class="k">DEFINER</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">search_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">admin</span><span class="p">,</span><span class="w"> </span><span class="n">pg_temp</span>
+<span class="k">AS</span><span class="w"> </span><span class="err">$$</span><span class="w"> </span><span class="k">BEGIN</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span><span class="w"> </span><span class="k">END</span><span class="w"> </span><span class="err">$$</span><span class="p">;</span>
+<span class="k">REVOKE</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">sensitive_operation</span><span class="p">()</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">PUBLIC</span><span class="p">;</span>
+<span class="k">GRANT</span><span class="w"> </span><span class="k">EXECUTE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">FUNCTION</span><span class="w"> </span><span class="k">admin</span><span class="p">.</span><span class="n">sensitive_operation</span><span class="p">()</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Это демонстрационная функция-заглушка. Наличие <code>SECURITY DEFINER</code> должно быть оправдано конкретной операцией и сопровождено анализом входов, доступа к данным и побочных эффектов.</p>
+<h3 id="84-rls">8.4. Функция, принадлежащая владельцу таблицы, может обойти ее RLS<a class="headerlink" href="#84-rls" title="Permanent link">¶</a></h3>
+<p>Вот место, где простая модель «у приложения есть RLS, значит любая функция безопасна» рушится. Если <code>SECURITY DEFINER</code> исполняется от имени владельца защищаемой таблицы, и владелец не принужден к RLS, функция может увидеть все строки. Возникает обход через разрешенный вызов функции, даже когда прямая <code>SELECT</code> у приложения фильтруется.</p>
+<p>Поэтому в аудите проверяем не только <code>pg_policies</code>, но и владельцев функций, <code>prosecdef</code>, <code>proconfig</code>, права <code>EXECUTE</code>, а также каждое место, где данные RLS-таблиц читаются от привилегированного имени.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">proname</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">prosecdef</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">security_definer</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">proconfig</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">function_settings</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_userbyid</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">proowner</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">owner_name</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_proc</span><span class="w"> </span><span class="n">p</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">pronamespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'app'</span><span class="p">,</span><span class="w"> </span><span class="s1">'admin'</span><span class="p">)</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">prosecdef</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="85">8.5. Цена и диагностический смысл<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p>При неправильном использовании <code>SECURITY DEFINER</code> повышает риск и усложняет анализ планов/прав, но само по себе слово <code>SECURITY DEFINER</code> не обещает ни ускорения, ни деградации. Цена определяется выполняемыми внутри функциями SQL, количеством вызовов и возможностью оптимизатора обрабатывать выражение. В p99 важнее измерять реальные операции и их частоту, а не рассматривать «безопасность» как бесплатный флаг.</p>
+<p><strong>Вывод:</strong> <code>SECURITY DEFINER</code> — привилегированный интерфейс. Контракт его безопасности включает владельца, <code>search_path</code>, права вызова, параметры и поведение RLS при исполнении.</p>
+<hr/>
+<h2 id="9-default-privileges">9. Default Privileges: почему новая таблица внезапно недоступна приложению<a class="headerlink" href="#9-default-privileges" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Права существующих объектов и будущих объектов — разные состояния<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Допустим, администратор выполнил:</p>
+<div class="highlight"><pre><span></span><code><span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ALL</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_reader</span><span class="p">;</span>
+</code></pre></div>
+<p>Сегодня все запросы работают. Завтра мигратор создает <code>app.invoices_2027</code>, и новая таблица не доступна <code>app_reader</code>. Причина: команда <code>ON ALL TABLES IN SCHEMA</code> меняет ACL <strong>существующих</strong> таблиц. Она не является подпиской на будущие объекты.</p>
+<p>Для будущих объектов есть <code>ALTER DEFAULT PRIVILEGES</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">PRIVILEGES</span>
+<span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_owner</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span>
+<span class="w">  </span><span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_reader</span><span class="p">;</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">PRIVILEGES</span>
+<span class="w">  </span><span class="k">FOR</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_owner</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">SCHEMA</span><span class="w"> </span><span class="n">app</span>
+<span class="w">  </span><span class="k">GRANT</span><span class="w"> </span><span class="k">INSERT</span><span class="p">,</span><span class="w"> </span><span class="k">UPDATE</span><span class="p">,</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_writer</span><span class="p">;</span>
+</code></pre></div>
+<p>Правила применятся к объектам, которые <strong>создаст роль <code>app_owner</code></strong> в соответствующей схеме. Если мигратор фактически создает таблицы от имени <code>app_migrator</code>, нужны настройки именно для этой роли-создателя. Членство само по себе не означает, что будущие ACL будут рассчитаны как для всех ролей, членом которых он является.</p>
+<h3 id="92-per-schema-default-privileges">9.2. Глобальные и per-schema default privileges<a class="headerlink" href="#92-per-schema-default-privileges" title="Permanent link">¶</a></h3>
+<p>PostgreSQL сначала учитывает глобальные правила роли-создателя, затем расширения для отдельных схем. Важная ловушка: <code>ALTER DEFAULT PRIVILEGES IN SCHEMA ... REVOKE EXECUTE ... FROM PUBLIC</code> не может отменить изначальный глобальный default <code>PUBLIC EXECUTE</code> для функций. Для этого нужна глобальная настройка для соответствующей роли.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Для будущих функций, создаваемых app_owner:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">PRIVILEGES</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">app_owner</span>
+<span class="k">REVOKE</span><span class="w"> </span><span class="k">EXECUTE</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">FUNCTIONS</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">PUBLIC</span><span class="p">;</span>
+</code></pre></div>
+<p>Пересмотреть состояние:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">defaclrole</span><span class="p">::</span><span class="n">regrole</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">creator</span><span class="p">,</span>
+<span class="w">       </span><span class="k">COALESCE</span><span class="p">(</span><span class="n">defaclnamespace</span><span class="p">::</span><span class="n">regnamespace</span><span class="p">::</span><span class="nb">text</span><span class="p">,</span><span class="w"> </span><span class="s1">'(global)'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">scope</span><span class="p">,</span>
+<span class="w">       </span><span class="n">defaclobjtype</span><span class="p">,</span><span class="w"> </span><span class="n">defaclacl</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_default_acl</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">creator</span><span class="p">::</span><span class="nb">text</span><span class="p">,</span><span class="w"> </span><span class="k">scope</span><span class="p">;</span>
+</code></pre></div>
+<p>Обратите внимание: <code>ALTER DEFAULT PRIVILEGES</code> не изменяет права ранее созданных объектов. Для них нужен явный аудит и <code>GRANT</code>/<code>REVOKE</code>.</p>
+<h3 id="93">9.3. Как это связано с безопасными миграциями<a class="headerlink" href="#93" title="Permanent link">¶</a></h3>
+<p>Новая таблица появляется при развертывании новой версии сервиса. Если мигратор выдает права неправильно, сервис получает либо <code>permission denied</code>, либо чрезмерные возможности. Это не проблема планировщика и не баг драйвера: это несогласованность владельца, роли-создателя и default ACL. Поэтому в миграциях можно проверять и структуру, и effective privileges прикладной роли.</p>
+<p><strong>Вывод:</strong> доступность существующей схемы не гарантирует корректный доступ к вновь созданным объектам. Default privileges следует привязывать к реальному владельцу/создателю, а не к названию инструмента миграций.</p>
+<hr/>
+<h2 id="10-row-level-security">10. Row-Level Security: защищаем строки внутри разрешенной таблицы<a class="headerlink" href="#10-row-level-security" title="Permanent link">¶</a></h2>
+<h3 id="101-select">10.1. Имеется <code>SELECT</code>, но не все строки должны быть видны<a class="headerlink" href="#101-select" title="Permanent link">¶</a></h3>
+<p>Создаем два арендатора: 101 и 202. Одна таблица <code>app.invoices</code>. Прикладная роль имеет <code>SELECT/INSERT/UPDATE/DELETE</code>, но не должна видеть чужую информацию. Здесь появляется RLS — дополнительная политика на уровне строки.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполняет владелец таблицы или уполномоченный администратор.</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span>
+<span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">101</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">.</span><span class="mi">00</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">101</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">.</span><span class="mi">00</span><span class="p">),</span>
+<span class="w"> </span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">202</span><span class="p">,</span><span class="w"> </span><span class="mi">300</span><span class="p">.</span><span class="mi">00</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">202</span><span class="p">,</span><span class="w"> </span><span class="mi">400</span><span class="p">.</span><span class="mi">00</span><span class="p">);</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="n">ENABLE</span><span class="w"> </span><span class="k">ROW</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">SECURITY</span><span class="p">;</span>
+</code></pre></div>
+<p>После <code>ENABLE ROW LEVEL SECURITY</code>, если для обычной роли нет подходящих разрешающих политик, действует <strong>default deny</strong>: строки скрыты, операции изменения отфильтровываются/запрещаются согласно команде. Владелец таблицы обычно обходит политику, поэтому проверять результат под владельцем нельзя.</p>
+<h3 id="102">10.2. Первая политика на чтение: контекст арендатора<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<p>Для демонстрации используем GUC (<code>app.tenant_id</code>), который приложение установит после проверки авторизации. <code>current_setting('app.tenant_id', true)</code> вернет <code>NULL</code>, если настройка отсутствует; выражение с <code>NULL</code> не даст <code>TRUE</code>, и строки будут скрыты.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">invoice_tenant_select</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="k">USING</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULLIF</span><span class="p">(</span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">),</span><span class="w"> </span><span class="s1">''</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Контекст должен устанавливаться внутри уже открытой транзакции. Например, для тестовой роли:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">set_config</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="s1">'101'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span><span class="w">  </span><span class="c1">-- true = LOCAL</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>При правильных правах и RLS две строки арендатора 101 видны, строки 202 — нет. Однако <strong>GUC — обычное состояние сессии/транзакции, а не подписанный токен</strong>. Если злоумышленник может произвольно выполнять SQL от имени <code>app_runtime</code>, он может установить <code>app.tenant_id = 202</code> и обойти такую политику. Этот подход защищает от случайного отсутствия tenant-фильтра в запросе, но требует доверенного пути установки значения.</p>
+<h3 id="103-using-with-check">10.3. <code>USING</code> и <code>WITH CHECK</code>: старые и новые значения<a class="headerlink" href="#103-using-with-check" title="Permanent link">¶</a></h3>
+<p><code>USING</code> определяет, какие существующие строки доступны данной команде. <code>WITH CHECK</code> определяет, допустимо ли <strong>новое</strong> значение строки при <code>INSERT</code> или <code>UPDATE</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">invoice_tenant_insert</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">INSERT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="k">WITH</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULLIF</span><span class="p">(</span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">),</span><span class="w"> </span><span class="s1">''</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">invoice_tenant_update</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="k">USING</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULLIF</span><span class="p">(</span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">),</span><span class="w"> </span><span class="s1">''</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">)</span>
+<span class="k">WITH</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULLIF</span><span class="p">(</span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">),</span><span class="w"> </span><span class="s1">''</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">invoice_tenant_delete</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="k">USING</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">NULLIF</span><span class="p">(</span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">),</span><span class="w"> </span><span class="s1">''</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Если разрешить UPDATE только через <code>USING</code>, но не проверить новые значения там, где применяется соответствующая политика/<code>WITH CHECK</code>, можно допустить нежелательный перенос строки между арендаторами. Для <code>FOR ALL</code> и некоторых форм <code>FOR UPDATE</code> PostgreSQL использует правило наследования <code>WITH CHECK</code> из <code>USING</code>, если явное выражение не задано; в обучении правильнее указывать оба условия явно, чтобы не скрывать различие семантики.</p>
+<h3 id="104">10.4. Проверка чтения, записи и обновления<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполнить как app_runtime на учебной БД.</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">set_config</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="s1">'101'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+<span class="c1">-- Ожидаются строки только tenant_id=101.</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">202</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">.</span><span class="mi">00</span><span class="p">);</span>
+<span class="c1">-- ERROR: new row violates row-level security policy</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+<p>Аналогичный тест для UPDATE должен пытаться изменить <code>tenant_id</code> с 101 на 202; <code>WITH CHECK</code> запретит переход. Для <code>DELETE</code> чужой строки обычно получится <code>DELETE 0</code> — строка просто не считается доступной для команды. Для сложных <code>RETURNING</code>, <code>ON CONFLICT DO UPDATE</code> и <code>MERGE</code> проверки могут отличаться: поведение зависит от применимых <code>SELECT</code> и DML-политик и требует отдельного теста. В частности, <code>ON CONFLICT DO UPDATE</code> может выбросить ошибку вместо тихого пропуска строки, если существующая строка не проходит нужное <code>USING</code>.</p>
+<h3 id="105-rls">10.5. RLS и обычные объектные привилегии действуют вместе<a class="headerlink" href="#105-rls" title="Permanent link">¶</a></h3>
+<p>Если убрать <code>GRANT SELECT</code>, политика <code>FOR SELECT</code> сама по себе не выдаст право чтения. Если приложение имеет <code>UPDATE</code>, но политика его запрещает, наличие объектного GRANT не поможет. И если включить RLS, но выполнять запрос как superuser, вы не протестировали поведение прикладной роли.</p>
+<p><strong>Точная модель:</strong> объектная privilege определяет, разрешен ли тип операции; RLS ограничивает допустимые строки внутри разрешенной операции; бизнес-identity определяет, какую политику или контекст мы должны применять.</p>
+<hr/>
+<h2 id="11-rls-policies">11. RLS Policies: комбинации, команды и неочевидная цена<a class="headerlink" href="#11-rls-policies" title="Permanent link">¶</a></h2>
+<h3 id="111-and">11.1. Почему две политики не обязательно означают «две проверки через AND»<a class="headerlink" href="#111-and" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL политики делятся на permissive и restrictive. Применимые разрешающие (permissive) политики объединяются через <strong>OR</strong>, ограничительные (restrictive) — через <strong>AND</strong>. Итог обычно имеет форму:</p>
+<div class="highlight"><pre><span></span><code>(разрешающая_1 OR разрешающая_2 OR ...)
+                    AND
+(ограничительная_1 AND ограничительная_2 AND ...)
+</code></pre></div>
+<p>Нужна хотя бы одна применимая permissive-политика, иначе restrictive-политики ничего не разрешают сами по себе. Это частая ошибка: разработчик создал «более строгую» политику <code>USING (tenant_id = ...)</code>, но оставил старую permissive <code>USING (true)</code>. Итоговый OR снова пропускает строки чужих арендаторов.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- ОПАСНО: разрешающая политика для всех строк.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">POLICY</span><span class="w"> </span><span class="n">accidental_open_read</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">PERMISSIVE</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">app_runtime</span>
+<span class="k">USING</span><span class="w"> </span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+
+<span class="c1">-- Новая permissive-политика НЕ исправляет первую:</span>
+<span class="c1">-- true OR tenant_id = current_tenant -&gt; true.</span>
+</code></pre></div>
+<p>Если нужна глобальная дополнительная проверка для всех разрешенных строк, ее логически удобно выражать restrictive-политикой. Но в любой конфигурации надо доказать полное итоговое условие с учетом ролей и команд; ничего не угадывать по имени политики.</p>
+<h3 id="112-">11.2. Командно-специфичные политики и граничные случаи<a class="headerlink" href="#112-" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Команда</th>
+<th><code>USING</code></th>
+<th><code>WITH CHECK</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SELECT</code></td>
+<td>Фильтрует возвращаемые строки</td>
+<td>Не используется</td>
+</tr>
+<tr>
+<td><code>INSERT</code></td>
+<td>Не применяется</td>
+<td>Проверяет новую строку</td>
+</tr>
+<tr>
+<td><code>UPDATE</code></td>
+<td>Проверяет доступную старую строку</td>
+<td>Проверяет новую строку</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td>Проверяет доступную удаляемую строку</td>
+<td>Не используется</td>
+</tr>
+<tr>
+<td><code>INSERT ... ON CONFLICT DO UPDATE</code></td>
+<td>Проверки INSERT + UPDATE по контракту команды</td>
+<td>Проверки вставляемых/обновленных значений</td>
+</tr>
+</tbody>
+</table>
+<p>Точная матрица для <code>MERGE</code>, <code>ON CONFLICT</code>, <code>RETURNING</code> и команд, использующих колонки в <code>WHERE</code>, сложнее; PostgreSQL 18 документирует, когда дополнительно нужны SELECT-политики. Для основной лекции важно инженерное следствие: <strong>политику надо тестировать на фактической форме SQL, которую выполняет приложение</strong>, а не на отдельно написанном <code>SELECT</code>.</p>
+<h3 id="113">11.3. Права роли и выражения политики<a class="headerlink" href="#113" title="Permanent link">¶</a></h3>
+<p>Условие RLS исполняется как часть запроса и обычно с полномочиями вызывающего пользователя. Если внутри политики вызывается функция или читается другая таблица, могут потребоваться дополнительные права. <code>SECURITY DEFINER</code> иногда применяется как ограниченный мост к закрытой lookup-таблице, но тогда ее владелец, путь поиска и параметры входят в модель доверия.</p>
+<p>Если политика вызывает дорогостоящую функцию на каждой строке, стоимость может стать значимой. Важны селективность, возможность оптимизаций, порядок вычисления предикатов и свойства функции. <strong>RLS — механизм безопасности, а не гарантия, что каждая проверка выполняется один раз на запрос</strong>. Анализируем реальные планы через <code>EXPLAIN</code> под прикладной ролью и измеряем задержки.</p>
+<h3 id="114-leakproof">11.4. Почему <code>leakproof</code> — особая метка<a class="headerlink" href="#114-leakproof" title="Permanent link">¶</a></h3>
+<p>В обычной формулировке PostgreSQL вычисляет RLS-предикаты до пользовательских выражений, которые могли бы раскрывать информацию. Для функций с признаком <code>leakproof</code> оптимизатор может изменить порядок проверки: такие функции обязуются не выдавать секреты через ошибки или побочные каналы от значений аргументов. Эта метка — высокопривилегированное обещание и не должна выставляться произвольной пользовательской функции ради производительности.</p>
+<p>Если пользовательский <code>WHERE</code> вызывает функцию, способную выбрасывать содержимое строки в сообщение об ошибке, важно, чтобы неразрешенная строка не стала источником утечки до проверки RLS. Именно поэтому свойства выражений влияют на возможные преобразования плана.</p>
+<h3 id="115-security_barrier-views">11.5. <code>security_barrier</code> views и права владельца представления<a class="headerlink" href="#115-security_barrier-views" title="Permanent link">¶</a></h3>
+<p>Представления могут выступать дополнительной границей доступа, но RLS и представления имеют нюансы. Обычное представление по умолчанию использует права владельца для доступа к нижележащим отношениям; PostgreSQL также поддерживает <code>security_invoker</code> views. Для security-sensitive views может использоваться <code>security_barrier</code>, ограничивающий опасное переупорядочивание условий. Нельзя считать любое <code>CREATE VIEW</code> автоматической заменой RLS.</p>
+<p>Для нашей лекции достаточно проверяемого правила: если приложение обращается к представлению, аудит должен учитывать <strong>владельца/режим представления и политики нижележащих таблиц</strong>, а не только исходный SELECT к представлению.</p>
+<p><strong>Вывод:</strong> совокупность нескольких RLS-политик — логическое выражение, зависящее от команды, роли и режимов политики. Без явного вычисления этого выражения безопасность легко переоценить.</p>
+<hr/>
+<h2 id="12-rls-bypass-bypassrls">12. RLS Bypass: владельцы, <code>BYPASSRLS</code> и межарендная изоляция<a class="headerlink" href="#12-rls-bypass-bypassrls" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1. Почему администратор видит все строки, а приложение — только две<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>RLS включена, политики написаны. Администратор запускает <code>SELECT * FROM app.invoices</code>, видит все строки. Разработчик делает вывод: «RLS не работает». На самом деле он тестирует под ролью, которую PostgreSQL освобождает от политик.</p>
+<ul>
+<li><code>SUPERUSER</code> обходит RLS.</li>
+<li>Роль с атрибутом <code>BYPASSRLS</code> обходит RLS.</li>
+<li>Владелец таблицы <strong>обычно</strong> обходит RLS.</li>
+<li><code>ALTER TABLE ... FORCE ROW LEVEL SECURITY</code> заставляет обычного владельца подчиняться политике, но не отменяет обход суперпользователя и <code>BYPASSRLS</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="k">FORCE</span><span class="w"> </span><span class="k">ROW</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">SECURITY</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">relrowsecurity</span><span class="p">,</span><span class="w"> </span><span class="n">relforcerowsecurity</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'app.invoices'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+</code></pre></div>
+<p>Рекомендация: приложение не должно работать от имени владельца таблиц. <code>FORCE</code> полезен как дополнительная защита, но разделение ролей владения и runtime остается основой.</p>
+<h3 id="122-row_security-off-rls">12.2. Почему <code>row_security = off</code> не отключает RLS для обычной роли<a class="headerlink" href="#122-row_security-off-rls" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL параметр <code>row_security = off</code> <strong>не является разрешением обойти политику</strong>. Для обычной роли он приводит к ошибке, если выполнение запроса требует применения RLS, чтобы система случайно не выдала неполный результат там, где ожидаются все данные. Этот режим полезен, например, для некоторых задач выгрузки или проверки полноты, но не превращает учетную запись в администратора.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">row_security</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">off</span><span class="p">;</span>
+<span class="c1">-- Для обычной роли запрос, требующий RLS, может завершиться ошибкой.</span>
+<span class="k">RESET</span><span class="w"> </span><span class="n">row_security</span><span class="p">;</span>
+</code></pre></div>
+<p>Сценарий: резервная копия создана под ролью, которую RLS фильтрует. Файл существует, но содержит только разрешенные строки. Поэтому нельзя считать дамп полным, если не проверена учетная запись и режим работы инструмента. Устройство backup мы уже изучили; здесь фиксируем именно границу безопасности.</p>
+<h3 id="123-unique-foreign-key">12.3. Утечка через UNIQUE и FOREIGN KEY<a class="headerlink" href="#123-unique-foreign-key" title="Permanent link">¶</a></h3>
+<p>Проверки уникальности, первичных ключей и ссылочной целостности обходят RLS для обеспечения корректности данных. Это создает возможный побочный канал: попытка вставить значение, присутствующее в чужой строке, может получить ошибку уникальности и тем самым выдать некоторую информацию о ее существовании.</p>
+<p>Пример: <code>UNIQUE(email)</code> глобален для всей таблицы пользователей. Если tenant A пытается создать аккаунт с email tenant B, конфликт может проявиться через ошибку, несмотря на невозможность прочитать чужую строку. Это не означает, что PostgreSQL отдает чужую строку напрямую. Это означает, что безопасность API должна учитывать <strong>информацию в ошибках и структуру уникальных ограничений</strong>.</p>
+<p>Снизить риск помогают корректная модель ключей (<code>UNIQUE(tenant_id, ...)</code> там, где нужна локальная уникальность), отсутствие избыточных деталей в ошибках API, rate limiting и проверка модели угроз. Глобальная уникальность может быть осознанным бизнес-требованием, тогда ее побочные эффекты нужно учитывать отдельно.</p>
+<h3 id="124-identity">12.4. Общая роль БД для тысяч арендаторов: где хранить identity<a class="headerlink" href="#124-identity" title="Permanent link">¶</a></h3>
+<p>Популярная модель: один <code>app_runtime</code> на всех арендаторов, а <code>tenant_id</code> устанавливается через <code>SET LOCAL app.tenant_id</code>. Плюсы: конечное число подключений, простое применение политики к строкам, отсутствие отдельной роли на каждого клиента. Но появляется критический вопрос: кто устанавливает значение?</p>
+<div class="highlight"><pre><span></span><code>HTTP request
+  → проверка JWT/сессии backend-приложением
+  → определение trusted tenant_id
+  → BEGIN (получено одно физическое соединение)
+  → SET LOCAL app.tenant_id = trusted value
+  → SQL с RLS
+  → COMMIT/ROLLBACK (локальный параметр сброшен)
+</code></pre></div>
+<p><code>SET LOCAL</code> подходит для транзакционного жизненного цикла, включая PgBouncer transaction pooling, но важно не вынести установку GUC на одно соединение, а SQL — на другое. Надо использовать одну транзакцию/одно закрепленное физическое соединение. В <code>database/sql</code> это достигается использованием объекта <code>*sql.Tx</code>, а не самостоятельными вызовами на общем <code>*sql.DB</code>. В примере приложения нужно следить за отменой контекста и гарантированным закрытием транзакции.</p>
+<h3 id="125-sql-injection-guc">12.5. Самая важная граница: SQL injection и подменяемый GUC<a class="headerlink" href="#125-sql-injection-guc" title="Permanent link">¶</a></h3>
+<p>Если нарушитель получил возможность выполнять произвольный SQL с правами <code>app_runtime</code>, он может выполнить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">set_config</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="s1">'202'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</code></pre></div>
+<p>И политика <code>tenant_id = current_setting('app.tenant_id')::bigint</code> примет новое значение. <strong>Обычный пользовательский GUC — не надежное доказательство личности арендатора.</strong> Он может защищать от забытых tenant-предикатов в коде, но не от полного произвольного SQL под той же ролью.</p>
+<p>Если модель угроз включает выполнение произвольного SQL, нужны более сильные механизмы: разные роли/учетные данные на различные группы субъектов, доверенная серверная проверка контекста, ограниченные операции через тщательно спроектированные функции, изоляция по БД/схеме/сервису или комбинация мер. Каждый вариант имеет эксплуатационную цену. Не следует обещать от RLS большего, чем обеспечивают полномочия вызывающей роли.</p>
+<h3 id="126">12.6. Что остается у прикладного уровня<a class="headerlink" href="#126" title="Permanent link">¶</a></h3>
+<p>PostgreSQL не знает автоматически, что пользователь из HTTP-токена имеет право работать с tenant 101. Приложение должно надежно проверить токен, связь пользователя с организацией и допустимую операцию. Затем оно передает доверенный контекст в БД. RLS обеспечивает дополнительную границу, снижающую вероятность межарендной утечки из-за ошибочного SQL. <strong>Безопасность строится совместной проверкой identity, role, privilege и policy.</strong></p>
+<p><strong>Инженерный вывод:</strong> проверяйте, кто может изменить tenant-контекст, кто владеет таблицей и какие боковые каналы остаются у операций с ограничениями целостности.</p>
+<hr/>
+<h2 id="13-security-diagnostics">13. Security Diagnostics: как доказать наличие ограничений<a class="headerlink" href="#13-security-diagnostics" title="Permanent link">¶</a></h2>
+<h3 id="131">13.1. Список ролей с опасными атрибутами<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">rolname</span><span class="p">,</span><span class="w"> </span><span class="n">rolcanlogin</span><span class="p">,</span><span class="w"> </span><span class="n">rolsuper</span><span class="p">,</span>
+<span class="w">       </span><span class="n">rolcreaterole</span><span class="p">,</span><span class="w"> </span><span class="n">rolcreatedb</span><span class="p">,</span><span class="w"> </span><span class="n">rolbypassrls</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_roles</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">rolcanlogin</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">rolsuper</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">rolbypassrls</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">rolsuper</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">rolbypassrls</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">rolname</span><span class="p">;</span>
+</code></pre></div>
+<p>Это не означает, что каждая строка подозрительна: роли мониторинга, резервного копирования и администратора могут иметь обоснованные права. Важен инвентарь и объяснение причин каждой привилегии. Роли БД могут быть глобальны для кластера, а права на объекты зависят от конкретной базы.</p>
+<h3 id="132-acl-rls">13.2. Проверка владельцев, ACL и параметров RLS<a class="headerlink" href="#132-acl-rls" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">schema_name</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_userbyid</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relowner</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">owner_name</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relrowsecurity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rls_enabled</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relforcerowsecurity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rls_forced</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relacl</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relnamespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'app'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relkind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'r'</span><span class="p">,</span><span class="w"> </span><span class="s1">'p'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="p">;</span>
+</code></pre></div>
+<p><code>relacl IS NULL</code> означает штатные default permissions для данного объекта, а не «доступ разрешен всем». Для диагностики effective permissions есть <code>has_table_privilege()</code> и <code>has_schema_privilege()</code>. Не стоит читать ACL как единственный источник результата — членство и владение изменяют эффективную картину.</p>
+<h3 id="133-rls-">13.3. Проверка RLS-политик<a class="headerlink" href="#133-rls-" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">schemaname</span><span class="p">,</span><span class="w"> </span><span class="n">tablename</span><span class="p">,</span><span class="w"> </span><span class="n">policyname</span><span class="p">,</span>
+<span class="w">       </span><span class="n">permissive</span><span class="p">,</span><span class="w"> </span><span class="n">roles</span><span class="p">,</span><span class="w"> </span><span class="n">cmd</span><span class="p">,</span><span class="w"> </span><span class="n">qual</span><span class="p">,</span><span class="w"> </span><span class="n">with_check</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_policies</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">schemaname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'app'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">tablename</span><span class="p">,</span><span class="w"> </span><span class="n">policyname</span><span class="p">;</span>
+</code></pre></div>
+<p>Читаем условие как составное выражение с учетом OR/AND и применимости к конкретной команде. Особенно ищем <code>USING (true)</code> в permissive, отсутствие <code>WITH CHECK</code> там, где его ожидали, неограниченное <code>TO PUBLIC</code>, а также выключенный <code>relrowsecurity</code> при наличии созданных политик. <strong>Создание политики не включает RLS автоматически.</strong></p>
+<h3 id="134">13.4. Проверка текущей сессии и соединения<a class="headerlink" href="#134" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">session_user</span><span class="p">,</span><span class="w"> </span><span class="k">current_user</span><span class="p">,</span>
+<span class="w">       </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'search_path'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">search_path</span><span class="p">,</span>
+<span class="w">       </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'row_security'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">row_security</span><span class="p">,</span>
+<span class="w">       </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'app.tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">client_addr</span><span class="p">,</span>
+<span class="w">       </span><span class="n">a</span><span class="p">.</span><span class="n">usename</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">ssl</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="k">version</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="n">a</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_stat_ssl</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_backend_pid</span><span class="p">();</span>
+</code></pre></div>
+<p>Эти запросы позволяют увидеть, какой эффективный субъект работает в момент операции и сохранился ли неожиданный tenant-контекст в текущей транзакции. Но они не доказывают проверку SSL-сертификата на стороне клиента, корректность JWT или отсутствие SQL injection. Эти гарантии проверяются в других слоях.</p>
+<h3 id="135-security-definer">13.5. Диагностика <code>SECURITY DEFINER</code><a class="headerlink" href="#135-security-definer" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s1">'.'</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">proname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">function_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_userbyid</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">proowner</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">owner_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">prosecdef</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">proconfig</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_proc</span><span class="w"> </span><span class="n">p</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">pronamespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">prosecdef</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Для найденных функций проверяем сигнатуры, <code>pg_get_functiondef(p.oid)</code>, search_path, grants EXECUTE и упоминания недоверенных схем или динамического SQL. Аудит следует проводить как отдельную инженерную операцию, с проверкой поведения функции под низкопривилегированной ролью.</p>
+<h3 id="136">13.6. Какие симптомы искать под нагрузкой<a class="headerlink" href="#136" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Возможная причина</th>
+<th>Как подтвердить</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>permission denied for schema</code></td>
+<td>Нет <code>USAGE</code></td>
+<td><code>has_schema_privilege</code></td>
+</tr>
+<tr>
+<td><code>permission denied for table</code></td>
+<td>Нет объектного GRANT</td>
+<td><code>has_table_privilege</code>, членство</td>
+</tr>
+<tr>
+<td><code>SELECT</code> возвращает 0 строк</td>
+<td>RLS default-deny / некорректный tenant</td>
+<td><code>pg_policies</code>, запуск под app role</td>
+</tr>
+<tr>
+<td><code>new row violates row-level security policy</code></td>
+<td><code>WITH CHECK</code> отвергает INSERT/UPDATE</td>
+<td>Проверка старого/нового tenant, policy</td>
+</tr>
+<tr>
+<td>Роль видит все строки</td>
+<td>Владелец, <code>BYPASSRLS</code>, permissive <code>USING(true)</code></td>
+<td><code>pg_roles</code>, <code>pg_class</code>, <code>pg_policies</code></td>
+</tr>
+<tr>
+<td>Утечка через API при отсутствии SQL-фильтра</td>
+<td>RLS выключена, неверная роль, policy</td>
+<td>Behavior tests на разных арендаторах</td>
+</tr>
+<tr>
+<td>После миграции появился <code>permission denied</code></td>
+<td>Default ACL для другого создателя</td>
+<td><code>pg_default_acl</code>, owner созданной таблицы</td>
+</tr>
+<tr>
+<td>Рост p99 SELECT на RLS-таблице</td>
+<td>Дорогой policy predicate / изменение плана</td>
+<td><code>EXPLAIN (ANALYZE, BUFFERS)</code> под app role</td>
+</tr>
+</tbody>
+</table>
+<p>В реальной системе нельзя показывать секреты или пользовательские данные в диагностических логах. Достаточно технической информации о субъекте, операции, праве и результате проверки. Ошибки доступа тоже нельзя бездумно транслировать клиенту с внутренним текстом SQL.</p>
+<h3 id="137-explain">13.7. Почему <code>EXPLAIN</code> надо запускать под настоящей ролью приложения<a class="headerlink" href="#137-explain" title="Permanent link">¶</a></h3>
+<p><code>EXPLAIN</code> от имени владельца таблицы может дать другой план и другое множество строк, чем запрос runtime-роли под RLS. Для анализа стоимости политики нужно воспроизвести как минимум effective role, <code>search_path</code>, релевантный tenant-контекст, параметры запроса и статистику. Один и тот же SQL с разной политикой или разным tenant может иметь разные фактические затраты.</p>
+<p>В эксперименте отдельно измеряем: количество возвращенных строк, время выполнения, число heap/shared blocks, вызовы функций в политике и пиковые задержки. Если политика читает другую таблицу на каждую строку, эта работа может стать серьезной проблемой при больших объемах данных. Оптимизацию проводим, сохраняя исходную семантику безопасности.</p>
+<hr/>
+<h2 id="14">14. Сквозной эксперимент: настроили, сломали, диагностировали, исправили<a class="headerlink" href="#14" title="Permanent link">¶</a></h2>
+<blockquote>
+<p>Это демонстрация к лекции на изолированной БД. Она намеренно содержит небезопасные варианты для анализа. Их нельзя копировать как production-конфигурацию.</p>
+</blockquote>
+<h3 id="1">Этап 1. Подготовили роли и данные<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
+<p>Создаем собственника (<code>app_owner NOLOGIN</code>), прикладную роль (<code>app_runtime LOGIN</code>), отдельно права чтения/записи, таблицу <code>app.invoices</code> с двумя tenant. Убедимся, что runtime не является владельцем и не имеет <code>BYPASSRLS</code>. Проверяем <code>has_schema_privilege</code> и <code>has_table_privilege</code>, затем выполняем тестовый SELECT от имени <code>app_runtime</code>.</p>
+<h3 id="2-tenant-">Этап 2. Забыли tenant-фильтр — воспроизвели утечку<a class="headerlink" href="#2-tenant-" title="Permanent link">¶</a></h3>
+<p>При выключенном RLS запрос <code>SELECT * FROM app.invoices</code> возвращает счета обоих арендаторов. Мы видим, что обычный GRANT на таблицу не различает арендаторов. Это исходный дефект.</p>
+<h3 id="3-rls-default-deny">Этап 3. Включили RLS — получили default deny<a class="headerlink" href="#3-rls-default-deny" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">invoices</span><span class="w"> </span><span class="n">ENABLE</span><span class="w"> </span><span class="k">ROW</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">SECURITY</span><span class="p">;</span>
+<span class="c1">-- До добавления применимой разрешающей политики runtime не видит строки.</span>
+</code></pre></div>
+<p>Объясняем, почему «пустой результат» правильнее, чем случайная выдача всех строк. Проверяем, что администратор/владелец может при этом наблюдать иное поведение.</p>
+<h3 id="4-selectinsertupdatedelete-">Этап 4. Добавили SELECT/INSERT/UPDATE/DELETE-политики<a class="headerlink" href="#4-selectinsertupdatedelete-" title="Permanent link">¶</a></h3>
+<p>Создаем политики раздела 10 и выполняем операции под <code>app_runtime</code> с <code>SET LOCAL app.tenant_id = '101'</code>. Проверяем видимость только двух счетов, запрет INSERT в tenant 202 и попытку переместить строку через UPDATE. Отдельно фиксируем ограничения <code>RETURNING</code> и <code>ON CONFLICT DO UPDATE</code> для прикладной формы запроса.</p>
+<h3 id="5-permissive-">Этап 5. Намеренно создали ошибочную permissive-политику<a class="headerlink" href="#5-permissive-" title="Permanent link">¶</a></h3>
+<p>Добавляем <code>USING (true)</code> и получаем неожиданно широкую видимость. Удаляем ошибочную политику, повторно проверяем, что результирующий OR/AND действительно соответствует требованиям. Демонстрируем, почему имена политик не являются моделью безопасности.</p>
+<h3 id="6">Этап 6. Проверили обход через владельца<a class="headerlink" href="#6" title="Permanent link">¶</a></h3>
+<p>Запускаем запрос под <code>app_owner</code>: до <code>FORCE ROW LEVEL SECURITY</code> владелец обычно видит строки всех арендаторов. После FORCE владелец начинает подчиняться применимым политикам (для этой роли может действовать default deny). <code>BYPASSRLS</code> и superuser не подчиняются FORCE. Возвращаем административные настройки на требуемое состояние.</p>
+<h3 id="7-security-definer">Этап 7. Проверили <code>SECURITY DEFINER</code><a class="headerlink" href="#7-security-definer" title="Permanent link">¶</a></h3>
+<p>Создаем функцию с повышенными привилегиями, которая принимает произвольный tenant, и доказываем, что даже безопасный <code>search_path</code> не спасает от неправильной проверки бизнес-субъекта. Затем исправляем API функции или убираем привилегированную функцию, если она не требуется.</p>
+<h3 id="8">Этап 8. Имитировали переиспользование соединения<a class="headerlink" href="#8" title="Permanent link">¶</a></h3>
+<p>Внутри транзакции устанавливаем <code>SET LOCAL</code>, выполняем запрос и завершаем транзакцию. Следующая транзакция не должна наследовать значение. Для сравнения на учебном стенде можно использовать session-level <code>SET</code> и наблюдать опасное сохранение значения на соединении, когда приложение не сбрасывает его перед следующим запросом. В production всегда используем проверенный tenant-контекст и явную транзакционную границу.</p>
+<h3 id="9">Этап 9. Диагностировали под нагрузкой<a class="headerlink" href="#9" title="Permanent link">¶</a></h3>
+<p>Создаем много строк двух арендаторов, сравниваем выполнение одного и того же SELECT под прикладной ролью с корректной политикой и с дорогостоящей дополнительной проверкой. Снимаем <code>EXPLAIN (ANALYZE, BUFFERS)</code>. Показываем, что проверка безопасности имеет цену, а оптимизация обязана сохранять инварианты доступа.</p>
+<h3 id="10">Этап 10. Зафиксировали приемочные условия<a class="headerlink" href="#10" title="Permanent link">¶</a></h3>
+<p>Нужно доказать <strong>запрет</strong> для чужого tenant, включая SELECT, INSERT, UPDATE и DELETE. Нужны тесты отсутствия контекста, попытки подмены контекста, обхода через владельца и функций, а также регрессионные тесты новых миграций. Только тест «SELECT вернул ожидаемую строку» ничего не говорит об утечке чужих строк.</p>
+<hr/>
+<h2 id="15">15. Что студент должен запомнить<a class="headerlink" href="#15" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>HBA, TLS, пароль, <code>CONNECT</code>, объектные привилегии и RLS — независимые уровни.</strong> Успех на одном из них не открывает другие.</li>
+<li><strong>Прикладная роль не должна владеть таблицами или иметь административные атрибуты.</strong> Владельца, мигратора и runtime разделяем по полномочиям.</li>
+<li><strong><code>search_path</code> участвует в безопасности.</strong> Привилегированные функции требуют контроля пути поиска, владельца, входных параметров и <code>EXECUTE</code>.</li>
+<li><strong>RLS фильтрует строки, но не устанавливает личность HTTP-пользователя.</strong> Контекст арендатора должен поступать из доверенной проверки, а подменяемый GUC не защитит от произвольного SQL под той же ролью.</li>
+<li><strong><code>USING</code> проверяет доступность существующих строк, <code>WITH CHECK</code> — новые значения.</strong> Permissive/Restrictive-политики объединяются разными логическими операциями.</li>
+<li><strong>Владелец обычно обходит RLS, а superuser и <code>BYPASSRLS</code> обходят ее всегда.</strong> <code>FORCE ROW LEVEL SECURITY</code> изменяет положение обычного владельца, но не повышает защиту от суперпользователя.</li>
+<li><strong>Безопасность надо проверять отрицательными тестами под реальной ролью.</strong> Проверяем запрет чужих строк, новые миграции, session state и реальное влияние политик на планы и latency.</li>
+</ol>
+<h2 id="_2">Дополнительный технический слой — только при необходимости<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Можно отдельно разобрать <strong>встраивание RLS-политик в дерево запроса при rewrite и влияние <code>security_barrier</code>/<code>leakproof</code> на reorder предикатов</strong>. Это объяснит, почему некоторые фильтры нельзя безопасно проталкивать через границу политики и откуда берется стоимость выражений RLS. Для обязательной лекции 13 этого уровня достаточно коснуться; глубокий разбор исходников PostgreSQL не требуется.</p>
+<hr/>
+<h2 id="postgresql-18">Первичные источники: PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h2>
+<ul>
+<li>[PG18-ROW] Row Security Policies — https://www.postgresql.org/docs/18/ddl-rowsecurity.html</li>
+<li>[PG18-POLICY] CREATE POLICY — https://www.postgresql.org/docs/18/sql-createpolicy.html</li>
+<li>[PG18-HBA] The pg_hba.conf File — https://www.postgresql.org/docs/18/auth-pg-hba-conf.html</li>
+<li>[PG18-AUTH] Password Authentication — https://www.postgresql.org/docs/18/auth-password.html</li>
+<li>[PG18-SSL] Secure TCP/IP Connections with SSL — https://www.postgresql.org/docs/18/ssl-tcp.html</li>
+<li>[PG18-LIBPQ] Connection Parameters / sslmode — https://www.postgresql.org/docs/18/libpq-connect.html</li>
+<li>[PG18-ROLES] Database Roles — https://www.postgresql.org/docs/18/user-manag.html</li>
+<li>[PG18-MEMBER] Role Membership — https://www.postgresql.org/docs/18/role-membership.html</li>
+<li>[PG18-PRIV] Privileges — https://www.postgresql.org/docs/18/ddl-priv.html</li>
+<li>[PG18-SCHEMAS] Schemas — https://www.postgresql.org/docs/18/ddl-schemas.html</li>
+<li>[PG18-DEFAULT] ALTER DEFAULT PRIVILEGES — https://www.postgresql.org/docs/18/sql-alterdefaultprivileges.html</li>
+<li>[PG18-DEFINER] CREATE FUNCTION / Writing SECURITY DEFINER Functions Safely — https://www.postgresql.org/docs/18/sql-createfunction.html</li>
+<li>[PG18-SETROLE] SET ROLE — https://www.postgresql.org/docs/18/sql-set-role.html</li>
+<li>[PG18-INFO] System Information Functions — https://www.postgresql.org/docs/18/functions-info.html</li>
+<li>[PG18-POLICIES] pg_policies — https://www.postgresql.org/docs/18/view-pg-policies.html</li>
+<li>[PG18-STATSSL] pg_stat_ssl — https://www.postgresql.org/docs/18/monitoring-stats.html</li>
+</ul>
+<blockquote>
+<p><strong>Точность:</strong> гарантии о поведении RLS и привилегиях выше относятся к documented API PostgreSQL 18. Производственные сценарии, параметры нагрузки и архитектурные рекомендации приведены как инженерные модели, которые необходимо проверять на своей инфраструктуре. Показанные лабораторные SQL не являются готовыми миграциями для промышленного окружения.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 12. PostgreSQL Advanced Index Types" class="md-footer__link md-footer__link--prev" href="../12%20-%20Advanced%20index%20types/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                12. PostgreSQL Advanced Index Types
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 14. PostgreSQL Sharding &amp;amp; Distributed Data" class="md-footer__link md-footer__link--next" href="../14%20-%20Sharding%20distributed%20data/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                14. PostgreSQL Sharding &amp; Distributed Data
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

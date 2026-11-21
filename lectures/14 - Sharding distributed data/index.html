@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/14%20-%20Sharding%20distributed%20data/" rel="canonical"/>
+<link href="../13%20-%20Security%20row%20level%20security/" rel="prev"/>
+<link href="../15%20-%20Foreign%20data%20wrappers/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>14. PostgreSQL Sharding &amp; Distributed Data - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#14-postgresql-sharding-distributed-data">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              14. PostgreSQL Sharding &amp; Distributed Data
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        Маршрут лекции: один инцидент, 15 технических тем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-sharding">
+<span class="md-ellipsis">
+      
+        1. Когда вообще нужен sharding
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-shard-key">
+<span class="md-ellipsis">
+      
+        2. Выбор shard key: стоимость ошибки на годы вперед
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-hash-sharding-hashkey-n">
+<span class="md-ellipsis">
+      
+        3. Hash sharding: почему hash(key) % N сначала работает
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-range-directory-sharding">
+<span class="md-ellipsis">
+      
+        4. Range и directory sharding: когда хеш — плохой выбор
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-data-skew-hot-shards">
+<span class="md-ellipsis">
+      
+        5. Data skew и hot shards: равномерное число строк ничего не гарантирует
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-query-routing-shard">
+<span class="md-ellipsis">
+      
+        6. Query routing: как запрос попадает на правильный shard
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-scatter-gather-count">
+<span class="md-ellipsis">
+      
+        7. Scatter-gather: простой COUNT превращается в распределенный запрос
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-colocation-join">
+<span class="md-ellipsis">
+      
+        8. Colocation: как сделать JOIN локальным
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-cross-shard">
+<span class="md-ellipsis">
+      
+        9. Cross-shard операции: сеть становится частью плана
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-global-constraints-unique">
+<span class="md-ellipsis">
+      
+        10. Global constraints: почему UNIQUE внезапно перестает быть глобальным
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-distributed-transactions-commit">
+<span class="md-ellipsis">
+      
+        11. Distributed transactions: один COMMIT больше не обязательно означает один сервер
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-resharding">
+<span class="md-ellipsis">
+      
+        12. Resharding: как перенести данные, пока система продолжает писать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13_1">
+<span class="md-ellipsis">
+      
+        13. Метаданные размещения: карта — часть доступности данных
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-partial-failures-worker-sql">
+<span class="md-ellipsis">
+      
+        14. Partial failures: упал один worker, а клиент видит один SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-production-diagnostics-shard-postgresql">
+<span class="md-ellipsis">
+      
+        15. Production diagnostics: ищем медленный shard, а не «медленный PostgreSQL»
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Сквозной эксперимент: расширяем три сервера, затем специально ухудшаем модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_3">
+<span class="md-ellipsis">
+      
+        Разбор ошибок проектирования: что запомнить
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_4">
+<span class="md-ellipsis">
+      
+        Где остановимся и куда можно копнуть глубже
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_5">
+<span class="md-ellipsis">
+      
+        Источники и границы применимости
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        Маршрут лекции: один инцидент, 15 технических тем
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-sharding">
+<span class="md-ellipsis">
+      
+        1. Когда вообще нужен sharding
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-shard-key">
+<span class="md-ellipsis">
+      
+        2. Выбор shard key: стоимость ошибки на годы вперед
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-hash-sharding-hashkey-n">
+<span class="md-ellipsis">
+      
+        3. Hash sharding: почему hash(key) % N сначала работает
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-range-directory-sharding">
+<span class="md-ellipsis">
+      
+        4. Range и directory sharding: когда хеш — плохой выбор
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-data-skew-hot-shards">
+<span class="md-ellipsis">
+      
+        5. Data skew и hot shards: равномерное число строк ничего не гарантирует
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-query-routing-shard">
+<span class="md-ellipsis">
+      
+        6. Query routing: как запрос попадает на правильный shard
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-scatter-gather-count">
+<span class="md-ellipsis">
+      
+        7. Scatter-gather: простой COUNT превращается в распределенный запрос
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-colocation-join">
+<span class="md-ellipsis">
+      
+        8. Colocation: как сделать JOIN локальным
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-cross-shard">
+<span class="md-ellipsis">
+      
+        9. Cross-shard операции: сеть становится частью плана
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-global-constraints-unique">
+<span class="md-ellipsis">
+      
+        10. Global constraints: почему UNIQUE внезапно перестает быть глобальным
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-distributed-transactions-commit">
+<span class="md-ellipsis">
+      
+        11. Distributed transactions: один COMMIT больше не обязательно означает один сервер
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-resharding">
+<span class="md-ellipsis">
+      
+        12. Resharding: как перенести данные, пока система продолжает писать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13_1">
+<span class="md-ellipsis">
+      
+        13. Метаданные размещения: карта — часть доступности данных
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-partial-failures-worker-sql">
+<span class="md-ellipsis">
+      
+        14. Partial failures: упал один worker, а клиент видит один SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-production-diagnostics-shard-postgresql">
+<span class="md-ellipsis">
+      
+        15. Production diagnostics: ищем медленный shard, а не «медленный PostgreSQL»
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_2">
+<span class="md-ellipsis">
+      
+        Сквозной эксперимент: расширяем три сервера, затем специально ухудшаем модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_3">
+<span class="md-ellipsis">
+      
+        Разбор ошибок проектирования: что запомнить
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_4">
+<span class="md-ellipsis">
+      
+        Где остановимся и куда можно копнуть глубже
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_5">
+<span class="md-ellipsis">
+      
+        Источники и границы применимости
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="14-postgresql-sharding-distributed-data">14. PostgreSQL Sharding &amp; Distributed Data<a class="headerlink" href="#14-postgresql-sharding-distributed-data" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Курс:</strong> Production backend / PostgreSQL under the hood. <strong>Версия СУБД:</strong> PostgreSQL 18 (<code>REL_18_STABLE</code>). <strong>Лекция:</strong> 14.0, основная. <strong>Уровень:</strong> магистратура / backend. <strong>Статус:</strong> продолжение завершенных блоков 5–13.<br/>
+<strong>Задача лекции:</strong> понять, когда одному экземпляру PostgreSQL перестает хватать ресурсов, как разделить данные между независимыми экземплярами, что происходит с SQL, транзакциями и ограничениями целостности, и как диагностировать распределенную деградацию.</p>
+<p><strong>Граница:</strong> не пересказываем устройство B-tree, MVCC, planner, WAL, локальных блокировок, backup, PgBouncer, физических и логических реплик. Их используем как известные механизмы. Citus рассматриваем как конкретную реализацию sharding, без погружения в исходники distributed executor. Согласованность смены владельца с epochs/fencing tokens — факультативная 14.1.</p>
+</blockquote>
+<h2 id="15">Маршрут лекции: один инцидент, 15 технических тем<a class="headerlink" href="#15" title="Permanent link">¶</a></h2>
+<p>До сегодняшнего дня у нас был один PostgreSQL, пусть даже с репликами и разделенными на партиции таблицами. Реплики помогали читать данные и переживать отказ узла. Но запись продолжала ограничиваться мощностью primary, а таблицы и индексы занимали емкость его системы хранения.</p>
+<p>Представим сервис с событиями клиентов: <code>events(tenant_id, event_id, created_at, payload)</code>. Размер — десятки терабайт, скорость вставки растет, дорогие арендаторы генерируют большую часть трафика. Добавляем реплику — проблема записи никуда не исчезает. Увеличиваем машину — это помогает до определенного предела. Разделяем данные на партиции — проще удалять архивные события, но все партиции по-прежнему живут внутри одного PostgreSQL-кластера.</p>
+<p>Значит, следующий вопрос: <strong>какие данные должен хранить каждый сервер и кто решает, куда отправить запрос?</strong> Это и есть задача шардинга (sharding).</p>
+<p>Сначала кажется, что достаточно <code>hash(tenant_id) % N</code>. Эта формула решает только начальное размещение. После нее нам еще придется решать вопросы SQL без <code>tenant_id</code>, горячих клиентов, глобальной уникальности, нескольких транзакций, переноса данных, временно неработающих узлов и согласования карты шардов. В этом и состоит основное содержание лекции.</p>
+<p><strong>Сквозная предметная область:</strong> арендаторы (<code>tenants</code>), заказы (<code>orders</code>), платежи (<code>payments</code>), события (<code>events</code>). В примерах разные схемы развертывания сознательно отделены: обычный PostgreSQL, прикладной маршрутизатор и Citus. Концептуальный SQL для нескольких независимых серверов не выдается за встроенный синтаксис PostgreSQL 18.</p>
+<h3 id="_1">Термины, без которых дальше не разобраться<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Shard</strong> — физически или логически выделенная часть набора данных, имеющая собственное размещение и управляемая правилами маршрутизации.</li>
+<li><strong>Shard key</strong> (ключ шардирования) — значение, по которому определяется shard для конкретной строки или операции.</li>
+<li><strong>Placement</strong> — размещение шарда на физическом worker-узле. Один shard может иметь копии, но количество копий и их гарантии зависят от реализации.</li>
+<li><strong>Router / coordinator</strong> — компонент, определяющий участников запроса и место выполнения. В прикладном шардинге эту роль несет backend; в Citus — соответствующие компоненты расширения.</li>
+<li><strong>Colocation</strong> — совместное размещение связанных данных так, чтобы нужные операции можно было выполнять локально.</li>
+<li><strong>Fan-out</strong> — число независимых узлов или шардов, к которым обращается один логический запрос.</li>
+<li><strong>Rebalancing / resharding</strong> — перемещение размещений и/или изменение разбиения данных при изменении топологии и нагрузки.</li>
+<li><strong>Scatter-gather</strong> — разослать запрос множеству узлов, затем собрать и объединить ответы.</li>
+</ul>
+<hr/>
+<h2 id="1-sharding">1. Когда вообще нужен sharding<a class="headerlink" href="#1-sharding" title="Permanent link">¶</a></h2>
+<h3 id="11-sharding">1.1. Восемь терабайт еще не доказывают необходимость sharding<a class="headerlink" href="#11-sharding" title="Permanent link">¶</a></h3>
+<p>Первое плохое упрощение — «таблица большая, надо шардировать». Размер сам по себе мало говорит о производительности. Последовательное чтение больших данных может хорошо работать на одном сервере, а маленькая таблица с одним постоянно изменяемым счетчиком способна стать узким местом. Надо назвать ограниченный ресурс: емкость хранения, скорость записи, IOPS, объем RAM, CPU, время обслуживания, доступное окно восстановления или изоляция нагрузки арендаторов.</p>
+<p>Пусть primary способен устойчиво обрабатывать 80 000 операций записи/с при нужном p99, а приложение требует 150 000. Добавление read replica не делит эти записи между primary. Sharding допускает размещение разных операций на разных write-owning узлах. Но его стоимость — новая координация, несколько точек отказа и более сложные операции без shard key.</p>
+<h3 id="12">1.2. Вертикальное масштабирование, репликация, партиции и шарды<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Механизм</th>
+<th>Что меняется</th>
+<th>Где остается узкое место</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bigger machine</td>
+<td>CPU, RAM, storage одного узла</td>
+<td>Предел конкретной машины, стоимость, миграция</td>
+</tr>
+<tr>
+<td>Read replicas</td>
+<td>Дополнительные копии данных</td>
+<td>Primary по записи; задержка репликации</td>
+</tr>
+<tr>
+<td>Partitioning</td>
+<td>Логическая таблица разделена на отношения</td>
+<td>Обычно тот же экземпляр, shared CPU/I/O/storage</td>
+</tr>
+<tr>
+<td>Sharding</td>
+<td>Разные части данных на независимых write-owning узлах</td>
+<td>Cross-shard SQL, метаданные, сеть, координация</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Инженерный критерий:</strong> прежде чем шардировать, надо доказать, что проблема не решается индексом, жизненным циклом данных, устранением hot-row, оптимизацией запроса или разграничением нагрузок. После шардинга даже обычный <code>COUNT(*)</code> по всем данным может стать распределенной операцией.</p>
+<h3 id="13">1.3. Что значит «независимые серверы»<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Один shard — не обязательно одна машина. На машине может быть несколько шардов; один логический shard может иметь реплики. Важно другое: <strong>часть данных имеет отдельную область владения записью</strong>. Если все серверы хранят полный набор записей, это репликация, а не горизонтальное распределение набора данных.</p>
+<div class="highlight"><pre><span></span><code>Backend / router
+  |-- tenant_id = 101 --&gt; Shard A --&gt; PostgreSQL worker 1
+  |-- tenant_id = 202 --&gt; Shard B --&gt; PostgreSQL worker 2
+  `-- tenant_id = 303 --&gt; Shard C --&gt; PostgreSQL worker 3
+</code></pre></div>
+<p>Если tenant 101 генерирует 90% операций, равномерное распределение числа арендаторов не поможет. Этот неприятный сюрприз мы подробно разберем в теме 5.</p>
+<p><strong>Под нагрузкой.</strong> Измеряем write TPS на каждом узле, IOPS, CPU, WAL bytes/sec, p95/p99 задержки по shard key и стоимость межузловых запросов. Результат «три узла — в три раза быстрее» никогда нельзя принимать без эксперимента.</p>
+<h2 id="2-shard-key">2. Выбор shard key: стоимость ошибки на годы вперед<a class="headerlink" href="#2-shard-key" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Один ключ определяет доступность локальных запросов<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Возьмем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Почему ключ <code>tenant_id</code> выглядит привлекательным? Почти все запросы приложения адресованы одному арендатору: показать заказы, изменить заказ, получить платежи. При распределении по <code>tenant_id</code> все эти действия можно маршрутизировать по одному значению.</p>
+<p>А если распределить по <code>order_id</code>? Получить заказ по ID может быть дешево, но запрос «последние 100 заказов арендатора» потребует обращения к нескольким шардам. Ни один индекс на отдельном worker не спасет от неверного распределения данных для основного шаблона доступа.</p>
+<h3 id="22">2.2. Четыре критерия ключа<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p><strong>Кардинальность:</strong> достаточно ли разных значений, чтобы распределить нагрузку? Boolean <code>is_active</code> — очевидно плохой ключ. <strong>Стабильность:</strong> будет ли ключ часто меняться? Изменение shard key может требовать переноса строки между узлами. <strong>Локальность:</strong> попадают ли связанные данные и транзакции в одну область? <strong>Перекос:</strong> существуют ли значения с аномально высоким объемом записей или запросов?</p>
+<p>Надо изучать реальные шаблоны запросов и распределение: не только <code>COUNT(DISTINCT tenant_id)</code>, но и <code>GROUP BY tenant_id ORDER BY count(*) DESC</code>, размер групп, p99 активности, соотношение чтений и записей. Ключ с хорошим равномерным распределением строк может плохо распределять CPU и I/O.</p>
+<h3 id="23-">2.3. Несколько бизнес-ключей в одной системе<a class="headerlink" href="#23-" title="Permanent link">¶</a></h3>
+<p>Сервис ищет заказ по <code>order_id</code>, но данные размещены по <code>tenant_id</code>. Тогда одного <code>order_id</code> недостаточно для прямой маршрутизации. Решения: передавать оба поля в API, вести отдельный каталог <code>order_id -&gt; tenant_id</code>, использовать глобально кодируемый идентификатор с информацией о маршруте либо выполнять scatter-gather. У каждого решения цена: дополнительное хранилище, согласованность каталога, утечка деталей размещения или сетевой fan-out.</p>
+<p><strong>Практический вывод:</strong> shard key становится частью архитектуры API и модели идентификаторов. Изменить его позже намного труднее, чем добавить B-tree индекс.</p>
+<h2 id="3-hash-sharding-hashkey-n">3. Hash sharding: почему <code>hash(key) % N</code> сначала работает<a class="headerlink" href="#3-hash-sharding-hashkey-n" title="Permanent link">¶</a></h2>
+<h3 id="31">3.1. Наивное разбиение на три сервера<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<p>Учебный маршрутизатор:</p>
+<div class="highlight"><pre><span></span><code>shard_index = hash64(tenant_id) mod 3
+0 -&gt; worker A
+1 -&gt; worker B
+2 -&gt; worker C
+</code></pre></div>
+<p>Равномерный хеш приближенно распределяет <strong>различные значения ключей</strong>. Но хеш-функция должна быть стабильной и одинаково реализованной всеми клиентами; нельзя использовать случайный process-dependent hash как постоянную карту размещения. Для реальной реализации алгоритм и его версия входят в контракт системы.</p>
+<h3 id="32">3.2. Добавили четвертый сервер — и начались переезды<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p>Меняем <code>mod 3</code> на <code>mod 4</code>. Для многих ключей ответ изменится. Старый worker по-прежнему хранит строки, а новый router отправляет запрос в другое место. Поэтому простая замена числа серверов без миграции данных разрушает корректность маршрутизации.</p>
+<p>Более управляемая модель: фиксируем пространство хеш-токенов, разбиваем его на <strong>виртуальные шарды</strong> и отдельно храним карту <code>virtual shard -&gt; worker</code>. Тогда добавление worker меняет размещение части виртуальных шардов, а не формулу преобразования ключа в shard.</p>
+<div class="highlight"><pre><span></span><code>hash(tenant_id) --&gt; token range --&gt; shard 0007 --&gt; worker B
+                               shard 0008 --&gt; worker C
+                               shard 0009 --&gt; worker A
+</code></pre></div>
+<p>Consistent hashing — одна из возможных схем минимизации перемещения ключей; она не обязательна для любого sharding. В Citus hash-distributed таблицы используют диапазоны хеш-токенов, shard placements и метаданные размещения, а не учебную формулу <code>% число workers</code>.</p>
+<h3 id="33">3.3. Сколько нужно виртуальных шардов<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<p>Слишком мало шардов — тяжело перемещать небольшие доли нагрузки. Слишком много — растут количество объектов, соединений, задачи планировщика, метаданные и накладные расходы обслуживания. Условный выбор 32 или 64 шардов сам по себе не является универсальной рекомендацией; важны размеры шарда, число workers, частота запросов и стоимость fan-out.</p>
+<p><strong>Под нагрузкой:</strong> анализируем распределение веса шардов по storage, CPU, TPS и задержке. Вес шарда — не просто количество байтов: 5 ГБ с постоянно обновляемой строкой могут быть дороже 100 ГБ холодного архива.</p>
+<h2 id="4-range-directory-sharding">4. Range и directory sharding: когда хеш — плохой выбор<a class="headerlink" href="#4-range-directory-sharding" title="Permanent link">¶</a></h2>
+<h3 id="41-range-sharding">4.1. Range sharding: локальность ценой перекоса<a class="headerlink" href="#41-range-sharding" title="Permanent link">¶</a></h3>
+<p>Вместо хеша делим диапазоны <code>customer_id</code> или времени:</p>
+<div class="highlight"><pre><span></span><code>[0000, 1000) -&gt; worker A
+[1000, 2000) -&gt; worker B
+[2000, 3000) -&gt; worker C
+</code></pre></div>
+<p>Достоинство: запрос по диапазону может обращаться к ограниченному числу шардов. Недостаток: монотонные новые ключи направляются в самый правый диапазон, образуя горячую точку. Дальше приходится делить диапазоны, перераспределять их и обновлять карту.</p>
+<p>Для событий по времени range sharding дает удобное архивирование, но все сегодняшние вставки могут упереться в один shard. Это напоминает известную проблему последней партиции, только теперь влияет на отдельный физический сервер.</p>
+<h3 id="42-directory-sharding">4.2. Directory sharding: явная таблица соответствий<a class="headerlink" href="#42-directory-sharding" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>tenant_id | shard_id | placement | mapping_version
+101       | 12       | worker-B  | 37
+202       | 07       | worker-A  | 37
+</code></pre></div>
+<p>Directory позволяет вручную переместить большого арендатора или учесть отдельные требования к региону и хранению. Но каталог становится критически важным для маршрутизации: нужна его доступность, атомарность изменений, обновление кешей и поведение при устаревшем значении.</p>
+<h3 id="43">4.3. Гибриды и выбор по типу нагрузки<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<p>Для multi-tenant SaaS часто эффективен хеш по tenant_id. Для тяжелых арендаторов — отдельные placements или специальные правила. Для time-series — комбинация распределения по устройству и временных партиций <strong>внутри</strong> шардов. Это разные оси организации: один определяет сервер, другая управляет локальными данными.</p>
+<p><strong>Инженерный вывод:</strong> схема распределения — это не таблица с красивыми прямоугольниками. Это изменение цены основных запросов и операций обслуживания, которое нужно проверять на реальном распределении ключей.</p>
+<h2 id="5-data-skew-hot-shards">5. Data skew и hot shards: равномерное число строк ничего не гарантирует<a class="headerlink" href="#5-data-skew-hot-shards" title="Permanent link">¶</a></h2>
+<h3 id="51-10-500">5.1. Шард на 10 ГБ может быть горячее шарда на 500 ГБ<a class="headerlink" href="#51-10-500" title="Permanent link">¶</a></h3>
+<p>Представим 1000 арендаторов. 999 генерируют по одному запросу в секунду, один — 50 000. Hash sharding равномерно распределит ключи, но <strong>не разделит одного арендатора</strong>, если весь tenant должен жить на одном шарде. Worker с этим tenant станет узким местом.</p>
+<p>Три разновидности перекоса: <strong>storage skew</strong> (байты и число строк), <strong>request skew</strong> (количество операций), <strong>resource skew</strong> (CPU, IOPS, lock contention, temp files). Указывать только размеры шардов в dashboard недостаточно.</p>
+<h3 id="52">5.2. Как считать распределение<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p>Для worker <code>i</code> измеряем <code>TPS_i</code>, <code>CPU_i</code>, <code>write_i</code>, <code>disk_i</code>, <code>p99_i</code>. При идеальном распределении входящего потока <code>R</code> на <code>N</code> одинаковых работников средняя нагрузка была бы <code>R/N</code>. Это лишь нижняя оценка: накладные расходы координации и неравномерность нарушают идеальную модель.</p>
+<p>Удобные наблюдения: <code>max(TPS_i) / mean(TPS_i)</code> и <code>max(CPU_i) - min(CPU_i)</code>. Например, при TPS <code>[800, 900, 8300]</code> среднее 3333, а максимальный узел получает около 2.49 среднего. Похвалить систему за «три равных по размеру шарда» здесь нельзя.</p>
+<h3 id="53">5.3. Что реально помогает<a class="headerlink" href="#53" title="Permanent link">¶</a></h3>
+<p>Перемещение горячего tenant на менее загруженный worker; более мелкие шарды; ограничение нагрузки на арендатора; разбиение специально выбранных данных одного tenant по дополнительному признаку <strong>при готовности платить за потерю локальности</strong>; вынос тяжелой аналитики; предварительные агрегаты.</p>
+<p>Но не надо обещать, что resharding автоматически исправит hot row или один последовательный счетчик: если все операции требуют строго одного места сериализации, распределение этого объекта имеет фундаментальные ограничения.</p>
+<p><strong>Нагрузочный симптом:</strong> растут p99 и очередь только на одном worker, хотя суммарный CPU кластера невысокий. Диагностика должна быть поключевой и поузловой.</p>
+<h2 id="6-query-routing-shard">6. Query routing: как запрос попадает на правильный shard<a class="headerlink" href="#6-query-routing-shard" title="Permanent link">¶</a></h2>
+<h3 id="61-point-query">6.1. Point query: счастливый случай<a class="headerlink" href="#61-point-query" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">101</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">9001</span><span class="p">;</span>
+</code></pre></div>
+<p>Шаги у прикладного маршрутизатора: извлечь <code>tenant_id</code>, определить виртуальный shard, найти актуальный placement, установить/получить соединение с нужным PostgreSQL, выполнить SQL, вернуть результат. Если оба ключа попадают в индекс работника — локальная часть быстрая.</p>
+<p>Но время запроса складывается как минимум из routing + ожидания соединения + сети + локального планирования/исполнения + возвращения результата. Даже при идеальном локальном индексе сетевые расходы остаются. В Citus распределенный планировщик может распознать router query и направить его на один shard; конкретный маршрут и режим входа в кластер зависят от конфигурации Citus.</p>
+<h3 id="62-sql-">6.2. Почему нельзя строить маршрутизацию по SQL-тексту с регулярным выражением<a class="headerlink" href="#62-sql-" title="Permanent link">¶</a></h3>
+<p>Запрос может содержать параметр <code>tenant_id=$1</code>, <code>IN (...)</code>, JOIN, подзапрос, выражение с неочевидной семантикой. Надежная маршрутизация должна опираться на явно переданный shard key, проверенный AST/план либо официальный распределенный coordinator. Regex не гарантирует корректность при произвольном SQL.</p>
+<p>Для прикладного шардинга часто полезно требовать <code>tenant_id</code> как обязательный параметр методов репозитория. Отсутствие ключа тогда становится явным событием: отказ, обращение к каталогу или осознанный scatter-gather. Это безопаснее, чем молча отправлять запрос на случайный worker.</p>
+<h3 id="63">6.3. Устаревшая карта размещения<a class="headerlink" href="#63" title="Permanent link">¶</a></h3>
+<p>Вот новая ошибка: router A получил <code>shard 7 -&gt; worker B</code>, router C еще держит <code>shard 7 -&gt; worker A</code>. После переноса оба выполняют запросы. Если старый узел продолжает принимать запись, возможны расхождения.</p>
+<p>Для корректного дизайна нужны версия маршрута, контролируемое переключение, обновление кешей и отказ от записи по устаревшему размещению. Подробный протокол смены владельца и fencing оставляем 14.1. Сейчас запоминаем практическую границу: <strong>маршрутизатор — часть consistency story, а не только балансировщик TCP</strong>.</p>
+<h3 id="64-routing-citus-routing">6.4. Routing в Citus и прикладной routing — разные продукты<a class="headerlink" href="#64-routing-citus-routing" title="Permanent link">¶</a></h3>
+<p>В Citus <code>create_distributed_table</code> задает распределительный столбец, создаются hash shards и сохраняются метаданные размещения. Кластер принимает SQL, выбирает нужные placements и выполняет задачи. В ряде конфигураций Citus поддерживает прием запросов на worker (MX mode), поэтому жесткая учебная схема «все всегда через один coordinator» не является универсальным описанием Citus 14.x [S1, S2].</p>
+<p>Прикладной router не получает SQL JOIN/aggregate executor бесплатно. Он обязан сам выбрать стратегию fan-out, ошибки и согласованность. Сравнивать только миллисекунды point query без этой разницы некорректно.</p>
+<h2 id="7-scatter-gather-count">7. Scatter-gather: простой COUNT превращается в распределенный запрос<a class="headerlink" href="#7-scatter-gather-count" title="Permanent link">¶</a></h2>
+<h3 id="71-where-shard-key">7.1. WHERE без shard key<a class="headerlink" href="#71-where-shard-key" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span>
+</code></pre></div>
+<p>В обычном PostgreSQL это один запрос к одному серверу. Если <code>orders</code> разделены по <code>tenant_id</code>, предикат <code>amount &gt; 10000</code> не дает информации о размещении. При общем распределенном исполнении нужно выполнить подзапрос на множестве шардов, получить частичные ответы и агрегировать их.</p>
+<div class="highlight"><pre><span></span><code>              Coordinator
+             /     |     \
+       shard A   shard B   shard C
+        COUNT     COUNT     COUNT
+           \       |       /
+            SUM(partial counts)
+</code></pre></div>
+<p>Получение трех маленьких чисел дешево. Но локальные чтения на всех узлах могут быть дорогими и конкурировать с OLTP. Нельзя оценивать распределенный запрос только по размеру ответа.</p>
+<h3 id="72">7.2. Агрегаты различаются по стоимости распределения<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<p>Для <code>SUM(x)</code> можно сложить частичные суммы. Для <code>COUNT(*)</code> — количества. Для <code>AVG(x)</code> нужно переносить <strong>пару</strong> <code>(sum, count)</code>, иначе «среднее средних» при неравных объемах данных даст неправильный результат. Для <code>COUNT(DISTINCT customer_id)</code> простое сложение локальных distinct обычно ошибочно: одинаковые ключи могут встречаться на нескольких шардах. Потребуется глобальная дедупликация, специальные свойства размещения или приближенная структура.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Эскиз частичного результата одного worker:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">SUM</span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">partial_sum</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">partial_count</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'paid'</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Проверка точности:</strong> в лекции отличаем точные агрегаты от приблизительных; HyperLogLog и подобные структуры могут снизить передачу данных ценой контролируемой погрешности, но это отдельные инструменты.</p>
+<h3 id="73-order-by-limit-top-k">7.3. ORDER BY LIMIT и глобальный top-K<a class="headerlink" href="#73-order-by-limit-top-k" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+</code></pre></div>
+<p>Нужно получить глобальный top-100. При подходящем полном порядке и корректной реализации можно запросить до 100 лучших кандидатов с каждого шарда и выполнить k-way merge. Но если координатор просто взял первые 100 ответов от первого worker, результат неверен. Важны полный детерминированный порядок, корректная обработка равных ключей и границы pushdown.</p>
+<h3 id="74-fan-out">7.4. Fan-out и хвостовая задержка<a class="headerlink" href="#74-fan-out" title="Permanent link">¶</a></h3>
+<p>Пусть один запрос требует ответы от <code>N</code> независимых узлов. Приближенно <code>T_total ≈ max(T_1, ..., T_N) + coordination</code>. Если каждый узел отвечает быстрее <code>t</code> с вероятностью <code>F(t)</code> и времена независимы, вероятность получить <strong>все</strong> ответы до <code>t</code> равна <code>F(t)^N</code>. Для <code>F(t)=0.99</code>, <code>N=20</code>: всего около <code>0.99^20 ≈ 0.818</code>. Независимость — учебное допущение; реальные сбои и перегрузка часто коррелированы.</p>
+<p>Следствие: если один запрос начинает обращаться к десяткам workers, p99 может резко ухудшиться даже при неплохих локальных p99. Это одно из главных отличий распределенного SQL от локального.</p>
+<h3 id="75">7.5. Где возникает очередь<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<p>Координатор ограничен числом соединений к workers, количеством одновременных задач, CPU на слиянии результатов и сетью. Worker ограничен собственными соединениями, I/O, памятью, CPU и локальными блокировками. Рост fan-out увеличивает число внутренних задач <strong>на один клиентский SQL</strong>, поэтому увеличение числа HTTP-потоков может перегрузить БД намного раньше, чем это видно по одному локальному EXPLAIN.</p>
+<p><strong>Диагностика:</strong> число задач, время каждого worker, bytes sent/received, queued vs executing tasks, скорость сети, temp files, локальный EXPLAIN для дорогих подзапросов, p99 распределенного запроса.</p>
+<h2 id="8-colocation-join">8. Colocation: как сделать JOIN локальным<a class="headerlink" href="#8-colocation-join" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Две таблицы и одна область владения<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span><span class="p">)</span>
+<span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">payments</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payment_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">payment_id</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Если <strong>оба</strong> набора данных распределены по <code>tenant_id</code> и соответствующие диапазоны ключей совместно размещены, то запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">payment_id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">payments</span><span class="w"> </span><span class="n">p</span>
+<span class="w">  </span><span class="k">ON</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">tenant_id</span>
+<span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">order_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">101</span><span class="p">;</span>
+</code></pre></div>
+<p>можно выполнить на одном worker. Ключ равенства важен: совместное физическое размещение не поможет, если условия запроса не позволяют доказать соответствие групп данных.</p>
+<h3 id="82">8.2. Зачем совместное размещение отличается от одинакового хеша<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<p>Мало того, что <code>hash(tenant_id)</code> дает одинаковый token для обеих таблиц. Необходимо, чтобы соответствующие shard placements располагались на согласованных workers и имели совместимые границы. В Citus есть <strong>colocation groups</strong>. В простых случаях совместное размещение создается автоматически при согласованных типах ключа и количестве шардов, а при необходимости задается явно <code>colocate_with</code> [S3].</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполняется в Citus, после установки и настройки расширения.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">create_distributed_table</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_id'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">create_distributed_table</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'payments'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="n">colocate_with</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'orders'</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Это пример синтаксиса Citus, а не встроенный оператор PostgreSQL 18.</p>
+<h3 id="83-local-join-cross-shard-join">8.3. Local JOIN против Cross-shard JOIN<a class="headerlink" href="#83-local-join-cross-shard-join" title="Permanent link">¶</a></h3>
+<p>В local JOIN запрос использует обычный PostgreSQL executor на worker — его алгоритмы мы уже знаем. В cross-shard JOIN перед ним может появиться дорогое перемещение данных. Поэтому правильный shard key часто дает больший выигрыш, чем микротюнинг локального Hash Join.</p>
+<h3 id="84-reference-tables">8.4. Reference tables: небольшие справочники на нескольких узлах<a class="headerlink" href="#84-reference-tables" title="Permanent link">¶</a></h3>
+<p>Пусть есть справочник валют или налоговых ставок. Его можно держать на всех workers как маленькую reference table, чтобы связывать с распределенными заказами локально. Citus предоставляет <code>create_reference_table</code>, но согласованное изменение копий имеет свою стоимость, в ряде случаев с применением распределенного протокола фиксации [S4].</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">currencies</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">code</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">name</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">create_reference_table</span><span class="p">(</span><span class="s1">'currencies'</span><span class="p">);</span>
+</code></pre></div>
+<p>Копировать на каждый worker миллиарды строк ради локального JOIN нельзя: reference tables хороши для <strong>небольших</strong>, сравнительно редко обновляемых данных.</p>
+<p><strong>Инженерный вывод:</strong> совместное размещение — это заранее принятое решение о цене JOIN и транзакций. Если локальность не заложили в модель данных, SQL-оптимизатор не всегда сможет ее восстановить.</p>
+<h2 id="9-cross-shard">9. Cross-shard операции: сеть становится частью плана<a class="headerlink" href="#9-cross-shard" title="Permanent link">¶</a></h2>
+<h3 id="91-join-shard-key">9.1. JOIN без общего shard key<a class="headerlink" href="#91-join-shard-key" title="Permanent link">¶</a></h3>
+<p>Возьмем <code>orders</code> по <code>tenant_id</code>, а <code>fraud_signals</code> по <code>device_id</code>. Нужно соединить по <code>device_id</code> без ограничений по tenant. Релевантные строки могут жить на разных workers. Варианты реализации: собрать данные на coordinator, переслать меньшую таблицу на несколько workers, перегруппировать строки по join key (repartition/shuffle) или отказаться от такого запроса на горячем пути и подготовить проекцию данных.</p>
+<p>Ни одна стратегия не бесплатна. Разрешение repartition JOIN зависит от возможностей и настроек конкретной версии Citus; нельзя считать, что произвольный JOIN автоматически поддерживается с оптимальной стратегией.</p>
+<h3 id="92-shuffle">9.2. Считаем цену shuffle<a class="headerlink" href="#92-shuffle" title="Permanent link">¶</a></h3>
+<p>Пусть требуется переместить 10 миллионов строк по 200 байт: это примерно 2 ГБ полезной нагрузки, без overhead сериализации, протокола, индексов и промежуточных файлов. При теоретических 1 Гбит/с только передача 2 ГБ заняла бы около 16 секунд. В реальности пропускная способность ниже номинальной, и часть нагрузки распределена неравномерно.</p>
+<p>Если pushdown частичного агрегирования сократит поток до 50 тысяч строк по 24 байта, переносим всего около 1.2 МБ. Стоимость сокращается на несколько порядков. Вот почему распределенный план нужно читать <strong>с точки зрения движения данных</strong>, а не только локальных операторов.</p>
+<h3 id="93-join">9.3. А если сделать JOIN в приложении?<a class="headerlink" href="#93-join" title="Permanent link">¶</a></h3>
+<p>Это может быть оправданно для небольших множеств или заранее ограниченных ключей, но сетевая передача и согласованность никуда не исчезают. Более того, приложение берет на себя сортировку, объединение, ограничение памяти, backpressure, ошибки частичных ответов и корректность LIMIT/OFFSET.</p>
+<h3 id="94-pushdown">9.4. Pushdown не всегда возможен<a class="headerlink" href="#94-pushdown" title="Permanent link">¶</a></h3>
+<p>Функции с нестандартной семантикой, выражения, пользовательские операторы и правила группировки могут препятствовать безопасному переносу операций на worker. Конкретные допустимые операции определяет распределенный planner. Потребность в локальной обработке не является ошибкой сама по себе; проблема возникает, когда план пересылает слишком много промежуточных строк.</p>
+<p><strong>Под нагрузкой:</strong> смотрим bytes shuffled, входящие/исходящие соединения, временные файлы, рабочую память, загрузку сети, количество участвующих shards, их локальные планы и асимметрию времен задач.</p>
+<h2 id="10-global-constraints-unique">10. Global constraints: почему UNIQUE внезапно перестает быть глобальным<a class="headerlink" href="#10-global-constraints-unique" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1. Глобальная уникальность требует глобального знания<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p>Пусть <code>orders</code> распределена по <code>tenant_id</code>. На worker A успешно вставлен <code>(tenant_id=1, order_id=777)</code>. На worker B вставлен <code>(tenant_id=2, order_id=777)</code>. Обе локальные таблицы могут честно соблюдать <code>UNIQUE(order_id)</code>, потому что проверяют разные множества строк. Глобальный инвариант <code>order_id</code> уникален <strong>во всем кластере</strong> уже нарушен.</p>
+<p>Один из подходов — <strong>составной ключ</strong>, содержащий shard key. В Citus для UNIQUE/PRIMARY KEY распределенной таблицы требуется включать колонку распределения. Это дает локально проверяемую уникальность пары <code>(tenant_id, order_id)</code>, но не глобальную уникальность <code>order_id</code> [S5].</p>
+<div class="highlight"><pre><span></span><code><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span><span class="p">)</span>
+<span class="c1">-- Это не означает UNIQUE(order_id) во всем кластере.</span>
+</code></pre></div>
+<h3 id="102">10.2. Синтаксически похожие ограничения, разные гарантии<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<p>Прикладной router может выдавать globally unique ID посредством выделенных диапазонов, UUID или Snowflake-подобных идентификаторов. Но «вероятность коллизии мала» не эквивалентна транзакционной проверке уникальности в едином индексе. Другой вариант — отдельный каталог уникальных ключей с атомарным резервированием; теперь он сам становится инфраструктурным компонентом с задержками и точкой конкуренции.</p>
+<h3 id="103-foreign-keys">10.3. Foreign keys между шардами<a class="headerlink" href="#103-foreign-keys" title="Permanent link">¶</a></h3>
+<p>Транзакционная проверка FK обычно должна доказать наличие родительской строки. Если она в другом шарде, нужна межузловая проверка и согласование. В Citus поддерживаются определенные комбинации FK — например, между colocated distributed tables при включении ключа распределения или от distributed table к reference table. Произвольный глобальный FK между любыми двумя таблицами не предоставляется автоматически [S3, S5].</p>
+<h3 id="104">10.4. Вторичные индексы остаются локальными<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>Индекс <code>CREATE INDEX ... ON orders(created_at)</code> на распределенной таблице в Citus создает индексы соответствующих shards. Запрос по <code>created_at</code> без <code>tenant_id</code> все равно может потребовать fan-out. Локальный B-tree не содержит карты всех строк на других серверах.</p>
+<p><strong>Инженерный вывод:</strong> при проектировании идентификаторов нужно различать ID, удобный приложению, и физическую возможность централизованно проверить инвариант.</p>
+<h2 id="11-distributed-transactions-commit">11. Distributed transactions: один COMMIT больше не обязательно означает один сервер<a class="headerlink" href="#11-distributed-transactions-commit" title="Permanent link">¶</a></h2>
+<h3 id="111-postgresql">11.1. Локальная операция все еще обычная транзакция PostgreSQL<a class="headerlink" href="#111-postgresql" title="Permanent link">¶</a></h3>
+<p>Если списание и запись платежа для одного <code>tenant_id</code> находятся на одном worker, локальная транзакция остается в границах одного PostgreSQL. Нужны уже известные гарантии MVCC, блокировок и WAL. Sharding не обязан усложнять все операции; грамотная colocation именно поэтому важна.</p>
+<p>Но теперь задача: перевести средства со счета арендатора 101 на счет арендатора 202, которые живут на разных workers. Локальный COMMIT на A не способен атомарно зафиксировать COMMIT на B. Отсюда появляется новая стоимость распределенного взаимодействия.</p>
+<h3 id="112-commit">11.2. Почему два отдельных COMMIT не дают атомарности<a class="headerlink" href="#112-commit" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>App            Worker A                  Worker B
+ |    UPDATE debit; COMMIT OK                 |
+ |------------------------------------------&gt;|
+ |             network timeout / crash       |
+ |                        UPDATE credit ?    |
+</code></pre></div>
+<p>Если деньги списаны на A, а B недоступен, система имеет частичный результат. «Повторим оба запроса» может списать средства повторно. «Отменим A» может быть невозможно после локального COMMIT. Для ряда бизнес-процессов применяют саги и компенсирующие операции, но они дают другую семантику, чем единая атомарная транзакция.</p>
+<h3 id="113-two-phase-commit-2pc">11.3. Two-phase commit (2PC) в общей модели<a class="headerlink" href="#113-two-phase-commit-2pc" title="Permanent link">¶</a></h3>
+<p>Двухфазная фиксация использует внешнего координатора: сначала все участники <strong>prepare</strong>, затем координатор принимает решение <strong>commit</strong> или <strong>rollback</strong> и доводит его до участников.</p>
+<div class="highlight"><pre><span></span><code>Coordinator                PostgreSQL A                PostgreSQL B
+    |---- prepare --------------&gt;|                          |
+    |---- prepare ------------------------------------------&gt;|
+    |&lt;--- prepared --------------|                          |
+    |&lt;--- prepared ------------------------------------------|
+    |==== durable global decision: COMMIT ===================|
+    |---- commit prepared ------&gt;|                          |
+    |---- commit prepared ----------------------------------&gt;|
+</code></pre></div>
+<p>В PostgreSQL существуют <code>PREPARE TRANSACTION</code>, <code>COMMIT PREPARED</code>, <code>ROLLBACK PREPARED</code>; это механизм <strong>для внешнего менеджера распределенных транзакций</strong>, а не совет писать ручные PREPARE в бизнес-коде [S6]. Подготовленная транзакция продолжает удерживать блокировки. При потере координатора может остаться <strong>in-doubt transaction</strong>: участник подготовился, но решение еще не получил. Транзакция висит до корректного завершения, мешает обслуживанию и может удерживать старые XID.</p>
+<h3 id="114">11.4. Цена распределенной атомарности<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>2PC добавляет сетевые обращения, устойчивое хранение решения координатора, удержание ресурсов нескольких workers и необходимость восстановить состояние после сбоев. При отказах он способен уменьшить доступность записи. Это не «магическая галочка, которая делает сеть надежной». Придется отдельно выбирать, какие операции действительно требуют глобальной атомарности.</p>
+<h3 id="115-citus-sql">11.5. Как это выглядит в Citus — без обобщений на любой SQL<a class="headerlink" href="#115-citus-sql" title="Permanent link">¶</a></h3>
+<p>Citus поддерживает операции над несколькими шардами и предлагает разные режимы фиксации. Для некоторых multi-shard UPDATE/DELETE по документации типичным поведением является однофазный протокол; для повышения гарантии можно использовать <code>citus.multi_shard_commit_protocol = '2pc'</code> в поддерживаемой конфигурации. Нельзя утверждать, что <strong>каждый</strong> распределенный запрос Citus по умолчанию имеет эквивалент полноценной общей 2PC-транзакции [S7].</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Пример настройки Citus для подходящих multi-shard операций;</span>
+<span class="c1">-- проверять в документации и тестах применяемой версии.</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">citus</span><span class="p">.</span><span class="n">multi_shard_commit_protocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2pc'</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Инженерный вывод:</strong> основное средство масштабируемости — локальность транзакций. Глобальная атомарность возможна при определенных протоколах, но ее необходимо сознательно приобретать ценой задержки и доступности.</p>
+<h2 id="12-resharding">12. Resharding: как перенести данные, пока система продолжает писать<a class="headerlink" href="#12-resharding" title="Permanent link">¶</a></h2>
+<h3 id="121-copy">12.1. Почему COPY недостаточно<a class="headerlink" href="#121-copy" title="Permanent link">¶</a></h3>
+<p>Данные сейчас на worker A. Пока мы копируем десятки гигабайт на B, клиент продолжает делать INSERT/UPDATE/DELETE. На момент завершения копирования B уже отстает. Если просто переключить router, последние изменения будут потеряны из нового placement.</p>
+<p>Нужен протокол согласования <em>начального снимка</em> с <em>потоком изменений</em>, а затем короткий этап смены владельца.</p>
+<h3 id="122-online-move">12.2. Протокол online move: логическая модель<a class="headerlink" href="#122-online-move" title="Permanent link">¶</a></h3>
+<ol>
+<li>Выбрать source placement A и target B, проверить совместимость схемы и необходимость <code>REPLICA IDENTITY</code>.</li>
+<li>Создать начальную согласованную копию данных на B.</li>
+<li>Передавать изменения, которые происходят на A во время копирования; B применяет их в правильном порядке.</li>
+<li>Дождаться допустимой границы отставания и создать согласованное окно переключения.</li>
+<li>Остановить или ограничить записи в старый placement на время финальной синхронизации.</li>
+<li>Атомарно с точки зрения системы размещения изменить активный маршрут <code>shard -&gt; B</code>.</li>
+<li>Проверить, что старый маршрут больше не принимает новые записи; завершить очистку старой копии после проверки.</li>
+</ol>
+<p>Это <strong>концептуальная</strong> модель. Конкретный протокол и гарантии зависят от платформы. В Citus online rebalance может использовать logical replication, а во время изменения metadata применять короткую блокировку записи. При отсутствии подходящих условий Citus может перейти к copy с блокировкой записи [S8].</p>
+<h3 id="123-placement">12.3. Шард и его placement — это разные объекты<a class="headerlink" href="#123-placement" title="Permanent link">¶</a></h3>
+<p>Увеличение числа workers может означать просто <code>placement(shard 7): A -&gt; B</code>, без изменения самого диапазона ключей шарда. <strong>Изменение числа шардов</strong> (split/merge/repartition) — более сильная операция: меняется граница набора данных, которую обслуживает каждый shard, и может измениться маршрут ключей. Называть оба процесса одинаковым словом <code>resharding</code> в разговоре можно, но в проектной документации следует различать rebalance placements и repartition данных.</p>
+<h3 id="124">12.4. Цена переноса<a class="headerlink" href="#124" title="Permanent link">¶</a></h3>
+<p>Предположим, переносим shard объемом 250 ГБ по каналу с устойчивой полезной скоростью 150 МБ/с. Только начальное копирование занимает примерно 28 минут (<code>250 * 1024 / 150 / 60</code>), без учета snapshot, индексов, репликации новых изменений и проверок. Если source генерирует изменения со скоростью, близкой к скорости их передачи и применения, catch-up затянется или не завершится без изменения условий нагрузки.</p>
+<p>Обязательно измеряем: initial copy rate, change generation rate, apply rate, lag, write blocking window, дополнительный WAL, свободное место target и обратное влияние на живые запросы.</p>
+<h3 id="125">12.5. Что делать, если перенос оборвался<a class="headerlink" href="#125" title="Permanent link">¶</a></h3>
+<p>Нужно знать, кто авторитетен после сбоя на каждой фазе. До переключения обычно authoritative source — A; после корректного cutover — B. Недостаточно просто увидеть таблицы с одинаковыми именами на двух серверах. Система должна хранить подтвержденный статус операции и не допускать неоднозначного назначения владельца.</p>
+<p><strong>Граница углубления:</strong> точные epochs, fencing tokens, проверка устаревшей маршрутизации и формальные свойства safe cutover — лекция 14.1. Здесь достаточно понимать неизбежные фазы и стоимость.</p>
+<h2 id="13_1">13. Метаданные размещения: карта — часть доступности данных<a class="headerlink" href="#13_1" title="Permanent link">¶</a></h2>
+<h3 id="131-router">13.1. Почему router должен доверять карте<a class="headerlink" href="#131-router" title="Permanent link">¶</a></h3>
+<p>Карта содержит <code>shard_id</code>, диапазон токенов, активные placements, статус перемещения и иногда версию схемы. Если она недоступна, router может не знать, куда отправить запрос. Если она устарела, запрос может быть ошибочно направлен на прежний узел.</p>
+<p>Значит, metadata service сам требует стратегии доступности и согласованности. Кеш метаданных снижает latency, но добавляет invalidation, TTL, версионирование и поведение при сетевых разделениях.</p>
+<h3 id="132-citus">13.2. Что хранит Citus<a class="headerlink" href="#132-citus" title="Permanent link">¶</a></h3>
+<p>Citus предоставляет собственные служебные каталоги размещения, например <code>pg_dist_partition</code>, <code>pg_dist_shard</code>, <code>pg_dist_placement</code>, <code>pg_dist_node</code>, <code>pg_dist_colocation</code> (состав и доступность представлений зависят от версии и режима). Их задача — знать, какие логические отношения и shard ranges существуют и на каких workers размещены физические объекты [S1, S3].</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Citus: просмотр размещений и размеров в поддерживаемой версии.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">citus_shards</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+</code></pre></div>
+<p>На обычном PostgreSQL без расширения такой view отсутствует. Прямое изменение служебных таблиц Citus вручную недопустимо как универсальная процедура управления: используем документированные функции управления топологией.</p>
+<h3 id="133-routing-cache">13.3. Как может сломаться routing cache<a class="headerlink" href="#133-routing-cache" title="Permanent link">¶</a></h3>
+<p>Три стадии: приложение кеширует карту версии 7; shard 12 перемещен на worker C и карта стала версией 8; часть экземпляров продолжает обращаться к B. Если B не отвергает устаревшие записи, получаем риск split-brain по отдельному shard. Если отвергает — получаем ошибки и необходимость обновить маршрут.</p>
+<p><strong>Инженерный вывод:</strong> cache hit в routing не является гарантией корректности. Версия карты и реакция на invalid placement важнее нескольких микросекунд маршрутизации.</p>
+<h2 id="14-partial-failures-worker-sql">14. Partial failures: упал один worker, а клиент видит один SQL<a class="headerlink" href="#14-partial-failures-worker-sql" title="Permanent link">¶</a></h2>
+<h3 id="141-">14.1. Как по-разному отказывает распределенный запрос<a class="headerlink" href="#141-" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>До выполнения на worker:</strong> запрос может не выполнить изменений; retry может быть допустим, если точно известна стадия.</li>
+<li><strong>После выполнения, но до ответа:</strong> исход может быть неизвестен; timeout нельзя переводить в «не выполнилось».</li>
+<li><strong>После локального COMMIT на части workers:</strong> если не было гарантирующего атомарность протокола, возможен частичный результат.</li>
+<li><strong>Во время resharding:</strong> нужно определить текущего владельца и фазу переноса.</li>
+<li><strong>При потере coordinator:</strong> ongoing multi-shard query может быть прерван, при этом судьбу удаленных транзакций надо выяснять отдельно.</li>
+</ul>
+<h3 id="142">14.2. Идемпотентность и неопределенный результат<a class="headerlink" href="#142" title="Permanent link">¶</a></h3>
+<p>Пример: заказ помечен как оплаченный, подтверждение клиенту потерялось. Повторное действие без бизнес-идентификатора операции может породить дублирование. Локальная уникальность idempotency key помогает лишь в пределах правильной области владения и атомарной транзакции. При переходе между шардами карта ключей и операция должны согласованно переехать.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Упрощенный локальный фрагмент для одного shard;</span>
+<span class="c1">-- универсальную cross-shard гарантию он не создает.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">payment_requests</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">request_id</span><span class="w"> </span><span class="n">uuid</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payment_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">request_id</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>После timeout клиент читает состояние операции по <code>(tenant_id, request_id)</code> у <strong>актуального</strong> владельца, а не случайно повторяет побочный эффект. Если операция взаимодействует с внешними системами, могут потребоваться отдельные протоколы согласования.</p>
+<h3 id="143-ha-shard">14.3. Почему HA одного shard не решает глобальную доступность<a class="headerlink" href="#143-ha-shard" title="Permanent link">¶</a></h3>
+<p>У каждого shard могут быть физические реплики. Но глобальный запрос может зависеть от 20 шардов. Недоступность одного необходимого shard делает полный ответ невозможным или требует оговоренной деградации. Replication улучшает доступность размещения конкретного shard, но не отменяет fan-out и частичных ошибок.</p>
+<p><strong>Политика ответа должна быть явной:</strong> полный отказ, частичный результат с указанием неполноты, устаревший кеш либо отложенная аналитика. Нельзя молча возвращать <code>COUNT=900</code> как полный, если один shard не ответил.</p>
+<h3 id="144">14.4. Связь с согласованностью<a class="headerlink" href="#144" title="Permanent link">¶</a></h3>
+<p>При сетевом разделении приоритеты могут конфликтовать: не все узлы доступны, но система обязана исключить расходящиеся владельцы. В 14.0 достаточно практического тезиса: при угрозе двойной записи корректная система может временно отказать в записи. Подробный разбор fencing и лидерских поколений — факультативная 14.1, без повторения HA/Patroni из 10.1.</p>
+<h2 id="15-production-diagnostics-shard-postgresql">15. Production diagnostics: ищем медленный shard, а не «медленный PostgreSQL»<a class="headerlink" href="#15-production-diagnostics-shard-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="151">15.1. Четыре слоя наблюдения<a class="headerlink" href="#151" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Приложение:</strong> latency операции, shard key, tenant ID (в безопасной и допустимой форме), тип маршрута, retries, idempotency outcome.</li>
+<li><strong>Маршрутизатор/coordinator:</strong> fan-out, число задач, длительность routing, очереди, список placements, время merge и число перенесенных байтов.</li>
+<li><strong>Worker:</strong> локальные планы, CPU, I/O, WAL, блокировки, connection pool, temporary files, ошибки.</li>
+<li><strong>Топология:</strong> placement map, версия, миграция, lag, недоступные shards, скорость ребалансировки.</li>
+</ol>
+<p>Только один <code>pg_stat_activity</code> на coordinator не дает полной картины нагрузки workers. Диагностика должна сохранять связь «один бизнес-запрос → распределенные задачи → конкретные shard placements».</p>
+<h3 id="152">15.2. Три конкретных диагноза<a class="headerlink" href="#152" title="Permanent link">¶</a></h3>
+<p><strong>А. Local hot shard.</strong> Глобальный CPU 30%, worker 2 — 95%, p99 запросов tenant 101 растет. Причина — request skew или локальная конкуренция. Исправление может состоять в перемещении placement, лимитировании арендатора или изменении модели ключа, но не в увеличении числа координаторов.</p>
+<p><strong>Б. Cross-shard fan-out.</strong> Каждый worker выполняет часть за 40 мс, итоговый запрос — 1.3 с. Смотрим время ожидания соединений, число tasks, сетевые задержки и merge. Возможно, запрос требует отсутствующего shard key, а нагрузка на coordinator стала главным ограничением.</p>
+<p><strong>В. Resharding-induced I/O.</strong> Во время переноса placement у worker растут I/O и WAL, при этом p95 INSERT ухудшается. Проверяем copy/apply rate, ограничение фоновой нагрузки и окно cutover. Нельзя диагностировать только локальный SQL-план.</p>
+<h3 id="153-citus">15.3. Citus: что смотреть в первую очередь<a class="headerlink" href="#153-citus" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Исполнять на Citus; точный набор столбцов зависит от версии.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">citus_shards</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="c1">-- Распределенный план: смотреть Task Count, placements,</span>
+<span class="c1">-- удаленные/local планы и объем работы.</span>
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">,</span><span class="w"> </span><span class="n">COSTS</span><span class="w"> </span><span class="k">OFF</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">101</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">;</span>
+</code></pre></div>
+<p>Для анализа query routing отдельно меняем наличие условия на <code>tenant_id</code>. Для объективных замеров сравниваем не один случайный запуск, а серию прогонов с одинаковым набором данных и нагрузкой. Смотрим latency p50/p95/p99, network bytes, worker CPU, I/O и число участвующих tasks. Детали форматов конкретного distributed EXPLAIN зависят от Citus [S2, S9].</p>
+<h3 id="154-capacity-planning">15.4. Capacity planning и сложность границ масштабирования<a class="headerlink" href="#154-capacity-planning" title="Permanent link">¶</a></h3>
+<p>Пусть средняя нагрузка одного shard — <code>r</code>, физический worker устойчиво держит <code>C</code> операций/с. Наивная оценка количества workers <code>ceil(total_r/C)</code> игнорирует перекос, ретраи, background movement, периоды отказов и cross-shard операции. Для production нужны резерв мощности и тестирование сценария «минус один worker».</p>
+<p>Если кластер теряет узел во время пика, нагрузка не обязана равномерно перераспределиться. Оставшиеся workers могут получить hot placements и значительный поток восстановления. Поэтому capacity planning обязан включать деградационные сценарии, а не только красивый steady state.</p>
+<h3 id="155">15.5. Краткая диагностическая матрица<a class="headerlink" href="#155" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятная причина</th>
+<th>Что измерять</th>
+<th>Возможное действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Одна группа арендаторов тормозит</td>
+<td>Hot shard/tenant</td>
+<td>Per-tenant QPS, worker CPU/I/O</td>
+<td>Placement move, rate limit, модель ключа</td>
+</tr>
+<tr>
+<td>SQL медленнее суммарных локальных работ</td>
+<td>Scatter-gather, merge, сеть</td>
+<td>Task count, bytes, waits</td>
+<td>Добавить shard key, pushdown, проекция</td>
+</tr>
+<tr>
+<td>INSERT ускорился, глобальный отчет замедлился</td>
+<td>Ошибка выбора распределения</td>
+<td>Query mix, fan-out</td>
+<td>Colocation, агрегаты, модель отчетов</td>
+</tr>
+<tr>
+<td>Не вставляется «глобальный» UNIQUE</td>
+<td>Нет глобального индекса</td>
+<td>DDL, распределительный ключ</td>
+<td>Composite key или отдельный каталог</td>
+</tr>
+<tr>
+<td>Простой перенос длится часами</td>
+<td>Copy + apply lag</td>
+<td>Transfer MB/s, changes/s</td>
+<td>Throttling, график, канал</td>
+</tr>
+<tr>
+<td>Timeout при межшардовом COMMIT</td>
+<td>Неопределенный исход</td>
+<td>Operation ID, coordinator state</td>
+<td>Reconciliation, idempotency</td>
+</tr>
+<tr>
+<td>Один worker исчез</td>
+<td>Partial failure</td>
+<td>Placement health, запросы по shard</td>
+<td>Failover или явная деградация</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="_2">Сквозной эксперимент: расширяем три сервера, затем специально ухудшаем модель<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Эксперимент предполагает изолированную учебную инфраструктуру с несколькими PostgreSQL 18 и совместимой версией Citus. Для произвольного кластера Citus нужны подготовленные роли, серверы, сеть и установленное на всех узлах расширение. Ниже показана <strong>логика</strong>, а не универсальный one-command deploy.</p>
+<h3 id="a">Шаг A. Создаем распределенную модель с правильным ключом<a class="headerlink" href="#a" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">citus</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">now</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">order_id</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">payments</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payment_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">state</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">payment_id</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">create_distributed_table</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_id'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">create_distributed_table</span><span class="p">(</span><span class="s1">'payments'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_id'</span><span class="p">,</span><span class="w"> </span><span class="n">colocate_with</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">);</span>
+</code></pre></div>
+<p>Проверяем single-tenant запрос и JOIN по <code>tenant_id</code>, записываем число задач. Все сравнения проводим после прогрева и на одинаковом объеме данных. При отсутствии <code>citus_add_node()</code>/настроенной топологии пример может остаться одноузловым; для эксперимента нужны реальные workers.</p>
+<h3 id="b">Шаг B. Убираем ключ из фильтра<a class="headerlink" href="#b" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5000</span><span class="p">;</span>
+</code></pre></div>
+<p>Сравниваем с <code>WHERE tenant_id = 101</code>, проверяем fan-out. Вопрос не в том, что <code>COUNT(*)</code> «всегда дорогой», а в том, сколько узлов пришлось привлечь и какую работу выполнить на каждом.</p>
+<h3 id="c-hot-tenant">Шаг C. Создаем hot tenant<a class="headerlink" href="#c-hot-tenant" title="Permanent link">¶</a></h3>
+<p>Загружаем существенно больше операций одного <code>tenant_id</code> и измеряем перераспределение CPU, I/O и p99. Затем пробуем перенести размещение соответствующего шарда на другой worker, фиксируем стоимость операции и влияние на запросы.</p>
+<h3 id="d-worker">Шаг D. Отказываем одному worker<a class="headerlink" href="#d-worker" title="Permanent link">¶</a></h3>
+<p>Проверяем поведение point query по оставшимся shard placements и глобального scatter-gather. Не делаем вид, что пропущенный shard можно незаметно исключить из полного ответа. Для корректного результата нужны все обязательные участники либо заранее определенная деградация.</p>
+<h3 id="e">Шаг E. Неопределенный результат записи<a class="headerlink" href="#e" title="Permanent link">¶</a></h3>
+<p>Выполняем операцию с внешним <code>request_id</code>, разрываем клиентское соединение в неопределенный момент, затем читаем сохраненное состояние по ключу операции. Показываем, что timeout не равен ROLLBACK. Для распределенных операций дополнительно фиксируем, какие узлы успели подтвердить свой этап и какой протокол применялся.</p>
+<hr/>
+<h2 id="_3">Разбор ошибок проектирования: что запомнить<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Sharding масштабирует независимые части данных, а не любой SQL.</strong> Общие JOIN, глобальные ограничения и массовые сканы создают сетевую стоимость.</li>
+<li><strong>Shard key определяет локальность запросов и транзакций.</strong> Это долгосрочное решение об архитектуре API и идентификаторов.</li>
+<li><strong>Равные размеры шардов не гарантируют равной нагрузки.</strong> Анализируем traffic skew, resource skew и hot tenants.</li>
+<li><strong>Colocation снижает стоимость JOIN, если условия запроса сохраняют связь по ключу распределения.</strong> Наличие одинаковых по названию колонок недостаточно.</li>
+<li><strong>Cross-shard COMMIT требует явно понятных гарантий.</strong> Несколько локальных COMMIT не образуют автоматическую атомарную операцию.</li>
+<li><strong>Resharding — перенос данных плюс согласованная смена владельца.</strong> Копия на target еще не означает безопасный cutover.</li>
+<li><strong>Partial failure — нормальное рабочее состояние распределенной системы.</strong> Корректность полного результата и идемпотентность важнее оптимистичной повторной попытки.</li>
+<li><strong>Диагностировать нужно распределенный путь целиком.</strong> Локальный EXPLAIN не показывает сетевое перемещение, fan-out и задержку самых медленных workers.</li>
+</ol>
+<h2 id="_4">Где остановимся и куда можно копнуть глубже<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<p>Содержание 14.0 заканчивается на понятной рабочей модели: данные размещаются по ключу, SQL разбивается на локальные и распределенные операции, стоимость определяется локальностью, сетью и согласованностью. Внутренности самого Citus executor, детальный two-phase coordinator и реализация распределенного блокирования сюда не включаются.</p>
+<p><strong>Следующий согласованный факультативный слой — 14.1. Distributed Ownership, Failover &amp; Resharding Consistency.</strong> Там разбираем epochs, fencing tokens, stale routing, момент безопасного cutover и инварианты «только один владелец принимает запись». Он закроет вопрос: <strong>почему система не потеряет подтвержденное изменение, даже если во время переноса шарда произошли отказ сети и повторные запросы?</strong> Это полезно именно потому, что мы уже разобрали общую операцию resharding и теперь можем проверять ее корректность на уровне распределенного протокола.</p>
+<h2 id="_5">Источники и границы применимости<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
+<p>Официальные первичные источники; примеры Citus помечены отдельно, поскольку его SQL API и ограничения не являются частью встроенного PostgreSQL 18.</p>
+<ul>
+<li><strong>[S1]</strong> Citus 14: overview, координатор/worker, distributed tables — <a href="https://learn.microsoft.com/en-us/postgresql/citus/what-is-citus?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/what-is-citus?view=citus-14</a>.</li>
+<li><strong>[S2]</strong> Citus 14: query processing, маршрутизация и distributed executor — <a href="https://learn.microsoft.com/en-us/postgresql/citus/reference-processing?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/reference-processing?view=citus-14</a>.</li>
+<li><strong>[S3]</strong> Citus 14: распределенные объекты и colocation — <a href="https://learn.microsoft.com/en-us/postgresql/citus/reference-ddl?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/reference-ddl?view=citus-14</a>.</li>
+<li><strong>[S4]</strong> Citus: reference tables и UDF создания распределенных таблиц — <a href="https://docs.citusdata.com/en/v13.0/develop/reference_ddl.html">https://docs.citusdata.com/en/v13.0/develop/reference_ddl.html</a>.</li>
+<li><strong>[S5]</strong> Citus 14: ограничения UNIQUE/PRIMARY KEY и FK — <a href="https://learn.microsoft.com/en-us/postgresql/citus/common-errors?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/common-errors?view=citus-14</a>.</li>
+<li><strong>[S6]</strong> PostgreSQL 18: prepared transactions / 2PC — <a href="https://www.postgresql.org/docs/18/sql-prepare-transaction.html">https://www.postgresql.org/docs/18/sql-prepare-transaction.html</a> и <a href="https://www.postgresql.org/docs/18/two-phase.html">https://www.postgresql.org/docs/18/two-phase.html</a>.</li>
+<li><strong>[S7]</strong> Citus 14: распределенные DML и multi-shard commit protocol — <a href="https://learn.microsoft.com/en-us/postgresql/citus/reference-dml?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/reference-dml?view=citus-14</a>.</li>
+<li><strong>[S8]</strong> Citus 14: online shard rebalance и перенос размещений — <a href="https://learn.microsoft.com/en-us/postgresql/citus/cluster-management?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/cluster-management?view=citus-14</a> и <a href="https://learn.microsoft.com/en-us/postgresql/citus/api-udf?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/api-udf?view=citus-14</a>.</li>
+<li><strong>[S9]</strong> Citus 14: performance tuning и распределенные планы — <a href="https://learn.microsoft.com/en-us/postgresql/citus/performance-tuning?view=citus-14">https://learn.microsoft.com/en-us/postgresql/citus/performance-tuning?view=citus-14</a>.</li>
+<li><strong>[S10]</strong> PostgreSQL 18: статистика и наблюдение — <a href="https://www.postgresql.org/docs/18/monitoring-stats.html">https://www.postgresql.org/docs/18/monitoring-stats.html</a>.</li>
+</ul>
+<p>Версионные свойства Citus в этом материале ориентированы на публичную документацию Citus 14. При работе с конкретным развертыванием сверяются установленные версии Citus/PostgreSQL, доступность функций и настройки кластера. Схемы «routing», «cutover» и «2PC» выше представляют явно обозначенные общие модели, а не утверждение о единственном алгоритме любого sharding-продукта.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 13. PostgreSQL Security &amp;amp; Row-Level Security" class="md-footer__link md-footer__link--prev" href="../13%20-%20Security%20row%20level%20security/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                13. PostgreSQL Security &amp; Row-Level Security
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 15.0. PostgreSQL Foreign Data Wrappers" class="md-footer__link md-footer__link--next" href="../15%20-%20Foreign%20data%20wrappers/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                15.0. PostgreSQL Foreign Data Wrappers
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/10.2%20-%20Logical%20replication%20CDC/" rel="canonical"/>
+<link href="../10.1%20-%20High%20availability%20failover/" rel="prev"/>
+<link href="../14.1%20-%20Distributed%20ownership%20consistency/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>10.2. PostgreSQL Logical Replication &amp; CDC - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#102-postgresql-logical-replication-cdc">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              10.2. PostgreSQL Logical Replication &amp; CDC
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: база работает, но потребитель получает вчерашние заказы
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: база работает, но потребитель получает вчерашние заказы
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="102-postgresql-logical-replication-cdc">10.2. PostgreSQL Logical Replication &amp; CDC<a class="headerlink" href="#102-postgresql-logical-replication-cdc" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · обязательная лекция блока 10.</strong><br/>
+<strong>Фокус:</strong> логическое декодирование, publications/subscriptions, идентификация строк, начальная синхронизация, apply workers, конфликтные изменения, logical replication slots, failover потребителей, CDC и диагностика.<br/>
+<strong>Уже известно:</strong> MVCC, WAL, LSN, COMMIT, physical streaming replication (10.0), promotion/fencing (10.1), транзакции и обычная диагностика. Их внутреннюю реализацию не повторяем.<br/>
+<strong>Принцип:</strong> сначала механизм → ограничение → конкурентная нагрузка → симптомы → измерения → инженерный вывод. SQL рассчитан на изолированный стенд PostgreSQL 18; destructive-команды и пропуск транзакций в production без расследования недопустимы.</p>
+</blockquote>
+<h2 id="0">0. Инцидент: база работает, но потребитель получает вчерашние заказы<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>У нас есть PostgreSQL, который хранит заказы. Второй сервис строит поисковую или аналитическую проекцию. Разработчики хотят получать изменения автоматически: «Мы же уже настроили репликацию — значит, другой сервер всегда будет видеть те же данные». Первую часть этой модели мы разобрали в 10.0. Физическая standby воспроизводит физическую историю кластера. Она хорошо подходит для реплики сервера, но мы хотим <strong>передавать лишь <code>orders</code>, причем без части чувствительных столбцов, на независимый экземпляр</strong>. Еще лучше — доставлять события об изменениях во внешнюю систему.</p>
+<p>Начинаем с двух PostgreSQL и одной таблицы. Переносим данные, выполняем INSERT, UPDATE, DELETE. Все работает. Затем на subscriber кто-то вручную добавляет запись с тем же первичным ключом. Apply worker останавливается. Publisher продолжает успешно подтверждать COMMIT, а на subscriber больше не приходят новые заказы. Позднее мы замечаем, что логический слот на publisher удерживает десятки гигабайт WAL.</p>
+<div class="highlight"><pre><span></span><code>      publisher (orders)                            subscriber (orders)
+  COMMIT OK → WAL → logical decoding → pgoutput → network → apply worker → local INSERT
+                         |                                            |
+                logical slot                                constraint violation
+                         |                                            |
+             удерживает нужный WAL                         применение остановилось
+                         |                                            |
+                pg_wal продолжает расти          новые COMMIT publisher не ждут subscriber
+</code></pre></div>
+<p>Наша задача — понять, <strong>какая именно часть системы остановилась</strong>, почему клиентский COMMIT на publisher продолжает успешно выполняться, что произойдет после исправления конфликта и какие гарантии мы на самом деле получили. Это новый класс инцидентов: копия данных отстает не из-за физического recovery, а из-за логической интерпретации и применения изменений.</p>
+<p>Три границы с самого начала:</p>
+<ol>
+<li><strong>Publisher COMMIT:</strong> транзакция завершилась на исходном сервере.</li>
+<li><strong>Decode/Delivery:</strong> ее изменения стали доступны в потоке и доставлены потребителю.</li>
+<li><strong>Apply/Downstream effect:</strong> изменения успешно применены целевым PostgreSQL либо обработаны внешним сервисом.</li>
+</ol>
+<p>Эти события разделены временем, сетью и независимыми ошибками. Наличие третьего этапа нельзя выводить только из успешного первого.</p>
+<hr/>
+<h1 id="i">I. От физической копии к логическим изменениям<a class="headerlink" href="#i" title="Permanent link">¶</a></h1>
+<h2 id="1-physical-vs-logical-replication">1. Physical vs Logical Replication: какую задачу решаем<a class="headerlink" href="#1-physical-vs-logical-replication" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Физическая реплика копирует состояние кластера<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>В 10.0 мы уже разобрали streaming replication: <code>walsender</code> передает WAL, standby сохраняет и воспроизводит его. Физическая копия рассчитана на совместимость состояния и истории PostgreSQL-кластера. Она не предназначена для того, чтобы без дополнительных механизмов выбрать три колонки одной таблицы и преобразовать их в события JSON для другого сервиса.</p>
+<p>Логическая репликация использует исходный WAL, но формирует <strong>поток операций над строками таблиц</strong>. Типичные операции: вставлена строка, изменена строка, удалена строка, очищена таблица. Одна подписка может выбирать конкретные таблицы и виды изменений. Источник и получатель становятся отдельными PostgreSQL-экземплярами с самостоятельными локальными файлами, индексами, настройками и — с важными ограничениями — схемами.</p>
+<table>
+<thead>
+<tr>
+<th>Вопрос</th>
+<th>Physical replication</th>
+<th>Logical replication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Единица передачи</td>
+<td>Физические изменения кластера через WAL</td>
+<td>Логические изменения опубликованных отношений</td>
+</tr>
+<tr>
+<td>Можно выбрать таблицы</td>
+<td>Нет в стандартной физической репликации</td>
+<td>Да, через publication</td>
+</tr>
+<tr>
+<td>Независимость физической организации</td>
+<td>Ограничена</td>
+<td>Выше; subscriber применяет свой DML</td>
+</tr>
+<tr>
+<td>Между разными major-версиями</td>
+<td>Как правило, нет</td>
+<td>Поддерживаются подходящие сочетания версий</td>
+</tr>
+<tr>
+<td>Пользовательская запись на получателе</td>
+<td>Физическая standby read-only</td>
+<td>Subscriber — обычный экземпляр, запись возможна, но создает риск конфликтов</td>
+</tr>
+<tr>
+<td>Автоматический перенос DDL/sequence state</td>
+<td>Физические изменения кластера реплицируются</td>
+<td>Нет: DDL и состояния sequences отдельно</td>
+</tr>
+<tr>
+<td>HA как drop-in standby</td>
+<td>Подходит при выполнении условий 10.1</td>
+<td>Не является автоматической заменой физической standby</td>
+</tr>
+</tbody>
+</table>
+<p>Распределение ответственности важно: <strong>publication описывает, что отправлять; subscription описывает, куда и как это получать; slot определяет позицию и удержание истории</strong>. Это разные объекты. Нельзя, например, считать, что <code>CREATE PUBLICATION</code> само начинает сетевую передачу изменений. Передача стартует после подключения consumer.</p>
+<h3 id="12-replication-event-bus">1.2. Почему replication ≠ event bus<a class="headerlink" href="#12-replication-event-bus" title="Permanent link">¶</a></h3>
+<p>В таблице <code>orders</code> могли произойти пять <code>UPDATE</code> внутри одной транзакции. Логическая репликация PostgreSQL передает изменения, необходимые для воспроизведения состояния, и сохраняет транзакционные границы соответствующего потока. Но это само по себе не означает, что любое изменение можно трактовать как самостоятельное бизнес-событие <code>OrderPaid</code>. Бизнес-смысл операции может быть распределен между несколькими таблицами, а формат сообщения может зависеть от <code>REPLICA IDENTITY</code> и выбранных колонок.</p>
+<p>Для CDC внешнему обработчику нужны собственные правила идентификации операции, обработки дубликатов и изменения схем. <strong>Изменение строки и событие бизнес-домена имеют разную семантику.</strong> В конце лекции мы вернемся к границе между CDC, outbox и downstream-идемпотентностью.</p>
+<h3 id="13">1.3. Где это применяется<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<ul>
+<li>Построение читаемой проекции на отдельной БД: поисковый индекс, аналитическая витрина, отдельная группа пользователей.</li>
+<li>Контролируемый перенос части таблиц между экземплярами или major-версиями PostgreSQL.</li>
+<li>CDC-соединитель, который читает логический поток и передает сообщения в Kafka/другое хранилище.</li>
+<li>Расщепление нагрузки на обработку данных: publisher обслуживает транзакционный контур; subscriber — свои запросы и индексы.</li>
+</ul>
+<p>Цена: decoding на источнике, дополнительное WAL-retention, CPU и I/O apply, сетевой трафик, риск несовместимости схем и необходимость мониторинга прогресса. [PG18-LOGICAL] [PG18-RESTRICTIONS]</p>
+<h2 id="2-publication-subscription">2. Publication и Subscription: собираем минимальную топологию<a class="headerlink" href="#2-publication-subscription" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Сначала таблица и набор опубликованных изменений<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>На <strong>publisher</strong> (в учебной базе <code>shop</code>) создаем таблицу:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">          </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">customer_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w">      </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w">      </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">private_note</span><span class="w"> </span><span class="nb">text</span>
+<span class="p">);</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="mi">1500</span><span class="p">.</span><span class="mi">00</span><span class="p">,</span><span class="w"> </span><span class="s1">'internal'</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="n">PUBLICATION</span><span class="w"> </span><span class="n">orders_publication</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">publish</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'insert, update, delete'</span><span class="p">);</span>
+</code></pre></div>
+<p>Это column list: <code>private_note</code> не входит в публикуемые данные. Поскольку publication содержит <code>UPDATE</code> и <code>DELETE</code>, перечисление должно включать колонки <code>REPLICA IDENTITY</code>; здесь достаточно <code>id</code>. Если списка колонок нет, новые обычные колонки также будут входить в публикацию автоматически. <strong>Column list нельзя считать надежной границей безопасности:</strong> с недоверенным subscriber нужно отдельно проектировать привилегии на publisher. [PG18-COLUMNS]</p>
+<p>Проверяем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pubname</span><span class="p">,</span><span class="w"> </span><span class="n">pubinsert</span><span class="p">,</span><span class="w"> </span><span class="n">pubupdate</span><span class="p">,</span><span class="w"> </span><span class="n">pubdelete</span><span class="p">,</span><span class="w"> </span><span class="n">pubtruncate</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_publication</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">pubname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders_publication'</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pubname</span><span class="p">,</span><span class="w"> </span><span class="n">schemaname</span><span class="p">,</span><span class="w"> </span><span class="n">tablename</span><span class="p">,</span><span class="w"> </span><span class="n">attnames</span><span class="p">,</span><span class="w"> </span><span class="n">rowfilter</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_publication_tables</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">pubname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders_publication'</span><span class="p">;</span>
+</code></pre></div>
+<p>Важная деталь: <code>publish</code> ограничивает поток последующих DML, но <strong>не отменяет начальное копирование существующих данных</strong>. Даже если publication публикует только INSERT, initial sync при <code>copy_data = true</code> копирует строки согласно соответствующим ограничениям выборки. [PG18-ARCH]</p>
+<h3 id="22-subscriber-apply">2.2. Создаем subscriber: от схемы до рабочего apply<a class="headerlink" href="#22-subscriber-apply" title="Permanent link">¶</a></h3>
+<p>На независимом <strong>subscriber</strong> сначала вручную создаем совместимую таблицу:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w">          </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">customer_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w">      </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w">      </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Схема <code>private_note</code> здесь не требуется, потому что мы не публикуем эту колонку. Далее для учебного стенда под заранее созданной административной ролью с нужными правами:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Выполнять отдельно, вне явного BEGIN ... COMMIT.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">SUBSCRIPTION</span><span class="w"> </span><span class="n">orders_subscription</span>
+<span class="k">CONNECTION</span><span class="w"> </span><span class="s1">'host=publisher port=5432 dbname=shop user=repl_user'</span>
+<span class="n">PUBLICATION</span><span class="w"> </span><span class="n">orders_publication</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">copy_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="n">streaming</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">parallel</span><span class="p">);</span>
+</code></pre></div>
+<p>Для подключения потребуются роль, пароль/аутентификация, настройки <code>pg_hba.conf</code>, <code>wal_level = logical</code>, слоты и workers. Секреты следует хранить в настройках окружения клиента или в защищенном конфигурационном хранилище, а не публиковать в учебной команде с настоящим паролем. В современной эксплуатации также задают TLS и проверку сервера. <code>CREATE SUBSCRIPTION</code> в типичном сценарии подключается к publisher и создает там slot; в зависимости от прав PostgreSQL 18 использует роль с привилегией <code>pg_create_subscription</code>, доступ к базе и разрешения для чтения опубликованных таблиц. [PG18-SUBSCRIBE] [PG18-CONFIG]</p>
+<p>В PostgreSQL 18 параметр <code>streaming</code> <strong>по умолчанию равен <code>parallel</code></strong>. Пишем его явно, чтобы студенты видели выбор. Это streaming еще не зафиксированных больших транзакций, а не общий факт «логическая репликация работает потоком». До версии 18 значение по умолчанию отличалось. [PG18-RELEASE]</p>
+<p>Проверяем на subscriber:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">worker_type</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">received_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">latest_end_lsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_subscription</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">subname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders_subscription'</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">srrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">       </span><span class="n">srsubstate</span><span class="p">,</span><span class="w"> </span><span class="n">srsublsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_subscription_rel</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">relation</span><span class="p">::</span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Статусы <code>pg_subscription_rel</code>: <code>i</code> — initialize, <code>d</code> — copying, <code>f</code> — copy finished, <code>s</code> — synchronized, <code>r</code> — ready. Отсутствие строк в <code>pg_stat_subscription</code> может означать, что worker не работает, а не что вся репликация закончилась и больше не нужна. [PG18-SUBREL]</p>
+<h3 id="23-row-filters-columns">2.3. Row filters и columns: куда может неожиданно исчезнуть строка<a class="headerlink" href="#23-row-filters-columns" title="Permanent link">¶</a></h3>
+<p>Предположим, нужны только оплаченные заказы:</p>
+<p>При публикации UPDATE/DELETE фильтр ограничен колонками replica identity. В нашей таблице <code>status</code> не входит в <code>REPLICA IDENTITY</code>, поэтому публикация с фильтром по <code>status</code> и стандартным набором операций <strong>не подойдет</strong>. Для примера выберем только INSERT:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">PUBLICATION</span><span class="w"> </span><span class="n">paid_orders</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'paid'</span><span class="p">)</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">publish</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'insert'</span><span class="p">);</span>
+</code></pre></div>
+<p>Если UPDATE меняет строку так, что она пересекает границу допустимого фильтра, PostgreSQL может представить изменение как вставку или удаление с точки зрения публикации. Для UPDATE/DELETE фильтр должен удовлетворять ограничениям на replica identity и выражения. Это причина, почему «фильтр — просто WHERE над готовыми событиями» — опасная модель. В самом протоколе необходимо сохранить корректность состояния получателя. [PG18-ROWFILTER]</p>
+<h3 id="24-subscriber">2.4. Что приходит на subscriber<a class="headerlink" href="#24-subscriber" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На publisher</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'paid'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="mi">700</span><span class="p">.</span><span class="mi">00</span><span class="p">,</span><span class="w"> </span><span class="s1">'sensitive'</span><span class="p">);</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+
+<span class="c1">-- На subscriber после применения изменений</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>Данные появятся <strong>асинхронно относительно обычного COMMIT publisher</strong> (если не настроена отдельная синхронная политика). Один успешный SELECT с subscriber не является доказательством синхронной фиксации всех будущих изменений. Сопоставляем момент COMMIT на publisher, поступление и подтверждение apply на subscriber.</p>
+<p><strong>Модель раздела:</strong> публикация определяет состав потока, подписка создает потребителя, а примененные строки существуют в собственной локальной базе subscriber. [PG18-PUB] [PG18-SUBSCRIBE]</p>
+<h2 id="3-logical-decoding-wal">3. Logical Decoding: как физический WAL становится изменениями строк<a class="headerlink" href="#3-logical-decoding-wal" title="Permanent link">¶</a></h2>
+<h3 id="31-wal">3.1. В WAL лежат записи другого уровня абстракции<a class="headerlink" href="#31-wal" title="Permanent link">¶</a></h3>
+<p>В блоке 7 мы разбирали WAL record и Resource Manager. Логическому потребителю неинтересны raw page offsets и free space. Ему нужны таблица, идентичность строки, новые значения и границы транзакции. Поэтому нужен механизм преобразования — <strong>logical decoding</strong>.</p>
+<p>Упрощенный путь конкретного SQL:</p>
+<div class="highlight"><pre><span></span><code>UPDATE orders SET status='paid' WHERE id=1
+    │
+    ▼
+PostgreSQL storage changes + WAL (wal_level=logical)
+    │
+    ▼
+logical decoding context читает WAL конкретной database
+    │
+    ▼
+reorder / transaction-aware processing
+    │
+    ▼
+output plugin pgoutput
+    │
+    ▼
+BEGIN → Relation metadata → UPDATE → COMMIT
+    │
+    ▼
+logical walsender → replication connection → subscriber
+</code></pre></div>
+<p>Это <strong>учебная схема</strong>, а не утверждение, что каждая стадия выполняется отдельным процессом. <code>walsender</code> вызывает decoding и output plugin; изменения формируются как сообщения выбранного протокола. Для встроенной подписки PostgreSQL используется <code>pgoutput</code>. [PG18-ARCH] [PG18-DECODING]</p>
+<h3 id="32-update">3.2. Почему одного <code>UPDATE</code> недостаточно<a class="headerlink" href="#32-update" title="Permanent link">¶</a></h3>
+<p>Возьмем транзакцию, которая сначала обновила заказ, затем изменила платеж и только потом зафиксировалась:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'paid'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">payments</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'captured'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>До COMMIT нельзя объявить эти изменения окончательными. Транзакция могла откатиться. Кроме того, изменения разных параллельных транзакций в WAL могут перемежаться. <strong>Logical decoding должен собирать осмысленные транзакционные изменения и выдавать их с учетом результата транзакций.</strong> Именно поэтому в реализации есть буферизация/упорядочение изменений; если изменений слишком много, буферы перестают быть бесплатными.</p>
+<p>Понятие <code>ReorderBuffer</code> здесь вводим как внутренний механизм организации изменений по транзакциям, <strong>без подробного разбора его C-структур</strong>. Важно лишь следствие: большие транзакции способны вызывать рост памяти, spill на диск и рост задержки доставки. Управляет порогом <code>logical_decoding_work_mem</code>; соответствующие счетчики доступны в <code>pg_stat_replication_slots</code>. При разрешенном streaming часть изменений больших еще не завершенных транзакций может передаваться до COMMIT и применяться/материализоваться согласно режиму подписки. [PG18-DECODING] [PG18-STATS]</p>
+<h3 id="33-sql-">3.3. Названия сообщений — не SQL-команды<a class="headerlink" href="#33-sql-" title="Permanent link">¶</a></h3>
+<p>Протокол logical replication использует типы сообщений вроде <code>Begin</code>, <code>Relation</code>, <code>Insert</code>, <code>Update</code>, <code>Delete</code>, <code>Commit</code>, а для больших транзакций предусмотрены сообщения streaming. <code>Relation</code> передает описание отношения, необходимое получателю для интерпретации данных; оно не означает <code>CREATE TABLE</code>. Сообщения UPDATE включают доступную старую идентичность и новую tuple в зависимости от replica identity, а не обязательно две полные копии строки.</p>
+<p>В презентации стоит показать сообщения <strong>как смысловой поток</strong>, не углубляясь в побайтовую раскладку wire protocol — отдельный разбор <code>Parse/Bind/Execute</code> мы сознательно не включали в программу.</p>
+<h3 id="34-output-plugin">3.4. Output plugin и граница расширяемости<a class="headerlink" href="#34-output-plugin" title="Permanent link">¶</a></h3>
+<p><code>pgoutput</code> — встроенный output plugin для PostgreSQL logical replication. Для внешнего CDC можно применять другой совместимый output plugin или протокол, который понимает connector. <code>test_decoding</code> поставляется как пример для демонстрации, но его доступность/установка зависит от сборки PostgreSQL и набора расширений.</p>
+<p>В изолированном стенде можно увидеть результат:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На отдельном учебном publisher с подходящими правами.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_create_logical_replication_slot</span><span class="p">(</span><span class="s1">'demo_decode'</span><span class="p">,</span><span class="w"> </span><span class="s1">'test_decoding'</span><span class="p">);</span>
+
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">777</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">.</span><span class="mi">00</span><span class="p">);</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">lsn</span><span class="p">,</span><span class="w"> </span><span class="n">xid</span><span class="p">,</span><span class="w"> </span><span class="k">data</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_logical_slot_get_changes</span><span class="p">(</span><span class="s1">'demo_decode'</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">);</span>
+
+<span class="c1">-- После эксперимента удалить слот, если он больше не нужен.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_drop_replication_slot</span><span class="p">(</span><span class="s1">'demo_decode'</span><span class="p">);</span>
+</code></pre></div>
+<p>Эти функции для проверки декодирования, а не способ автоматического создания встроенной подписки. <code>get_changes</code> продвигает состояние потребителя; <code>peek_changes</code> позволяет посмотреть, не подтверждая потребление тем же способом. Не создавайте бесконтрольно долгоживущие учебные слоты: они удерживают ресурсы. [PG18-SQL-DECODING]</p>
+<h3 id="35">3.5. Цена под нагрузкой<a class="headerlink" href="#35" title="Permanent link">¶</a></h3>
+<p>Предположим, система генерирует 25 МБ/с WAL, а декодер может устойчиво обработать изменения, соответствующие лишь 18 МБ/с WAL. При неизменных условиях долг растет примерно на 7 МБ/с. За час накопится <strong>около 25,2 ГБ разницы позиций</strong>. Это расчет по потоку WAL-байтов, а не обещание такого же объема логических сообщений.</p>
+<p>На практике объем WAL включает изменения, не превращающиеся в опубликованные строки; скорость decoding не обязана быть прямо пропорциональна сетевому payload. Поэтому измеряем <strong>раздельно</strong> WAL retention, скорость обработки, число spill и сетевую передачу.</p>
+<p><strong>Инженерный вывод:</strong> logical decoding не устраняет стоимость WAL. Он добавляет новый CPU/I/O-конвейер поверх уже работающей БД и требует независимого управления задержками. [PG18-DECODING] [PG18-STATS]</p>
+<hr/>
+<h1 id="ii-subscriber">II. Как subscriber находит строки и догоняет начальные данные<a class="headerlink" href="#ii-subscriber" title="Permanent link">¶</a></h1>
+<h2 id="4-replica-identity-update-delete">4. <code>REPLICA IDENTITY</code>: как определить строку для UPDATE и DELETE<a class="headerlink" href="#4-replica-identity-update-delete" title="Permanent link">¶</a></h2>
+<h3 id="41-publisher-ctid-subscriber">4.1. На publisher известен старый CTID. Subscriber о нем не знает<a class="headerlink" href="#41-publisher-ctid-subscriber" title="Permanent link">¶</a></h3>
+<p>Представим UPDATE заказа. На publisher он изменил конкретную heap-версию; у subscriber другой heap-файл, другие страницы и другой <code>ctid</code>. Значит, передать физический адрес невозможно: эта величина не имеет смысла на другом экземпляре. Нам нужен <strong>логический ключ</strong>, по которому subscriber найдет соответствующую строку у себя.</p>
+<p>По умолчанию PostgreSQL использует PRIMARY KEY. Поэтому <code>orders(id bigint PRIMARY KEY)</code> — удачный сценарий: операция для <code>id = 42</code> может быть найдена на subscriber по этому значению. Но что, если PK нет? Для INSERT новой строки ситуация проще: достаточно передать новые значения. Для UPDATE и DELETE необходимо определить, какую существующую строку менять или удалять.</p>
+<h3 id="42-replica-identity">4.2. Режимы replica identity<a class="headerlink" href="#42-replica-identity" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">REPLICA</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">DEFAULT</span><span class="p">;</span>
+<span class="c1">-- При необходимости подходящий уникальный индекс:</span>
+<span class="c1">-- ALTER TABLE orders REPLICA IDENTITY USING INDEX orders_identity_idx;</span>
+
+<span class="c1">-- Диагностика:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relreplident</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_indexdef</span><span class="p">(</span><span class="n">idx</span><span class="p">.</span><span class="n">relreplidentindex</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">LATERAL</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indexrelid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relreplidentindex</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_index</span><span class="w"> </span><span class="n">i</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indisreplident</span>
+<span class="w">    </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">1</span>
+<span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">true</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'public.orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Режим</th>
+<th>Как определяется существующая строка</th>
+<th>Практическая цена</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DEFAULT</code></td>
+<td>PRIMARY KEY, если он есть</td>
+<td>Обычно лучший базовый вариант</td>
+</tr>
+<tr>
+<td><code>USING INDEX</code></td>
+<td>Указанный подходящий уникальный индекс</td>
+<td>Требует соблюдения условий к индексу</td>
+</tr>
+<tr>
+<td><code>FULL</code></td>
+<td>Старая строка используется как идентичность</td>
+<td>Больше данных в сообщениях и потенциально дорогой поиск на получателе</td>
+</tr>
+<tr>
+<td><code>NOTHING</code></td>
+<td>Старая идентичность не передается</td>
+<td>UPDATE/DELETE в обычной публикации недоступны без подходящего режима</td>
+</tr>
+</tbody>
+</table>
+<p>Для <code>USING INDEX</code> индекс должен отвечать требованиям PostgreSQL к уникальности, составу и допустимости колонок. Он должен быть уникальным и пригодным для идентификации всех строк; нельзя произвольно назначить частичный индекс, из которого часть строк исключена. Режим <code>FULL</code> удобен как аварийный обход отсутствия ключа, но тяжелее: передача старых значений, дорогое сравнение, возможная несовместимость типов без подходящих B-tree/Hash operator classes. [PG18-REPLICA-ID]</p>
+<h3 id="43-update">4.3. Почему UPDATE может «пройти», но не изменить ничего<a class="headerlink" href="#43-update" title="Permanent link">¶</a></h3>
+<p>На publisher существует <code>orders(id=42)</code>. На subscriber эту строку вручную удалили. Следующее изменение publisher передается как UPDATE ключа 42. Subscriber ищет строку, не находит и <strong>в PostgreSQL 18 пропускает операцию с логируемым конфликтом <code>update_missing</code></strong>. Это принципиально отличается от конфликта уникальности, который вызывает ошибку и остановку apply. Аналогично <code>delete_missing</code> может просто пропускаться. Следовательно, «apply worker жив, ошибок нет» не доказывает, что все строки идентичны. [PG18-CONFLICTS]</p>
+<div class="highlight"><pre><span></span><code>publisher: UPDATE id=42 → status='paid'
+subscriber: SELECT id=42 → 0 rows
+               │
+               ▼
+       update_missing: операция пропущена
+               │
+               ▼
+      конвейер продолжил обработку
+</code></pre></div>
+<p>Именно для таких случаев PostgreSQL 18 добавил полезные счетчики конфликтов. Необходимо сравнивать <strong>состояние данных</strong> и <strong>прогресс применения</strong>, а не ограничиваться вопросом «подключен ли subscriber».</p>
+<h3 id="44-primary-key">4.4. Изменение primary key и фильтры<a class="headerlink" href="#44-primary-key" title="Permanent link">¶</a></h3>
+<p>Если операция изменяет ключ, получателю может потребоваться старая identity для поиска и новая tuple для записи. Это отличается от UPDATE только неключевого поля. С ограничениями row filter возникают преобразования события: строка входит в фильтр — INSERT с точки зрения подписки; выходит — DELETE. Поэтому фильтрацию надо проверять на трех переходах: <code>false→true</code>, <code>true→true</code>, <code>true→false</code>, включая кейсы обновления identity и измененных колонок.</p>
+<p>Если публикация включает <code>UPDATE</code>/<code>DELETE</code>, <strong>column list должна содержать replica identity columns</strong>, а row filter ограничен ими по правилам PostgreSQL 18. Для одного только INSERT эти ограничения мягче. Это эксплуатационный риск миграций схемы: изменив PK или публикацию, мы можем внезапно сделать предыдущий CDC-контракт некорректным. [PG18-PUB]</p>
+<h3 id="45">4.5. Цена выбора идентичности под нагрузкой<a class="headerlink" href="#45" title="Permanent link">¶</a></h3>
+<p>Предположим, каждая из 10 000 операций UPDATE/s требует на subscriber найти соответствующую строку. С правильным уникальным ключом и индексом поиск обычно дешевле, чем без него. При <code>FULL</code>, широких строках и неподходящих типах придется передавать и сравнивать существенно больше данных. Но даже хорошая identity не гарантирует высокий throughput: subscriber одновременно поддерживает собственные индексы, ограничения и локальные транзакции.</p>
+<p><strong>Инженерный вывод:</strong> replica identity — часть интерфейса репликации. При проектировании исходной таблицы нужно одновременно проектировать ключ для downstream-поиска. Он определяет корректность и стоимость UPDATE/DELETE.</p>
+<h2 id="5-initial-snapshot">5. Initial Snapshot: как не потерять изменения во время копирования таблицы<a class="headerlink" href="#5-initial-snapshot" title="Permanent link">¶</a></h2>
+<h3 id="51-publisher">5.1. На publisher сто миллионов строк<a class="headerlink" href="#51-publisher" title="Permanent link">¶</a></h3>
+<p>На новом subscriber таблица пуста. Если просто начать читать последующие события, у нас не будет старых заказов. Значит, сначала нужен полный снимок. Очевидная идея: сделать <code>SELECT *</code>, скопировать миллионы строк, а затем подключиться к потоку. Но за время копирования исходная таблица уже изменилась. Где взять операции, которые произошли между снимком и включением репликации?</p>
+<p>Правильная модель — <strong>согласованная граница снимка и накопление изменений после нее</strong>. Начальная копия и непрерывный поток должны быть связаны позициями логической истории. Для встроенной подписки PostgreSQL реализует специальный протокол синхронизации таблиц и временные table-sync slots. [PG18-ARCH]</p>
+<h3 id="52-workers">5.2. Как устроены workers<a class="headerlink" href="#52-workers" title="Permanent link">¶</a></h3>
+<p>У обычной subscription есть leader apply worker. При первоначальном копировании создаются table synchronization workers. Каждый такой worker делает снимок своей таблицы, получает существующие строки и использует собственный slot, чтобы не потерять изменения, которые происходят одновременно с копированием. Затем он догоняет изменения и передает управление обычному apply.</p>
+<div class="highlight"><pre><span></span><code>publisher                                  subscriber
+---------                                  ----------
+T0  snapshot boundary                    table sync worker for orders
+ |  copy existing rows ----------------→  COPY into orders
+ |  UPDATE, INSERT ----------------------  (пока исходная таблица меняется)
+ |  WAL after boundary ─── slots ──────→ catch-up for orders
+ |                                       table becomes synchronized
+ |                                       main apply owns ongoing stream
+</code></pre></div>
+<p>У разных таблиц initial sync может выполняться с разными рабочими процессами и временными состояниями. Поэтому репликация одной таблицы может быть готова, а другая еще копируется. Не следует считать всю подписку «догнанной» по одной строке <code>pg_stat_subscription</code>.</p>
+<h3 id="53-pg_subscription_rel">5.3. Статусы <code>pg_subscription_rel</code><a class="headerlink" href="#53-pg_subscription_rel" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">s</span><span class="p">.</span><span class="n">subname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srsubstate</span><span class="p">,</span>
+<span class="w">    </span><span class="k">CASE</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">srsubstate</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'i'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'initialize'</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'d'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'copying'</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'f'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'copy finished'</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'s'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'synchronized'</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="s1">'r'</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'ready'</span>
+<span class="w">        </span><span class="k">ELSE</span><span class="w"> </span><span class="s1">'unknown'</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">stage</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srsublsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_subscription_rel</span><span class="w"> </span><span class="n">r</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_subscription</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">srsubid</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">srrelid</span><span class="p">::</span><span class="n">regclass</span><span class="p">::</span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Только <code>r</code> означает нормальное участие отношения в ongoing replication. <code>f</code> не равняется «полностью готово»: копия закончилась, но еще нужно согласовать догоняющие изменения. Это удобная модель для диагностики замедленной инициализации. [PG18-SUBREL]</p>
+<h3 id="54">5.4. Параллелизм копирования — ограниченный ресурс<a class="headerlink" href="#54" title="Permanent link">¶</a></h3>
+<p>В publisher и subscriber имеются лимиты репликационных процессов и слотов. При сотне таблиц нельзя автоматически считать, что PostgreSQL одновременно создаст сотню независимых синхронизаций. <code>max_sync_workers_per_subscription</code>, <code>max_logical_replication_workers</code>, <code>max_worker_processes</code> и ресурсы сети/диска создают потолок. Кроме того, каждая table sync может удерживать дополнительные WAL через свой слот.</p>
+<p>Допустим, копирование 500 ГБ идет со скоростью 100 МБ/с. Только перенос полезных данных при идеальных условиях займет примерно 5000 секунд, то есть около 83 минут (для десятичного ГБ/МБ), без учета индексов, сети, блокировок, повторов и догоняющего WAL. Если publisher генерирует 40 МБ/с новых WAL, за этот период добавится около 200 ГБ истории, которую нужно корректно удержать и обработать. Числа иллюстративные, фактический объем нужного WAL зависит от других операций и горизонта слота.</p>
+<h3 id="55-refresh-publication">5.5. <code>REFRESH PUBLICATION</code> — когда добавили новую таблицу<a class="headerlink" href="#55-refresh-publication" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На publisher:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="n">PUBLICATION</span><span class="w"> </span><span class="n">orders_publication</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">order_items</span><span class="p">;</span>
+
+<span class="c1">-- На subscriber таблица order_items должна уже существовать:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="n">SUBSCRIPTION</span><span class="w"> </span><span class="n">orders_subscription</span><span class="w"> </span><span class="n">REFRESH</span><span class="w"> </span><span class="n">PUBLICATION</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">copy_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+</code></pre></div>
+<p>Вторую команду выполняют вне явной транзакции. Она включает новые таблицы в отслеживаемый набор и по умолчанию инициирует initial copy. <strong>Но уже подписанные таблицы не копируются повторно только потому, что у них поменялся row filter.</strong> Это важно при изменении набора опубликованных строк: иногда нужна отдельная стратегия согласования исторических данных. [PG18-ALTERSUB]</p>
+<h3 id="56">5.6. Что происходит при ошибке копирования<a class="headerlink" href="#56" title="Permanent link">¶</a></h3>
+<p>Временная ошибка table synchronization может привести к повторному запуску worker; при ошибке в схеме или правах копирование будет повторно терпеть неудачу до исправления причины. Нельзя лечить это слепым <code>DROP SUBSCRIPTION</code> и созданием заново: можно получить повторную начальную загрузку, конфликтующие строки и старые slots на publisher.</p>
+<p><strong>Инженерный вывод:</strong> initial snapshot — полноценный этап миграции данных со своим throughput, временными слотами и контролем полноты. «Создали subscription» не означает «подписка уже готова для чтения».</p>
+<h2 id="6-apply-workers">6. Порядок транзакций, apply workers и большие транзакции<a class="headerlink" href="#6-apply-workers" title="Permanent link">¶</a></h2>
+<h3 id="61-subscriber">6.1. Зачем subscriber собственные транзакции<a class="headerlink" href="#61-subscriber" title="Permanent link">¶</a></h3>
+<p>При получении логического потока apply worker отображает исходные таблицы на локальные отношения и применяет DML в локальных PostgreSQL-транзакциях. Для одной subscription PostgreSQL сохраняет необходимый транзакционный порядок. Это не означает глобальный сериализованный порядок между двумя <strong>разными</strong> subscription, независимо пишущими в одну таблицу.</p>
+<div class="highlight"><pre><span></span><code>publisher:  T100 = INSERT order 10   → COMMIT
+            T101 = UPDATE order 10   → COMMIT
+subscriber: apply T100             → COMMIT
+            apply T101             → COMMIT
+</code></pre></div>
+<p>Если два subscriber workers от разных подписок будут одновременно менять одну и ту же строку, порядок их изменений уже требует отдельного анализа конфликтов. Автоматическая многоисточниковая консистентность из этого не возникает.</p>
+<h3 id="62">6.2. Что происходит с большим незавершенным изменением<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p>Представим одну транзакцию, которая обновляет 5 миллионов строк и фиксируется только спустя 20 минут. До ее COMMIT потребителю нельзя объявить результат окончательно примененным. Но удержание всех декодированных изменений до COMMIT тоже дорого. Поэтому PostgreSQL поддерживает <strong>streaming in-progress transactions</strong>.</p>
+<p>Для <code>CREATE SUBSCRIPTION</code> PostgreSQL 18:</p>
+<table>
+<thead>
+<tr>
+<th><code>streaming</code></th>
+<th>Что происходит с большой незавершенной транзакцией</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>На publisher транзакция полностью декодируется до отправки подписчику</td>
+</tr>
+<tr>
+<td><code>on</code></td>
+<td>Изменения до COMMIT принимаются и временно сохраняются на subscriber; после COMMIT применяются</td>
+</tr>
+<tr>
+<td><code>parallel</code></td>
+<td>Изменения могут непосредственно применяться parallel apply worker в еще не зафиксированной локальной транзакции; при отсутствии свободного worker используется временная материализация</td>
+</tr>
+</tbody>
+</table>
+<p>В 18-й версии default — <code>parallel</code>. Это не значит «у каждой транзакции всегда собственный поток». Число workers ограничено, а большая транзакция может вызвать ожидания, spill и локальные конфликты. [PG18-SUBSCRIBE] [PG18-RELEASE]</p>
+<h3 id="63-decoding">6.3. Чем измерять стоимость decoding<a class="headerlink" href="#63-decoding" title="Permanent link">¶</a></h3>
+<p>На publisher:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">slot_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">spill_txns</span><span class="p">,</span>
+<span class="w">    </span><span class="n">spill_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">spill_bytes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">spill_bytes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stream_txns</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stream_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">stream_bytes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">stream_bytes</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication_slots</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">slot_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь <code>spill_bytes</code> — реальная работа с диском при декодировании. <code>stream_bytes</code> относится к логическому streaming изменений и не является универсальным измерителем всей сетевой нагрузки. Обычную latency INSERT/UPDATE и скорость декодирования нельзя заменить одной метрикой <code>max_logical_replication_workers</code>.</p>
+<h3 id="64-synchronous_commit-off-apply-worker">6.4. Почему <code>synchronous_commit = off</code> у apply worker допустим в обычном режиме<a class="headerlink" href="#64-synchronous_commit-off-apply-worker" title="Permanent link">¶</a></h3>
+<p>Подписка в PostgreSQL может иметь отдельный параметр <code>synchronous_commit</code>, который по умолчанию обычно <code>off</code>. При обычной асинхронной logical replication подтверждение прогресса и репликационный механизм позволяют повторно прислать изменения после определенных сбоев. Но если publisher использует <strong>синхронную</strong> логическую репликацию и ждет удаленного durable flush, настраивать subscriber следует иначе: низкий локальный уровень синхронизации влияет на момент обратной связи и общую задержку. [PG18-SUBSCRIBE]</p>
+<p>Не переносим сюда все режимы физической синхронной репликации из 10.0: нам нужен только инженерный вывод — подтвержденная позиция и локальная устойчивость apply должны соответствовать требуемой гарантии.</p>
+<h3 id="65-sql-workers">6.5. SQL-проверка состояния workers<a class="headerlink" href="#65-sql-workers" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">worker_type</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">leader_pid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">received_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">latest_end_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">last_msg_send_time</span><span class="p">,</span><span class="w"> </span><span class="n">last_msg_receipt_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_subscription</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">worker_type</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">;</span>
+</code></pre></div>
+<p>Для <code>parallel apply</code> некоторые поля позиции/сообщений <code>NULL</code>: leader worker остается основным источником данных о приеме. Само по себе наличие нескольких параллельных работников не означает, что поток быстрее: CPU, индексы, уникальность, конфликтующие строки и диск subscriber могут оказаться ограничивающим ресурсом.</p>
+<p><strong>Инженерный вывод:</strong> в logical replication появляются два независимых вида очереди — декодирование/отправка на publisher и применение на subscriber. Под нагрузкой нужно находить конкретную границу, где скорость ниже входного потока.</p>
+<h2 id="7">7. Ограничения: почему одинаковые строки не означают одинаковую базу<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<h3 id="71-ddl">7.1. DDL не переносится<a class="headerlink" href="#71-ddl" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Publisher:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">currency</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Колонка появилась на источнике, но subscriber не получил такой DDL. Если новая колонка включена в publication и очередное логическое сообщение требует от получателя принимать ее, apply может остановиться из-за несовместимой схемы. Встроенная logical replication не синхронизирует миграции.</p>
+<p>Практическое правило: для расширяющих изменений схемы сначала готовим subscriber, затем publisher и новую запись, после чего контролируем статус apply. Для удаления колонок последовательность может отличаться; совместимость нужно проверять для конкретного контракта. Это применение уже изученной схемы Expand/Migrate/Contract, без повторения блока 9. [PG18-RESTRICTIONS]</p>
+<h3 id="72-sequences">7.2. Состояние sequences не реплицируется<a class="headerlink" href="#72-sequences" title="Permanent link">¶</a></h3>
+<p>Если <code>id</code> генерируется через <code>GENERATED BY DEFAULT AS IDENTITY</code> или <code>serial</code>, значение <code>id</code>, попавшее в row data, передается. Но <strong>внутреннее состояние sequence</strong> на subscriber не обязательно соответствует источнику. Если сделать subscriber writable и начать генерировать идентификаторы, можно получить конфликт уникальности.</p>
+<p>После переключения роли или независимого запуска записи нужно отдельно корректно установить sequence values по выбранной политике. Logical replication сама по себе не является готовым механизмом смены primary.</p>
+<h3 id="73">7.3. Объекты и локальная семантика<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<ul>
+<li>Large Objects не реплицируются встроенным механизмом как обычные строки; значения <code>bytea</code> внутри нормальных таблиц — отдельный случай.</li>
+<li>Views, materialized views, foreign tables и unlogged tables не могут просто быть опубликованы как обычные persistent base tables.</li>
+<li>Триггеры на subscriber в обычном apply-контексте по умолчанию ведут себя иначе из-за <code>session_replication_role = replica</code>; специальные настройки могут изменить поведение. Для initial COPY также существуют отличия.</li>
+<li>Внешние ключи и другие ограничения на subscriber могут остановить применение, если нужные зависимые строки отсутствуют из-за выбранного набора таблиц.</li>
+<li>Партиционированные таблицы имеют вариант <code>publish_via_partition_root</code>, который меняет identity/schema публикации изменений.</li>
+</ul>
+<p>Каждая особенность — конкретная граница обещания «получатель полностью идентичен источнику». [PG18-ARCH] [PG18-RESTRICTIONS]</p>
+<h3 id="74-postgresql-18-generated-columns">7.4. PostgreSQL 18: сохраненные generated columns<a class="headerlink" href="#74-postgresql-18-generated-columns" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">order_totals</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">price</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">qty</span><span class="w"> </span><span class="nb">integer</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span><span class="n">price</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">qty</span><span class="p">)</span><span class="w"> </span><span class="n">STORED</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="n">PUBLICATION</span><span class="w"> </span><span class="n">totals_pub</span><span class="w"> </span><span class="k">FOR</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">order_totals</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">publish_generated_columns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stored</span><span class="p">);</span>
+</code></pre></div>
+<p>В PostgreSQL 18 publication может публиковать значения <strong>STORED generated columns</strong> при явном выборе <code>publish_generated_columns = stored</code>, либо при явном включении этих колонок в column list. По умолчанию значение <code>none</code>, то есть автоматически такие значения не публикуются. При несовпадающих major-версиях initial sync generated columns требует дополнительной проверки совместимости. [PG18-PUB] [PG18-RELEASE]</p>
+<h3 id="75">7.5. Ограничения как стоимость эксплуатации<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<p>Обычное приложение меняет схему, а сервис CDC перестает обновляться спустя минуту. На publisher SQL продолжает работать: локально ошибка отсутствует. Только потребитель и мониторинг покажут проблему. Поэтому изменения схемы базы должны проверять <strong>контракт репликации</strong>: publication, replica identity, подписчики, схемы назначения, sequence state, права и нагрузку на apply.</p>
+<p><strong>Инженерный вывод:</strong> логическая реплика — самостоятельная база с собственными ограничениями и жизненным циклом. Она не обязана автоматически совпадать с источником во всем, что находится вне опубликованных изменений.</p>
+<hr/>
+<h1 id="iii">III. Когда логическая репликация перестает соответствовать источнику<a class="headerlink" href="#iii" title="Permanent link">¶</a></h1>
+<h2 id="8-replication-conflicts-sql">8. Replication Conflicts: один SQL завершился, другой завис навсегда<a class="headerlink" href="#8-replication-conflicts-sql" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Создаем конфликт уникальности<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>У нас есть subscriber, который принимает изменения publisher. Несмотря на роль получателя, это полноценная PostgreSQL-база. Если администратор или стороннее приложение вручную изменяет опубликованные строки, появляется второй источник записи.</p>
+<p><strong>Эксперимент на отдельном стенде (специально создаем дефект):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На subscriber, после завершения initial sync:</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">900</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s1">'local-only'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+
+<span class="c1">-- На publisher:</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">orders</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">900</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">);</span>
+</code></pre></div>
+<p>Publisher успешно выполняет локальный INSERT. Subscriber получает логическое изменение и пытается вставить строку с <code>id = 900</code>. Там уже существует <code>id = 900</code>, поэтому уникальный индекс отвергает изменение. <strong>Apply worker сообщает об ошибке, применение этого потока перестает продвигаться до разрешения проблемы.</strong> Publisher при этом может продолжать фиксировать транзакции. Это классическое расхождение между доступностью источника и готовностью реплики. [PG18-CONFLICTS]</p>
+<h3 id="82-postgresql-18">8.2. В PostgreSQL 18 есть несколько разных классов конфликтов<a class="headerlink" href="#82-postgresql-18" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Тип</th>
+<th>Ситуация</th>
+<th>Типичная реакция</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insert_exists</code></td>
+<td>INSERT нарушил уникальность</td>
+<td>Ошибка apply, требуется устранение</td>
+</tr>
+<tr>
+<td><code>update_exists</code></td>
+<td>Новый вариант UPDATE конфликтует с уникальным ключом</td>
+<td>Ошибка apply</td>
+</tr>
+<tr>
+<td><code>multiple_unique_conflicts</code></td>
+<td>Сработало несколько уникальных ограничений</td>
+<td>Ошибка apply</td>
+</tr>
+<tr>
+<td><code>update_missing</code></td>
+<td>Целевой UPDATE не нашел строку</td>
+<td>Операция пропускается, факт логируется</td>
+</tr>
+<tr>
+<td><code>delete_missing</code></td>
+<td>Целевой DELETE не нашел строку</td>
+<td>Операция пропускается, факт логируется</td>
+</tr>
+<tr>
+<td><code>update_origin_differs</code></td>
+<td>Предыдущий автор строки отличается</td>
+<td>Обнаруживается с <code>track_commit_timestamp</code>; UPDATE применяется</td>
+</tr>
+<tr>
+<td><code>delete_origin_differs</code></td>
+<td>Аналогично для DELETE</td>
+<td>Обнаруживается с <code>track_commit_timestamp</code>; DELETE применяется</td>
+</tr>
+</tbody>
+</table>
+<p>Это не просто названия в учебнике. <strong>Отсутствующая строка не обязана останавливать logical replication.</strong> После <code>update_missing</code> поток может продолжать прогрессировать, а данные останутся несовпадающими. Счетчики конфликтов PostgreSQL 18 нужны именно потому, что «нет ошибок apply» больше не означает «нет признаков расхождения». [PG18-CONFLICTS]</p>
+<h3 id="83-transaction-lsn">8.3. При ошибке нужен исходный transaction LSN<a class="headerlink" href="#83-transaction-lsn" title="Permanent link">¶</a></h3>
+<p>Найдем проблемы через журналы subscriber и статистику:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">subname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">apply_error_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sync_error_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_insert_exists</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_update_exists</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_update_missing</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_delete_missing</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_update_origin_differs</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_delete_origin_differs</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_subscription_stats</span><span class="p">;</span>
+</code></pre></div>
+<p>Счетчики агрегированы за период наблюдения. Для точной первопричины анализируем <strong>логи apply worker</strong>, relation, ключ конфликтующей строки, transaction finish LSN, схему/права и момент последнего успешного применения. Для <code>track_commit_timestamp</code> нужны соответствующие настройки, а отображение полного значения строки может зависеть от прав; часть значений в логе ограничивается по размеру.</p>
+<p>У ошибки есть несколько возможных решений: исправить данные на subscriber, исправить схему/права, согласовать фильтр и ключ, в некоторых случаях пересоздать согласованное состояние конкретной таблицы. Пропуск транзакции — последнее средство: он намеренно создает дырку в истории потребителя.</p>
+<h3 id="84-alter-subscription-skip">8.4. Почему <code>ALTER SUBSCRIPTION ... SKIP</code> опасен<a class="headerlink" href="#84-alter-subscription-skip" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- ТОЛЬКО после расследования, с точным finish LSN из логов:</span>
+<span class="c1">-- ALTER SUBSCRIPTION orders_subscription SKIP (lsn = '0/ABCDEF0');</span>
+</code></pre></div>
+<p>Команда пропускает все изменения указанной удаленной транзакции, а не одну проблемную строку. Если в транзакции изменялись <code>orders</code>, <code>payments</code> и <code>audit</code>, вы можете сознательно потерять связанные изменения. После пропуска локальный subscriber способен дальше применять более поздние сообщения, но это <strong>не восстанавливает инварианты данных</strong>. Сперва надо ответить, как компенсировать пропущенную бизнес-операцию и проверить целостность конечного состояния. [PG18-ALTERSUB]</p>
+<h3 id="85">8.5. Конфликты схемы и прав<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p>Не все ошибки — дубликаты PK. Schema mismatch, RLS и полномочия роли владельца подписки также могут остановить apply. У apply worker особый режим triggers/rules, но права и безопасность проверяются по правилам subscriber. Если на subscriber включен RLS, который распространяется на владельца подписки, PostgreSQL 18 может сообщить об ошибке применения независимо от того, отвергла бы конкретная политика строку. Это надо проверять при разворачивании защищенного subscriber. [PG18-CONFLICTS] [PG18-SECURITY]</p>
+<h3 id="86">8.6. За что платим под нагрузкой<a class="headerlink" href="#86" title="Permanent link">¶</a></h3>
+<p>Допустим, в обычный день publisher создает 1000 транзакций/с. В 14:00 возникает один конфликт, и применяющий worker застревает. За следующие 15 минут publisher выполнит до 900 тысяч новых транзакций (если скорость постоянна). Это не обязательно равно 900 тысячам непрочитанных сообщений: WAL и SQL-транзакции имеют разный объем. Но возраст и объем невыполненного потока вырастут.</p>
+<p><strong>Инженерный вывод:</strong> ошибки subscriber должны быть инцидентами уровня эксплуатации, а не просто строками в его логах. Нужны алерты на ошибки apply, длительное отсутствие прогресса и конфликтные счетчики даже при продолжающемся соединении.</p>
+<h2 id="9-logical-replication-slots">9. Logical Replication Slots: что значит «потребитель помнит, где остановился»<a class="headerlink" href="#9-logical-replication-slots" title="Permanent link">¶</a></h2>
+<h3 id="91-logical-slot">9.1. Logical slot — больше, чем имя в конфигурации<a class="headerlink" href="#91-logical-slot" title="Permanent link">¶</a></h3>
+<p>Publisher генерирует WAL постоянно. Потребитель отчитывается о прогрессе, а сервер не должен удалить те данные, которые еще нужны для корректного decoding. Logical replication slot сохраняет состояние необходимой истории <strong>для одной базы данных</strong> и от одного логического потока. Его состояние переживает нормальные перезапуски PostgreSQL, но оно не является отдельной резервной копией изменений и не отменяет требований к WAL-retention.</p>
+<p>Основные поля <code>pg_replication_slots</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Зачем нужно</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>slot_name</code></td>
+<td>Имя слота и его пользователь</td>
+</tr>
+<tr>
+<td><code>slot_type</code></td>
+<td><code>logical</code> либо <code>physical</code></td>
+</tr>
+<tr>
+<td><code>database</code></td>
+<td>База логического слота</td>
+</tr>
+<tr>
+<td><code>active</code> / <code>active_pid</code></td>
+<td>Есть ли активный получатель и какой процесс работает</td>
+</tr>
+<tr>
+<td><code>restart_lsn</code></td>
+<td>С какой WAL-позиции потенциально нужно сохранять историю для decoding</td>
+</tr>
+<tr>
+<td><code>confirmed_flush_lsn</code></td>
+<td>Позиция, до которой logical consumer подтвердил получение/обработку по протоколу слота</td>
+</tr>
+<tr>
+<td><code>catalog_xmin</code></td>
+<td>Горизонт сохранения системных каталогов для decoding</td>
+</tr>
+<tr>
+<td><code>wal_status</code>, <code>safe_wal_size</code></td>
+<td>Риск утраты необходимых WAL при заданной политике лимитов</td>
+</tr>
+<tr>
+<td><code>failover</code>, <code>synced</code></td>
+<td>Свойства и синхронизация слота на физической standby</td>
+</tr>
+</tbody>
+</table>
+<p><code>restart_lsn</code> и <code>confirmed_flush_lsn</code> могут заметно различаться. Например, для декодирования старой длинной транзакции серверу приходится держать WAL с более ранней позиции, даже если потребитель уже подтвердил ряд последующих сообщений. Поэтому <strong>отставание потребителя и расход удерживаемого WAL нельзя безоговорочно оценивать одной и той же формулой</strong>. [PG18-SLOTS] [PG18-DECODING]</p>
+<h3 id="92-publisher">9.2. Диагностика слотов на publisher<a class="headerlink" href="#92-publisher" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">slot_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">slot_type</span><span class="p">,</span>
+<span class="w">    </span><span class="k">database</span><span class="p">,</span>
+<span class="w">    </span><span class="n">active</span><span class="p">,</span>
+<span class="w">    </span><span class="n">restart_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confirmed_flush_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">wal_status</span><span class="p">,</span>
+<span class="w">    </span><span class="n">safe_wal_size</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span>
+<span class="w">        </span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="n">pg_current_wal_lsn</span><span class="p">(),</span><span class="w"> </span><span class="n">restart_lsn</span><span class="p">)::</span><span class="nb">bigint</span>
+<span class="w">    </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">approx_retained_from_restart</span><span class="p">,</span>
+<span class="w">    </span><span class="n">failover</span><span class="p">,</span>
+<span class="w">    </span><span class="n">synced</span><span class="p">,</span>
+<span class="w">    </span><span class="n">invalidation_reason</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">slot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'logical'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">slot_name</span><span class="p">;</span>
+</code></pre></div>
+<p><code>approx_retained_from_restart</code> — разность LSN-байтов, а не точное число физических файлов, занятых на диске конкретно этим слотом. Фактическое сохранение зависит от сегментов, checkpoint и других факторов. Если <code>restart_lsn IS NULL</code>, расчет также даст <code>NULL</code> — состояние слота нужно интерпретировать отдельно.</p>
+<h3 id="93">9.3. Два независимых риска удержания<a class="headerlink" href="#93" title="Permanent link">¶</a></h3>
+<p><strong>WAL retention.</strong> Неактивный или сильно отставший слот может удерживать сегменты в <code>pg_wal</code>. При ограничении <code>max_slot_wal_keep_size</code> нужный WAL может быть утрачен, и слот станет непригодным: наличие лимита не создает бесплатное восстановление. В PostgreSQL 18 есть и <code>idle_replication_slot_timeout</code>, позволяющий инвалидировать слишком долго неактивные slots в предусмотренных условиях. [PG18-CONFIG] [PG18-RELEASE]</p>
+<p><strong>Catalog retention.</strong> Logical decoding использует метаданные таблиц и типов, соответствующие историческим изменениям. <code>catalog_xmin</code> может препятствовать очистке старых версий системных каталогов. Это другая стоимость, которую не показывает одно число свободных гигабайтов в <code>pg_wal</code>. В результате логические слоты могут усиливать bloat системных каталогов. Механизм VACUUM подробно уже изучали в 08.3, здесь фиксируем только новую причину удержания.</p>
+<h3 id="94">9.4. Расчет запаса при остановке потребителя<a class="headerlink" href="#94" title="Permanent link">¶</a></h3>
+<p>Пусть WAL генерируется со скоростью 12 МБ/с, а допустимый бюджет дополнительного WAL — 100 ГБ (в десятичных единицах). При полностью остановленном consumer упрощенная оценка времени до исчерпания бюджета:</p>
+<p>[
+T \approx \frac{100\,000 \text{МБ}}{12 \text{МБ/с}} \approx 8333 \text{с} \approx 2.31 \text{ч}.
+]</p>
+<p>Это только sizing-оценка: в реальности скорость WAL переменная, и часть пространства занимают другие сегменты. По такой оценке нельзя ждать два часа до первого алерта. Нужно учитывать скорость изменения <code>restart_lsn</code>, долю свободного диска и время, необходимое для вмешательства или восстановления потребителя.</p>
+<h3 id="95-slot">9.5. Почему нельзя «подвинуть slot вперед и забыть»<a class="headerlink" href="#95-slot" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL существуют административные механизмы перемещения позиции, но они меняют историю, доступную consumer. Если слот продвинут за неполученные изменения, PostgreSQL не сможет автоматически восстановить их для этого потребителя. При утрате нужной истории потребуется повторная согласованная инициализация или другой управляемый способ восстановления. <strong>Продвинуть LSN технически ≠ восстановить корректное downstream-состояние.</strong></p>
+<p><strong>Инженерный вывод:</strong> у каждой logical subscription и каждого CDC-connector должен быть владелец, ответственный за slot lifecycle, лимиты WAL, алерты и восстановление после разрыва связи.</p>
+<h2 id="10-logical-replication-failover-primary-consumer">10. Logical Replication Failover: новый primary есть, а consumer остановился<a class="headerlink" href="#10-logical-replication-failover-primary-consumer" title="Permanent link">¶</a></h2>
+<h3 id="101-failover">10.1. Почему физический failover ломает логический поток<a class="headerlink" href="#101-failover" title="Permanent link">¶</a></h3>
+<p>В 10.1 мы уже научились безопасно менять primary при отказе. Но подписчик до аварии читал логический слот на A. После promotion B становится writable primary. У B может быть достаточный физический WAL, но <strong>логический slot для consumer необязательно существует и находится в корректном состоянии</strong>. Просто поменять <code>host</code> в subscription недостаточно.</p>
+<div class="highlight"><pre><span></span><code>publisher primary A: logical slot orders_subscription
+      │              confirmed_flush_lsn = L1
+      ├── physical WAL ──► standby B
+      │                        │
+      X crash                  └── PROMOTE → new primary B
+                                      │
+                          logical slot ready here?
+                          position safe relative to consumer?
+</code></pre></div>
+<p>Ключевой механизм — <strong>failover-enabled logical slots и синхронизация их состояния на physical standby</strong>. В PostgreSQL 18 это уже предусмотрено штатными средствами, но <strong>репликация состояния slot асинхронна</strong>, поэтому перед переключением готовность надо проверять. [PG18-FAILOVER]</p>
+<h3 id="102">10.2. Компоненты конфигурации<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<ul>
+<li>На subscription может быть <code>failover = true</code> (настройка default — <code>false</code>).</li>
+<li>На physical standby publisher включают <code>sync_replication_slots = on</code> при соответствующей конфигурации подключения.</li>
+<li><code>synchronized_standby_slots</code> на primary помогает установить необходимую зависимость между продвижением логического потока и безопасной позицией standby.</li>
+<li>Для logical slot важны поля <code>failover</code>, <code>synced</code>, <code>temporary</code>, <code>invalidation_reason</code>.</li>
+<li>При автоматическом failover HA-оркестратор <strong>отдельно</strong> отвечает за выбор primary и защиту от split-brain; штатная slot sync не заменяет Patroni/fencing.</li>
+</ul>
+<p>Необходимо учитывать версии PostgreSQL и конкретные опции подписки; здесь рассматривается именно 18. [PG18-FAILOVER] [PG18-CONFIG]</p>
+<h3 id="103-standby">10.3. Как проверить готовность на standby<a class="headerlink" href="#103-standby" title="Permanent link">¶</a></h3>
+<p>На <strong>будущем promoted publisher standby</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="n">slot_type</span><span class="p">,</span><span class="w"> </span><span class="k">database</span><span class="p">,</span>
+<span class="w">    </span><span class="n">failover</span><span class="p">,</span><span class="w"> </span><span class="n">synced</span><span class="p">,</span><span class="w"> </span><span class="k">temporary</span><span class="p">,</span>
+<span class="w">    </span><span class="n">invalidation_reason</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="n">synced</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">temporary</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">invalidation_reason</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">)</span>
+<span class="w">        </span><span class="k">AS</span><span class="w"> </span><span class="n">failover_ready</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">slot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'logical'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">slot_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Флаг <code>failover_ready</code> сам по себе недостаточен без <strong>полноты списка слотов</strong>, которые необходимы всем подписчикам. Кроме того, standby должна быть впереди соответствующего logical consumer по нужной истории; политика HA обязана учитывать это условие. Проверяем также, что выбранный candidate сможет стать единственным authoritative primary, как обсуждали в 10.1.</p>
+<h3 id="104">10.4. Что случится при неправильном переключении<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>Если слот отсутствует, создание нового слота в произвольный текущий момент не вернет автоматически уже пропущенные изменения. Если слот есть, но его история недостаточна, consumer может получить ошибку и потребовать reinitialization. Если повторить некоторые сообщения, downstream должен корректно учитывать свой зафиксированный прогресс и дубликаты. Для внешнего CDC потребителя граница подтверждения особенно важна: получил событие, сохранил его в Kafka, но не успел продвинуть slot — возможна повторная доставка после рестарта.</p>
+<p><strong>Инженерный вывод:</strong> HA PostgreSQL и HA logical consumer — связанные, но разные задачи. Перед плановым switchover нужно проверять не только LSN standby, но и готовность всех необходимых logical slots.</p>
+<hr/>
+<h1 id="iv-cdc">IV. CDC, наблюдаемость и эксплуатационные решения<a class="headerlink" href="#iv-cdc" title="Permanent link">¶</a></h1>
+<h2 id="11-change-data-capture">11. Change Data Capture: внешний потребитель и неопределенный результат обработки<a class="headerlink" href="#11-change-data-capture" title="Permanent link">¶</a></h2>
+<h3 id="111-postgresql-subscription-cdc-connector">11.1. PostgreSQL subscription и CDC-connector имеют общую основу, но разные цели<a class="headerlink" href="#111-postgresql-subscription-cdc-connector" title="Permanent link">¶</a></h3>
+<p>Для встроенного subscriber цель — воспроизвести состояние таблицы в другой PostgreSQL. У внешнего CDC-потребителя задача может быть иной: преобразовать изменение строки в событие и доставить его в Kafka, поисковый индекс, очередь заданий или специализированное хранилище. В обоих случаях источник — logical decoding, а ответственность за финальный результат существенно различается.</p>
+<div class="highlight"><pre><span></span><code> PostgreSQL publisher
+   └─ WAL → logical slot → decoder/output plugin
+                              │
+                              ├─ pgoutput → PostgreSQL subscriber → локальные таблицы
+                              │
+                              └─ CDC connector → Kafka topic → consumer → проекция
+                                                     │
+                                                собственный offset
+                                                собственные retry
+                                                собственный side effect
+</code></pre></div>
+<p>Debezium PostgreSQL connector — пример такой интеграции. Он получает исходные изменения через логическую репликацию и формирует сообщения для downstream-систем. Его поведение по snapshot, offsets, схемам, reconnect и подтверждениям зависит от конфигурации connector; это уже отдельный программный компонент, а не встроенный apply worker PostgreSQL. [DEBEZIUM-POSTGRES]</p>
+<h3 id="112-exactly-once-">11.2. Почему слот не гарантирует exactly-once бизнес-эффект<a class="headerlink" href="#112-exactly-once-" title="Permanent link">¶</a></h3>
+<p>Представим обработчик, который читает CDC-событие <code>order 1 paid</code> и обновляет внешнюю витрину. Возможны следующие действия:</p>
+<div class="highlight"><pre><span></span><code>T1  connector получил событие X
+T2  connector доставил X в Kafka
+T3  consumer успешно применил X в своей БД
+T4  consumer должен подтвердить progress
+T5  процесс погиб до подтверждения
+T6  после восстановления X может быть доставлено еще раз
+</code></pre></div>
+<p>Если downstream при каждом <code>X</code> выполняет <code>balance = balance + 100</code>, будет двойной эффект. Если он сохраняет новое состояние по абсолютному значению/версии либо атомарно хранит обработанный event ID, повтор можно распознать. Однако простое «запомнить offset в памяти» не защищает от падения между side effect и записью offset.</p>
+<p><strong>Гарантии транспорта и гарантии бизнес-операции — разные вещи.</strong> Даже если промежуточная система предоставляет определенные механизмы exactly-once для своих объектов, внешние side effects требуют собственного согласования. Для backend нужно проектировать идемпотентное применение, а не полагаться на единственный факт использования CDC.</p>
+<h3 id="113-">11.3. Отсутствие операции в потоке не равно отсутствию бизнес-события<a class="headerlink" href="#113-" title="Permanent link">¶</a></h3>
+<p>Сервис выполнил:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">101</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'paid'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">101</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>CDC может показать несколько row-level изменений одной транзакции. Но бизнес-команда «провести платеж» могла иметь собственный идентификатор, причину и внешний request ID. Считать любые два UPDATE эквивалентными событиями домена нельзя. Триггеры, ретраи и служебные корректировки способны генерировать те же изменения строк по другим причинам.</p>
+<p>В системах, где downstream нужен именно контракт <code>PaymentCaptured</code>, лучше создавать отдельную запись события как часть транзакции с бизнес-данными (outbox). CDC может доставлять изменения outbox-таблицы. Это связывает бизнес-событие с commit исходной БД, но downstream-идемпотентность и управление retention сохраняются. Подробный разбор Kafka/outbox мы здесь не повторяем — это отдельный backend-механизм.</p>
+<h3 id="114-snapshot-cdc">11.4. Согласованный snapshot для внешнего CDC<a class="headerlink" href="#114-snapshot-cdc" title="Permanent link">¶</a></h3>
+<p>Встроенная subscription умеет сама синхронизировать таблицы. Внешнему CDC-connector часто необходимо выполнить <strong>initial snapshot</strong> и затем продолжить с соответствующей позиции потока. Если начать snapshot и поток из независимых точек, возникнут либо потерянные операции, либо дубли. Подходящий connector должен координировать снимок и слот, а downstream должен понимать, относятся ли строки к snapshot или к последующим изменениям.</p>
+<p>Практический пример: в таблице 3 млн заказов, snapshot длится 30 минут, а publisher за это время изменяет 50 тыс. строк. Система должна получить полное начальное состояние и всю дальнейшую историю по определенному контракту. Простого <code>SELECT *</code> на произвольном соединении без привязки к логической позиции недостаточно.</p>
+<h3 id="115-cdc">11.5. Конвейер CDC под нагрузкой<a class="headerlink" href="#115-cdc" title="Permanent link">¶</a></h3>
+<p>Входная нагрузка: 6000 row-changes/s. Connector успевает передавать 5000 событий/s, consumer — обрабатывать 4000/s. В простом случае при отсутствии ограничения и постоянных скоростях backlog непосредственно перед consumer растет на 2000 событий/s. За десять минут — <strong>примерно 1,2 млн событий</strong>. Если сообщения крупные, проблема может сначала проявиться в очередях connector или Kafka, а если прогресс слота отстает — дополнительно в WAL-retention PostgreSQL.</p>
+<p>Не следует из этих скоростей делать вывод о неизбежных 1,2 млн <em>WAL records</em>: одно логическое сообщение и одна WAL-запись не тождественны. Меряем позиции и очереди отдельно на каждом звене.</p>
+<h3 id="116-cdc">11.6. Когда CDC лучше обычной подписки<a class="headerlink" href="#116-cdc" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Задача</th>
+<th>PostgreSQL subscription</th>
+<th>Внешний CDC connector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Копировать таблицу в другой PostgreSQL</td>
+<td>Обычно естественный вариант</td>
+<td>Возможно, но появляется лишний конвейер</td>
+</tr>
+<tr>
+<td>Создать события в Kafka</td>
+<td>Сам по себе не доставляет в Kafka</td>
+<td>Подходящий инструмент</td>
+</tr>
+<tr>
+<td>Поддержать независимый downstream-контракт</td>
+<td>Ограниченные фильтры, схемы и DML</td>
+<td>Больше возможностей преобразования, но выше цена поддержки</td>
+</tr>
+<tr>
+<td>Консистентно воспроизвести таблицы PostgreSQL</td>
+<td>Встроенные механизмы initial sync и apply</td>
+<td>Требуется корректная snapshot/offset-стратегия</td>
+</tr>
+<tr>
+<td>Управлять ошибками и зависимостями</td>
+<td>Операционные инструменты PostgreSQL</td>
+<td>Дополнительные процессы, очереди, offsets, retries</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Инженерный вывод:</strong> logical decoding дает поток изменений БД. Превращение этого потока в надежный обмен бизнес-событиями — отдельная инженерная задача.</p>
+<h2 id="12-monitoring-diagnostics-commit">12. Monitoring &amp; Diagnostics: восстановить путь изменения от COMMIT до потребителя<a class="headerlink" href="#12-monitoring-diagnostics-commit" title="Permanent link">¶</a></h2>
+<h3 id="121-lag">12.1. Диагностируем по слоям, а не по одному «lag»<a class="headerlink" href="#121-lag" title="Permanent link">¶</a></h3>
+<p>У нас есть publisher, walsender/decoder, сеть, subscriber, apply и, возможно, внешний consumer. Диагностика должна найти <strong>первую стадию, где отсутствует прогресс</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятный слой</th>
+<th>Проверка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Publisher продолжает COMMIT, subscriber не обновляется</td>
+<td>Apply error, схематический конфликт, worker</td>
+<td>Логи, <code>pg_stat_subscription_stats</code>, <code>pg_stat_subscription</code></td>
+</tr>
+<tr>
+<td>Слот удерживает гигабайты WAL</td>
+<td>Decoder/consumer отстает или недоступен</td>
+<td><code>pg_replication_slots</code>, <code>pg_stat_replication_slots</code></td>
+</tr>
+<tr>
+<td>При подключении нового subscriber долго нет полного набора строк</td>
+<td>Initial copy</td>
+<td><code>pg_subscription_rel</code>, <code>table synchronization</code> workers</td>
+</tr>
+<tr>
+<td><code>insert_exists</code> растет</td>
+<td>Разные записи на обеих сторонах</td>
+<td>Логи ключей, состояние соответствующей таблицы</td>
+</tr>
+<tr>
+<td><code>update_missing</code> растет при работающем apply</td>
+<td>Незаметное расхождение данных</td>
+<td>Сравнение ключей и количества строк</td>
+</tr>
+<tr>
+<td>После DDL apply перестал двигаться</td>
+<td>Несовместимость схем</td>
+<td>Логи apply, определения таблиц обеих сторон</td>
+</tr>
+<tr>
+<td>Publisher CPU высок, spill увеличивается</td>
+<td>Decoding больших транзакций</td>
+<td><code>pg_stat_replication_slots</code>, <code>logical_decoding_work_mem</code></td>
+</tr>
+<tr>
+<td>При failover больше не запускается CDC</td>
+<td>Нет пригодного логического слота</td>
+<td><code>failover</code>, <code>synced</code>, <code>invalidation_reason</code> на новой primary</td>
+</tr>
+<tr>
+<td>Сообщения приходят дважды</td>
+<td>Retry после неопределенного ACK/offset</td>
+<td>Connector offsets, downstream idempotency</td>
+</tr>
+<tr>
+<td>Данные на subscriber устаревают, хотя connection есть</td>
+<td>Apply медленнее incoming stream</td>
+<td><code>received_lsn</code>, <code>latest_end_lsn</code>, таблица статусов, CPU/I/O</td>
+</tr>
+</tbody>
+</table>
+<h3 id="122-publisher">12.2. Publisher: слоты, задержки и декодирование<a class="headerlink" href="#122-publisher" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="k">database</span><span class="p">,</span><span class="w"> </span><span class="n">active</span><span class="p">,</span><span class="w"> </span><span class="n">active_pid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">restart_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">confirmed_flush_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">wal_status</span><span class="p">,</span><span class="w"> </span><span class="n">safe_wal_size</span><span class="p">,</span><span class="w"> </span><span class="n">inactive_since</span><span class="p">,</span>
+<span class="w">    </span><span class="n">invalidation_reason</span><span class="p">,</span><span class="w"> </span><span class="n">failover</span><span class="p">,</span><span class="w"> </span><span class="n">synced</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">slot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'logical'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">slot_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Для накопительной статистики decoding:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">slot_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">spill_txns</span><span class="p">,</span><span class="w"> </span><span class="n">spill_count</span><span class="p">,</span><span class="w"> </span><span class="n">spill_bytes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stream_txns</span><span class="p">,</span><span class="w"> </span><span class="n">stream_count</span><span class="p">,</span><span class="w"> </span><span class="n">stream_bytes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">total_txns</span><span class="p">,</span><span class="w"> </span><span class="n">total_bytes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication_slots</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">slot_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Счетчики надо сравнивать на интервале и учитывать <code>stats_reset</code>. <code>total_bytes</code> отражает декодированные данные, а не обязательно Ethernet-байты. Если слот неактивен, но <code>restart_lsn</code> остается старым, его удержание WAL не исчезнет просто потому, что consumer отключился.</p>
+<h3 id="123-subscriber-workers">12.3. Subscriber: активные workers и состояние таблиц<a class="headerlink" href="#123-subscriber-workers" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">worker_type</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">leader_pid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">    </span><span class="n">received_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">latest_end_lsn</span><span class="p">,</span>
+<span class="w">    </span><span class="n">last_msg_send_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">last_msg_receipt_time</span><span class="p">,</span>
+<span class="w">    </span><span class="n">latest_end_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_subscription</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">worker_type</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">s</span><span class="p">.</span><span class="n">subname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srsubstate</span><span class="p">,</span>
+<span class="w">    </span><span class="n">r</span><span class="p">.</span><span class="n">srsublsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_subscription_rel</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">r</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_subscription</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">srsubid</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">subname</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">srrelid</span><span class="p">;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">subname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">apply_error_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sync_error_count</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_insert_exists</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_update_exists</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_update_missing</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_delete_missing</span><span class="p">,</span>
+<span class="w">    </span><span class="n">confl_multiple_unique_conflicts</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_subscription_stats</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">subname</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Важная ловушка:</strong> <code>last_msg_receipt_time</code> характеризует момент получения сообщения/keepalive, а не обязательную свежесть каждой бизнес-строки. <code>latest_end_lsn</code> относится к ответам о прогрессе, а не к простому количеству заказов, видимых отдельному SELECT. Если нужна проверка актуальности, используем конкретный договоренный watermark и контрольные данные, а не косвенную оценку «сеть жива».</p>
+<h3 id="124">12.4. Как измерять догоняние<a class="headerlink" href="#124" title="Permanent link">¶</a></h3>
+<p>Пусть за 60 секунд разница между <code>pg_current_wal_lsn()</code> и удерживаемой для слота позицией выросла на 3 ГБ. Это сигнал, что потребитель не компенсирует входной поток на этом интервале. Но измерять «отставание в количестве пользовательских событий» по этим байтам нельзя. Напротив, <code>pg_stat_subscription.received_lsn</code> показывает отдельную границу приема, а <code>pg_subscription_rel</code> — этап инициализации каждой таблицы.</p>
+<p>Для надежного SLA полезно добавлять собственную контрольную таблицу/watermark:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">replication_heartbeat</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">integer</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">emitted_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">replication_heartbeat</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">());</span>
+
+<span class="c1">-- Пример только для проверки с отдельной publication/подпиской:</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="k">public</span><span class="p">.</span><span class="n">replication_heartbeat</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">emitted_at</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">()</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Когда значение пришло к subscriber, измеряем его возраст <strong>с учетом синхронизации часов</strong>. Это показатель актуальности конкретного опубликованного изменения, а не универсальная гарантия последовательного чтения всей базы. В продуктивной системе контрольную строку не стоит обновлять каждую миллисекунду: она тоже создает WAL и нагрузку.</p>
+<h3 id="125">12.5. Метод расследования конкретного инцидента<a class="headerlink" href="#125" title="Permanent link">¶</a></h3>
+<p><strong>Симптом:</strong> subscriber отстал на 40 минут, но <code>pg_stat_subscription</code> показывает подключение.</p>
+<ol>
+<li>Найти в логах последнюю ошибку apply и дату последнего успешного прогресса.</li>
+<li>Проверить <code>pg_stat_subscription_stats</code>: есть ли прирост <code>apply_error_count</code> или конфликтов.</li>
+<li>Проверить <code>pg_subscription_rel</code>: не осталась ли отдельная таблица на этапе <code>d</code> или <code>f</code>.</li>
+<li>Проверить publisher <code>pg_replication_slots</code>: жив ли slot, какой <code>restart_lsn</code>, не приближается ли лимит удержания.</li>
+<li>Проверить <code>pg_stat_replication_slots</code>: растут ли spill и stream counters, не захлебывается ли decoder.</li>
+<li>Если apply жив, проверить I/O, индексы, ограничения и конкурентную запись на subscriber.</li>
+<li>После исправления измерить <strong>скорость сокращения backlog</strong>, убедиться в отсутствии новых конфликтов и проверить бизнес-инварианты данных.</li>
+</ol>
+<p>Нельзя считать инцидент закрытым лишь потому, что worker снова запустился. Он может продолжать медленно догонять publisher, тогда как клиенты уже читают устаревшие данные.</p>
+<h3 id="126-capacity">12.6. Нагрузочная модель и capacity<a class="headerlink" href="#126-capacity" title="Permanent link">¶</a></h3>
+<p>Для sizing полезно разделить поток на три скорости:</p>
+<ul>
+<li><code>R_wal</code> — скорость генерации WAL в источнике, байт/с.</li>
+<li><code>R_decode</code> — скорость логического decoding или подтверждения WAL-позиций, байт WAL-позиции/с.</li>
+<li><code>R_apply</code> — скорость успешного применения в subscriber, логических изменений/с.</li>
+</ul>
+<p>Они измеряются в <strong>разных единицах</strong>. Для того чтобы оценивать накопление очереди, сравнивайте скорости в согласованных величинах на одной границе (например, LSN-байты в секунду, либо события в секунду между двумя соседними этапами). Нельзя напрямую вычитать 50 МБ WAL/s и 1000 events/s.</p>
+<p>Если в одной и той же единице <code>R_in = 1200 events/s</code>, а <code>R_out = 950 events/s</code>, то backlog растет на 250 events/s. За 20 минут накопится 300 тыс. событий. Когда нагрузка спадет до 500 events/s, а apply сохранит 950 events/s, отставание будет уменьшаться примерно на 450 events/s; теоретическое время устранения такого долга — 667 секунд. Это нижняя sizing-оценка без изменений эффективности, конфликтов и batch behavior.</p>
+<h3 id="127-production">12.7. Минимальные алерты production<a class="headerlink" href="#127-production" title="Permanent link">¶</a></h3>
+<p>Для продакшена рекомендуем измерять:</p>
+<ul>
+<li>Возраст последнего успешно примененного бизнес-watermark на каждом subscriber.</li>
+<li>Дельты <code>apply_error_count</code>, <code>sync_error_count</code>, <code>confl_*</code>.</li>
+<li>Наличие ожидаемых workers, статус <code>pg_subscription_rel</code> и длительность initial sync.</li>
+<li>WAL retention каждого logical slot и скорость его увеличения.</li>
+<li>Долю свободного пространства <code>pg_wal</code>, <code>wal_status</code>, <code>safe_wal_size</code>.</li>
+<li>Decoding spill bytes и использование ресурсов publisher.</li>
+<li>Apply CPU/I/O, растущие задержки и конфликты на subscriber.</li>
+<li>Готовность failover slots на designated standby, если такая гарантия входит в архитектуру.</li>
+</ul>
+<p>Не смешиваем severity: неактивный забытый slot, который вот-вот исчерпает диск primary, может быть важнее большого временного lag у второстепенной аналитической копии.</p>
+<hr/>
+<h1 id="v">V. Демонстрация: сделали → нагрузили → сломали → диагностировали → исправили<a class="headerlink" href="#v" title="Permanent link">¶</a></h1>
+<blockquote>
+<p>Лекция содержит команды, которые можно выполнить на изолированном стенде. Для самостоятельной практики можно дополнительно собрать отдельный лабораторный сценарий. Все эксперименты с нарушением схемы/данных выполняются <strong>только на учебной БД</strong>.</p>
+</blockquote>
+<h2 id="publisher-subscriber-postgresql-18">Стенд: publisher + subscriber PostgreSQL 18<a class="headerlink" href="#publisher-subscriber-postgresql-18" title="Permanent link">¶</a></h2>
+<p>Нужно два независимых экземпляра PostgreSQL 18, например два контейнера или две виртуальные машины. Учебные имена: <code>publisher</code> и <code>subscriber</code>, одинаковая база <code>shop</code>, доступ с subscriber к publisher по replication connection. На publisher — <code>wal_level = logical</code>, достаточное число <code>max_replication_slots</code> и <code>max_wal_senders</code>; на subscriber — достаточные <code>max_logical_replication_workers</code>, <code>max_worker_processes</code>, <code>max_active_replication_origins</code>, <code>max_sync_workers_per_subscription</code>.</p>
+<p>Проверки до запуска:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">server_version</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_level</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_replication_slots</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_wal_senders</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_logical_replication_workers</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_active_replication_origins</span><span class="p">;</span>
+</code></pre></div>
+<p>Обязательно убедиться, что команды выполняются <strong>на нужной стороне</strong>: ошибочный DROP/ALTER SUBSCRIPTION или работа с slot на неправильном сервере способна привести к потере прогресса репликации.</p>
+<h3 id="a-commit">Эксперимент A. Обычная репликация и проверка границы COMMIT<a class="headerlink" href="#a-commit" title="Permanent link">¶</a></h3>
+<ol>
+<li>Подготовить таблицы и publication/subscription из раздела 2.</li>
+<li>Дождаться <code>srsubstate = 'r'</code> для всех опубликованных таблиц.</li>
+<li>Выполнить несколько INSERT/UPDATE/DELETE на publisher.</li>
+<li>Сопоставить timestamp COMMIT, время появления строки на subscriber, позиции <code>received_lsn</code>/<code>latest_end_lsn</code>.</li>
+<li>Объяснить, почему COMMIT publisher не обязан ждать локальный apply в обычной асинхронной схеме.</li>
+</ol>
+<h3 id="b-unique">Эксперимент B. Сломать применение ограничением UNIQUE<a class="headerlink" href="#b-unique" title="Permanent link">¶</a></h3>
+<ol>
+<li>На subscriber создать локальную строку с еще не использованным ключом <code>id = 900</code>.</li>
+<li>На publisher вставить другую строку с тем же id.</li>
+<li>Наблюдать <code>confl_insert_exists</code>, <code>apply_error_count</code> и журналы worker.</li>
+<li>Выполнить на publisher еще пять корректных изменений.</li>
+<li>Убедиться, что они не применяются через остановившийся поток, хотя publisher подтверждает COMMIT.</li>
+<li>Исправить конфликт на subscriber <strong>по согласованному решению</strong>, дождаться восстановления worker и проверить все пять изменений.</li>
+</ol>
+<p>Здесь задача доказать: <strong>транзакция, остановившая apply, влияет на последующие изменения</strong>, а ошибка существует на downstream-стороне и не блокирует локальный COMMIT источника.</p>
+<h3 id="c-update_missing">Эксперимент C. <code>update_missing</code> и ложное ощущение здоровья<a class="headerlink" href="#c-update_missing" title="Permanent link">¶</a></h3>
+<ol>
+<li>После синхронизации удалить выбранную строку вручную на subscriber.</li>
+<li>Обновить ее на publisher.</li>
+<li>Увидеть увеличение <code>confl_update_missing</code>.</li>
+<li>Убедиться, что apply продолжает двигаться, несмотря на отсутствие нужной строки.</li>
+<li>Сравнить набор ключей на publisher/subscriber, а не только состояние подключения.</li>
+</ol>
+<h3 id="d-wal">Эксперимент D. Удержание WAL логическим слотом<a class="headerlink" href="#d-wal" title="Permanent link">¶</a></h3>
+<ol>
+<li>Измерить <code>restart_lsn</code> и размер <code>pg_wal</code>.</li>
+<li>Остановить subscription на subscriber: <code>ALTER SUBSCRIPTION orders_subscription DISABLE;</code>.</li>
+<li>Генерировать контролируемое количество записей на publisher.</li>
+<li>Наблюдать рост разницы LSN и риск WAL-retention.</li>
+<li>Вновь включить subscription и измерить скорость догоняния.</li>
+<li>Не удалять slot ради эксперимента, не достигнув понимания последствий.</li>
+</ol>
+<h3 id="e-memoryspill">Эксперимент E. Различить memory/spill при большой транзакции<a class="headerlink" href="#e-memoryspill" title="Permanent link">¶</a></h3>
+<ol>
+<li>На publisher выполнить большую транзакцию в пределах свободного диска и приемлемых лабораторных лимитов.</li>
+<li>Сравнить <code>pg_stat_replication_slots.spill_bytes</code>, <code>stream_bytes</code> и нагрузку.</li>
+<li>Исследовать значение <code>streaming</code> и занятые apply workers.</li>
+<li>Объяснить, почему большие транзакции часто хуже для tail latency, чем серия небольших транзакций того же общего объема.</li>
+</ol>
+<h3 id="f">Эксперимент F. Изменение схемы без согласования<a class="headerlink" href="#f" title="Permanent link">¶</a></h3>
+<ol>
+<li>Добавить на publisher колонку и изменить publication так, чтобы новые сообщения ее передавали.</li>
+<li>Оставить subscriber без требуемой колонки.</li>
+<li>Получить ошибку schema mismatch, убедиться в остановке/ошибках apply.</li>
+<li>Согласовать схему на subscriber, восстановить поток, проверить данные.</li>
+<li>Пояснить, почему <code>ALTER SUBSCRIPTION ... REFRESH PUBLICATION</code> не является общей заменой миграции схемы.</li>
+</ol>
+<h2 id="_1">Инженерные выводы блока<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Logical replication воспроизводит выбранные изменения таблиц, сохраняя транзакционные границы в рамках подписки.</strong> Она не копирует схемы, sequences и все остальные объекты автоматически.</li>
+<li><strong>Идентичность строки критична для UPDATE/DELETE.</strong> <code>REPLICA IDENTITY</code> определяет, как subscriber найдет цель; отсутствие цели может пропускаться без остановки потока.</li>
+<li><strong>Начальная копия требует согласованной позиции.</strong> Snapshot, table synchronization workers и temporary slots нужны, чтобы не потерять изменения во время переноса существующих строк.</li>
+<li><strong>У publisher и subscriber собственные ограниченные ресурсы.</strong> Decoding, spill, сеть, apply, индексы и constraints могут стать разными узкими местами.</li>
+<li><strong>Logical slot защищает историю ценой удержания WAL и каталогов.</strong> Неактивный consumer способен угрожать диску источника.</li>
+<li><strong>Failover потребителя требует синхронизации логических слотов.</strong> Обычный promotion новой primary не гарантирует продолжения CDC с нужной позиции.</li>
+<li><strong>CDC переносит изменения, а конечный бизнес-эффект контролирует downstream.</strong> Повторная доставка, неопределенный ACK и эволюция схем требуют отдельной инженерной обработки.</li>
+</ol>
+<h2 id="_2">Граница дальнейшего углубления<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>В рамках этой лекции мы дошли до причинно-следственной модели decoding, синхронизации и применения, не пересказывая physical WAL/Lock Manager из предыдущих блоков. Если потребуется новый технический слой <strong>только для конкретного проекта CDC</strong>, можно исследовать <em>между WAL и output plugin</em> жизненный цикл транзакции внутри <code>ReorderBuffer</code> и spill под нагрузкой. Это ответит на вопрос, почему отдельные крупные транзакции резко повышают I/O и задержку логического декодера. В текущий обязательный блок такую лекцию не включаем.</p>
+<hr/>
+<h1 id="postgresql-18-cdc">Источники: PostgreSQL 18 и документы по CDC<a class="headerlink" href="#postgresql-18-cdc" title="Permanent link">¶</a></h1>
+<p>Основной нормативный источник — <strong>официальная документация PostgreSQL 18</strong>, а не универсальные рекомендации для всех версий. SQL следует проверять на целевом релизе/окружении.</p>
+<ul>
+<li><strong>[PG18-LOGICAL]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication.html">Chapter 29. Logical Replication</a>.</li>
+<li><strong>[PG18-ARCH]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-architecture.html">29.9. Architecture and Initial Snapshot</a>.</li>
+<li><strong>[PG18-PUB]</strong> <a href="https://www.postgresql.org/docs/18/sql-createpublication.html">CREATE PUBLICATION</a>.</li>
+<li><strong>[PG18-COLUMNS]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-col-lists.html">29.5. Column Lists</a>.</li>
+<li><strong>[PG18-ROWFILTER]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-row-filter.html">29.4. Row Filters</a>.</li>
+<li><strong>[PG18-SUBSCRIBE]</strong> <a href="https://www.postgresql.org/docs/18/sql-createsubscription.html">CREATE SUBSCRIPTION</a>.</li>
+<li><strong>[PG18-ALTERSUB]</strong> <a href="https://www.postgresql.org/docs/18/sql-altersubscription.html">ALTER SUBSCRIPTION</a>.</li>
+<li><strong>[PG18-DECODING]</strong> <a href="https://www.postgresql.org/docs/18/logicaldecoding.html">Chapter 47. Logical Decoding</a>, <a href="https://www.postgresql.org/docs/18/logicaldecoding-explanation.html">47.2. Logical Decoding Concepts</a>.</li>
+<li><strong>[PG18-REPLICA-ID]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-publication.html">29.1. Publication — Replica Identity</a>.</li>
+<li><strong>[PG18-RESTRICTIONS]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-restrictions.html">29.8. Restrictions</a>.</li>
+<li><strong>[PG18-CONFLICTS]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-conflicts.html">29.7. Conflicts</a>.</li>
+<li><strong>[PG18-SLOTS]</strong> <a href="https://www.postgresql.org/docs/18/logicaldecoding-explanation.html">Replication slots and logical decoding</a>.</li>
+<li><strong>[PG18-CONFIG]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-config.html">29.12. Configuration Settings</a>; <a href="https://www.postgresql.org/docs/18/runtime-config-replication.html">Replication Settings</a>.</li>
+<li><strong>[PG18-STATS]</strong> <a href="https://www.postgresql.org/docs/18/monitoring-stats.html">27.2. Cumulative Statistics, including pg_stat_subscription, pg_stat_subscription_stats and pg_stat_replication_slots</a>.</li>
+<li><strong>[PG18-SUBREL]</strong> <a href="https://www.postgresql.org/docs/18/catalog-pg-subscription-rel.html">Catalog pg_subscription_rel</a>.</li>
+<li><strong>[PG18-FAILOVER]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-failover.html">29.3. Logical Replication Failover</a>.</li>
+<li><strong>[PG18-RELEASE]</strong> <a href="https://www.postgresql.org/docs/18/release-18.html">Release Notes, PostgreSQL 18</a>.</li>
+<li><strong>[PG18-SECURITY]</strong> <a href="https://www.postgresql.org/docs/18/logical-replication-security.html">29.11. Logical Replication Security</a>.</li>
+<li><strong>[PG18-SQL-DECODING]</strong> <a href="https://www.postgresql.org/docs/18/logicaldecoding-sql.html">SQL Interface for Logical Decoding</a>.</li>
+<li><strong>[DEBEZIUM-POSTGRES]</strong> <a href="https://debezium.io/documentation/reference/stable/connectors/postgresql.html">Debezium PostgreSQL Connector Documentation</a>.</li>
+</ul>
+<p><em>Версия материала: PostgreSQL 18, ветка REL_18_STABLE. Расчеты емкости и задержек в лекции служат инженерными моделями; не являются результатом измерений конкретного стенда.</em></p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 10.1. PostgreSQL High Availability &amp;amp; Failover Internals" class="md-footer__link md-footer__link--prev" href="../10.1%20-%20High%20availability%20failover/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                10.1. PostgreSQL High Availability &amp; Failover Internals
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 14.1. Distributed Ownership, Failover &amp;amp; Resharding Consistency" class="md-footer__link md-footer__link--next" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/10.1%20-%20High%20availability%20failover/" rel="canonical"/>
+<link href="../1.1%20-%20CPU%20architecture/" rel="prev"/>
+<link href="../10.2%20-%20Logical%20replication%20CDC/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>10.1. PostgreSQL High Availability &amp; Failover Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#101-postgresql-high-availability-failover-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              10.1. PostgreSQL High Availability &amp; Failover Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-primary">
+<span class="md-ellipsis">
+      
+        0. Инцидент: два сервера одновременно ответили «я primary»
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-primary">
+<span class="md-ellipsis">
+      
+        0. Инцидент: два сервера одновременно ответили «я primary»
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="101-postgresql-high-availability-failover-internals">10.1. PostgreSQL High Availability &amp; Failover Internals<a class="headerlink" href="#101-postgresql-high-availability-failover-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · обязательное углубление блока 10.</strong><br/>
+<strong>Строгая граница темы:</strong> отказ primary, обнаружение отказа, <code>pg_promote</code>, timelines, выбор кандидата, split-brain, лидерство, DCS, fencing, Patroni, <code>pg_rewind</code>, возврат узла и диагностика.<br/>
+<strong>Уже известно:</strong> WAL, LSN, локальная долговечность, physical streaming replication, синхронные режимы, replication slots, recovery, backup, транзакции и блокировки. Эти механизмы не пересказываем.<br/>
+<strong>За пределами лекции:</strong> устройство logical decoding и CDC (10.2), разработка собственного консенсуса и распределенных шардов.<br/>
+<strong>Соглашение:</strong> приведенные идентификаторы, LSN, задержки, узлы и конфигурации — учебные иллюстрации, не результаты реальных измерений. Команды, способные изменить роль узла или каталог данных, применяются только в изолированном учебном кластере.</p>
+</blockquote>
+<h2 id="0-primary">0. Инцидент: два сервера одновременно ответили «я primary»<a class="headerlink" href="#0-primary" title="Permanent link">¶</a></h2>
+<p>Представьте три машины: A — primary, B и C — физические standby. В 12:00:00 сеть между A и системой управления перестала работать. Сам PostgreSQL A исправен: выполняет UPDATE, подтверждает COMMIT и обслуживает часть клиентов. В 12:00:30 управляющая система решает, что A погиб, и повышает B до primary. Сервис переключает часть соединений на B. Теперь у нас две группы клиентов. Первая пишет в A, вторая — в B.</p>
+<p>Через минуту сеть возвращается. Можно просто включить репликацию между A и B? Нет. Оба узла создали независимые изменения. Это две несовместимые истории. У PostgreSQL нет универсальной команды «объединить два primary без потерь»; необходимо выбрать авторитетную историю и отдельно разбираться с отвергнутыми бизнес-операциями.</p>
+<div class="highlight"><pre><span></span><code>             КЛИЕНТЫ X                         КЛИЕНТЫ Y
+                 |                                  |
+                 v                                  v
+          A: старый primary                  B: новый primary
+          UPDATE order=paid                  UPDATE order=cancelled
+          COMMIT OK                          COMMIT OK
+                 |                                  |
+                 +---------- NETWORK PARTITION -----+
+                  две независимые истории записи
+</code></pre></div>
+<p>В прошлой лекции мы установили, <em>где находится WAL</em> и когда standby его применяет. Сегодня новый вопрос: <strong>кто получает исключительное право продолжить историю после отказа?</strong> Для ответа нам потребуются три независимые гарантии:</p>
+<ol>
+<li><strong>Safety — безопасность:</strong> система не допускает конфликтующих авторитетных владельцев записи и запрещает некорректное продвижение отставшего кандидата, если требуется сохранность подтвержденных транзакций.</li>
+<li><strong>Liveness — продвижение:</strong> после допустимого отказа, если остались необходимые ресурсы и есть координация, система eventually возобновляет запись.</li>
+<li><strong>Client outcome — исход клиентской операции:</strong> клиент способен выяснить, была ли бизнес-операция зафиксирована, если ответ потерялся в момент переключения.</li>
+</ol>
+<p>Сильная HA-архитектура должна явно говорить, какие из этих свойств она обеспечивает, при каких отказах и какой ценой. Высокая доступность всегда имеет условия. Если сеть разделилась, невозможно одновременно гарантировать, что любой изолированный узел продолжит принимать запись и что никогда не появятся два независимых владельца.</p>
+<hr/>
+<h1 id="i">I. Сбой, подозрение и обнаружение отказа<a class="headerlink" href="#i" title="Permanent link">¶</a></h1>
+<h2 id="1">1. Модель отказов: почему «сервер не отвечает» — недостаточный диагноз<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Три разных события, одинаковый симптом<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p><strong>Сценарий A — процесс PostgreSQL аварийно завершился.</strong> TCP-соединения рвутся, операционная система отвечает, управляющий агент может диагностировать локальную аварию. После перезапуска прежняя машина потенциально восстановит собственный WAL. Но если другой узел уже повышен, автоматический возврат A в режим writable primary недопустим.</p>
+<p><strong>Сценарий B — узел потерял питание.</strong> PostgreSQL и агент недоступны. Если электропитание вернется, старый сервис может автоматически стартовать. Следовательно, процедура failover должна учитывать будущий возврат старой машины — даже если в момент аварии она действительно не работала.</p>
+<p><strong>Сценарий C — сетевое разделение.</strong> A недоступна B и управляющему хранилищу, но доступна некоторым приложениям. Здесь особенно легко ошибочно объявить «primary упал»: сам primary жив, а единого взгляда на сеть нет.</p>
+<table>
+<thead>
+<tr>
+<th>Событие</th>
+<th>A исполняет SQL?</th>
+<th>Агенты/клиенты видят одно и то же?</th>
+<th>Основная опасность</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Крах PostgreSQL</td>
+<td>Нет, до восстановления</td>
+<td>Обычно могут отличаться по моменту обнаружения</td>
+<td>Зависшие соединения, возврат старого узла</td>
+</tr>
+<tr>
+<td>Крах машины</td>
+<td>Нет</td>
+<td>Не обязательно</td>
+<td>Автоматический запуск без demotion</td>
+</tr>
+<tr>
+<td>Сетевой partition</td>
+<td>Может продолжать</td>
+<td>Нет</td>
+<td>Два writable primary</td>
+</tr>
+<tr>
+<td>Пауза VM</td>
+<td>Выполнение временно остановлено</td>
+<td>Наблюдатели видят таймаут</td>
+<td>Старый узел возобновится после смены лидера</td>
+</tr>
+<tr>
+<td>Сильная перегрузка</td>
+<td>Да, но медленно</td>
+<td>Иногда нет</td>
+<td>Ложный failover и дополнительная нагрузка</td>
+</tr>
+<tr>
+<td>Отказ только DCS</td>
+<td>PostgreSQL может работать</td>
+<td>Доступность DCS неодинакова</td>
+<td>Потеря управляемого лидерства</td>
+</tr>
+</tbody>
+</table>
+<p>Наличие TCP-доступа к <code>:5432</code> подтверждает только способность соединиться в этот момент. Запрос <code>SELECT 1</code> подтверждает выполнение команды на конкретном backend. Он не доказывает, что сервер имеет право принимать новые записи. Проверка <code>pg_is_in_recovery() = false</code> тоже недостаточна: старый primary после потери лидерского lease может продолжать отвечать <code>false</code>, пока не будет демотирован.</p>
+<h3 id="12">1.2. Один процесс, три роли<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>Нужно разделять <strong>фактическую роль PostgreSQL</strong>, <strong>роль, разрешенную HA-координатором</strong>, и <strong>роль, которую видит клиентский маршрутизатор</strong>.</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL:       pg_is_in_recovery() = false
+HA-координатор:   текущий leader = node-b
+Клиентский пул:   TCP endpoint все еще ведет на node-a
+</code></pre></div>
+<p>Это опасное рассогласование. Сервер работает, но с точки зрения контрольной плоскости он уже не владелец. Поэтому достаточный readiness-check для writable endpoint должен учитывать состояние HA-системы, а не только состояние процесса PostgreSQL.</p>
+<h3 id="13">1.3. Гарантия безопасности и цена доступности<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Предположим, A не видит DCS, а B видит. Если A продолжает принимать запись бесконечно долго «ради доступности», B может получить новый lease и начать писать. Чтобы избежать split-brain, A обязана прекратить запись до истечения права лидерства — даже если она еще обслуживает запросы и локальный диск исправен.</p>
+<p>В этот момент безопасность требует временно отказать части клиентов. Для системы переводов такая цена обычно предпочтительнее двух несовместимых бухгалтерских историй. Для системы аналитических чтений компромисс может быть иным, но безопасность записи все равно необходимо определить.</p>
+<p><strong>Инженерный вывод.</strong> Наблюдаемый timeout — свидетельство неопределенности, а не сертификат смерти сервера. Failover начинается с определения модели отказов и допустимого поведения обеих сторон сетевого разделения. [PG-FAILOVER] [PATRONI-FAILSAFE]</p>
+<h2 id="2-failure-detection">2. Failure Detection: как измерить недоступность и не создать ложное переключение<a class="headerlink" href="#2-failure-detection" title="Permanent link">¶</a></h2>
+<h3 id="21-heartbeat">2.1. Heartbeat не делает систему всеведущей<a class="headerlink" href="#21-heartbeat" title="Permanent link">¶</a></h3>
+<p>Обычно HA-агент циклически проверяет локальный PostgreSQL, состояние соседей и возможность продлить лидерское право в DCS. <strong>Heartbeat</strong> — признак недавнего ответа, а не математическое доказательство, что процесс будет работать следующую секунду. Долгий GC управляющего языка, остановленная виртуальная машина, scheduler stall, недоступность DNS, потеря пакетов и перегруженный диск могут создать тот же timeout.</p>
+<p>Отсюда возникают <strong>ложные подозрения</strong>: активный сервер выглядит погибшим. При слишком коротких таймаутах кластер начинает переключаться от единичных сетевых всплесков. При слишком длинных — замедляется восстановление записи. Управление HA — всегда компромисс между временем реакции и риском некорректной реакции.</p>
+<h3 id="22-patroni">2.2. Контрольные величины в Patroni<a class="headerlink" href="#22-patroni" title="Permanent link">¶</a></h3>
+<p>Patroni, как конкретный HA-оркестратор, использует HA-цикл и лидерский lock с TTL в DCS. Три характерных параметра:</p>
+<ul>
+<li><code>loop_wait</code> — интервал работы HA-цикла;</li>
+<li><code>retry_timeout</code> — бюджет повторов обращений к PostgreSQL и DCS;</li>
+<li><code>ttl</code> — срок действия leader lock без успешного продления.</li>
+</ul>
+<p>Пример учебной конфигурации: <code>loop_wait = 10 s</code>, <code>retry_timeout = 10 s</code>, <code>ttl = 30 s</code>. Это <strong>не</strong> означает, что «каждый failover занимает ровно 30 секунд». К задержке добавляются обнаружение, выбор кандидата, promotion, перенастройка endpoint, переподключение клиентов и прогрев рабочей нагрузки. Дополнительные проверки здоровых кандидатов могут потребовать времени.</p>
+<div class="highlight"><pre><span></span><code>t=00       t=10       t=20       t=30       t=40 ...
+ |----------|----------|----------|----------|
+ HA cycle   HA cycle   HA cycle   lease expires?
+        (возможны задержки и несостоявшиеся продления)
+</code></pre></div>
+<p>Критично различать <strong>DCS lease</strong>, <strong>PostgreSQL liveness</strong> и <strong>application readiness</strong>. Их времена не обязаны совпадать. Метрика «новый leader выбран» еще не равна метрике «первый успешный бизнес-запрос после аварии».</p>
+<h3 id="23">2.3. Почему два узла без независимого арбитра опасны<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p>Рассмотрим две машины A и B. Сеть между ними оборвалась. Каждая видит другую как недоступную. Если обе решают, что выжила только она, возникает split-brain. Внешний DCS с согласованным лидерским lease вводит общий источник права лидерства. Его собственная доступность обычно зависит от кворума узлов DCS; два PostgreSQL-сервера и три DCS-участника — это разные наборы машин и разные протоколы.</p>
+<p><strong>Важно:</strong> witness/DCS не добавляет потерянную на standby транзакцию и не обеспечивает автоматическое сохранение данных. Он помогает решить, кому разрешено стать лидером. Политика выбора <em>какой именно кандидат достаточно актуален</em> решается отдельно.</p>
+<h3 id="24">2.4. Практическая диагностика ложного обнаружения<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<p>При неожиданном failover необходимо собрать общую временную линию:</p>
+<div class="highlight"><pre><span></span><code>02:18:42.120  DB A: transaction COMMIT completed
+02:18:42.137  Patroni A: DCS update timeout
+02:18:45.010  App: connect timeout to write endpoint
+02:19:02.000  DCS: leader lease A expired
+02:19:03.420  Patroni B: leader lock acquired
+02:19:06.800  DB B: promotion complete
+02:19:08.200  App: first successful write on B
+</code></pre></div>
+<p>Здесь строки <strong>иллюстративные</strong>. При реальном расследовании нужно синхронизировать часы узлов, учитывать их погрешность и собирать логи агента, DCS, СУБД, балансировщика и клиента. Проводить сравнение событий по одному <code>date</code> в сообщении недостаточно при большом clock skew.</p>
+<p><strong>Инженерный вывод.</strong> От времени обнаружения отказа следует отделять время обнаружения ложного подозрения. Для production важны обе метрики: слишком быстрый детектор может стать источником собственных аварий. [PATRONI-FAQ] [PATRONI-CONFIG]</p>
+<hr/>
+<h1 id="ii-promotion-timelines">II. Promotion, timelines и выбор авторитетной истории<a class="headerlink" href="#ii-promotion-timelines" title="Permanent link">¶</a></h1>
+<h2 id="3-promotion-pg_promote">3. Promotion: что реально делает <code>pg_promote()</code><a class="headerlink" href="#3-promotion-pg_promote" title="Permanent link">¶</a></h2>
+<h3 id="31-standby-wal-primary">3.1. Standby получила WAL. Почему она еще не primary?<a class="headerlink" href="#31-standby-wal-primary" title="Permanent link">¶</a></h3>
+<p>Физическая standby уже имеет базовый каталог данных, может обслуживать SELECT и способна применять WAL. Но ее startup/recovery процесс следует чужой истории, а пользовательская запись постоянных данных запрещена. Чтобы стать primary, сервер должен завершить standby recovery, принять решение о точке окончания доступной WAL-истории и открыть возможность собственной записи.</p>
+<p>В PostgreSQL 18 предусмотрены:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- ИСКЛЮЧИТЕЛЬНО НА ИЗОЛИРОВАННОЙ STANDBY,</span>
+<span class="c1">-- когда старый primary надежно изолирован.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_promote</span><span class="p">(</span><span class="n">wait</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">true</span><span class="p">,</span><span class="w"> </span><span class="n">wait_seconds</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span>
+</code></pre></div>
+<p>Альтернатива для инфраструктурного запуска:</p>
+<div class="highlight"><pre><span></span><code>pg_ctl<span class="w"> </span>-D<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">"</span><span class="w"> </span>promote
+</code></pre></div>
+<p><code>pg_promote(wait =&gt; true)</code> дожидается завершения promotion до заданного лимита и возвращает <code>true</code> при успехе. <code>wait =&gt; false</code> подтверждает лишь отправку сигнала, инициирующего promotion, а не завершение всех переходов. Важно не спутать «команда принята» и «новый primary готов к пользовательской записи». [PG-FUNCTIONS]</p>
+<h3 id="32">3.2. Последовательность перехода<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>STANDBY                            PRIMARY
+receive WAL -&gt; replay
+      |
+      | запрос promotion
+      v
+применить непосредственно доступный WAL
+      |
+завершить standby/recovery
+      |
+создать новую историю WAL (timeline)
+      |
+перейти к обычной работе PostgreSQL
+      |
+выполнять новые read-write транзакции
+</code></pre></div>
+<p>В PostgreSQL 18 при promotion может быть воспроизведен WAL, непосредственно доступный из локального <code>pg_wal</code> или архива; в этой фазе standby <strong>не обязана устанавливать новое соединение к прежнему primary</strong> для загрузки недостающих данных. Если отключенная standby отстала, она не догонит старую машину магическим образом только потому, что выдали <code>pg_promote()</code>.</p>
+<h3 id="33-promotion">3.3. Доказательства успешного promotion<a class="headerlink" href="#33-promotion" title="Permanent link">¶</a></h3>
+<p>На будущей standby перед запуском операции:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">();</span><span class="w">       </span><span class="c1">-- true</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">();</span><span class="w">  </span><span class="c1">-- последняя примененная позиция</span>
+</code></pre></div>
+<p>После операции:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">();</span><span class="w">       </span><span class="c1">-- false</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_current_wal_lsn</span><span class="p">();</span><span class="w">     </span><span class="c1">-- теперь доступна на primary</span>
+</code></pre></div>
+<p>Для проверки готовности записи в учебном кластере полезна отдельная идемпотентная тестовая операция внутри транзакции с уникальным ключом и последующей проверкой. Но <em>сам факт writable SQL</em> не доказывает исключительность владения: оба primary при split-brain тоже прекрасно выполняют INSERT.</p>
+<h3 id="34-promotion-fencing">3.4. Почему promotion без fencing опасен<a class="headerlink" href="#34-promotion-fencing" title="Permanent link">¶</a></h3>
+<p>Сама функция PostgreSQL не связывается со старым primary, не выключает его питание, не отзывает доступ клиентского балансировщика и не получает распределенный lease от имени приложения. PostgreSQL 18 документирует, что система обнаружения отказа и уведомления standby находится за пределами встроенного механизма сервера. Поэтому вручную выполнять promotion при неизвестном состоянии старого узла — потенциально разрушительная операция.</p>
+<p><strong>Инженерный вывод.</strong> <code>pg_promote()</code> завершает локальное состояние standby и дает ей возможность записи. Право безопасно выполнять эту операцию должно быть установлено вне PostgreSQL. [PG-FAILOVER] [PG-STANDBY]</p>
+<h2 id="4-wal-timelines-postgresql">4. WAL Timelines: как PostgreSQL различает две истории после переключения<a class="headerlink" href="#4-wal-timelines-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="41-lsn">4.1. У LSN нет универсального глобального смысла без истории<a class="headerlink" href="#41-lsn" title="Permanent link">¶</a></h3>
+<p>В предыдущем блоке мы использовали LSN как положение в WAL. Теперь два сервера могут продолжить запись из одной исходной точки, но создать разные изменения. Если сравнить только числа LSN, можно ошибочно объявить более «высокий» LSN более свежими бизнес-данными.</p>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>                          TLI 1: общая история
+0/7000000 ------------------- 0/7800000
+                                   |
+                     promotion B   |
+                                   +------------------- TLI 2: B
+                                    \    B: запись C=paid
+                                     \
+                                      +--------------- TLI 1: A
+                                           A: запись C=cancelled
+</code></pre></div>
+<p>Упрощенная схема показывает логическое ветвление. <strong>Одинаковая числовая WAL-позиция на двух разных ветках не означает одинаковое содержимое.</strong> Положение нужно интерпретировать совместно с историей timeline.</p>
+<h3 id="42-timeline-id">4.2. Что такое timeline ID<a class="headerlink" href="#42-timeline-id" title="Permanent link">¶</a></h3>
+<p><strong>Timeline (TLI)</strong> — идентификатор ветки WAL-истории. При promotion из завершенной истории образуется новая timeline. Файлы WAL используют имя, включающее восьмизначный префикс timeline. Поэтому сегмент из одной ветки нельзя по одному номеру считать эквивалентным сегменту из другой.</p>
+<div class="highlight"><pre><span></span><code>00000001 00000000 00000007  - WAL segment timeline 1
+00000002 00000000 00000007  - WAL segment timeline 2
+^^^^^^^^
+Timeline ID
+</code></pre></div>
+<p>Это условный пример разбивки 24-шестнадцатеричного имени; конкретная часть номера зависит от размера WAL-сегмента и положения.</p>
+<h3 id="43-00000002history">4.3. Зачем нужен <code>00000002.history</code><a class="headerlink" href="#43-00000002history" title="Permanent link">¶</a></h3>
+<p>История timeline хранит сведения о происхождении новой ветки. В исходнике <code>src/backend/access/transam/timeline.c</code> для PostgreSQL определен формат строки:</p>
+<div class="highlight"><pre><span></span><code>&lt;parentTLI&gt; &lt;switchpoint&gt; &lt;reason&gt;
+</code></pre></div>
+<p>Для учебного случая:</p>
+<div class="highlight"><pre><span></span><code>1    0/7800000    no recovery target specified
+</code></pre></div>
+<p>Текст причины может отличаться. Существенны прежняя timeline и точка ветвления; history file позволяет восстановить отношение предка и потомка. Файл <code>00000002.history</code> распространяется вместе с WAL и должен быть доступен репликам, которые переходят на новую историю. [PG-TIMELINE-SRC] [PG-STANDBY]</p>
+<h3 id="44-standby-promotion-standby">4.4. Что увидит старая standby после promotion другой standby<a class="headerlink" href="#44-standby-promotion-standby" title="Permanent link">¶</a></h3>
+<p>Если C была standby A, а B стала новым primary, C необходимо начать следовать истории B. Параметр <code>recovery_target_timeline = latest</code> (по умолчанию) помогает standby выбирать последнюю доступную историю, если соответствующие WAL и timeline history доступны. Но неверная конфигурация <code>primary_conninfo</code>, отсутствующий WAL и разные предки timeline способны помешать такому переходу.</p>
+<h3 id="45-lsn">4.5. Почему «победил тот, у кого LSN больше» — плохой алгоритм<a class="headerlink" href="#45-lsn" title="Permanent link">¶</a></h3>
+<p>A продолжает писать после сетевого разделения: ее LSN может уйти дальше B. B тем временем легитимно повышена и принимает записи. Более высокая позиция A отражает больше WAL <strong>другой ветки</strong>. Автоматически объединить эти изменения нельзя. Система должна определить авторитетную историю исходя из лидерства, допустимых подтверждений и политики потерь, а не из максимального числового LSN.</p>
+<p><strong>Инженерный вывод.</strong> LSN описывает порядок в конкретной истории. После promotion инвариант безопасности включает учет происхождения WAL и запрет записи на старой ветке. [PG-TIMELINE-SRC]</p>
+<h2 id="5">5. Выбор кандидата: у кого есть подтвержденные данные?<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51-standby">5.1. Самая быстрая standby может быть плохим кандидатом<a class="headerlink" href="#51-standby" title="Permanent link">¶</a></h3>
+<p>Допустим, standby B находится в той же зоне доступности, что и старый primary A, но отстает на 1 МиБ WAL. Standby C размещена в другой зоне и отстает на 80 КиБ. Кажется, что надо выбрать C. Однако обе оценки получены при последнем опросе, а после него A могла подтвердить еще несколько COMMIT. Если между опросами прошло 10 секунд, текущее отставание может сильно отличаться от наблюдавшегося.</p>
+<p>Положение кандидата полезно, но нужно учитывать:</p>
+<ul>
+<li>соответствует ли его timeline допустимой истории кластера;</li>
+<li>какая часть WAL уже долговечно сохранена кандидатом;</li>
+<li>какие подтверждения пользователям выдавал прежний primary;</li>
+<li>какая реплика была синхронной в момент конкретного подтверждения;</li>
+<li>действительно ли кандидат пригоден для promotion и записи;</li>
+<li>был ли старый primary изолирован от клиентов;</li>
+<li>не изменились ли условия репликации с момента последнего измерения.</li>
+</ul>
+<p><strong>Свежесть по LSN</strong>, <strong>право стать лидером</strong> и <strong>сохранность подтвержденной истории</strong> — три разных фильтра. Их необходимо проходить совместно.</p>
+<h3 id="52">5.2. Асинхронный режим: плата за доступность<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p>В Patroni для асинхронного режима существует <code>maximum_lag_on_failover</code>. Это ограничение допустимого наблюдаемого lag кандидата, но оно <strong>не является жесткой гарантией максимальной потери данных</strong>. Документация Patroni прямо указывает на запаздывание измерений: в худшем случае объем потенциальных потерь может включать <code>maximum_lag_on_failover</code> плюс WAL, созданный за последний период вплоть до <code>ttl</code> секунд.</p>
+<p>Учебный расчет:</p>
+<div class="highlight"><pre><span></span><code>maximum_lag_on_failover = 1 MiB
+WAL generation rate      = 20 MiB/s
+TTL                     = 30 s
+
+Упрощенная консервативная оценка:
+1 MiB + 20 MiB/s * 30 s ≈ 601 MiB WAL
+</code></pre></div>
+<p>Это <strong>иллюстрация верхней оценки по указанной модели при принятой скорости</strong>, а не точный прогноз количества потерянных транзакций. 601 МиБ журнала может содержать разные по числу и ценности бизнес-операции изменения. В действительности скорость генерирования WAL меняется, а размер последнего интервала зависит от времени проверки. [PATRONI-MODES]</p>
+<h3 id="53-commit">5.3. Синхронный COMMIT еще не выбирает кандидата<a class="headerlink" href="#53-commit" title="Permanent link">¶</a></h3>
+<p>Представим три сервера: A primary, B синхронная standby, C асинхронная. Транзакция X подтверждена после durable flush WAL на B. Затем A погибает. Если автоматически повысить C, которая X не получала, мы потеряем подтвержденную операцию, несмотря на то что синхронная репликация PostgreSQL была настроена корректно.</p>
+<div class="highlight"><pre><span></span><code>A (primary)       B (sync standby)       C (async standby)
+  | COMMIT X             |                     |
+  +---------------------&gt;| WAL flush X         |
+  |&lt;---------------------+ ack                 |
+  | -&gt; client: OK                              |
+  X                                            |
+                                             нет X
+                               C PROMOTE ? -&gt; нарушение обещания
+</code></pre></div>
+<p>Чтобы сохранить подтвержденную историю, HA-система должна ограничивать допустимые варианты promotion. Это одна из причин существования <code>synchronous_mode</code> Patroni. При его использовании в DCS поддерживается согласованное состояние текущего лидера и синхронных кандидатов; алгоритм выбора обязан учитывать его. [PATRONI-MODES]</p>
+<h3 id="54-synchronous_mode-synchronous_mode_strict">5.4. <code>synchronous_mode</code> и <code>synchronous_mode_strict</code> — разные политики<a class="headerlink" href="#54-synchronous_mode-synchronous_mode_strict" title="Permanent link">¶</a></h3>
+<p>В Patroni есть три принципиальных конфигурации:</p>
+<table>
+<thead>
+<tr>
+<th>Режим Patroni</th>
+<th>При исчезновении нужной standby</th>
+<th>Какой компромисс</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Асинхронный</td>
+<td>Может повысить достаточно здоровую реплику</td>
+<td>Возможна потеря подтвержденных операций</td>
+</tr>
+<tr>
+<td><code>synchronous_mode = on</code></td>
+<td>Контролирует допуск sync-кандидатов; при потере sync standby может временно снять требование sync для дальнейших коммитов</td>
+<td>Могут быть периоды локально подтвержденной записи без второй копии, однако автоматический выбор не должен нарушать подтвержденную историю</td>
+</tr>
+<tr>
+<td><code>synchronous_mode_strict = on</code> вместе с sync mode</td>
+<td>Не отключает требование синхронного подтверждения при отсутствии подходящей standby</td>
+<td>Цена — остановка завершения новых синхронных COMMIT</td>
+</tr>
+</tbody>
+</table>
+<p>У режима strict есть важное ограничение: PostgreSQL позволяет отдельным транзакциям ослабить <code>synchronous_commit</code>, если приложение или роль это допускает. Следовательно, при анализе гарантий нельзя делать вывод только по конфигурации Patroni; проверяйте фактическую политику фиксации записи.</p>
+<p>Кроме того, документация Patroni описывает исключение: <strong>транзакция, чей backend был отменен во время ожидания синхронного подтверждения, может уже стать видимой другим backend на прежнем primary, хотя клиент не получил успешный COMMIT и реплика еще не подтвердила запись</strong>. При последующем promotion такой эффект может исчезнуть. Это тонкая граница между гарантией подтвержденного COMMIT и наблюдением не подтвержденной операции на старом узле. [PATRONI-MODES]</p>
+<h3 id="55">5.5. Кворум подтверждения и кворум выборов — разные кворумы<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p><code>ANY 2 (s1, s2, s3)</code> в PostgreSQL говорит о двух подтверждениях WAL со стороны standby. Это <strong>не алгоритм выбора нового primary</strong> и не кворум распределенного хранилища конфигурации.</p>
+<p>В синхронном кворумном режиме Patroni дополнительно ведет сведения о голосующих участниках и пересечении кворумов, чтобы новый кандидат мог доказать получение подтвержденных изменений. Для инженера здесь нужна причинная связь: если среди участников, подтвердивших запись, и участников, принимающих решение о новом владельце, не обеспечено нужное пересечение, можно выбрать узел без подтвержденного WAL.</p>
+<h3 id="56-failover">5.6. Ручной failover может обойти защитные фильтры<a class="headerlink" href="#56-failover" title="Permanent link">¶</a></h3>
+<p>Оператор способен принудительно повысить кандидата с большим lag, даже если автоматический алгоритм отказался бы делать это. В документации Patroni явно предупреждается, что manual failover без лидера может обойти проверки отставания, timeline и списка синхронных кандидатов. Поэтому команда аварийного повышения — <strong>решение о допустимой потере данных</strong>, которое требует отдельной авторизации и журнала действий. [PATRONI-REST]</p>
+<p><strong>Инженерный вывод.</strong> «Выбрать самую свежую реплику» — полезная эвристика, но не доказательство. Политика promotion должна быть согласована с режимом COMMIT, текущей историей WAL и правилами лидерства.</p>
+<hr/>
+<h1 id="iii-split-brain">III. Split-brain и распределенное право записи<a class="headerlink" href="#iii-split-brain" title="Permanent link">¶</a></h1>
+<h2 id="6-split-brain-postgresql">6. Split-Brain: почему два исправных PostgreSQL хуже одного упавшего<a class="headerlink" href="#6-split-brain-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="61-partition">6.1. Классический сетевой partition<a class="headerlink" href="#61-partition" title="Permanent link">¶</a></h3>
+<p>У нас A (primary), B (standby), DCS-кворум и два приложения. Сеть разделилась так, что A доступна клиентской группе X, но не DCS. B видит DCS. Если A продолжает принимать запись, а B получает лидерство, возникают две истории.</p>
+<div class="highlight"><pre><span></span><code>        ВИДИМОСТЬ СЕТИ
+
+Клиенты X ---&gt; A      X      B &lt;--- Клиенты Y
+                |             |
+           DCS недоступен  DCS доступен
+                |             |
+         старый writable    B получает lease
+                |             |
+             INSERT a       INSERT b
+                \             /
+                НЕСОВМЕСТИМЫЕ TIMELINES
+</code></pre></div>
+<p>Что произойдет, если обе группы клиентов успешно запишут заказ <code>id=42</code> с разными статусами? Локальные constraints и ACID на каждом узле могут быть полностью соблюдены. Проблема находится между серверами: отсутствует единственное авторитетное место выполнения записи.</p>
+<h3 id="62-wal">6.2. Почему WAL нельзя «просто смержить»<a class="headerlink" href="#62-wal" title="Permanent link">¶</a></h3>
+<p>WAL содержит физические изменения с причинными зависимостями от страниц, индексов, состояния транзакций и предыдущих записей. После ветвления одни и те же физические страницы могут изменяться независимо. Применить WAL ветки A поверх ветки B как обычную репликацию нельзя: истории несовместимы.</p>
+<p>Утверждение «данные А и B можно объединить SQL-скриптом» означает создание отдельной <em>предметной процедуры сверки</em>. Она должна знать, что делать с повторными переводами, конфликтующими статусами, уникальными ключами и внешними действиями. PostgreSQL не определяет бизнес-правила такого слияния.</p>
+<h3 id="63-ha-">6.3. Почему клиентский маршрутизатор — часть HA-безопасности<a class="headerlink" href="#63-ha-" title="Permanent link">¶</a></h3>
+<p>Даже после корректного выбора B лидером старые соединения приложений могут оставаться на A. DNS TTL, долгоживущие TCP-подключения, кеши адресов и пулы соединений задерживают переключение. Поэтому возможность записать в A должна быть прекращена <strong>на самом старом владельце или на надежном инфраструктурном барьере</strong>, а не только удалением его IP из DNS.</p>
+<p>Два независимых требования:</p>
+<ol>
+<li><strong>Routing correctness:</strong> новые подключения попадают на текущий writable endpoint.</li>
+<li><strong>Write fencing:</strong> старый узел не способен подтвердить новые авторитетные записи даже через прежнее уже открытое соединение.</li>
+</ol>
+<p>Первое снижает число ошибочных запросов. Второе предотвращает раздвоение истории.</p>
+<h3 id="64">6.4. Сравниваем исходы сетевых разделений<a class="headerlink" href="#64" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Сценарий</th>
+<th style="text-align: right;">A может достучаться до DCS?</th>
+<th style="text-align: right;">B может?</th>
+<th>Безопасное действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Все доступны</td>
+<td style="text-align: right;">Да</td>
+<td style="text-align: right;">Да</td>
+<td>Один лидер, обычная работа</td>
+</tr>
+<tr>
+<td>A потеряла DCS, B видит</td>
+<td style="text-align: right;">Нет</td>
+<td style="text-align: right;">Да</td>
+<td>A обязана утратить право записи; затем возможен B</td>
+</tr>
+<tr>
+<td>A видит DCS, B потеряла</td>
+<td style="text-align: right;">Да</td>
+<td style="text-align: right;">Нет</td>
+<td>A может продолжать при действующем lease; B не повышается</td>
+</tr>
+<tr>
+<td>DCS недоступен всем</td>
+<td style="text-align: right;">Нет</td>
+<td style="text-align: right;">Нет</td>
+<td>Без специального корректного протокола прекращают запись; возможен явно настроенный failsafe</td>
+</tr>
+<tr>
+<td>A заморожена и возобновилась позднее</td>
+<td style="text-align: right;">Старый lease истек</td>
+<td style="text-align: right;">Да</td>
+<td>A должна быть остановлена/изолирована до дальнейшей работы</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Инженерный вывод.</strong> Split-brain — нарушение инварианта владения, а не обычный конфликт транзакций. Оба PostgreSQL могут возвращать <code>COMMIT OK</code>, и именно это делает аварию опасной. [PG-FAILOVER] [PATRONI-WATCHDOG]</p>
+<h2 id="7-leader-election-patroni-dcs-lease">7. Leader Election: зачем Patroni нужен DCS и lease<a class="headerlink" href="#7-leader-election-patroni-dcs-lease" title="Permanent link">¶</a></h2>
+<h3 id="71-patroni-postgresql">7.1. Роль Patroni и граница ответственности PostgreSQL<a class="headerlink" href="#71-patroni-postgresql" title="Permanent link">¶</a></h3>
+<p><strong>Patroni</strong> — внешний HA-оркестратор PostgreSQL. Он проверяет здоровье узлов, общается с DCS (например, etcd/Consul или иной поддерживаемой системой), управляет ролями PostgreSQL и публикует состояние через REST API. Сам PostgreSQL реализует streaming replication, recovery и promotion. Patroni координирует, <em>когда и кому</em> эти возможности использовать.</p>
+<div class="highlight"><pre><span></span><code>              DCS: leader lease / cluster state
+                         ^  ^  ^
+                         |  |  |
+                      Patroni agents
+                         |  |  |
+                      PostgreSQL A/B/C
+                         ^
+                   HA routing layer
+                         ^
+                      applications
+</code></pre></div>
+<p>DCS содержит не просто строку «главный — A», а согласованное временное право владения с возможностью продления. У права есть срок действия. Этим HA-узлы исключают неограниченное продолжение лидерства после потери координации.</p>
+<h3 id="72-leader-lock-ttl">7.2. Leader lock и TTL<a class="headerlink" href="#72-leader-lock-ttl" title="Permanent link">¶</a></h3>
+<p>Упрощенная последовательность выбора:</p>
+<div class="highlight"><pre><span></span><code>1. DCS содержит leader=A; lease действителен до момента E.
+2. A регулярно продлевает lease.
+3. При разрыве связи A не может обновить право.
+4. До истечения E A должна прекратить авторитетную запись.
+5. После E кандидаты B/C проходят проверки допустимости.
+6. Один из них атомарно приобретает новый leader lock.
+7. Победитель выполняет promotion; остальные следуют за ним.
+</code></pre></div>
+<p>Разницу между <strong>одновременными кандидатами</strong> и <strong>одновременными лидерами</strong> обеспечивает сериализация операции захвата leader lock в DCS. Могут участвовать несколько кандидатов, но действующий lock должен получить один. Однако это свойство DCS не остановит A автоматически, если на A умер управляющий агент или зависла ОС. Поэтому нужен следующий слой — fencing.</p>
+<h3 id="73">7.3. Что проверяет кандидат<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<p>В Patroni выбор кандидата учитывает доступность REST API, запрет <code>nofailover</code>, допустимое отставание относительно <code>maximum_lag_on_failover</code>, <code>check_timeline</code>, а при соответствующей конфигурации — требования к синхронному кандидату и watchdog.</p>
+<p>Набор проверок зависит от того, автоматический это failover, плановый switchover или принудительный ручной сценарий. Список «здоровых узлов» никогда нельзя механически считать списком «гарантированно содержащих все подтвержденные транзакции».</p>
+<h3 id="74-dcs-quorum">7.4. DCS quorum и потеря доступности<a class="headerlink" href="#74-dcs-quorum" title="Permanent link">¶</a></h3>
+<p>Если DCS сам использует консенсусный протокол, его участники должны иметь достаточно доступных голосов для операций записи состояния. При потере необходимого кворума прежний leader может утратить способность продлевать lease. При обычной защитной политике это ведет к остановке PostgreSQL-записей, хотя сами data-узлы продолжают работать.</p>
+<p>Здесь и возникает классический компромисс распределенной согласованности: если невозможно удостовериться в исключительном владении, безопаснее временно остановить запись. Это предсказуемая деградация доступности, а не обязательный дефект системы.</p>
+<h3 id="75-patroni-dcs-failsafe-mode">7.5. Patroni DCS Failsafe Mode — исключение с условиями<a class="headerlink" href="#75-patroni-dcs-failsafe-mode" title="Permanent link">¶</a></h3>
+<p>Patroni имеет <code>failsafe_mode</code>. При определенном типе отказа обновления DCS leader может продолжить работу, <strong>только если способен связаться со всеми известными участниками кластера через Patroni REST API</strong> и получить требуемое согласование. Для этого используется специальное состояние <code>/failsafe</code> в DCS, поддерживаемое лидером.</p>
+<p>Почему требуется доступность <strong>всех</strong>, а не просто большинства PostgreSQL-узлов? Кворум DCS и размещение узлов PostgreSQL могут распределяться по сетевым сегментам по-разному. Вполне возможно, что большинство PostgreSQL осталось у A, а большинство DCS — у B. Разрешив A продолжить запись только по собственному большинству, можно получить два владельца.</p>
+<div class="highlight"><pre><span></span><code>DCS недоступен -&gt; обычное правило: demote
+     |
+     +-- failsafe включен и успешно согласован
+             со ВСЕМИ известными членами
+             -&gt; временно разрешено продолжать лидеру
+     |
+     +-- хотя бы один член недоступен
+             -&gt; demote
+</code></pre></div>
+<p>Это конкретная возможность Patroni, а не свойство всех HA-систем. Отключать требования исключительности ради «максимальной доступности» нельзя без моделирования сетевых разделений. [PATRONI-FAILSAFE]</p>
+<p><strong>Инженерный вывод.</strong> DCS отвечает за согласованность права лидерства, а не за автоматическое появление WAL на standby. Для безопасности необходим и корректный lease, и действующее прекращение записи на утратившем право узле.</p>
+<h2 id="8-fencing-demotion-watchdog-primary">8. Fencing, Demotion и Watchdog: как физически лишить старый primary права записи<a class="headerlink" href="#8-fencing-demotion-watchdog-primary" title="Permanent link">¶</a></h2>
+<h3 id="81-demotion">8.1. Demotion — команда еще не гарантия исполнения<a class="headerlink" href="#81-demotion" title="Permanent link">¶</a></h3>
+<p>Предположим, Patroni A не смог продлить lease и решил остановить PostgreSQL. Нормальный путь — завершить обслуживание записей, остановить или перевести узел в соответствующее неавторитетное состояние. Но что если Patroni аварийно завершился между решением и вызовом остановки? Или виртуальная машина поставлена на паузу на 40 секунд, а PostgreSQL вместе с агентом просто перестал исполнять инструкции?</p>
+<p>После возобновления VM PostgreSQL может попытаться обслужить старые TCP-соединения. Новый лидер уже выбран. Поэтому одного добросовестного кода в Patroni недостаточно для сильного инварианта «старый primary больше не запишет».</p>
+<h3 id="82-fencing">8.2. Что такое fencing<a class="headerlink" href="#82-fencing" title="Permanent link">¶</a></h3>
+<p><strong>Fencing</strong> — механизм, который надежно исключает бывшего владельца из авторитетного выполнения операций. В зависимости от инфраструктуры это может быть:</p>
+<ul>
+<li>power fencing/STONITH — управляемое отключение или перезагрузка узла;</li>
+<li>отключение доступа к storage или записи в ключевой ресурс;</li>
+<li>закрытие сетевого пути для всех записывающих клиентов <strong>при гарантии</strong>, что не останется обходных путей;</li>
+<li>сторожевой механизм (watchdog), который перезагружает хост, если управляющий процесс не подтверждает актуальное право.</li>
+</ul>
+<p>Простой TCP health check или изменение DNS сами по себе не являются надежным fencing.</p>
+<h3 id="83-watchdog">8.3. Watchdog: почему нужен таймер вне пользовательского агента<a class="headerlink" href="#83-watchdog" title="Permanent link">¶</a></h3>
+<p>Watchdog — аппаратный или системный механизм, требующий периодического keepalive. Если агент прекращает подтверждать работоспособность, watchdog вызывает reset. Для Patroni он особенно важен в ситуации, когда лидерский lease может истечь, но процесс PostgreSQL не остановлен.</p>
+<div class="highlight"><pre><span></span><code>A владеет lease              A зависает
+    |                           |
+    | keepalive watchdog         X (нет keepalive)
+    |                           |
+DCS TTL продолжает течь        watchdog timer
+    |                           |
+    +-----&gt; lease истекает       +-----&gt; reset A
+                        |
+                        +-- B получает право leader
+</code></pre></div>
+<p>Принцип: настроить watchdog так, чтобы старый узел гарантированно потерял способность писать до того, как другой узел законно получит право записи.</p>
+<h3 id="84-patroni-watchdog">8.4. Patroni watchdog — важные условия реализации<a class="headerlink" href="#84-patroni-watchdog" title="Permanent link">¶</a></h3>
+<p>В документации Patroni для Linux упомянут режим <code>watchdog.mode = required</code>: если сторожевой механизм недоступен, кандидат отказывается стать лидером. В обычной ситуации Patroni сначала активирует watchdog и только затем повышает PostgreSQL.</p>
+<p>Однако здесь нельзя ограничиться одной красивой схемой. Документация подробно обсуждает <strong>safety margin</strong> — запас времени между watchdog expiry и TTL DCS. Значения по умолчанию не являются формальной гарантией при произвольной паузе агента в неудачный момент. Для более строгого поведения Patroni предлагает настройку, позволяющую watchdog срабатывать раньше, чем истекает lease (например, политика <code>safety_margin = -1</code>, задающая timeout около половины <code>ttl</code>), с соответствующим пересчетом <code>ttl</code>, <code>loop_wait</code> и <code>retry_timeout</code>.</p>
+<p>Это стоит преподавать как инженерный расчет границ, а не как обещание «Patroni гарантирует отсутствие split-brain в любой среде». [PATRONI-WATCHDOG]</p>
+<h3 id="85-fencing">8.5. Временная гонка без fencing<a class="headerlink" href="#85-fencing" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Время        A (старый primary)         B (новый primary)
+-----------------------------------------------------------------
+T0           имеет lease                standby
+T1           потерял доступ к DCS       видит DCS
+T2           Patroni A завис            ждет истечения lease
+T3           lease истек                захватил lock
+T4           PostgreSQL A принимает     PROMOTE, writable
+             старые запросы
+T5           COMMIT OK в A              COMMIT OK в B
+</code></pre></div>
+<p>Это точка, где контрольная плоскость без надежного принудительного исполнения начинает протекать.</p>
+<h3 id="86-fencing">8.6. Метрики и эксплуатационные проверки fencing<a class="headerlink" href="#86-fencing" title="Permanent link">¶</a></h3>
+<p>Наблюдать нужно не только статус Patroni, но и фактические действия:</p>
+<ul>
+<li>была ли потеря DCS-lease;</li>
+<li>вызвана ли demotion на A;</li>
+<li>завершились ли старые writable-соединения;</li>
+<li>включен ли watchdog и принят ли режим <code>required</code>;</li>
+<li>зафиксирован ли reset в логах ОС/гипервизора;</li>
+<li>не остались ли маршруты к A;</li>
+<li>не наблюдались ли COMMIT на A после момента истечения права лидерства.</li>
+</ul>
+<p>Последний пункт лучше измерять специально созданным журналом операций и временем событий. Он особенно важен в failure-injection тестах, когда проверяется безопасность, а не только скорость переключения.</p>
+<p><strong>Инженерный вывод.</strong> Fencing — необходимое продолжение выбора лидера. Если вы не можете доказать, что бывший primary перестал писать, вывод «failover прошел успешно» преждевременен.</p>
+<hr/>
+<h1 id="iv-primary">IV. Возврат старого primary и восстановление топологии<a class="headerlink" href="#iv-primary" title="Permanent link">¶</a></h1>
+<h2 id="9-pg_rewind-primary">9. <code>pg_rewind</code>: как привести бывший primary к новой истории<a class="headerlink" href="#9-pg_rewind-primary" title="Permanent link">¶</a></h2>
+<h3 id="91-restart">9.1. Почему обычный restart старой машины недостаточен<a class="headerlink" href="#91-restart" title="Permanent link">¶</a></h3>
+<p>Итак, B стала новым primary. A снова включилась. На A остались файлы, принадлежавшие прежней timeline: возможно, она даже успела принять собственные записи после точки, на которой B отделилась. Если просто указать A <code>primary_conninfo</code> с адресом B, PostgreSQL не получит возможность автоматически «отмотать» собственные страницы до точки ветвления и заменить их новой историей.</p>
+<p>У нас два способа:</p>
+<ol>
+<li><strong>Сделать новую физическую копию</strong> B через <code>pg_basebackup</code> и заново создать standby A.</li>
+<li><strong>Выполнить <code>pg_rewind</code></strong>, который использует историю WAL для определения страниц, измененных на A с точки расхождения, и копирует нужное содержимое из B.</li>
+</ol>
+<p><code>pg_rewind</code> ускоряет восстановление больших кластеров, если с момента ветвления затронута сравнительно небольшая часть физических блоков. Но он не является универсальным распределенным <code>MERGE</code> и не сохраняет независимые изменения старой ветки.</p>
+<h3 id="92-pg_rewind-source-target">9.2. Что у <code>pg_rewind</code> является source и target<a class="headerlink" href="#92-pg_rewind-source-target" title="Permanent link">¶</a></h3>
+<p>Это источник множества ошибок оператора. Нужно запомнить:</p>
+<ul>
+<li><strong>Source</strong> — авторитетный новый primary B (или его корректная копия); откуда будем брать новое состояние.</li>
+<li><strong>Target</strong> — бывший primary A, чей каталог данных будет <strong>изменен</strong> для следования за B.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>B: NEW PRIMARY                  A: OLD PRIMARY
+  (source)                        (target)
+  timeline 2                      timeline 1 after fork
+        |                               |
+        |&lt;-- find divergence ----------|
+        |-- changed blocks -----------&gt;|
+        |-- other required files -----&gt;|
+        |                               |
+        +---------- rewind result -----+
+                  A must recover
+                  as standby of B
+</code></pre></div>
+<p>Нельзя перепутать эти роли: ошибка направления способна разрушить нужные данные. Перед вмешательством на стенде сохраняем диагностическую копию A, если нужно исследовать потерянные записи.</p>
+<h3 id="93-pg_rewind">9.3. Алгоритм <code>pg_rewind</code> — от истории к физическим блокам<a class="headerlink" href="#93-pg_rewind" title="Permanent link">¶</a></h3>
+<p>Документация PostgreSQL 18 описывает алгоритм из нескольких шагов.</p>
+<p><strong>Шаг 1.</strong> Прочитать timeline history source и target, определить точку расхождения. Недостаточно сравнить самый поздний WAL segment по имени: история ветвления имеет значение.</p>
+<p><strong>Шаг 2.</strong> Просканировать WAL target, начиная с последнего checkpoint перед расхождением. Для записей найти физические relation blocks, которые изменялись в отвергнутой истории target. Построить множество номеров блоков. Здесь используется известная уже из блока 7 связь WAL-изменения и физической страницы.</p>
+<p><strong>Шаг 3.</strong> Скопировать <em>только нужные блоки существующих relation files</em> из source в target. Для остальных файлов, включая новые relation files, файлы конфигурации и необходимые WAL-файлы, стратегия может требовать копирования целиком. Поэтому упрощение «<code>pg_rewind</code> копирует только измененные страницы вообще всех файлов» неверно.</p>
+<p><strong>Шаг 4.</strong> Подготовить данные target для последующего recovery. Перезапуск target должен воспроизвести необходимую WAL-историю от checkpoint до согласованного состояния source.</p>
+<p><strong>Шаг 5.</strong> После rewind target еще не становится готовой standby по факту успешного выхода утилиты: требуется правильная recovery-конфигурация, наличие необходимого WAL и запуск в соответствующем режиме.</p>
+<div class="highlight"><pre><span></span><code>История A / История B
+          |
+      fork point
+          |
+WAL A от checkpoint перед fork
+          |
+    touched block set
+          |
+   copy blocks B -&gt; A
+          |
+    copy other files
+          |
+    configure standby
+          |
+       WAL replay
+          |
+  A follows new primary B
+</code></pre></div>
+<p>Если target долго продолжала работать после ветвления, старые WAL-сегменты A могут быть удалены. Тогда утилита не сможет составить полный список затронутых блоков и потребуется архив target WAL либо новый base backup. Параметр <code>-c</code> позволяет читать недостающий target WAL через его <code>restore_command</code>, когда такая конфигурация доступна. [PG-REWIND]</p>
+<h3 id="94-checksums-wal_log_hints">9.4. Почему нужны checksums или <code>wal_log_hints</code><a class="headerlink" href="#94-checksums-wal_log_hints" title="Permanent link">¶</a></h3>
+<p><code>pg_rewind</code> должна видеть в WAL изменения страниц, по которым ей необходимо составить список копирования. Некоторые изменения, в частности подсказочные биты видимости (hint bits), не обязаны генерировать полную запись WAL без специальных условий. Поэтому PostgreSQL 18 требует на target:</p>
+<ul>
+<li>data checksums, включенные при создании кластера (в новых кластерах PostgreSQL 18 это значение по умолчанию), <strong>или</strong> <code>wal_log_hints = on</code>;</li>
+<li><code>full_page_writes = on</code>.</li>
+</ul>
+<p>Проверить нужно <strong>реальную конфигурацию target</strong>, а не полагаться на типовые defaults. Нельзя считать, что любой давно созданный кластер после обновления на 18 автоматически получил checksums.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># На ОСТАНОВЛЕННОМ target A, только чтение информации:</span>
+pg_controldata<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'Data page checksum version|wal_log_hints|full_page_writes'</span>
+</code></pre></div>
+<p>Если необходимые условия не выполнялись до расхождения, включение настройки после аварии не исправит уже недостающую историю; разумнее сделать новую base backup.</p>
+<h3 id="95">9.5. Безопасный пошаговый запуск в лаборатории<a class="headerlink" href="#95" title="Permanent link">¶</a></h3>
+<p>Действия выполняются <strong>только после того, как A полностью лишена права записи и остановлена</strong>, а B признана авторитетным новым primary.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Наблюдение состояния target на остановленном экземпляре</span>
+pg_controldata<span class="w"> </span><span class="s2">"</span><span class="nv">$OLD_PGDATA</span><span class="s2">"</span>
+
+<span class="c1"># Предварительная проверка без изменения файлов target</span>
+pg_rewind<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--target-pgdata<span class="o">=</span><span class="s2">"</span><span class="nv">$OLD_PGDATA</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source-server<span class="o">=</span><span class="s1">'host=new-primary.example port=5432 dbname=postgres user=rewind_user'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dry-run<span class="w"> </span>--progress
+</code></pre></div>
+<p>После проверки доступа, наличия WAL и условий rewind на учебном стенде:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># РАЗРУШИТЕЛЬНО ДЛЯ ОТВЕРГНУТОЙ ВЕТКИ TARGET.</span>
+<span class="c1"># Исторические изменения A после split-brain будут отвергнуты.</span>
+pg_rewind<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--target-pgdata<span class="o">=</span><span class="s2">"</span><span class="nv">$OLD_PGDATA</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--source-server<span class="o">=</span><span class="s1">'host=new-primary.example port=5432 dbname=postgres user=rewind_user'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--write-recovery-conf<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--progress
+</code></pre></div>
+<p>Опция <code>--write-recovery-conf</code> (<code>-R</code>) в PostgreSQL 18 создает <code>standby.signal</code> и добавляет параметры подключения, когда источник задан через <code>--source-server</code>. Если target использует дополнительные настройки (репликационный слот, архив, TLS, собственные конфиги), их необходимо согласовать с новой ролью <strong>до запуска</strong>.</p>
+<p>Опция <code>-c</code> (<code>--restore-target-wal</code>) применима, когда необходимые WAL target отсутствуют локально, но доступны в его архиве через <code>restore_command</code>. Без архива <code>-c</code> не является волшебной попыткой получить отвергнутый WAL из нового primary: это другая история.</p>
+<p><strong>Уточнение PostgreSQL 18:</strong> по умолчанию <code>pg_rewind</code> требует чистого остановленного target, но в современных версиях она умеет при необходимости выполнить завершение crash recovery target в single-user mode. Эту возможность не следует использовать как оправдание для работы утилиты с живым writable бывшим primary. Есть <code>--no-ensure-shutdown</code>, отменяющий автоматическое исправление и требующий чистого состояния. [PG-REWIND]</p>
+<h3 id="96">9.6. Что может пойти не так<a class="headerlink" href="#96" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Ошибка или симптом</th>
+<th>Причина</th>
+<th>Что делать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Нет WAL от точки расхождения</td>
+<td>Нужный target WAL уже удален</td>
+<td>Использовать архив, если доступен; иначе base backup</td>
+</tr>
+<tr>
+<td><code>pg_rewind</code> отказалась из-за checksums/hints</td>
+<td>Нельзя надежно определить все измененные блоки</td>
+<td>Создать новую standby из base backup</td>
+</tr>
+<tr>
+<td>После rewind сервер снова writable</td>
+<td>Неправильный <code>standby.signal</code> или recovery-конфигурация</td>
+<td>Немедленно изолировать; исправить до нового запуска</td>
+</tr>
+<tr>
+<td>Target не достигает consistent state</td>
+<td>Недостающий WAL из авторитетной истории</td>
+<td>Обеспечить WAL archive/streaming или пересоздать копию</td>
+</tr>
+<tr>
+<td>Ошибка во время копирования</td>
+<td>Target может быть непригоден для recovery</td>
+<td>Не запускать его; взять новый base backup</td>
+</tr>
+<tr>
+<td>Конфликт сертификатов/путей</td>
+<td>Скопированы несовместимые конфигурационные файлы</td>
+<td>Исправить локальные настройки до запуска</td>
+</tr>
+<tr>
+<td>Rewind долгая</td>
+<td>Много измененных блоков, медленный storage/network</td>
+<td>Оценить объем и сравнить со временем полного base backup</td>
+</tr>
+</tbody>
+</table>
+<p>PostgreSQL предупреждает, что после неудачного <code>pg_rewind</code> target может оказаться в состоянии, из которого нельзя корректно восстановиться. В production стандартный fallback — новый base backup. Не пытайтесь «долечить» неполный target случайным копированием файлов. [PG-REWIND]</p>
+<h3 id="97-rewind-backup">9.7. Стоимость rewind: почему не всегда быстрее backup<a class="headerlink" href="#97-rewind-backup" title="Permanent link">¶</a></h3>
+<p>Допустим, размер базы 2 ТиБ. После ветвления A изменила блоки, суммарно соответствующие 12 ГиБ, и добавила 2 ГиБ новых файлов. Передача примерно десятков гигабайт выгоднее полного копирования 2 ТиБ. Но если A продолжала принимать интенсивную запись в течение нескольких дней, затронутых страниц может быть гораздо больше; к ним добавляются требования к чтению WAL и subsequent recovery.</p>
+<p>При оценке времени учитываем:</p>
+<div class="highlight"><pre><span></span><code>T_rejoin ≈ T_stop + T_read_target_WAL + T_copy_blocks +
+           T_copy_other_files + T_sync + T_recovery + T_catchup
+</code></pre></div>
+<p>Это инженерная декомпозиция, а не формула PostgreSQL для гарантированного времени. Узким местом может стать чтение старого WAL, сетевое копирование, синхронизация каталога или replay после rewind.</p>
+<p><strong>Инженерный вывод.</strong> <code>pg_rewind</code> решает задачу <strong>отбрасывания отвергнутой ветки</strong> и возврата физического состояния к авторитетной истории. Утилита не разрешает бизнес-конфликты и не освобождает от требования изолировать старый primary. [PG-REWIND]</p>
+<h2 id="10-ha-">10. Восстановление HA-топологии и соединений приложений<a class="headerlink" href="#10-ha-" title="Permanent link">¶</a></h2>
+<h3 id="101-promotion">10.1. Почему завершенный promotion — еще не завершенный инцидент<a class="headerlink" href="#101-promotion" title="Permanent link">¶</a></h3>
+<p>Представим, что B уже принимает запись, а приложения все еще получают <code>connection refused</code> или <code>read-only transaction</code> на старом endpoint. С точки зрения базы повышение состоялось, но сервис недоступен. Значит, <strong>RTO приложения</strong> длиннее времени promotion.</p>
+<p>Полное восстановление требует:</p>
+<ol>
+<li>Гарантированно исключить A из записи (fencing).</li>
+<li>Завершить promotion B и подтвердить новое лидерство в HA-системе.</li>
+<li>Перенастроить write endpoint, включая stale DNS, балансировщики и пулы.</li>
+<li>Дождаться успешных транзакций с нового primary.</li>
+<li>Переустановить нормальную репликацию с возвращаемой A либо другой standby.</li>
+<li>Проверить репликационный прогресс, резервное копирование, мониторинг и сценарий следующего отказа.</li>
+</ol>
+<p>Пока реплика не вернулась, кластер находится в <strong>деградировавшем состоянии</strong>. Новый primary — единая точка отказа с точки зрения готовности к следующему переключению, даже если сейчас все бизнес-операции проходят.</p>
+<h3 id="102">10.2. Почему пулы соединений усложняют переключение<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<p>Драйвер или PgBouncer могут сохранять физические TCP-соединения к старому серверу. DNS-имя уже указывает на B, но существующий сокет не обязан изменить destination. Операции могут продолжаться на старом адресе, пока соединение не будет разорвано.</p>
+<p>Поэтому политика failover должна включать:</p>
+<ul>
+<li>сброс и повторное открытие устаревших соединений;</li>
+<li>ограничение времени подключения/ожидания в приложении;</li>
+<li>readiness для writable роли, а не только TCP health;</li>
+<li>контролируемую частоту reconnect, чтобы не создать новый инцидент;</li>
+<li>различение ошибок отказа соединения, read-only и ошибок с неопределенным COMMIT.</li>
+</ul>
+<p>Здесь используем изученное в 09.3 представление о <code>database/sql</code> и PgBouncer, без повтора их внутренних очередей.</p>
+<h3 id="103-commit">10.3. Неопределенный исход COMMIT<a class="headerlink" href="#103-commit" title="Permanent link">¶</a></h3>
+<p>Самая неприятная точка переключения:</p>
+<div class="highlight"><pre><span></span><code>Client                         A old primary
+  | BEGIN                           |
+  | UPDATE                          |
+  | COMMIT ------------------------&gt;|
+  |                           WAL durable
+  X connection lost                 |
+  | нет ответа                      |
+</code></pre></div>
+<p>Возможны разные результаты:</p>
+<ul>
+<li>COMMIT на A не успел завершиться — изменение не зафиксировано.</li>
+<li>COMMIT завершился, ответ не дошел — изменение зафиксировано на A.</li>
+<li>A подтвердила транзакцию клиенту до отказа, но новый B был асинхронным и не получил WAL — изменение отсутствует в новой авторитетной истории.</li>
+<li>Клиент повторил операцию после переподключения к B — возник риск повторного бизнес-эффекта.</li>
+</ul>
+<p>У клиента нет надежного способа вывести точный результат только из ошибки сокета. <strong>Идемпотентный ключ, атомарно записанный с бизнес-операцией, помогает выяснить исход в текущей авторитетной базе</strong>, но при потере целой подтвержденной истории старого primary запись идемпотентности тоже может исчезнуть. Поэтому схема финансовой операции должна учитывать внешние подтверждения и сверку с независимыми системами.</p>
+<h3 id="104-a">10.4. Почему нельзя сразу возвращать A в балансировщик<a class="headerlink" href="#104-a" title="Permanent link">¶</a></h3>
+<p>После rejoin A должна сначала пройти проверку фактической роли:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На A после запуска как standby:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">();</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">();</span>
+</code></pre></div>
+<p>На B (новом primary):</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">sync_state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sent_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">application_name</span><span class="p">;</span>
+</code></pre></div>
+<p>На уровне Patroni проверяем статус членов кластера, их роли, timeline и DCS leader. Только после этого можно считать A пригодной для standby-чтений или будущего повышения. Если восстановление происходит после реального split-brain, отдельно оформляется отчет о несовместимых транзакциях отвергнутой истории.</p>
+<h3 id="105-switchover-failover">10.5. Плановый switchover против аварийного failover<a class="headerlink" href="#105-switchover-failover" title="Permanent link">¶</a></h3>
+<p>При switchover старая primary обычно доступна и может участвовать в координированной передаче роли. Есть возможность остановить запись, дождаться синхронизации и минимизировать неопределенность.</p>
+<p>При аварийном failover прежняя primary может быть недоступна и нельзя получить гарантированное подтверждение ее остановки обычным способом. Необходимо полагаться на fencing, DCS, watchdog и заранее спроектированные правила выбора кандидата.</p>
+<table>
+<thead>
+<tr>
+<th>Событие</th>
+<th>Switchover</th>
+<th>Failover</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Старый primary доступен</td>
+<td>Обычно да</td>
+<td>Не гарантируется</td>
+</tr>
+<tr>
+<td>Можно заранее дождаться нужного WAL</td>
+<td>Обычно да</td>
+<td>Иногда нет</td>
+</tr>
+<tr>
+<td>Нужно защититься от двух writable</td>
+<td>Да</td>
+<td>Особенно важно</td>
+</tr>
+<tr>
+<td>Путь отката</td>
+<td>Как правило, управляемый</td>
+<td>Может потребоваться rewind/base backup</td>
+</tr>
+<tr>
+<td>Цель</td>
+<td>Плановое обслуживание</td>
+<td>Пережить отказ</td>
+</tr>
+</tbody>
+</table>
+<p>Patroni предоставляет раздельные операции <code>patronictl switchover</code> и <code>patronictl failover</code>. Документация предупреждает, что принудительный failover может привести к потере данных; для планового сценария предпочтительнее switchover. [PATRONI-REST]</p>
+<p><strong>Инженерный вывод.</strong> Реальный успех HA измеряется восстановлением <strong>правильного бизнес-трафика</strong> при единственном writable-владельце и контролируемом отставании нового standby, а не одним переключенным флагом роли.</p>
+<hr/>
+<h1 id="v">V. Нагрузка, диагностика и доказательство корректности<a class="headerlink" href="#v" title="Permanent link">¶</a></h1>
+<h2 id="11-failover">11. Диагностика failover: где конкретно система потеряла время и данные<a class="headerlink" href="#11-failover" title="Permanent link">¶</a></h2>
+<h3 id="111">11.1. Декомпозиция времени восстановления<a class="headerlink" href="#111" title="Permanent link">¶</a></h3>
+<p>Сервис перестал выполнять запись в 12:00:00, но первую успешную новую операцию зафиксировал только в 12:01:20. В журнале Patroni видно, что promotion завершился за четыре секунды. Значит, ответ «RTO = 4 секунды» не соответствует реальному инциденту.</p>
+<p>Нужно разделить интервалы:</p>
+<div class="highlight"><pre><span></span><code>T0  отказ или потеря доступа к primary
+ |
+ |  t_detect   - распознали проблему
+T1
+ |
+ |  t_elect    - истек lease / выбран кандидат
+T2
+ |
+ |  t_promote  - закончился recovery, доступна запись
+T3
+ |
+ |  t_route    - write endpoint направлен на нового лидера
+T4
+ |
+ |  t_reconnect - приложения создали рабочие соединения
+T5
+ |
+ |  t_validate - успешно выполнена бизнес-операция
+T6
+</code></pre></div>
+<p><strong>Показатель, который полезен бизнесу:</strong> <code>T6 - T0</code>. Но и каждый промежуточный интервал важен инженеру, иначе непонятно, что оптимизировать. Например, уменьшать TTL бессмысленно, если 70 секунд уходит на reconnect storm и неактуальный адрес, зафиксированный в клиентском пуле.</p>
+<p>Дополнительный этап — <code>t_rejoin</code>: сколько времени требуется вернуть вторую standby и восстановить резерв избыточности. Это отдельная величина, которая может исчисляться часами даже при минутном клиентском RTO.</p>
+<h3 id="112">11.2. Четыре слоя источников правды<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<p>Нельзя смотреть только один граф PostgreSQL. Нужны четыре слоя:</p>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Источник</th>
+<th>Что удостоверяем</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td><code>pg_is_in_recovery()</code>, системные логи, WAL timeline</td>
+<td>Фактическое состояние и история SQL-сервера</td>
+</tr>
+<tr>
+<td>Репликация</td>
+<td><code>pg_stat_replication</code>, <code>pg_stat_wal_receiver</code>, LSN</td>
+<td>WAL-позиции и пригодность кандидата</td>
+</tr>
+<tr>
+<td>HA</td>
+<td>Patroni API/logs, DCS leader/sync keys, watchdog</td>
+<td>Право лидерства и принудительное прекращение старого права</td>
+</tr>
+<tr>
+<td>Приложение</td>
+<td>connection errors, transaction IDs, HTTP p99, idempotency key</td>
+<td>Фактическая доступность бизнес-операции</td>
+</tr>
+</tbody>
+</table>
+<p>Два лога могут противоречить друг другу из-за clock skew или разных моментов наблюдения. Оценка причинности должна опираться на идентификаторы событий, timeline, журнал операций и данные DCS, а не только на порядок строк с метками времени.</p>
+<h3 id="113-sql">11.3. SQL для проверки роли и состояния<a class="headerlink" href="#113-sql" title="Permanent link">¶</a></h3>
+<p>На любом доступном узле:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">inet_server_addr</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">server_ip</span><span class="p">,</span>
+<span class="w">    </span><span class="n">inet_server_port</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">server_port</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_is_in_recovery</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">is_standby</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_postmaster_start_time</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">postmaster_started_at</span><span class="p">,</span>
+<span class="w">    </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'server_version'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pg_version</span><span class="p">;</span>
+</code></pre></div>
+<p>Эта информация помогает установить <strong>фактический сервер</strong>, к которому подключился клиент, и его локальную роль. Но <code>is_standby = false</code> не является доказательством актуального DCS leader lease.</p>
+<p>На действующем primary:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">client_addr</span><span class="p">,</span>
+<span class="w">       </span><span class="k">state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sync_state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sent_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="n">pg_current_wal_lsn</span><span class="p">(),</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">)</span>
+<span class="w">         </span><span class="k">AS</span><span class="w"> </span><span class="n">flush_backlog_bytes</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">application_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Подсчет backlog является мгновенной разностью для конкретной WAL-истории. Эта разность <strong>не</strong> подтверждает, что standby можно повысить: сведения собираются асинхронно, а после ветвления сравнение LSN без timeline запрещено.</p>
+<p>На standby:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">(),</span>
+<span class="w">       </span><span class="n">pg_last_wal_receive_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">received</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">replayed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_last_xact_replay_timestamp</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">last_replayed_commit_time</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">sender_host</span><span class="p">,</span><span class="w"> </span><span class="n">sender_port</span><span class="p">,</span>
+<span class="w">       </span><span class="n">received_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">latest_end_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">latest_end_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal_receiver</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_last_xact_replay_timestamp()</code> не дает гарантированную «возрастную» задержку, если на primary давно не было COMMIT: время последнего изменения может быть старым при полностью догнанной standby.</p>
+<h3 id="114">11.4. Проверка истории на диске<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>На остановленном экземпляре допустим:</p>
+<div class="highlight"><pre><span></span><code>pg_controldata<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">"</span>
+</code></pre></div>
+<p>Интересуют состояние кластера, checkpoint-related metadata и сведения timeline, если они присутствуют в выводе данной сборки. Файл <code>global/pg_control</code> не нужно редактировать вручную; интерпретацию его внутренних полей мы уже изучали в 07.3.</p>
+<p>Для анализа timeline используем историю <code>*.history</code> и WAL-инструменты. Пример из каталога WAL архива:</p>
+<div class="highlight"><pre><span></span><code>find<span class="w"> </span>/srv/wal-archive<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">1</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">'*.history'</span><span class="w"> </span>-print
+cat<span class="w"> </span>/srv/wal-archive/00000002.history
+</code></pre></div>
+<p>Существование файла <code>.history</code> — еще не достаточная гарантия готовности узла. Важны происхождение истории, реально доступные WAL-сегменты и согласованная точка применения.</p>
+<h3 id="115-patroni">11.5. Patroni: кто является текущим лидером<a class="headerlink" href="#115-patroni" title="Permanent link">¶</a></h3>
+<p>См. состояние кластера через команду, доступную в конкретной конфигурации Patroni:</p>
+<div class="highlight"><pre><span></span><code>patronictl<span class="w"> </span>-c<span class="w"> </span>/etc/patroni/patroni.yml<span class="w"> </span>list
+</code></pre></div>
+<p>На стенде команда показывает имя участника, роль, состояние, TL и lag. Для автоматизации лучше использовать поддерживаемое представление JSON или REST API Patroni, учитывая, что формат ответа и список полей зависят от версии.</p>
+<p>Принципиально важно сравнивать:</p>
+<ul>
+<li>фактическое состояние <code>pg_is_in_recovery()</code>;</li>
+<li>состояние leader lock в DCS;</li>
+<li>health/readiness по Patroni, применяемый маршрутизатором;</li>
+<li>состояние watchdog на предполагаемом лидере;</li>
+<li>историю событий promotion и demotion.</li>
+</ul>
+<p>Если маршрутизатор продолжает направлять SQL к узлу, который не имеет актуального leader lock, проблема находится уже за пределами локального PostgreSQL.</p>
+<h3 id="116-split-brain">11.6. Как диагностировать split-brain по данным<a class="headerlink" href="#116-split-brain" title="Permanent link">¶</a></h3>
+<p>Для лабораторного стенда заведем таблицу уникальных операций:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">ha_probe</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">op_id</span><span class="w"> </span><span class="n">uuid</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">node_hint</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">payload</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>При нагрузочном тесте клиент генерирует <strong>один <code>op_id</code> для одной логической операции</strong>, записывает его и сохраняет результат вместе с адресом реально использованного endpoint, временем, исходом соединения и идентификатором запуска теста. После переключения сверяем список успешных подтверждений клиента с содержимым нового авторитетного primary.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">op_id</span><span class="p">,</span><span class="w"> </span><span class="n">node_hint</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">ha_probe</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">op_id</span><span class="p">;</span>
+</code></pre></div>
+<p>Простое сравнение количества строк недостаточно: могли исчезнуть одни операции и появиться другие. Сверять нужно идентичности операций, подтверждения, внешние эффекты и порядок допустимых изменений. Погрешность часов делает <code>created_at</code> неподходящим единственным источником порядка межузловых событий.</p>
+<h3 id="117">11.7. Симптом → слой → диагностическое действие<a class="headerlink" href="#117" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятная причина</th>
+<th>Проверка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Приложение не пишет, хотя новый primary работает</td>
+<td>Stale connections, неправильный endpoint</td>
+<td><code>pg_is_in_recovery</code>, адрес соединения, routing, pool stats</td>
+</tr>
+<tr>
+<td>После переключения отсутствуют подтвержденные операции</td>
+<td>Отставший async candidate или нарушение sync failover политики</td>
+<td>Client ack log, WAL история, DCS sync status</td>
+</tr>
+<tr>
+<td>Два узла возвращают writable</td>
+<td>Split-brain / не сработал fencing</td>
+<td>DCS lease, watchdog, маршруты, оба экземпляра</td>
+</tr>
+<tr>
+<td>Patroni постоянно меняет leader</td>
+<td>Ложные подозрения, нестабильный DCS или timeout</td>
+<td>Логи HA-циклов, RTT, системная нагрузка</td>
+</tr>
+<tr>
+<td>Старый primary не подключается как standby</td>
+<td>Diverged timeline</td>
+<td>Timeline history, <code>pg_rewind --dry-run</code></td>
+</tr>
+<tr>
+<td><code>pg_rewind</code> не находит WAL</td>
+<td>Утерян WAL target после fork</td>
+<td>Архив WAL target, <code>-c</code>, затем base backup</td>
+</tr>
+<tr>
+<td>Новый primary медленно обслуживает первые запросы</td>
+<td>Переподключение, холодные кеши, нагрузка на I/O</td>
+<td>App latency, <code>pg_stat_activity</code>, OS metrics</td>
+</tr>
+<tr>
+<td>Failover быстрый, HA долго без резерва</td>
+<td>Затяжной rejoin / base backup</td>
+<td>Стадии <code>pg_rewind</code>, recovery, catch-up</td>
+</tr>
+<tr>
+<td>Ручной failover прошел, данные пропали</td>
+<td>Принудительный выбор кандидата в обход ограничений</td>
+<td>Операторский журнал, прошлый lag, timeline</td>
+</tr>
+</tbody>
+</table>
+<h3 id="118">11.8. Цена согласованности под нагрузкой<a class="headerlink" href="#118" title="Permanent link">¶</a></h3>
+<p>HA-узлы держат дополнительное состояние и выполняют сетевую координацию. Даже если SQL на primary оптимален, конфигурация может иметь дополнительные задержки:</p>
+<ul>
+<li>рост подтверждения COMMIT в синхронном режиме — цена удаленного ack (блок 10.0);</li>
+<li>ухудшение доступности при потере DCS quorum — безопасное ограничение записи;</li>
+<li>задержка переключения — работа HA-циклов, promotion и routing;</li>
+<li>волнa переподключений — дополнительная нагрузка на новый primary;</li>
+<li>холодные buffer/cache — временная просадка latency после promotion;</li>
+<li>временная потеря резервирования — риск повторного отказа до rejoin.</li>
+</ul>
+<p>Поэтому поддерживать малый RTO недостаточно: нужно измерять также <strong>время работы в деградированной HA-топологии</strong> и число false failovers за период.</p>
+<p><strong>Инженерный вывод.</strong> Для HA недостаточно одного индикатора <code>is_primary</code>. Нужен связанный набор доказательств: кто владеет lease, какую историю он продолжает, есть ли fencing, куда идет клиентский трафик и какие операции пережили переход.</p>
+<h2 id="12-failure-injection">12. Failure Injection: как доказать, что алгоритм работает под отказами<a class="headerlink" href="#12-failure-injection" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1. Зачем проводить разрушительные эксперименты<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>Обычный тест «остановили primary, затем он перезапустился» проверяет лишь один случай. Самые тяжелые ошибки возникают при <strong>асимметричных отказах</strong>: один клиент видит A, другой B; DCS доступен только части машин; бывший primary выходит из долгой паузы; failover происходит во время COMMIT; новый primary падает до того, как появится новая standby.</p>
+<p>Нужна практика по цепочке:</p>
+<p><strong>собрали → нагрузили → вызвали отказ → наблюдали → измерили → проверили инварианты → восстановили топологию → повторили</strong>.</p>
+<p>Все команды остановки/изоляции выполнять только в заранее выделенной учебной сети. Не тестировать разрывы сети, отключение дисков, watchdog reset и promotion на production без отдельного утвержденного плана аварийных испытаний.</p>
+<h3 id="122">12.2. Учебный стенд<a class="headerlink" href="#122" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>              DCS (не менее 3 членов для учебного quorum)
+                            |
+                   Patroni HA control
+              _____________|_____________
+             |             |             |
+          pg-a          pg-b          pg-c
+        primary         standby       standby
+             ^             ^             ^
+             +-------------+-------------+
+                  routing / client
+</code></pre></div>
+<p>Три PostgreSQL-узла нужны для сценариев выбора между кандидатами и проверки поведения при отказах. Три участника DCS можно запускать отдельно от трех data-узлов в контролируемой лабораторной среде. При проектировании стоит отделить отказ машины PostgreSQL от отказа узла DCS: размещение всех компонентов на одной физической машине не позволит объективно изучить сетевые разделения.</p>
+<p><strong>Перед экспериментом:</strong> проверить наличие архивного WAL, базовой копии, конфигурацию data checksums или <code>wal_log_hints</code>, <code>full_page_writes</code>, правила firewall и возможность вручную остановить все компоненты. Если задействован настоящий watchdog, заранее предусмотреть восстановление узлов после reset.</p>
+<h3 id="123">12.3. Нагрузочный генератор с проверяемыми операциями<a class="headerlink" href="#123" title="Permanent link">¶</a></h3>
+<p>Нагрузочный клиент с ограниченной параллельностью отправляет транзакции вида:</p>
+<div class="highlight"><pre><span></span><code><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">ha_probe</span><span class="p">(</span><span class="n">op_id</span><span class="p">,</span><span class="w"> </span><span class="n">node_hint</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="err">$</span><span class="mi">3</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">CONFLICT</span><span class="w"> </span><span class="p">(</span><span class="n">op_id</span><span class="p">)</span><span class="w"> </span><span class="k">DO</span><span class="w"> </span><span class="k">NOTHING</span><span class="p">;</span>
+</code></pre></div>
+<p>Сначала клиент измеряет успешные COMMIT без аварии и сохраняет <code>op_id</code> на внешнем тестовом носителе. Затем выполняет такой же поток во время fault injection. Важно <strong>различать операции</strong>:</p>
+<ul>
+<li><strong>ACKED</strong> — клиент получил успешный ответ;</li>
+<li><strong>FAILED</strong> — сервер вернул однозначную ошибку;</li>
+<li><strong>UNKNOWN</strong> — соединение оборвалось в момент, когда результат мог быть зафиксирован.</li>
+</ul>
+<p>После переключения проверяем каждую ACKED и UNKNOWN операцию. Нельзя считать UNKNOWN автоматически проигранной или автоматически успешно примененной.</p>
+<h3 id="124-1-primary">12.4. Эксперимент 1: аварийная остановка primary<a class="headerlink" href="#124-1-primary" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> На стенде принудительно остановить процесс PostgreSQL A или изолировать хост, сохранив нужные каналы управления для наблюдения.</p>
+<p><strong>Ожидаемое:</strong> мониторинг обнаруживает отказ, DCS leader lock истекает или передается по допустимой процедуре, B/C проходят проверки кандидата, один становится новым primary, маршрутизатор переводит запись.</p>
+<p><strong>Измеряем:</strong> время от отказа до фактической ошибки клиентских операций, время выбора кандидата, promotion, первого успешного COMMIT, потерю ACKED/UNKNOWN операций, время восстановления второй standby.</p>
+<p><strong>Вопрос к механизму:</strong> был ли выбран тот кандидат, которого допускает политика текущих подтверждений, или просто первый ответивший?</p>
+<h3 id="125-2-primary">12.5. Эксперимент 2: разделить сеть, не убивая primary<a class="headerlink" href="#125-2-primary" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> Изолировать A от DCS и standby, сохранив возможность обращения части тестовых клиентов к A.</p>
+<p><strong>Ожидаемое:</strong> A своевременно прекращает прием авторитетных записей; допустимый новый лидер появляется только после выполнения fencing/lease условий. Если A продолжает фиксировать новые транзакции уже после смены лидера, тест выявил критический дефект безопасности HA.</p>
+<p><strong>Измеряем:</strong> последнюю запись A, момент истечения lease, факт reset/demotion, первую запись B, пересечение возможных временных интервалов writable-состояния.</p>
+<p><strong>Главное:</strong> две зеленые метрики доступности могут скрывать катастрофическую потерю безопасности.</p>
+<h3 id="126-3-ha-vm">12.6. Эксперимент 3: остановить HA-агент или заморозить VM<a class="headerlink" href="#126-3-ha-vm" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> На стенде остановить Patroni-agent на A либо безопасно имитировать паузу управляющего процесса (не без контроля в production).</p>
+<p><strong>Ожидаемое:</strong> при требуемом watchdog и корректной конфигурации узел должен утратить способность записи до истечения права лидерства. При отсутствии watchdog сценарий демонстрирует риск возобновления старого PostgreSQL.</p>
+<p><strong>Измеряем:</strong> срок watchdog, запаздывание reset, сравнение с DCS TTL, доступность старых соединений. Сравниваем разные safety margin с учетом реальных требований Patroni. [PATRONI-WATCHDOG]</p>
+<h3 id="127-4-standby-async-promotion">12.7. Эксперимент 4: отставшая standby и потери при async promotion<a class="headerlink" href="#127-4-standby-async-promotion" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> Создать контролируемое WAL-отставание B/C, убедиться в его величине, затем вызвать отказ primary.</p>
+<p><strong>Ожидаемое:</strong> автоматическая система либо выберет допустимого кандидата, либо откажет в переключении, если нет подходящих. В async-схеме допустима потеря подтвержденных транзакций; она должна быть измерена, а не замаскирована словом «успешно».</p>
+<p><strong>Измеряем:</strong> множество оповещенных ACKED <code>op_id</code>, сохранившихся на выбранном узле, величины LSN до отказа и после, разницу между физической потерей WAL и потерей бизнес-операций.</p>
+<h3 id="128-5-promotion">12.8. Эксперимент 5: принудительный promotion с нарушением условий<a class="headerlink" href="#128-5-promotion" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> Только на изолированном стенде инициировать manual failover на намеренно отстающий кандидат (с фиксацией согласованного сценария потери данных).</p>
+<p><strong>Ожидаемое:</strong> демонстрация, что оператор может обойти автоматические гарантии и утвердить новую авторитетную историю без части подтвержденных операций.</p>
+<p><strong>Вывод:</strong> административная команда — это часть модели безопасности. Процедуры должны ограничивать доступ, требовать подтверждения риска и оставлять аудит.</p>
+<h3 id="129-6-primary-pg_rewind">12.9. Эксперимент 6: вернуть отвергнутый primary через <code>pg_rewind</code><a class="headerlink" href="#129-6-primary-pg_rewind" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> На стенде обеспечить ответвление A, корректно изолировать ее, сохранить копию для расследования и выполнить <code>pg_rewind</code> от B к A с проверкой <code>--dry-run</code>.</p>
+<p><strong>Ожидаемое:</strong> A запускается как standby B, воспроизводит новую timeline и перестает быть writable. Если target WAL утерян, проверяем вариант с архивом или создание нового base backup.</p>
+<p><strong>Измеряем:</strong> объем скопированных данных, время scan/copy/recovery, время достижения streaming, стоимость по отношению к полному base backup.</p>
+<h3 id="1210-7-rejoin">12.10. Эксперимент 7: второй отказ до rejoin<a class="headerlink" href="#1210-7-rejoin" title="Permanent link">¶</a></h3>
+<p><strong>Действие.</strong> После первого failover оставляем B единственным primary и еще не восстановили резерв. Затем моделируем недоступность B.</p>
+<p><strong>Ожидаемое:</strong> система не может обещать прежний уровень доступности; автоматический выбор нового лидера ограничен реально существующими копиями. Эксперимент показывает, что время <strong>восстановления HA-избыточности</strong> отличается от времени <strong>возобновления пользовательской записи</strong>.</p>
+<h3 id="1211">12.11. Матрица проверки инвариантов<a class="headerlink" href="#1211" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Сценарий</th>
+<th>Safety</th>
+<th>Data loss policy</th>
+<th>Client availability</th>
+<th>Rejoin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Крах primary</td>
+<td>Один writable</td>
+<td>Соответствует выбранному sync/async режиму</td>
+<td>Восстанавливается</td>
+<td>Новый standby создан</td>
+</tr>
+<tr>
+<td>Сетевое разделение</td>
+<td>Старый первичный fenced</td>
+<td>Потери учитываются отдельно</td>
+<td>Может быть частично ограничена</td>
+<td>Ветки не сливаются автоматически</td>
+</tr>
+<tr>
+<td>Замороженный агент</td>
+<td>Watchdog/изоляция срабатывают</td>
+<td>Нет скрытых двух владельцев</td>
+<td>Восстанавливается после выбора</td>
+<td>Старый сервер переинициализирован</td>
+</tr>
+<tr>
+<td>Async lag</td>
+<td>Отставший кандидат оценивается</td>
+<td>Потери измерены по ACKED op_id</td>
+<td>Явные ограничения</td>
+<td>Проверено наличие WAL</td>
+</tr>
+<tr>
+<td>Повторный отказ</td>
+<td>Один writable или остановка записи</td>
+<td>Не обещать невыполнимые гарантии</td>
+<td>Деградировавший режим учтен</td>
+<td>Возвращение резервирования</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1212-rto-split-brain">12.12. Почему «RTO уложился» ничего не говорит о split-brain<a class="headerlink" href="#1212-rto-split-brain" title="Permanent link">¶</a></h3>
+<p>В тесте A и B могут одновременно принимать запись две секунды, зато система восстановит HTTP 200 за одну секунду. Формальный RTO будет отличным, а состояние данных — некорректным. Поэтому проверять нужно минимум два класса свойств:</p>
+<ul>
+<li><strong>Safety properties</strong> — за все время теста не было конфликтующих авторитетных записей; выбранная история удовлетворяла объявленной политике сохранности.</li>
+<li><strong>Liveness properties</strong> — при достаточно работоспособной инфраструктуре и допустимом наборе отказов успешные бизнес-операции снова выполняются за ограниченное наблюдаемое время.</li>
+</ul>
+<p>Проверка этих свойств — более сильный итог практики, чем красивый граф одного failover time.</p>
+<hr/>
+<h2 id="101">Итоговая модель блока 10.1<a class="headerlink" href="#101" title="Permanent link">¶</a></h2>
+<p>После этой лекции должны остаться семь причинно-следственных связей:</p>
+<ol>
+<li><strong>Timeout не доказывает смерть primary.</strong> При сетевом разделении старый PostgreSQL может продолжать запись, поэтому безопасный failover требует внешней координации и исключительности владельца.</li>
+<li><strong>Promotion создает новую историю.</strong> PostgreSQL умеет завершить recovery и начать новую timeline, но самостоятельно не отключает старый primary и не выбирает распределенного лидера.</li>
+<li><strong>LSN сравнивают внутри истории.</strong> После расхождения одинаковые/большие значения LSN на разных timeline не означают одинаковые транзакции.</li>
+<li><strong>Sync replication и выбор кандидата образуют одну гарантию.</strong> Сохранность подтвержденного COMMIT зависит от того, кого можно повысить, а не только от того, кто когда-то подтвердил WAL.</li>
+<li><strong>DCS lease без fencing недостаточен.</strong> Потерявший право старый узел должен действительно прекратить запись, даже при зависании агента или VM.</li>
+<li><strong><code>pg_rewind</code> отбрасывает отвергнутую ветку.</strong> Она ускоряет возврат бывшего primary, если остался нужный WAL, но не выполняет бизнес-слияние и не заменяет recovery.</li>
+<li><strong>RTO измеряют по приложению.</strong> Время detection, election, promotion, routing, reconnect и rejoin различается; успешная роль PostgreSQL еще не доказывает восстановление сервиса.</li>
+</ol>
+<h3 id="_1">Дополнительный технический слой — только по отдельному запросу<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Если понадобится копнуть дальше, наиболее полезен <strong>строгий разбор лидерского lease и fencing как инварианта по времени</strong>: построить временную шкалу <code>ttl</code>, <code>loop_wait</code>, <code>retry_timeout</code>, задержки watchdog и паузы виртуальной машины, а затем показать, какие временные неравенства должны выполняться, чтобы два узла не сохраняли writable-права одновременно.</p>
+<p>Это закроет вопрос «можно ли доказать безопасность конкретной HA-конфигурации, а не только продемонстрировать успешный тест?». Для текущей 10.1 достаточно концептуального механизма, реальных ограничений Patroni и экспериментов с отказами.</p>
+<hr/>
+<h2 id="postgresql-18-patroni">Источники для сверки с PostgreSQL 18 и Patroni<a class="headerlink" href="#postgresql-18-patroni" title="Permanent link">¶</a></h2>
+<p>Первичные источники: официальная документация PostgreSQL 18, исходники ветки <code>REL_18_STABLE</code> и документация Patroni. Ссылки оставлены текстовыми, чтобы материал был пригоден для публикации в MkDocs.</p>
+<ul>
+<li><strong>[PG-FAILOVER]</strong> PostgreSQL 18, <em>26.3. Failover</em>: https://www.postgresql.org/docs/18/warm-standby-failover.html</li>
+<li><strong>[PG-STANDBY]</strong> PostgreSQL 18, <em>26.2. Log-Shipping Standby Servers</em>: https://www.postgresql.org/docs/18/warm-standby.html</li>
+<li><strong>[PG-FUNCTIONS]</strong> PostgreSQL 18, <em>9.28. System Administration Functions</em>, <code>pg_promote()</code>: https://www.postgresql.org/docs/18/functions-admin.html</li>
+<li><strong>[PG-REWIND]</strong> PostgreSQL 18, <em>pg_rewind</em>: https://www.postgresql.org/docs/18/app-pgrewind.html</li>
+<li><strong>[PG-TIMELINE-SRC]</strong> PostgreSQL <code>REL_18_STABLE</code>, <code>src/backend/access/transam/timeline.c</code>: https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/transam/timeline.c</li>
+<li><strong>[PG-WAL-CONFIG]</strong> PostgreSQL 18, <em>WAL Configuration</em>: https://www.postgresql.org/docs/18/runtime-config-wal.html</li>
+<li><strong>[PATRONI-FAQ]</strong> Patroni, <em>FAQ / Automatic failover</em>: https://patroni.readthedocs.io/en/latest/faq.html</li>
+<li><strong>[PATRONI-MODES]</strong> Patroni, <em>Replication Modes</em>: https://patroni.readthedocs.io/en/latest/replication_modes.html</li>
+<li><strong>[PATRONI-CONFIG]</strong> Patroni, <em>Dynamic Configuration Settings</em>: https://patroni.readthedocs.io/en/latest/dynamic_configuration.html</li>
+<li><strong>[PATRONI-WATCHDOG]</strong> Patroni, <em>Watchdog Support</em>: https://patroni.readthedocs.io/en/latest/watchdog.html</li>
+<li><strong>[PATRONI-FAILSAFE]</strong> Patroni, <em>DCS Failsafe Mode</em>: https://patroni.readthedocs.io/en/latest/dcs_failsafe_mode.html</li>
+<li><strong>[PATRONI-REST]</strong> Patroni, <em>REST API and Switchover/Failover</em>: https://patroni.readthedocs.io/en/latest/rest_api.html</li>
+</ul>
+<blockquote>
+<p><strong>Границы доказательств:</strong> документация PostgreSQL описывает поведение сервера. Patroni — конкретный внешний HA-оркестратор, а не встроенная подсистема PostgreSQL. Актуальные ключи конфигурации Patroni следует сверять с установленной версией. Результаты и интервалы приведенных экспериментов являются учебными примерами; любые production-гарантии требуют теста именно на выбранной инфраструктуре.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 1. Архитектура процессора, память и NUMA" class="md-footer__link md-footer__link--prev" href="../1.1%20-%20CPU%20architecture/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                1. Архитектура процессора, память и NUMA
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 10.2. PostgreSQL Logical Replication &amp;amp; CDC" class="md-footer__link md-footer__link--next" href="../10.2%20-%20Logical%20replication%20CDC/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                10.2. PostgreSQL Logical Replication &amp; CDC
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

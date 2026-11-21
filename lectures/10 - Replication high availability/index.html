@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/10%20-%20Replication%20high%20availability/" rel="canonical"/>
+<link href="../1%20-%20Intro%20%2B%20production/" rel="prev"/>
+<link href="../11%20-%20Partitioning%20large%20tables/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>10.0. PostgreSQL Replication &amp; High Availability - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#100-postgresql-replication-high-availability">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              10.0. PostgreSQL Replication &amp; High Availability
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-commit-ok">
+<span class="md-ellipsis">
+      
+        0. Инцидент: COMMIT вернул OK, а клиент увидел старые данные
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-commit-ok">
+<span class="md-ellipsis">
+      
+        0. Инцидент: COMMIT вернул OK, а клиент увидел старые данные
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="100-postgresql-replication-high-availability">10.0. PostgreSQL Replication &amp; High Availability<a class="headerlink" href="#100-postgresql-replication-high-availability" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · основная лекция блока 10.</strong><br/>
+<strong>Содержание:</strong> 16 тем; физическая streaming replication, подтверждения, lag, hot standby, маршрутизация чтений, эксплуатационная стоимость.<br/>
+<strong>Предыдущие знания:</strong> WAL, LSN, <code>COMMIT</code>, checkpoint, MVCC, VACUUM, блокировки, backup и crash recovery уже разобраны. Мы используем их, но не повторяем реализацию.<br/>
+<strong>Граница:</strong> promotion, timelines, выбор нового primary, fencing и split-brain — <strong>лекция 10.1</strong>. Logical decoding, publications/subscriptions и CDC — <strong>лекция 10.2</strong>.<br/>
+<strong>Примечание:</strong> конфигурации, адреса, объемы и задержки в примерах учебные. Ни одна величина производительности не представлена как измерение реального PostgreSQL.</p>
+</blockquote>
+<h2 id="0-commit-ok">0. Инцидент: COMMIT вернул OK, а клиент увидел старые данные<a class="headerlink" href="#0-commit-ok" title="Permanent link">¶</a></h2>
+<p>Представим сервис заказов. У нас два PostgreSQL-сервера: primary принимает записи, standby обслуживает часть чтений. Клиент оплатил заказ, получил HTTP 200, сразу обновил страницу — и снова увидел статус <code>unpaid</code>. Через 300 миллисекунд статус стал <code>paid</code>.</p>
+<p>Инженер предлагает увеличить количество реплик: «Пусть их будет пять, тогда чтение станет надежнее». Но мы еще не выяснили, что означает <em>надежнее</em>. Пять отстающих реплик могут гораздо быстрее и гораздо чаще возвращать старое состояние.</p>
+<p>Теперь второй сценарий. Primary зафиксировал денежную операцию и отправил клиенту <code>COMMIT OK</code>. Сбой питания уничтожил primary до того, как standby получила эту транзакцию. Какой результат обнаружим после переключения на standby? Возможно, последняя операция там отсутствует. Локальная долговечность <code>COMMIT</code> и сохранность операции на другом сервере — разные утверждения.</p>
+<div class="highlight"><pre><span></span><code>                               журнал и применение
+                          ┌─────────────────────────┐
+                          │                         ▼
+Client → Backend → Primary PostgreSQL         Standby PostgreSQL
+                 │                             │
+                 └── COMMIT OK                 └── SELECT
+                      (локальное условие)          (свой replay LSN)
+</code></pre></div>
+<p>Для этой лекции нам нужны три независимые оси:</p>
+<ol>
+<li><strong>Durability:</strong> переживет ли подтвержденная транзакция аварию конкретного узла?</li>
+<li><strong>Replication progress:</strong> какие WAL-позиции получены, записаны, синхронизированы и применены на standby?</li>
+<li><strong>Read freshness:</strong> гарантирует ли выбранный сервер, что конкретный <code>SELECT</code> видит интересующее изменение?</li>
+</ol>
+<p>Одна ось не заменяет другие. Проверим, как PostgreSQL 18 реализует каждую, почему эти гарантии стоят времени и диска и как находить узкое место под нагрузкой.</p>
+<hr/>
+<h1 id="i">I. Архитектура физической репликации<a class="headerlink" href="#i" title="Permanent link">¶</a></h1>
+<h2 id="1-primary-standby">1. Primary и Standby: какую копию мы создаем<a class="headerlink" href="#1-primary-standby" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Один источник изменений, несколько копий состояния<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p><strong>Primary</strong> — экземпляр PostgreSQL, на котором выполняются обычные операции записи в базу. <strong>Standby</strong> — другой экземпляр, который воспроизводит WAL, полученный из истории primary. Обычный physical standby находится в recovery и не принимает пользовательские изменения постоянных таблиц.</p>
+<p>Физическая репликация переносит изменения <em>кластера PostgreSQL</em> в терминах его физических данных и WAL, а не логические команды <code>INSERT</code> или <code>UPDATE</code> по отдельным таблицам. В этом режиме реплицируются все базы данного кластера, а не выбранный набор таблиц. Поэтому на реплике нельзя произвольно изменить схему одной таблицы и ожидать, что дальнейший physical replay как-нибудь с этим разберется.</p>
+<p>Имеются два разных понятия: <strong>warm standby</strong> может продолжать recovery, оставаясь недоступной для обычных чтений; <strong>hot standby</strong> может выполнять read-only запросы в ходе recovery. В PostgreSQL 18 <code>hot_standby = on</code> по умолчанию, но запросы начинают обслуживаться лишь после достижения согласованного состояния.</p>
+<div class="highlight"><pre><span></span><code>                    Primary
+                      │
+           ┌──────────┼──────────┐
+           ▼          ▼          ▼
+        Standby A   Standby B   Standby C
+         (hot)       (hot)      (warm/hot)
+</code></pre></div>
+<p>Наличие standby дает потенциальный источник данных и сервер для чтений. Но автоматически ни zero-data-loss, ни автоматический failover эта схема не обеспечивает. Обратите внимание на слово <em>потенциальный</em>: реплика может отставать, быть отключена или иметь недостаточно WAL для продолжения.</p>
+<h3 id="12">1.2. Репликация и резервная копия — разные эксплуатационные гарантии<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>Реплика быстро воспроизводит изменения primary. Если кто-то выполнил <code>DELETE FROM orders</code>, физическая standby тоже применит удаление. Сбой в бизнес-логике отлично реплицируется, и потому streaming standby не заменяет проверяемый backup и возможность вернуться к определенному моменту.</p>
+<p>И наоборот: ночная резервная копия не является постоянно обслуживающей hot standby. Она может существовать в архиве, не принимая запросов. Мы уже разобрали backup в 09.2; здесь нам важно различать <strong>готовую рабочую копию состояния</strong> и <strong>источник восстановления исторического состояния</strong>.</p>
+<h3 id="13">1.3. Совместимость физических копий<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Физическую standby создают из корректного базового состояния того же PostgreSQL-кластера. Для streaming replication требуется совместимый формат данных и необходимая WAL-история, а также поддерживаемые сервером версии и аппаратно-программная совместимость. Это не способ свободно реплицировать между разными major-версиями PostgreSQL.</p>
+<p><strong>Инженерный вывод.</strong> Physical standby полезна для высокой доступности и разгрузки чтений; границы ее пригодности определяются актуальностью WAL, режимом подтверждения и готовностью процедуры переключения.</p>
+<h2 id="2-streaming-replication-standby">2. Streaming Replication: как изменения достигают standby<a class="headerlink" href="#2-streaming-replication-standby" title="Permanent link">¶</a></h2>
+<h3 id="21-wal">2.1. Кто передает WAL<a class="headerlink" href="#21-wal" title="Permanent link">¶</a></h3>
+<p>На primary работает процесс <strong>walsender</strong>; на standby — <strong>walreceiver</strong>. Standby устанавливает replication connection к источнику, walsender передает последовательный поток WAL, walreceiver принимает его. Отдельный startup/recovery process на standby воспроизводит WAL-изменения.</p>
+<p>Сетевое соединение само по себе не означает, что изменения уже стали видимыми запросам. Между отправкой WAL и его применением есть отдельные стадии.</p>
+<div class="highlight"><pre><span></span><code>PRIMARY                                      STANDBY
+backend → WAL insert                        ┌─────────────┐
+         → local WAL write/flush             │ walreceiver │
+         → walsender ─────── network ──────► │ write WAL   │
+                                             │ flush WAL   │
+                                             └──────┬──────┘
+                                                    │
+                                                    ▼
+                                             startup / REDO
+                                                    │
+                                                    ▼
+                                             visible to SELECT
+</code></pre></div>
+<p>Walsender передает WAL <strong>байты/записи физического журнала</strong>, а не сетевые пакеты с исходным SQL. Это позволяет standby восстанавливать физическое состояние без выполнения того же SQL через planner/executor. Поэтому сложность исходного <code>UPDATE</code> не обязана повторяться на standby в виде такого же плана SQL.</p>
+<h3 id="22-standby">2.2. Четыре разных прогресса standby<a class="headerlink" href="#22-standby" title="Permanent link">¶</a></h3>
+<p>На standby удобно различать:</p>
+<ul>
+<li><strong>receive:</strong> WAL пришел по сети;</li>
+<li><strong>write:</strong> байты переданы в файловую систему standby, но еще не обязательно синхронизированы;</li>
+<li><strong>flush:</strong> WAL гарантированно синхронизирован согласно выбранному методу хранения;</li>
+<li><strong>replay:</strong> записи разобраны и применены recovery-процессом.</li>
+</ul>
+<p>Для выбранной WAL-истории обычно выполняется порядок достигнутых позиций: <code>replay_lsn ≤ flush_lsn ≤ write_lsn ≤ sent_lsn</code>, если сравниваем согласованные измерения и соответствующие поля. В реальной диагностике источники статистики обновляются асинхронно, поэтому снимки с разных узлов могут казаться несогласованными.</p>
+<p><strong>Критический нюанс:</strong> <code>flush_lsn</code> и <code>replay_lsn</code> — разные границы. WAL может быть сохранен на standby, но читающие запросы еще не видят изменений.</p>
+<h3 id="23-startup-process">2.3. Зачем нужен startup process, если байты уже лежат в файлах<a class="headerlink" href="#23-startup-process" title="Permanent link">¶</a></h3>
+<p>Получение WAL еще не переносит изменения в heap и индексы. Startup process применяет записи в порядке WAL, соблюдая правила recovery. На тяжелой записи standby может быстро получать новые сегменты, но медленнее воспроизводить поток; в этот момент накапливается <strong>replay backlog</strong>.</p>
+<p>Причины: I/O, стоимость применения физических изменений, конкуренция с читающими запросами, ожидания в процессе восстановления. Именно поэтому реплика может быть «подключена, зеленая, streaming», но возвращать старые данные.</p>
+<h3 id="24-standby-wal">2.4. Откуда standby читает WAL после перезапуска<a class="headerlink" href="#24-standby-wal" title="Permanent link">¶</a></h3>
+<p>Standby может использовать архивный WAL (<code>restore_command</code>), WAL в собственном <code>pg_wal</code> и streaming с primary. При достижении конца доступного WAL она переходит между источниками по предусмотренному алгоритму. Если сеть прерывалась, а нужные сегменты сохранились в архиве, standby может догнать primary без нового base backup.</p>
+<p><strong>Инженерный вывод.</strong> Состояние <code>streaming</code> подтверждает работу канала, а актуальность данных определяется фактическими позициями WAL и способностью выполнять replay.</p>
+<h2 id="3-standby-base-backup-streaming">3. Настройка физической standby: от base backup до streaming<a class="headerlink" href="#3-standby-base-backup-streaming" title="Permanent link">¶</a></h2>
+<h3 id="31-primary">3.1. Подготавливаем primary<a class="headerlink" href="#31-primary" title="Permanent link">¶</a></h3>
+<p>Для демонстрации нужен PostgreSQL 18 на двух независимых экземплярах. На primary проверим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">server_version</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_level</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_wal_senders</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_replication_slots</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">wal_keep_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Для физической репликации <code>wal_level</code> должен быть <code>replica</code> или <code>logical</code>. Значение <code>replica</code> — обычное значение по умолчанию PostgreSQL 18. Количество WAL sender-процессов и слотов требуется рассчитывать для реальной топологии, а не просто выставлять огромное число с запасом.</p>
+<p>Создаем роль для репликации:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">ROLE</span><span class="w"> </span><span class="n">replicator</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="n">LOGIN</span><span class="w"> </span><span class="n">REPLICATION</span><span class="w"> </span><span class="n">PASSWORD</span><span class="w"> </span><span class="s1">'lab-change-me'</span><span class="p">;</span>
+</code></pre></div>
+<p>Это учебный пароль. В реальной инфраструктуре используйте секрет-хранилище, ограничение источников подключения и TLS. В <code>pg_hba.conf</code> primary добавляем правило, ограниченное сетью standby:</p>
+<div class="highlight"><pre><span></span><code>host  replication  replicator  10.10.20.0/24  scram-sha-256
+</code></pre></div>
+<p>Правило <code>replication</code> применяется к физическим replication connections; логическая репликация использует другую модель подключения. После изменения <code>pg_hba.conf</code> выполняется корректная перезагрузка конфигурации.</p>
+<h3 id="32">3.2. Получаем начальное состояние<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p>На будущей standby PostgreSQL остановлен, каталог данных пустой. Пример Linux-команды (адаптируйте пути и учетные данные под лабораторный стенд):</p>
+<div class="highlight"><pre><span></span><code>pg_basebackup<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-h<span class="w"> </span>primary.example.internal<span class="w"> </span>-p<span class="w"> </span><span class="m">5432</span><span class="w"> </span>-U<span class="w"> </span>replicator<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-D<span class="w"> </span><span class="s2">"</span><span class="nv">$PGDATA</span><span class="s2">"</span><span class="w"> </span>-R<span class="w"> </span>-X<span class="w"> </span>stream<span class="w"> </span>-P<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-C<span class="w"> </span>-S<span class="w"> </span>standby_a
+</code></pre></div>
+<p>Параметры:</p>
+<ul>
+<li><code>-D</code> задает каталог назначения;</li>
+<li><code>-R</code> создает <code>standby.signal</code> и записывает параметры подключения для будущего запуска;</li>
+<li><code>-X stream</code> получает необходимый WAL в процессе base backup;</li>
+<li><code>-C -S standby_a</code> создает и использует именованный физический replication slot; создание выполняется <strong>только при первоначальной настройке</strong>, повтор с уже существующим слотом завершится ошибкой.</li>
+</ul>
+<p><code>pg_basebackup</code> — только способ получить начальную физическую копию. Отдельно в 09.2 мы уже разбирали принципы согласованного backup; здесь нужен его результат для запуска standby.</p>
+<h3 id="33-standby">3.3. Что появляется в конфигурации standby<a class="headerlink" href="#33-standby" title="Permanent link">¶</a></h3>
+<p>Признак <code>standby.signal</code> переводит сервер в standby-режим. <code>primary_conninfo</code> указывает, к какому primary подключаться. <code>primary_slot_name</code> определяет физический slot на источнике. Параметры нередко попадают в <code>postgresql.auto.conf</code> после <code>pg_basebackup -R</code>.</p>
+<div class="highlight"><pre><span></span><code>standby.signal
+primary_conninfo = 'host=primary.example.internal port=5432 user=replicator application_name=standby_a'
+primary_slot_name = 'standby_a'
+</code></pre></div>
+<p>Это <strong>пример формата</strong>, а не предложение одновременно вручную дублировать настройки из <code>-R</code>. Строку подключения, сертификаты и секреты нужно организовать в соответствии с требованиями окружения.</p>
+<p>После запуска standby проверяем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">();</span><span class="w">                </span><span class="c1">-- true на standby</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_receive_lsn</span><span class="p">();</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">();</span>
+</code></pre></div>
+<p>На primary:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">sync_state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sent_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lsn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="34-cp">3.4. Почему «скопировать каталог работающего сервера через cp» недостаточно<a class="headerlink" href="#34-cp" title="Permanent link">¶</a></h3>
+<p>Содержимое изменяется во время копирования; страницы и WAL могут относиться к разным состояниям. Для физической standby нужен согласованный базовый образ и WAL, позволяющий довести его до правильной точки. Перенос файлов без соответствующего протокола backup может дать неконсистентный результат.</p>
+<h3 id="35-production-">3.5. Production-оговорки<a class="headerlink" href="#35-production-" title="Permanent link">¶</a></h3>
+<p>На standby некоторые параметры размеров общих структур должны быть не меньше соответствующих значений primary, иначе recovery может приостановиться. К ним относятся <code>max_connections</code>, <code>max_prepared_transactions</code>, <code>max_locks_per_transaction</code>, <code>max_wal_senders</code>, <code>max_worker_processes</code>. При изменениях инфраструктуры соблюдаем порядок настройки и проверяем server logs.</p>
+<p><strong>Инженерный вывод.</strong> «Standby запущена» недостаточно. Критерии готовности: валидная базовая копия, устойчивый replication connection, продвижение LSN и возможность применять WAL.</p>
+<hr/>
+<h1 id="ii">II. Асинхронная и синхронная репликация<a class="headerlink" href="#ii" title="Permanent link">¶</a></h1>
+<h2 id="4-commit-standby">4. Асинхронная репликация: локальный COMMIT опережает standby<a class="headerlink" href="#4-commit-standby" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Очевидная модель и место, где она ломается<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>По умолчанию streaming replication асинхронна: успешный COMMIT на primary обычно не требует подтверждения standby. При <code>synchronous_commit = on</code> и отсутствии активной синхронной standby primary дожидается своего локального WAL flush. Но удаленный сервер может еще не получить этот WAL.</p>
+<div class="highlight"><pre><span></span><code>Время    PRIMARY                               STANDBY
+ t1      UPDATE orders ...
+ t2      COMMIT record → local WAL flush
+ t3      клиент получил COMMIT OK
+ t4      primary недоступен                     replay до более раннего LSN
+ t5                                             последней транзакции нет
+</code></pre></div>
+<p>Это <strong>сценарий возможной потери данных при переключении</strong>: подтвержденный на primary COMMIT отсутствует на выбранной standby. WAL на диске первичного сервера мог пережить сбой, но недоступность этого сервера не позволяет его немедленно использовать.</p>
+<h3 id="42-rpo-pg_wal_lsn_diff">4.2. Почему RPO не равно <code>pg_wal_lsn_diff()</code><a class="headerlink" href="#42-rpo-pg_wal_lsn_diff" title="Permanent link">¶</a></h3>
+<p>LSN выражает положение в WAL. Разность LSN — объем журнала, <strong>не время</strong> и не количество бизнес-транзакций. Один большой <code>COPY</code> может создавать огромный WAL-объем, а множество коротких транзакций — относительно небольшой. К тому же между разными снимками статистики позиции меняются.</p>
+<p>При асинхронной репликации гарантированного верхнего ограничения потери подтвержденных транзакций одной лишь настройкой streaming нет. Для оценки риска измеряем скорость генерации WAL, текущую очередь, состояние слота, время отсутствия связи и готовность процедуры выбора новой истории. Расчетный RPO — свойство всей системы, а не одного счетчика.</p>
+<h3 id="43-async">4.3. Почему async может быть быстрым<a class="headerlink" href="#43-async" title="Permanent link">¶</a></h3>
+<p>Backend не ожидает сетевого RTT и remote flush на критическом пути каждого локального COMMIT. Это полезно при межрегиональной репликации. Цена — окно, в котором подтвержденные локально изменения еще не защищены другой копией.</p>
+<p><strong>Инженерный вывод.</strong> Асинхронная репликация выбирает меньшую задержку записи ценой допускаемой потерянной истории при отказе primary. Ее нужно выбирать сознательно по требованиям к данным.</p>
+<h2 id="5">5. Синхронная репликация: что именно мы ждем<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51-commit">5.1. Добавляем сетевое условие к COMMIT<a class="headerlink" href="#51-commit" title="Permanent link">¶</a></h3>
+<p>Теперь primary должен дождаться подтверждения определенных standby. Необходимо различать <strong>кто подтверждает</strong> и <strong>какую стадию подтверждает</strong>.</p>
+<p>Состав ожидаемых standby задает <code>synchronous_standby_names</code>, а степень ожидания — <code>synchronous_commit</code>. Эти настройки работают совместно. Нельзя объяснить их корректно одной фразой «синхронная репликация включена».</p>
+<h3 id="52-synchronous_commit">5.2. Режимы <code>synchronous_commit</code><a class="headerlink" href="#52-synchronous_commit" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Режим</th>
+<th>Условие для успешного ответа (типичная конфигурация)</th>
+<th>Следствие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>off</code></td>
+<td>Не ждать даже локального WAL flush</td>
+<td>Возможна потеря недавно подтвержденных операций при crash primary</td>
+</tr>
+<tr>
+<td><code>local</code></td>
+<td>Локальный WAL flush; без удаленного ожидания</td>
+<td>Удаленный сервер может отставать</td>
+</tr>
+<tr>
+<td><code>remote_write</code></td>
+<td>Локальный WAL flush + запись WAL на требуемой standby без обязательного remote durable flush</td>
+<td>Потеря питания standby может уничтожить неподтвержденные физическим flush байты</td>
+</tr>
+<tr>
+<td><code>on</code></td>
+<td>Локальный WAL flush + durable flush WAL на требуемой синхронной standby</td>
+<td>Удаленная копия зафиксирована на уровне WAL flush</td>
+</tr>
+<tr>
+<td><code>remote_apply</code></td>
+<td>Локальный WAL flush + применение WAL на требуемой standby</td>
+<td>Изменение стало доступно новым запросам на standby после соответствующего replay</td>
+</tr>
+</tbody>
+</table>
+<p>Если <code>synchronous_standby_names</code> пуст, удаленных ожиданий нет: режимы <code>local</code>, <code>remote_write</code>, <code>on</code>, <code>remote_apply</code> в части удаленной синхронизации эквивалентны ожиданию только локального flush. Это принципиально важная ловушка настройки.</p>
+<p><strong>Оговорка:</strong> <code>remote_apply</code> не обещает, что любой давно открытый MVCC snapshot на standby увидит новую версию; он означает, что WAL применен и новые подходящие запросы смогут ее видеть.</p>
+<h3 id="53-first">5.3. <code>FIRST</code>: приоритетные подтверждения<a class="headerlink" href="#53-first" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>synchronous_standby_names = 'FIRST 1 (standby_a, standby_b)'
+</code></pre></div>
+<p>При доступной <code>standby_a</code> она приоритетная синхронная standby. Если она отключится, <code>standby_b</code> может занять ее роль при подходящем состоянии. Здесь одна требуемая синхронная standby, но <strong>обе не обязаны подтвердить каждый COMMIT</strong>.</p>
+<h3 id="54-any">5.4. <code>ANY</code>: кворум подтверждений<a class="headerlink" href="#54-any" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>synchronous_standby_names = 'ANY 2 (standby_a, standby_b, standby_c)'
+</code></pre></div>
+<p>Для успешной синхронной фиксации достаточно подтверждений от <strong>любых двух</strong> из трех перечисленных standby. Это кворум сетевых подтверждений WAL, а не алгоритм автоматического избрания нового primary.</p>
+<p>При выключении одной standby фиксация может продолжаться, если остаются две подходящие. При выключении двух необходимый кворум недоступен, и ожидающие COMMIT могут блокироваться. Система теряет доступность записи ради установленного условия долговечности.</p>
+<h3 id="55">5.5. Синхронность и судьба выбранного узла при аварии<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p>Предположим, COMMIT подтвердили standby A и B, но после отказа primary система повысила C, которая транзакцию еще не получила. Значит ли само слово <code>synchronous</code>, что транзакция окажется на C? Нет.</p>
+<p>Гарантия безопасного failover требует, чтобы процедура выбора кандидата учитывала сохраненную историю и подтвержденные транзакции. В 10.1 мы подробно обсудим этот новый механизм, а здесь фиксируем его как внешнюю предпосылку.</p>
+<h3 id="56">5.6. За что платим<a class="headerlink" href="#56" title="Permanent link">¶</a></h3>
+<p>В критический путь COMMIT добавляются сетевые задержки и ожидание стадии remote write/flush/apply. Group commit и параллельное выполнение транзакций могут амортизировать часть стоимости, поэтому нельзя механически вычислять TPS как <code>1 / RTT</code> без учета числа одновременно ожидающих транзакций.</p>
+<p><strong>Инженерный вывод.</strong> Выбираем конкретную гарантию (<code>remote_write</code>, remote flush, remote apply) и необходимый набор standby; отдельно проектируем отказоустойчивость самого выбора primary.</p>
+<h2 id="6-replication-slots-wal-standby">6. Replication Slots: кто удерживает WAL для отключившейся standby<a class="headerlink" href="#6-replication-slots-wal-standby" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1. Реплика отстала. Где ей брать старые сегменты?<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p>Primary продолжает создавать WAL, а старые сегменты обычно перерабатываются или удаляются. Standby должна иметь возможность запросить недостающую историю. Иначе подключение восстановится, но необходимых WAL-записей уже не будет.</p>
+<p><strong>Physical replication slot</strong> сообщает primary, что определенная позиция WAL еще нужна потребителю. Ключевое поле — <code>restart_lsn</code>: более ранние необходимые данные не должны быть удалены, пока слот обеспечивает требуемое удержание.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="n">slot_type</span><span class="p">,</span><span class="w"> </span><span class="n">active</span><span class="p">,</span><span class="w"> </span><span class="n">restart_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wal_status</span><span class="p">,</span><span class="w"> </span><span class="n">safe_wal_size</span><span class="p">,</span><span class="w"> </span><span class="n">inactive_since</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">slot_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'physical'</span><span class="p">;</span>
+</code></pre></div>
+<p><code>active</code> говорит о текущем использовании слота, но отсутствие подключения само по себе не освобождает удерживаемый WAL.</p>
+<h3 id="62">6.2. Различаем способы удержания<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p><code>wal_keep_size</code> обеспечивает минимальный запас WAL независимо от конкретного именованного потребителя. Replication slot отслеживает прогресс <strong>конкретной</strong> standby. WAL archive может служить альтернативным источником отсутствующих сегментов, если нужные файлы реально заархивированы и доступны.</p>
+<p>Ни один механизм не следует трактовать как бесконечный бесплатный запас. При интенсивной записи и длительном отключении реплики накопленный WAL может занять сотни гигабайт.</p>
+<h3 id="63-max_slot_wal_keep_size">6.3. Ограничиваем размер: <code>max_slot_wal_keep_size</code><a class="headerlink" href="#63-max_slot_wal_keep_size" title="Permanent link">¶</a></h3>
+<p>По умолчанию <code>max_slot_wal_keep_size = -1</code> означает отсутствие этого ограничения удержания WAL слотом. При заданном значении слоту может перестать гарантироваться нужный WAL; проверка лимита и удаление происходят с учетом checkpoint. Следовательно, установка лимита — компромисс между защитой исходного диска и возможностью отставшей реплики самостоятельно догнать.</p>
+<p>Состояния <code>wal_status</code>:</p>
+<ul>
+<li><code>reserved</code>: нужный WAL удерживается в пределах обычной политики;</li>
+<li><code>extended</code>: WAL удерживается сверх <code>max_wal_size</code> по причинам удержания;</li>
+<li><code>unreserved</code>: требуемые файлы уже не защищены слотом и могут быть удалены на следующем checkpoint;</li>
+<li><code>lost</code>: слот больше непригоден.</li>
+</ul>
+<p><code>safe_wal_size</code> показывает, сколько WAL еще может быть создано до угрозы потери слота при установленном ограничении. При неограниченном <code>max_slot_wal_keep_size</code> оно равно <code>NULL</code>; это не «все безопасно», а отсутствие вычислимой границы по данному лимиту.</p>
+<h3 id="64-slot">6.4. Почему нельзя просто удалить зависший slot<a class="headerlink" href="#64-slot" title="Permanent link">¶</a></h3>
+<p>Удаление слота освобождает удержание WAL, но может лишить отставшую standby возможности продолжить синхронизацию. Перед этим нужно выяснить: реплика будет возвращена или уже выведена из эксплуатации, есть ли нужный WAL в архиве, можно ли дать ей догнать, не переполнится ли диск до этого.</p>
+<h3 id="65">6.5. Расчет емкости<a class="headerlink" href="#65" title="Permanent link">¶</a></h3>
+<p>Пусть primary стабильно генерирует 35 МиБ WAL в секунду, а standby недоступна 2 часа. Только накопленная WAL-история составит:</p>
+<p><code>35 × 7200 = 252 000 МиБ ≈ 246 ГиБ</code>.</p>
+<p>Это нижняя оценка самого журнала без учета запаса, служебной нагрузки и возможных пиков. На диске primary может быть недостаточно места, хотя сама база занимает всего 100 ГиБ.</p>
+<p><strong>Инженерный вывод.</strong> Slot сохраняет историю для потребителя ценой общего ограниченного ресурса — <code>pg_wal</code>. Главные метрики: <code>restart_lsn</code>, возраст слота, <code>wal_status</code>, <code>safe_wal_size</code>, свободное место, скорость генерации WAL.</p>
+<h2 id="7-replication-lag">7. Replication Lag: получение, синхронизация и применение<a class="headerlink" href="#7-replication-lag" title="Permanent link">¶</a></h2>
+<h3 id="71-lag-200-mb">7.1. Чем плохо одно число «lag = 200 MB»<a class="headerlink" href="#71-lag-200-mb" title="Permanent link">¶</a></h3>
+<p>Две standby могут отставать на одинаковые 200 МиБ, но иметь совершенно разные проблемы:</p>
+<ul>
+<li>A не успевает <strong>получать</strong> WAL из-за сети;</li>
+<li>B быстро принимает WAL, но медленно его <strong>применяет</strong> из-за I/O и конфликтов с чтениями.</li>
+</ul>
+<p>Если одинаково увеличить сеть обеим, состояние B почти не изменится.</p>
+<h3 id="72-lsn-">7.2. LSN-границы и измерения<a class="headerlink" href="#72-lsn-" title="Permanent link">¶</a></h3>
+<p>На primary <code>pg_stat_replication</code> показывает <code>sent_lsn</code>, <code>write_lsn</code>, <code>flush_lsn</code>, <code>replay_lsn</code> для каждой прямой реплики. Это позиции, о которых primary знает из сообщений standby.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">sync_state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="n">pg_current_wal_lsn</span><span class="p">(),</span><span class="w"> </span><span class="n">sent_lsn</span><span class="p">)::</span><span class="nb">bigint</span><span class="p">)</span>
+<span class="w">           </span><span class="k">AS</span><span class="w"> </span><span class="n">unsent_approx</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="n">sent_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">)::</span><span class="nb">bigint</span><span class="p">)</span>
+<span class="w">           </span><span class="k">AS</span><span class="w"> </span><span class="n">in_flight_approx</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span><span class="n">flush_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lsn</span><span class="p">)::</span><span class="nb">bigint</span><span class="p">)</span>
+<span class="w">           </span><span class="k">AS</span><span class="w"> </span><span class="n">replay_backlog_approx</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_lag</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lag</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lag</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'catchup'</span><span class="p">,</span><span class="w"> </span><span class="s1">'streaming'</span><span class="p">);</span>
+</code></pre></div>
+<p>Вычисления по разным асинхронно обновляемым счетчикам приблизительны; для мониторинга стоит хранить ряд измерений и обрабатывать <code>NULL</code>. Не следует автоматически выдавать отрицательное/странное временное значение за потерю данных.</p>
+<p>На standby:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_receive_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">received_and_synced</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">()</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="n">replayed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_wal_lsn_diff</span><span class="p">(</span>
+<span class="w">           </span><span class="n">pg_last_wal_receive_lsn</span><span class="p">(),</span>
+<span class="w">           </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">()</span>
+<span class="w">       </span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">pending_replay_bytes</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_last_wal_receive_lsn()</code> относится к потоку, полученному и синхронизированному на диск через streaming replication. Для детального отличия приема/записи/flush есть <code>pg_stat_wal_receiver</code> с <code>written_lsn</code> и <code>flushed_lsn</code>.</p>
+<h3 id="73-write_lag-flush_lag-replay_lag">7.3. Что означают <code>write_lag</code>, <code>flush_lag</code>, <code>replay_lag</code><a class="headerlink" href="#73-write_lag-flush_lag-replay_lag" title="Permanent link">¶</a></h3>
+<p>Это интервалы до получения primary соответствующих уведомлений о <strong>недавно отправленном WAL</strong>. Они полезны как оценки стоимости стадий для синхронной репликации. Они <strong>не являются прогнозом времени, за которое standby догонит primary</strong>. Когда активности нет и standby догнала источник, поля могут некоторое время сохранять последнее значение, а затем стать <code>NULL</code>.</p>
+<p>Ошибочный алерт: «<code>replay_lag IS NULL</code>, значит мониторинг сломан». На полностью догнавшей и простаивающей реплике это может быть нормальным состоянием.</p>
+<h3 id="74-timestamp-replay">7.4. Лаг в секундах через timestamp последнего replay<a class="headerlink" href="#74-timestamp-replay" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">pg_last_xact_replay_timestamp</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">since_last_replayed_xact</span><span class="p">;</span>
+</code></pre></div>
+<p>Такой запрос <strong>не измеряет универсальный replication lag</strong>. На здоровой standby без новых транзакций результат будет расти, хотя реплика уже полностью актуальна. Это время с момента последней примененной транзакции, а не отставание относительно текущей вершины WAL.</p>
+<h3 id="75">7.5. Диагностическая развилка<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Primary generates WAL
+  ├─ sent_lsn отстает → sender / CPU / transport
+  ├─ sent_lsn ahead of write_lsn → network / receiver / disk write
+  ├─ write_lsn ahead of flush_lsn → durable WAL sync on standby
+  └─ flush_lsn ahead of replay_lsn → redo / standby I/O / conflicts
+</code></pre></div>
+<p>Проверяем каждый участок реальными метриками и корреляцией с CPU, диском, сетью и событиями recovery conflicts.</p>
+<p><strong>Инженерный вывод.</strong> Отставание — очереди на нескольких стадиях конвейера. Найти правильную очередь важнее, чем смотреть на одно агрегированное значение.</p>
+<hr/>
+<h1 id="iii-standby">III. Чтения с физической standby<a class="headerlink" href="#iii-standby" title="Permanent link">¶</a></h1>
+<h2 id="8-hot-standby-wal">8. Hot Standby: читающие запросы против применения WAL<a class="headerlink" href="#8-hot-standby-wal" title="Permanent link">¶</a></h2>
+<h3 id="81-read-only-recovery">8.1. Почему read-only запрос вообще может мешать recovery<a class="headerlink" href="#81-read-only-recovery" title="Permanent link">¶</a></h3>
+<p>Мы настроили hot standby и перенесли на нее аналитические запросы. Кажется, что все отлично: никто не пишет SQL в standby, значит конфликтовать не с чем. Но восстановление непрерывно изменяет физические страницы по WAL, а пользовательский <code>SELECT</code> работает с согласованным снимком данных.</p>
+<p>Предположим, длинный запрос на standby видит старую версию строки. На primary выполняются UPDATE и затем VACUUM, который имеет право убрать версию, уже ненужную <em>на primary</em>. Сведения о старом снимке на standby могут отсутствовать на primary. В WAL приходит операция очистки; ее немедленное применение уничтожило бы данные, на которые рассчитывает запрос standby.</p>
+<p>Что делать recovery? <strong>Либо задержать применение WAL, либо отменить конфликтующий запрос.</strong> Обе альтернативы имеют цену:</p>
+<ul>
+<li>задержали replay → новые чтения видят более старое состояние;</li>
+<li>отменили SELECT → приложение получает ошибку и должно правильно обработать ее.</li>
+</ul>
+<p>Так возникает конфликт между свежестью реплики и временем жизни читающего запроса.</p>
+<h3 id="82-recovery-conflicts">8.2. Виды recovery conflicts<a class="headerlink" href="#82-recovery-conflicts" title="Permanent link">¶</a></h3>
+<p>Самые показательные источники:</p>
+<ol>
+<li>Cleanup старых версий, которые еще могли быть видимы на standby.</li>
+<li>Установка <code>all-visible</code> во visibility map, которая конфликтует со снимком standby.</li>
+<li>WAL-записи о <code>ACCESS EXCLUSIVE</code> (например, при соответствующем DDL на primary).</li>
+<li>Удаление tablespace или базы, с которыми еще работает запрос standby.</li>
+<li>Некоторые конфликты с блокировками и pin буферов.</li>
+</ol>
+<p>Детали MVCC и visibility map известны из предыдущих лекций. Новый слой — <strong>primary не обязан ждать читающие транзакции standby перед формированием WAL</strong>, поэтому решение откладывается до стадии replay.</p>
+<h3 id="83-max_standby_streaming_delay">8.3. <code>max_standby_streaming_delay</code> — что ограничивается<a class="headerlink" href="#83-max_standby_streaming_delay" title="Permanent link">¶</a></h3>
+<p>В конфигурации standby:</p>
+<div class="highlight"><pre><span></span><code>hot_standby = on
+max_standby_streaming_delay = '30s'
+max_standby_archive_delay = '30s'
+</code></pre></div>
+<p>Эти параметры ограничивают допустимую задержку <strong>применения WAL</strong>, вызванную конфликтующими запросами, при обработке streaming- и архивного WAL соответственно. Это <strong>не индивидуальный лимит длительности каждого SELECT</strong>. Если replay уже долго задерживался из-за предыдущего запроса, следующему конфликтующему запросу может достаться гораздо меньше времени ожидания.</p>
+<p>Можно поставить <code>-1</code>, чтобы ждать бесконечно; тогда длинные читающие транзакции могут удерживать replay на неопределенный срок. Для standby, предназначенной прежде всего для HA, такая стратегия обычно опасна: при сбое primary реплика может оказаться далеко позади.</p>
+<h3 id="84-hot_standby_feedback-bloat">8.4. <code>hot_standby_feedback</code>: сохраняем старые версии ценой bloat<a class="headerlink" href="#84-hot_standby_feedback-bloat" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>hot_standby_feedback = on
+</code></pre></div>
+<p>Standby передает upstream информацию об открытых снимках, влияющую на горизонт очистки. Это помогает избежать некоторых cleanup conflicts, но может препятствовать удалению dead tuples на primary, увеличивать размер таблиц и стоимость VACUUM.</p>
+<p>Важно: <code>hot_standby_feedback</code> не устраняет все виды конфликтов, например конфликт с <code>ACCESS EXCLUSIVE</code> при соответствующем WAL. При разрыве связи обратная связь может перестать поступать, а значит и ее защитное действие ограничено.</p>
+<h3 id="85">8.5. Как увидеть отмены<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p>На standby:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">datname</span><span class="p">,</span><span class="w"> </span><span class="n">confl_tablespace</span><span class="p">,</span><span class="w"> </span><span class="n">confl_lock</span><span class="p">,</span><span class="w"> </span><span class="n">confl_snapshot</span><span class="p">,</span>
+<span class="w">       </span><span class="n">confl_bufferpin</span><span class="p">,</span><span class="w"> </span><span class="n">confl_deadlock</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_database_conflicts</span><span class="p">;</span>
+</code></pre></div>
+<p>Счетчики накопительные. Сравниваем изменения за интервал и сопоставляем их с ростом replay backlog и ошибками приложения. Для расследований полезен <code>log_recovery_conflict_waits = on</code>, который логирует ожидания сверх порога <code>deadlock_timeout</code>.</p>
+<h3 id="86">8.6. Нагрузочный эксперимент<a class="headerlink" href="#86" title="Permanent link">¶</a></h3>
+<ol>
+<li>На standby открываем долгую read-only транзакцию с подходящим снимком.</li>
+<li>На primary многократно обновляем таблицу и инициируем корректную очистку.</li>
+<li>Наблюдаем replay position, состояние чтения и конфликты.</li>
+<li>Сравниваем два режима: короткий <code>max_standby_streaming_delay</code> и <code>hot_standby_feedback=on</code>.</li>
+</ol>
+<p>Ожидаем <strong>не конкретное число отмен</strong>, а подтверждение причинно-следственной цепочки: удержание снимка → конфликт replay с cleanup → либо отмена чтения, либо сдвиг replay/очистки. Результаты зависят от момента возникновения снимка и наличия действительно конфликтующих WAL-записей. Простой <code>SELECT pg_sleep(60)</code> без удержания подходящего снимка данных сам по себе не гарантирует воспроизведения cleanup conflict.</p>
+<p><strong>Инженерный вывод.</strong> Реплика для аналитики и реплика для быстрого HA могут требовать разных политик по длинным запросам. Полная свобода чтения иногда покупается увеличением отставания или bloat на primary.</p>
+<h2 id="9-read-routing-commit">9. Read Routing: почему после COMMIT пользователь видит старое<a class="headerlink" href="#9-read-routing-commit" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Маршрутизация меняет контракт чтения<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Приложение пишет на primary, а читает с одной из standby. Этот прием может разгрузить первичный сервер, но появляется <strong>read-after-write anomaly</strong>:</p>
+<div class="highlight"><pre><span></span><code>T1: write order.status='paid' on PRIMARY → COMMIT OK
+T2: HTTP GET /orders/42 routed to STANDBY
+T3: standby replay еще не дошел до COMMIT → status='unpaid'
+T4: standby replay догнал → status='paid'
+</code></pre></div>
+<p>Обе базы технически работают правильно. Ошибка находится в предположении backend, что любой read endpoint предоставляет одинаковую актуальность.</p>
+<h3 id="92">9.2. Три стратегии консистентного чтения<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<p><strong>Стратегия A — читать критичные данные с primary.</strong> Самое простое и предсказуемое поведение. Цена — нагрузка на primary и потеря части преимуществ масштабирования чтений.</p>
+<p><strong>Стратегия B — временная привязка пользователя к primary после записи.</strong> Например, некоторое время читать его заказы с primary. Это эвристика: установленное число миллисекунд не является строгой гарантией, если отставание вдруг вырастет сильнее.</p>
+<p><strong>Стратегия C — проверка нижней границы WAL.</strong> После успешного COMMIT приложение может получить на primary WAL-позицию не ранее интересующего изменения. Перед критичным чтением проверяет, что standby достигла этой позиции по replay. Если нет — ограниченно ждет либо направляет чтение на primary.</p>
+<p>Концептуальная проверка на standby:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="s1">'0/1A2B3C40'</span><span class="p">::</span><span class="n">pg_lsn</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">caught_up</span><span class="p">;</span>
+</code></pre></div>
+<p>В реальной программе значение LSN не должно быть константой из примера. Нужна корректная передача токена с write-пути на read-путь. Запрос <code>pg_current_wal_flush_lsn()</code> после COMMIT на primary дает позицию, не более раннюю, чем локальный завершенный flush данной операции, при типичном <code>synchronous_commit=on</code>. При <code>synchronous_commit=off</code> необходимо отдельно обеспечить нужное условие. Токен может включать WAL других транзакций и потому быть консервативным.</p>
+<p><strong>Важно:</strong> сравнение LSN корректно только в рамках совместимой WAL-истории. При смене timeline простое числовое сравнение без проверки принадлежности истории может ввести в заблуждение; механизм переключения рассмотрим в 10.1.</p>
+<h3 id="93-lag-50-ms">9.3. Почему одного <code>lag &lt; 50 ms</code> недостаточно<a class="headerlink" href="#93-lag-50-ms" title="Permanent link">¶</a></h3>
+<p>Измеренные временные поля lag не являются универсальной гарантией чтения конкретной версии. Для бизнес-инварианта «пользователь видит собственный успешный платеж» требуется доказательство достижения конкретной позиции или маршрутизация на нужный источник.</p>
+<p>Приложение должно ограничивать время ожидания, иметь fallback и считать количество уходов с standby на primary, иначе в момент накопления lag оно может незаметно перевести всю нагрузку чтения на primary и добить его.</p>
+<h3 id="94-api-slo">9.4. Что полезно вынести в API и SLO<a class="headerlink" href="#94-api-slo" title="Permanent link">¶</a></h3>
+<p>Разделяем запросы на классы:</p>
+<ul>
+<li>критичные к консистентности: баланс, состояние платежа после записи, подтверждение заказа;</li>
+<li>допускающие задержку: аналитика, история активности, рекомендации;</li>
+<li>массовое чтение: тяжелые отчеты с ограниченными требованиями к свежести.</li>
+</ul>
+<p>В telemetry полезно видеть <code>read_source=primary|standby</code>, <code>fallback_to_primary</code>, LSN backlog и долю чтений, не удовлетворивших требуемую свежесть.</p>
+<p><strong>Инженерный вывод.</strong> Реплика является отдельной, асинхронно обновляемой точкой чтения. Консистентность — часть контракта маршрутизатора и сервиса, а не свойство наличия нескольких адресов PostgreSQL.</p>
+<hr/>
+<h1 id="iv">IV. Цена нескольких реплик и диагностика под нагрузкой<a class="headerlink" href="#iv" title="Permanent link">¶</a></h1>
+<h2 id="10-replication-capacity-wal-generation-rate">10. Replication Capacity: сеть, WAL generation rate и время догоняния<a class="headerlink" href="#10-replication-capacity-wal-generation-rate" title="Permanent link">¶</a></h2>
+<h3 id="101-wal">10.1. WAL — поток байтов, который надо обработать<a class="headerlink" href="#101-wal" title="Permanent link">¶</a></h3>
+<p>Пусть primary создает в среднем <code>g = 45 МиБ/с</code> WAL. Один прямой standby потребляет полезный поток порядка <code>45 × 8 = 360 Мбит/с</code> без учета TCP/TLS/протокольных накладных расходов и пиков.</p>
+<p>Три напрямую подключенные standby при одинаковой нагрузке могут увеличить исходящий поток primary примерно втрое: порядка 135 МиБ/с полезного WAL-трафика. Это учебный расчет для трех независимых потоков, а не точная универсальная формула сетевого профиля PostgreSQL.</p>
+<div class="highlight"><pre><span></span><code>           Primary (WAL 45 MiB/s)
+              /      |      \
+       45 MiB/s  45 MiB/s  45 MiB/s
+           /         |         \
+      Standby A   Standby B   Standby C
+</code></pre></div>
+<p>Первые ограничения: исходящий канал primary, RTT и потери сети, CPU на обработку/шифрование, пропускная способность хранения standby, стоимость replay.</p>
+<h3 id="102-backlog">10.2. Сколько времени догонять backlog<a class="headerlink" href="#102-backlog" title="Permanent link">¶</a></h3>
+<p>Обозначим:</p>
+<ul>
+<li><code>B</code> — очередь WAL-байтов;</li>
+<li><code>g</code> — скорость генерации WAL на primary;</li>
+<li><code>r</code> — устойчивый темп получения <strong>и применения</strong> на standby, если хотим догнать именно по replay.</li>
+</ul>
+<p>При <code>r &gt; g</code> грубая оценка времени догоняния:</p>
+<p>[
+T \approx \frac{B}{r-g}.
+]</p>
+<p>Пусть <code>B = 6 ГиБ</code>, <code>g = 24 МиБ/с</code>, <code>r = 44 МиБ/с</code>.</p>
+<p><code>B = 6144 МиБ</code>, чистая скорость сокращения очереди <code>20 МиБ/с</code>, значит <code>T ≈ 307 с</code>, чуть больше пяти минут.</p>
+<p>Если <code>r ≤ g</code>, очередь в стационарной модели не сокращается. Заявление «реплика догонит сама, когда сеть восстановится» тогда необоснованно: сеть может быть исправна, но replay не успевает за новым WAL.</p>
+<p>Реальный профиль нестационарен: пики записи, checkpoint I/O, чтения на standby, WAL compression, сеть и bursty I/O делают расчет только стартовой оценкой.</p>
+<h3 id="103">10.3. Где располагается очередь<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<p>Отставание может находиться между primary и network, между receiver и durable flush, между flush и replay. Размер очереди в одном месте не заменяет измерения других стадий.</p>
+<p>Сложный SQL с малым WAL может быть дешевым для передачи, а массовая загрузка с интенсивной записью создаст большую очередь даже при относительно небольшом числе транзакций.</p>
+<h3 id="104">10.4. Диагностика емкости<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>На primary сравниваем за одинаковый интервал значения <code>pg_stat_wal.wal_bytes</code>, скорость роста <code>pg_wal</code>, <code>pg_stat_replication</code> и свободное пространство. На standby — <code>pg_stat_wal_receiver</code>, <code>pg_last_wal_replay_lsn()</code>, системную статистику CPU, I/O и сети.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">measured_at</span><span class="p">,</span><span class="w"> </span><span class="n">wal_bytes</span><span class="p">,</span><span class="w"> </span><span class="n">stats_reset</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal</span><span class="p">;</span>
+</code></pre></div>
+<p>Повторяем через заданный интервал и вычисляем <code>Δwal_bytes / Δt</code>. Один накопительный счетчик не является мгновенной скоростью, после сброса статистики дельты нельзя интерпретировать как обычную нагрузку.</p>
+<p><strong>Инженерный вывод.</strong> Масштабируя репликацию, рассчитываем поток WAL и темп его применения; количество подключенных реплик само по себе почти ничего не говорит о достижимой актуальности.</p>
+<h2 id="11-commit">11. Синхронная репликация под нагрузкой: цена COMMIT<a class="headerlink" href="#11-commit" title="Permanent link">¶</a></h2>
+<h3 id="111-cpu">11.1. Почему низкий CPU не означает свободную СУБД<a class="headerlink" href="#111-cpu" title="Permanent link">¶</a></h3>
+<p>Включили <code>synchronous_standby_names</code> и <code>synchronous_commit=on</code>. PostgreSQL backend завершил подготовку транзакции и локальный flush, но ждет подтверждения удаленного durable flush. CPU может быть загружен слабо — время уходит в ожидание удаленного события.</p>
+<p>В <code>pg_stat_activity</code> для ожидающего процесса можно наблюдать <code>wait_event_type = 'IPC'</code> и <code>wait_event = 'SyncRep'</code> (конкретное состояние зависит от момента наблюдения).</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event</span><span class="p">,</span>
+<span class="w">       </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">query_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query_age</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">sql</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">wait_event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'SyncRep'</span><span class="p">;</span>
+</code></pre></div>
+<p>Важно отличать ожидание remote acknowledgment от конкуренции за строки и от медленного плана SELECT.</p>
+<h3 id="112-rtt-flush-apply">11.2. RTT, flush и apply<a class="headerlink" href="#112-rtt-flush-apply" title="Permanent link">¶</a></h3>
+<p>В первой приблизительной модели дополнительное ожидание удаленного подтверждения включает передачу WAL по сети, обработку на standby, нужную стадию write/flush/apply и обратное уведомление. При <code>remote_apply</code> добавляется стоимость применения WAL. При высокой конкуренции commit могут группироваться и работать параллельно, поэтому прибавка к p95 не равна фиксированному числу RTT для всех операций.</p>
+<p>Результат зависит и от состава синхронных standby: <code>FIRST 1</code> может оказаться привязан к медленной standby, тогда как <code>ANY 1</code> получает подтверждение от первого подходящего ответившего узла среди перечисленных. Это <strong>не</strong> устраняет требования к выбору надежной истории при последующем failover.</p>
+<h3 id="113">11.3. Цена изменения кворума<a class="headerlink" href="#113" title="Permanent link">¶</a></h3>
+<p>Если для записи нужны подтверждения двух из трех standby, выход из строя двух делает необходимый кворум недостижимым. Приложение увидит рост latency/ожиданий, хотя primary физически жив. Это <strong>предусмотренный компромисс availability ↔ durability</strong>, а не обязательно неисправность PostgreSQL.</p>
+<p>Нельзя автоматом ослаблять <code>synchronous_standby_names</code>, не согласовав, какие требования к потерям данных действуют в этот момент.</p>
+<h3 id="114">11.4. Нагрузочный план измерений<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Берем одну и ту же транзакцию, контролируем параллелизм и объем WAL. По очереди измеряем <code>local</code>, <code>remote_write</code>, <code>on</code>, <code>remote_apply</code> при одной и той же инфраструктуре. Отдельно изменяем задержку сети и нагрузку на storage standby.</p>
+<p>Фиксируем p50/p95/p99 COMMIT, TPS, количество <code>SyncRep</code> waiters, время remote stages, размер очередей и процент ошибок/таймаутов. Иначе вывод «remote_apply медленнее» останется качественной догадкой без цены.</p>
+<p><strong>Инженерный вывод.</strong> Синхронная репликация превращает сетевые и storage-ресурсы standby в часть критического пути пользовательской записи.</p>
+<h2 id="12_1">12. Диагностика: какие представления использовать и на каком узле<a class="headerlink" href="#12_1" title="Permanent link">¶</a></h2>
+<h3 id="121-primary-walsender">12.1. Primary: статус каждого непосредственного walsender<a class="headerlink" href="#121-primary-walsender" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="n">client_addr</span><span class="p">,</span>
+<span class="w">       </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">sync_state</span><span class="p">,</span><span class="w"> </span><span class="n">sync_priority</span><span class="p">,</span>
+<span class="w">       </span><span class="n">sent_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">write_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">write_lag</span><span class="p">,</span><span class="w"> </span><span class="n">flush_lag</span><span class="p">,</span><span class="w"> </span><span class="n">replay_lag</span><span class="p">,</span><span class="w"> </span><span class="n">reply_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_replication</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">application_name</span><span class="p">;</span>
+</code></pre></div>
+<p>Одна строка соответствует одному WAL sender process. <code>pg_stat_replication</code> показывает <strong>непосредственные</strong> подключения; если B транслирует WAL дальше на C (cascading), C не обязан появиться в этом представлении primary A.</p>
+<p>Если на primary нет строки для standby, это может означать разрыв подключения, неверную конфигурацию или отсутствие активного walsender. Это еще не доказательство удаления данных.</p>
+<h3 id="122-standby-walreceiver">12.2. Standby: состояние walreceiver<a class="headerlink" href="#122-standby-walreceiver" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="n">sender_host</span><span class="p">,</span><span class="w"> </span><span class="n">sender_port</span><span class="p">,</span>
+<span class="w">       </span><span class="n">written_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">flushed_lsn</span><span class="p">,</span><span class="w"> </span><span class="n">latest_end_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">last_msg_send_time</span><span class="p">,</span><span class="w"> </span><span class="n">last_msg_receipt_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_wal_receiver</span><span class="p">;</span>
+</code></pre></div>
+<p>У <code>pg_stat_wal_receiver</code> максимум одна строка для текущего walreceiver. Поле <code>written_lsn</code> не следует использовать как гарантию долговечности: оно включает WAL, записанный, но еще не обязательно flushed. Для durability смотрим <code>flushed_lsn</code>.</p>
+<p>Сопоставляем с:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_is_in_recovery</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">standby_mode</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_last_wal_receive_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">received_and_synced</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_last_wal_replay_lsn</span><span class="p">()</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">replayed</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="123-primary">12.3. Primary: слоты и свободное пространство<a class="headerlink" href="#123-primary" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="n">active</span><span class="p">,</span><span class="w"> </span><span class="n">restart_lsn</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wal_status</span><span class="p">,</span><span class="w"> </span><span class="n">safe_wal_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span><span class="p">;</span>
+</code></pre></div>
+<p>Рядом обязательны метрики файловой системы <code>pg_wal</code> (свободное место и скорость заполнения). Сам по себе <code>restart_lsn</code> не показывает, сколько часов сервер может работать до заполнения диска: нужен WAL rate.</p>
+<h3 id="124-standby">12.4. Standby: конфликты<a class="headerlink" href="#124-standby" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">datname</span><span class="p">,</span><span class="w"> </span><span class="n">confl_lock</span><span class="p">,</span><span class="w"> </span><span class="n">confl_snapshot</span><span class="p">,</span>
+<span class="w">       </span><span class="n">confl_bufferpin</span><span class="p">,</span><span class="w"> </span><span class="n">confl_deadlock</span><span class="p">,</span><span class="w"> </span><span class="n">confl_tablespace</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_database_conflicts</span><span class="p">;</span>
+</code></pre></div>
+<p>Записываем deltas в мониторинг, а не только разовое значение. Частые <code>confl_snapshot</code> на аналитической реплике важнее для объяснения отмен чтений, чем показатель CPU на primary.</p>
+<h3 id="125">12.5. Уровень приложения<a class="headerlink" href="#125" title="Permanent link">¶</a></h3>
+<p>PostgreSQL не видит бизнес-условие «после оплаты пользователь обязан увидеть paid». Нужны application metrics: доля чтений с primary/standby, устаревшие ответы, <code>read-after-write fallback</code>, p95 latency, ошибки standby read-only/recovery conflict и распределение по экземплярам сервиса.</p>
+<h3 id="126">12.6. Матрица симптомов<a class="headerlink" href="#126" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятный слой</th>
+<th>Первая проверка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connected, но старые чтения</td>
+<td>Replay lag / read routing</td>
+<td><code>replay_lsn</code>, freshness token</td>
+</tr>
+<tr>
+<td><code>SyncRep</code> waiters, низкий CPU</td>
+<td>Remote confirmation</td>
+<td><code>pg_stat_replication</code>, RTT, standby flush</td>
+</tr>
+<tr>
+<td><code>pg_wal</code> быстро растет</td>
+<td>Удержание WAL слотом</td>
+<td><code>pg_replication_slots</code>, WAL rate, диск</td>
+</tr>
+<tr>
+<td><code>sent_lsn</code> отстает</td>
+<td>Sender / сеть / режим репликации</td>
+<td>walsender state, network</td>
+</tr>
+<tr>
+<td><code>flushed_lsn</code> далеко впереди <code>replay_lsn</code></td>
+<td>Replay bottleneck</td>
+<td>Standby CPU/I/O/conflicts</td>
+</tr>
+<tr>
+<td>SELECT на standby отменяются</td>
+<td>Recovery conflicts</td>
+<td><code>pg_stat_database_conflicts</code>, server logs</td>
+</tr>
+<tr>
+<td><code>pg_stat_replication</code> не содержит standby</td>
+<td>Нет прямого walsender connection</td>
+<td>Конфигурация, network, walreceiver</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Инженерный вывод.</strong> В правильно настроенном мониторинге измеряются и состояние канала, и продвижение LSN, и стоимость подтверждения, и последствия для клиентов.</p>
+<h2 id="13-primary-standby">13. Сеть между primary и standby исчезла<a class="headerlink" href="#13-primary-standby" title="Permanent link">¶</a></h2>
+<h3 id="131-primary">13.1. Почему разрыв не обязательно авария primary<a class="headerlink" href="#131-primary" title="Permanent link">¶</a></h3>
+<p>Оба сервера могут продолжать работать. Primary принимает записи (если режим подтверждения позволяет), standby обслуживает чтения на имеющемся состоянии. Прекращается только передача новых WAL-записей.</p>
+<p>После восстановления связи walreceiver запрашивает продолжение с необходимой позиции. Успех зависит от наличия WAL на источнике или в архиве. Для оценки риска проверяем slot, запас WAL, объем очереди и время разрыва.</p>
+<h3 id="132">13.2. Сценарий с физическим слотом<a class="headerlink" href="#132" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>12:00 standby disconnect
+12:05 primary продолжает создавать WAL
+12:30 restart_lsn слота остается позади
+13:00 pg_wal достиг критического уровня заполнения
+</code></pre></div>
+<p>Slot защищал реплику, но теперь угрожает доступности <strong>primary</strong>. Самое плохое решение — без анализа убрать слот и сразу ждать, что standby продолжит с любой позиции. Надо выбрать управляемую операцию: освободить емкость, восстановить сеть, догнать через архив, вывести реплику из эксплуатации или пересоздать ее.</p>
+<h3 id="133-wal_keep_size">13.3. Что дает <code>wal_keep_size</code> без слота<a class="headerlink" href="#133-wal_keep_size" title="Permanent link">¶</a></h3>
+<p>Он предоставляет минимальный запас последних WAL-сегментов, но если реплика отсутствует дольше рассчитанного окна, гарантии достаточности этих сегментов нет. В отличие от слота, параметр не следит за прогрессом именно этой standby.</p>
+<h3 id="134-wal-archive">13.4. Когда помогает WAL archive<a class="headerlink" href="#134-wal-archive" title="Permanent link">¶</a></h3>
+<p>Если отсутствующий в локальном <code>pg_wal</code> сегмент сохранен в совместимом архиве, <code>restore_command</code> может загрузить его и replay продолжится. Если необходимой непрерывной WAL-истории нет ни на источнике, ни в архиве, standby может потребоваться пересоздать из новой физической копии.</p>
+<h3 id="135">13.5. А как поведет себя синхронная репликация?<a class="headerlink" href="#135" title="Permanent link">¶</a></h3>
+<p>При отсутствии требуемых подтверждений транзакции с режимом синхронного ожидания могут блокироваться. Этот эффект может быть сильнее, чем сама остановка реплики: доступность записи на primary напрямую зависит от политики quorum.</p>
+<p><strong>Инженерный вывод.</strong> Разрыв сети превращается в разные инциденты для async (устаревание и накопление WAL) и sync (ожидание COMMIT). Runbook должен учитывать обе развилки.</p>
+<h2 id="14-standby-wal">14. Standby принимает WAL, но не успевает применять<a class="headerlink" href="#14-standby-wal" title="Permanent link">¶</a></h2>
+<h3 id="141">14.1. Диагностический портрет<a class="headerlink" href="#141" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>PRIMARY  : WAL write rate 30 MiB/s
+STANDBY  : WAL receive  30 MiB/s
+STANDBY  : WAL replay   20 MiB/s
+RESULT   : replay backlog grows by ≈10 MiB/s
+</code></pre></div>
+<p>Увеличивать bandwidth бессмысленно, если сетевой участок уже не ограничивает поток. Нужно разобраться, почему replay не достигает 30 МиБ/с.</p>
+<h3 id="142-cpu">14.2. Первая группа причин — накопитель и CPU<a class="headerlink" href="#142-cpu" title="Permanent link">¶</a></h3>
+<p>Recovery изменяет данные и индексы, вызывает чтение/запись страниц, работает с буферами, системными структурами. На слабом storage или при сильной конкуренции с аналитическими SELECT применение может стать ограничено IOPS/throughput или CPU.</p>
+<p>Наблюдаем <code>iostat</code>, CPU, диск, buffer и recovery metrics; сопоставляем с ростом <code>flush_lsn - replay_lsn</code>. Если <code>write_lsn - flush_lsn</code> велико, проблема может находиться раньше replay — на WAL sync.</p>
+<h3 id="143-recovery-conflicts">14.3. Вторая группа — recovery conflicts<a class="headerlink" href="#143-recovery-conflicts" title="Permanent link">¶</a></h3>
+<p>Long-running SELECT на standby способен отложить replay. Если <code>max_standby_streaming_delay</code> большой, система сознательно выбирает завершение чтения ценой свежести. Если короткий — будут отмены запросов. Если <code>hot_standby_feedback</code> включен, отдельные cleanup conflicts могут исчезнуть, но часть стоимости переносится на primary в виде dead tuples/bloat.</p>
+<h3 id="144">14.4. Третья группа — пиковые нагрузки<a class="headerlink" href="#144" title="Permanent link">¶</a></h3>
+<p>Прием и применение WAL — разные потоки. Пик записи на primary может временно превысить устойчивую мощность standby. Небольшой всплеск backlog допустим, если у системы есть емкость догнать; хронический рост очереди недопустим для HA-реплики с ограниченным окном потерь/переключения.</p>
+<h3 id="145">14.5. Исправление и повторное измерение<a class="headerlink" href="#145" title="Permanent link">¶</a></h3>
+<p>До изменения настроек фиксируем: WAL rate, receive rate, replay rate, размер backlog, storage latency, snapshot conflict rate и время восстановления очереди. После исправления снова нагружаем систему и проверяем <strong>наклон графика очереди</strong>. Если очередь продолжает расти, причина не устранена.</p>
+<p><strong>Инженерный вывод.</strong> Для производительности standby важно как быстро она получает WAL и как быстро преобразует полученный журнал в актуальное состояние таблиц.</p>
+<h2 id="15-standby-cascading-replication">15. Несколько standby: прямые подключения и cascading replication<a class="headerlink" href="#15-standby-cascading-replication" title="Permanent link">¶</a></h2>
+<h3 id="151">15.1. Цена прямого веера<a class="headerlink" href="#151" title="Permanent link">¶</a></h3>
+<p>Чем больше прямых standby, тем больше WAL sender-соединений и исходящего сетевого трафика primary. Это может быть оправданно для небольшого числа реплик, но при распределении между несколькими площадками нагрузка на исходящий канал и число соединений становятся существенными.</p>
+<h3 id="152-cascading-replication">15.2. Cascading replication<a class="headerlink" href="#152-cascading-replication" title="Permanent link">¶</a></h3>
+<p>В каскаде standby B принимает WAL от primary A, а standby C подключается как потребитель B:</p>
+<div class="highlight"><pre><span></span><code>A (primary) ──► B (standby) ──► C (standby)
+</code></pre></div>
+<p>Преимущество — primary не обязан напрямую передавать одинаковый поток каждому downstream-узлу. Цена — еще одна ступень сетевой задержки, дополнительная точка отказа, ограничения доступности источника и сложность наблюдения.</p>
+<p><code>pg_stat_replication</code> на A отображает прямую standby B, а C в обычной каскадной топологии видна на B. Если мониторинг смотрит только на A, он не видит реальную картину всей цепочки.</p>
+<h3 id="153-b">15.3. Что случится при отставании B<a class="headerlink" href="#153-b" title="Permanent link">¶</a></h3>
+<p>C не может получать данные быстрее, чем до него доходят WAL от B, если других источников не настроено. Следовательно, слабый промежуточный узел способен ограничить всю каскадную ветку. Это еще один пример того, как fan-out превращается в зависимость от самого медленного этапа.</p>
+<h3 id="154">15.4. Цена синхронности<a class="headerlink" href="#154" title="Permanent link">¶</a></h3>
+<p>Если direct standby участвует в подтверждении WAL primary, ее RTT и стадия flush/apply становятся частью критического пути записи. Cascading downstream standby автоматически не становится синхронной standby primary: подтверждения определяются конфигурацией <strong>непосредственно подключенных</strong> walsender и <code>synchronous_standby_names</code>.</p>
+<h3 id="155">15.5. Архитектурный выбор<a class="headerlink" href="#155" title="Permanent link">¶</a></h3>
+<p>Для каждого экземпляра фиксируем роль:</p>
+<ul>
+<li><strong>HA standby:</strong> небольшой replay lag, строгий контроль долгих SELECT, предсказуемая способность догнать;</li>
+<li><strong>read replica:</strong> дополнительная емкость чтения, иногда допускается более заметная задержка;</li>
+<li><strong>analytics replica:</strong> длинные запросы, возможные конфликты с replay, отдельная политика <code>hot_standby_feedback</code>;</li>
+<li><strong>downstream source:</strong> дополнительная передача WAL следующему узлу.</li>
+</ul>
+<p><strong>Инженерный вывод.</strong> Реплики не «бесплатно увеличивают надежность»: каждую нужно учитывать как потребитель диска, CPU, сети, WAL и операционных процедур.</p>
+<h2 id="16">16. Границы гарантий: полная модель физической репликации<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<h3 id="161">16.1. Пять фраз, которые нельзя путать<a class="headerlink" href="#161" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>«COMMIT на primary успешен».</strong> Локально выполнено условие <code>synchronous_commit</code>; удаленное условие зависит от настройки синхронных standby.</li>
+<li><strong>«WAL sent».</strong> Primary отправила байты в replication connection.</li>
+<li><strong>«WAL written on standby».</strong> Standby записала WAL в файловую систему, но не обязательно выполнила durable flush.</li>
+<li><strong>«WAL flushed on standby».</strong> Standby синхронизировала соответствующий WAL на долговечное хранение.</li>
+<li><strong>«WAL replayed on standby».</strong> Recovery применил изменения; новые подходящие snapshot могут их видеть.</li>
+</ol>
+<p>Каждая следующая стадия стоит ресурсов. Сравнивать исключительно <code>replay_lag</code> или исключительно время COMMIT — значит видеть только часть контракта.</p>
+<h3 id="162">16.2. Таблица выбора стратегии<a class="headerlink" href="#162" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Требование</th>
+<th>Типовой подход</th>
+<th>Цена / ограничение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Минимальный write latency</td>
+<td>Async streaming</td>
+<td>Возможная потеря подтвержденных транзакций при выборе отстающей standby</td>
+</tr>
+<tr>
+<td>Remote durability</td>
+<td>Sync <code>on</code> + требуемые standby</td>
+<td>Сеть и удаленный WAL flush входят в COMMIT latency</td>
+</tr>
+<tr>
+<td>Быстрая видимость чтений на sync standby</td>
+<td><code>remote_apply</code></td>
+<td>Дополнительное ожидание replay</td>
+</tr>
+<tr>
+<td>Долгие аналитические SELECT</td>
+<td>Hot standby, рассчитанная на этот профиль</td>
+<td>Отмены запросов или задержка replay / bloat</td>
+</tr>
+<tr>
+<td>Защита от длительного отключения</td>
+<td>Physical slot + емкость + архив</td>
+<td>Риск заполнения <code>pg_wal</code></td>
+</tr>
+<tr>
+<td>Read-after-write для критичного запроса</td>
+<td>Primary reads или LSN-gating</td>
+<td>Нагрузка на primary / ожидание актуальности</td>
+</tr>
+<tr>
+<td>Много региональных потребителей</td>
+<td>Каскад / специальная топология</td>
+<td>Дополнительная задержка и зависимости</td>
+</tr>
+</tbody>
+</table>
+<h3 id="163">16.3. Под нагрузкой: цепочка расследования<a class="headerlink" href="#163" title="Permanent link">¶</a></h3>
+<p>Допустим, после добавления standby COMMIT p99 вырос с 30 до 200 мс. Сначала проверяем, включена ли синхронная фиксация и есть ли <code>SyncRep</code> waiters. Затем сравниваем remote write/flush/apply и RTT, а не тратим время на переписывание локального SQL без подтверждения проблемы плана.</p>
+<p>Если запись быстрая, но чтение старое: проверяем replay backlog и маршрутизацию, затем вычисляем, какая стадия накапливает очередь. Если <code>pg_wal</code> переполняется: начинаем со слотов и WAL rate. Если SQL на standby отменяется: смотрим recovery conflicts.</p>
+<p>Это разные инциденты. Их нельзя лечить одним параметром.</p>
+<h3 id="164-production-checklist">16.4. Production checklist без повторения пройденных тем<a class="headerlink" href="#164-production-checklist" title="Permanent link">¶</a></h3>
+<ul>
+<li>Зафиксированы назначение каждой standby и требования к свежести.</li>
+<li>Известны используемые <code>synchronous_standby_names</code> и <code>synchronous_commit</code> для критичных транзакций.</li>
+<li>Есть мониторинг <code>sent/write/flush/replay</code> LSN и устойчивых скоростей.</li>
+<li>Для слотов рассчитаны пределы WAL retention и действия при заполнении диска.</li>
+<li>По hot standby определены политика длинных SELECT и допустимые recovery conflicts.</li>
+<li>Read routing отделяет критичные чтения от допускающих eventual consistency.</li>
+<li>Есть испытание сетевого разрыва и догоняния после восстановления соединения.</li>
+<li>Измерены p95/p99 COMMIT, replay lag, рост WAL и скорость догоняния при типичной нагрузке.</li>
+<li>За пределами этой лекции остается отдельно спроектировать и проверить безопасное promotion, fencing и rejoin (10.1).</li>
+</ul>
+<h2 id="-">Итоговая причинно-следственная модель<a class="headerlink" href="#-" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>Primary transaction
+       │
+       ▼
+local COMMIT policy ──► client OK
+       │
+       ▼
+WAL sender ──network──► WAL receiver
+                          │
+                          ▼
+                    WAL write / flush
+                          │
+                          ▼
+                       WAL replay
+                          │
+                          ▼
+                      hot standby
+                          │
+                          ▼
+                  read routing / freshness
+
+replication slot ──► удержание WAL ──► ограниченный pg_wal
+sync replication ──► ожидание remote stage ──► COMMIT latency
+long standby SELECT ──► recovery conflict ──► cancel или replay lag
+</code></pre></div>
+<h3 id="_1">Семь вещей, которые нужно запомнить<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<ol>
+<li>Физическая репликация переносит WAL и состояние целого кластера; standby применяет изменения через recovery.</li>
+<li>Получение, запись, синхронизация и применение WAL — <strong>четыре разные стадии</strong> с разными LSN.</li>
+<li>Асинхронная репликация допускает потерю локально подтвержденных транзакций при переключении на отстающий узел.</li>
+<li>Синхронная репликация добавляет выбранную удаленную стадию в критический путь COMMIT; <code>FIRST</code> и <code>ANY</code> определяют, сколько и какие standby подтверждают WAL.</li>
+<li>Replication slot удерживает WAL ценой диска primary; ограничение удержания может сделать слот непригодным.</li>
+<li>Hot standby иногда вынуждена выбирать между отменой SELECT и задержкой WAL replay; <code>hot_standby_feedback</code> переносит часть цены на primary.</li>
+<li>Репликация повышает возможности системы, но актуальность чтений и безопасный failover требуют самостоятельных приложенческих и эксплуатационных решений.</li>
+</ol>
+<h3 id="101">Куда копнуть глубже — следующий блок 10.1<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p><strong>High Availability &amp; Failover Internals</strong> закроет вопрос, который здесь намеренно остался открытым: primary стал недоступен, но отстающая standby уже имеет свою WAL-позицию. Как проверить историю кандидата, безопасно сделать promotion, предотвратить split-brain, лишить прежний primary права записи и затем вернуть его в топологию? Это самостоятельный технический слой с timelines, coordinator/lease, fencing и <code>pg_rewind</code>.</p>
+<hr/>
+<h2 id="postgresql-18">Источники для сверки с PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h2>
+<ol>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/high-availability.html">High Availability, Load Balancing, and Replication</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/warm-standby.html">Log-Shipping Standby Servers: streaming, slots, cascading, synchronous replication</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/hot-standby.html">Hot Standby, recovery conflicts</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/runtime-config-replication.html">Replication configuration</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/runtime-config-wal.html">WAL settings: synchronous_commit and wal_level</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/monitoring-stats.html">Monitoring statistics: pg_stat_replication, pg_stat_wal_receiver, pg_stat_database_conflicts</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/view-pg-replication-slots.html">pg_replication_slots</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/app-pgbasebackup.html">pg_basebackup</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/functions-admin.html">System administration functions: LSN and recovery</a>.</li>
+<li>PostgreSQL 18, <a href="https://www.postgresql.org/docs/18/continuous-archiving.html">Continuous archiving and PITR</a>.</li>
+</ol>
+<blockquote>
+<p><strong>Разграничение гарантий:</strong> примеры SQL и значения настроек относятся к API/документации PostgreSQL 18; описание процессов и последовательностей — к реализации PostgreSQL 18; численные расчеты и сценарии деградации — учебные модели. Точные свойства файловой системы, накопителя, сети и алгоритма выбора нового primary зависят от инфраструктуры и не следуют автоматически из одной настройки PostgreSQL.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 1. Продакшен-бэкенд и эволюция Go" class="md-footer__link md-footer__link--prev" href="../1%20-%20Intro%20%2B%20production/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                1. Продакшен-бэкенд и эволюция Go
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 11. PostgreSQL Partitioning &amp;amp; Large Tables" class="md-footer__link md-footer__link--next" href="../11%20-%20Partitioning%20large%20tables/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                11. PostgreSQL Partitioning &amp; Large Tables
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

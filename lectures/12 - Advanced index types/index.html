@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/12%20-%20Advanced%20index%20types/" rel="canonical"/>
+<link href="../11%20-%20Partitioning%20large%20tables/" rel="prev"/>
+<link href="../13%20-%20Security%20row%20level%20security/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>12. PostgreSQL Advanced Index Types - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#12-postgresql-advanced-index-types">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              12. PostgreSQL Advanced Index Types
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Производственный инцидент: индекс есть, запрос все равно медленный
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-index-access-methods-using-sql">
+<span class="md-ellipsis">
+      
+        1. Index Access Methods: почему USING — часть контракта SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-gin">
+<span class="md-ellipsis">
+      
+        2. GIN: инвертированный индекс, который ищет элементы внутри значения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-gin-jsonb-jsonb_ops-jsonb_path_ops">
+<span class="md-ellipsis">
+      
+        3. GIN и JSONB: jsonb_ops против jsonb_path_ops
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-gin-containment-overlap">
+<span class="md-ellipsis">
+      
+        4. GIN для массивов: containment, overlap и цена денормализации
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-full-text-search">
+<span class="md-ellipsis">
+      
+        5. Full-Text Search: почему «найти слово» требует отдельной семантики
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-pg_trgm-like">
+<span class="md-ellipsis">
+      
+        6. pg_trgm: как ускорить LIKE '%...%' и поиск похожих строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-gin-write-cost-insert-20">
+<span class="md-ellipsis">
+      
+        7. GIN Write Cost: почему INSERT внезапно становится в 20 раз медленнее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-gist">
+<span class="md-ellipsis">
+      
+        8. GiST: индексируем диапазоны, пересечения и пространственные отношения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-gist-recheck-knn">
+<span class="md-ellipsis">
+      
+        9. GiST Recheck &amp; KNN: где исчезает время при поиске ближайших
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-sp-gist">
+<span class="md-ellipsis">
+      
+        10. SP-GiST: когда поисковое пространство выгодно делить на части
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-brin">
+<span class="md-ellipsis">
+      
+        11. BRIN: как индекс на большую таблицу может быть очень маленьким
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-brin-summarization">
+<span class="md-ellipsis">
+      
+        12. BRIN Summarization: почему после создания индекса новые строки еще надо учитывать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-index-cost-model">
+<span class="md-ellipsis">
+      
+        13. Index Cost Model: какую цену на самом деле добавляет индекс
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-index-diagnostics-postgresql-18">
+<span class="md-ellipsis">
+      
+        14. Index Diagnostics: что реально смотреть в PostgreSQL 18
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Производственный инцидент: индекс есть, запрос все равно медленный
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-index-access-methods-using-sql">
+<span class="md-ellipsis">
+      
+        1. Index Access Methods: почему USING — часть контракта SQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-gin">
+<span class="md-ellipsis">
+      
+        2. GIN: инвертированный индекс, который ищет элементы внутри значения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-gin-jsonb-jsonb_ops-jsonb_path_ops">
+<span class="md-ellipsis">
+      
+        3. GIN и JSONB: jsonb_ops против jsonb_path_ops
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-gin-containment-overlap">
+<span class="md-ellipsis">
+      
+        4. GIN для массивов: containment, overlap и цена денормализации
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-full-text-search">
+<span class="md-ellipsis">
+      
+        5. Full-Text Search: почему «найти слово» требует отдельной семантики
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-pg_trgm-like">
+<span class="md-ellipsis">
+      
+        6. pg_trgm: как ускорить LIKE '%...%' и поиск похожих строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-gin-write-cost-insert-20">
+<span class="md-ellipsis">
+      
+        7. GIN Write Cost: почему INSERT внезапно становится в 20 раз медленнее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-gist">
+<span class="md-ellipsis">
+      
+        8. GiST: индексируем диапазоны, пересечения и пространственные отношения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-gist-recheck-knn">
+<span class="md-ellipsis">
+      
+        9. GiST Recheck &amp; KNN: где исчезает время при поиске ближайших
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-sp-gist">
+<span class="md-ellipsis">
+      
+        10. SP-GiST: когда поисковое пространство выгодно делить на части
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-brin">
+<span class="md-ellipsis">
+      
+        11. BRIN: как индекс на большую таблицу может быть очень маленьким
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-brin-summarization">
+<span class="md-ellipsis">
+      
+        12. BRIN Summarization: почему после создания индекса новые строки еще надо учитывать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-index-cost-model">
+<span class="md-ellipsis">
+      
+        13. Index Cost Model: какую цену на самом деле добавляет индекс
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-index-diagnostics-postgresql-18">
+<span class="md-ellipsis">
+      
+        14. Index Diagnostics: что реально смотреть в PostgreSQL 18
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="12-postgresql-advanced-index-types">12. PostgreSQL Advanced Index Types<a class="headerlink" href="#12-postgresql-advanced-index-types" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · обязательная лекция блока 12.</strong><br/>
+<strong>Фокус:</strong> GIN, <code>jsonb</code>, массивы, полнотекстовый поиск, <code>pg_trgm</code>, write path GIN, GiST, SP-GiST, BRIN, стоимость индексов и диагностика в production.<br/>
+<strong>Уже изучено:</strong> B-tree, heap и MVCC, планировщик / cost model / <code>EXPLAIN ANALYZE</code>, VACUUM, WAL, concurrency и индексы в DDL. Эти механизмы здесь не пересказываем.<br/>
+<strong>Типы утверждений:</strong> гарантии операторов и API отделены от конкретных operator classes, текущей реализации access methods и результатов отдельных измерений. SQL-примеры рассчитаны на PostgreSQL 18; эксперименты с отключением индекса, <code>REINDEX</code> и нагрузкой выполняем только на учебном стенде.</p>
+</blockquote>
+<h2 id="0">0. Производственный инцидент: индекс есть, запрос все равно медленный<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>У backend-сервиса есть каталог товаров. В каждой записи — <code>jsonb</code> с характеристиками, массив меток и описание. На первое время хватало обычных B-tree по <code>id</code>, <code>category_id</code> и <code>created_at</code>. Затем появились три запроса:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Найти товары с определенными характеристиками.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">attributes</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="s1">'{"camera": {"stabilization": true}}'</span><span class="p">::</span><span class="n">jsonb</span><span class="p">;</span>
+
+<span class="c1">-- Найти товар, в описании которого встречается подстрока.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">'%оптическая%'</span><span class="p">;</span>
+
+<span class="c1">-- Показать события за последнюю минуту в таблице на сотни миллионов строк.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">interval</span><span class="w"> </span><span class="s1">'1 minute'</span><span class="p">;</span>
+</code></pre></div>
+<p>Сейчас архитектор произносит магическое «добавим индекс». Какой именно? Если построить B-tree по <code>attributes</code>, он будет упорядочивать <strong>целое значение JSONB</strong>, а не отвечать автоматически на вопрос о наличии элемента внутри документа. Для <code>ILIKE '%оптическая%'</code> обычный B-tree не может использовать лексикографический диапазон по левому префиксу. Для большого журнала событий B-tree может оказаться весьма объемным, хотя необходима лишь приблизительная фильтрация физических диапазонов страниц.</p>
+<p>Здесь начинается новая модель: <strong>индекс выбирается одновременно по семантике оператора, типу данных, распределению значений и цене изменений</strong>. PostgreSQL содержит несколько методов доступа (access methods), каждый решает собственную задачу. Главный инженерный вопрос: что дешевле — хранить точные ссылки для множества ключей, хранить геометрические ограничения или записывать очень компактную сводку по группам heap-страниц?</p>
+<div class="highlight"><pre><span></span><code>Запрос на SQL
+    |
+    +-- Есть сортируемый скаляр и сравнение?       -&gt; B-tree (уже изучен)
+    +-- Элементы внутри JSONB / массива / текста?  -&gt; GIN
+    +-- Диапазоны, геометрия, близость?            -&gt; GiST
+    +-- Пространство естественно делится на части? -&gt; SP-GiST
+    +-- Значение связано с физическим порядком?    -&gt; BRIN
+    |
+    v
+Индикаторы: planning time, heap blocks, recheck, index size,
+           latency SELECT/INSERT/UPDATE, p95/p99 и стоимость обслуживания
+</code></pre></div>
+<p>Для всей лекции будем пользоваться тремя контрольными наборами: <code>products(attributes jsonb, tags text[], description text)</code>, <code>bookings(during tstzrange)</code> и <code>events(created_at timestamptz)</code>. <strong>Ни один план или конкретная скорость не обещаны заранее</strong>: optimizer выбирает план по статистике, а результаты зависят от объема, железа и формы запросов.</p>
+<hr/>
+<h2 id="1-index-access-methods-using-sql">1. Index Access Methods: почему <code>USING</code> — часть контракта SQL<a class="headerlink" href="#1-index-access-methods-using-sql" title="Permanent link">¶</a></h2>
+<h3 id="11-postgresql-create-index">1.1. Что именно выбирает PostgreSQL при <code>CREATE INDEX</code><a class="headerlink" href="#11-postgresql-create-index" title="Permanent link">¶</a></h3>
+<p>Мы уже умеем создавать B-tree. Но команда <code>CREATE INDEX</code> имеет важный параметр <code>USING</code>: он выбирает физический метод доступа к индексу. PostgreSQL 18 содержит встроенные B-tree, Hash, GiST, SP-GiST, GIN и BRIN. Установка расширений может добавить operator classes, специализированные типы и методы. В этой лекции нас интересуют четыре последних; Hash упомянем только как метод для равенства, обычно не дающий принципиального преимущества перед универсальным B-tree в типичной backend-схеме.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_attrs_gin</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">bookings_during_gist</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">bookings</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gist</span><span class="w"> </span><span class="p">(</span><span class="n">during</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">places_location_spgist</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">places</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">spgist</span><span class="w"> </span><span class="p">(</span><span class="k">location</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_created_brin</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">brin</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">);</span>
+</code></pre></div>
+<p>Это четыре различные организации поиска. Индексный метод отвечает за хранение записей, поиск и модификации. Но метод сам по себе не знает, что означает оператор для каждого типа данных. Например, <code>@&gt;</code> у массива, JSONB и диапазона имеет разные внутренние представления.</p>
+<h3 id="12-operator-class-gin-">1.2. Operator class: почему на одном столбце два GIN работают по-разному<a class="headerlink" href="#12-operator-class-gin-" title="Permanent link">¶</a></h3>
+<p><strong>Операторный класс (operator class, opclass)</strong> связывает индекс с конкретными операторами и поддерживающими функциями для типа данных. Выражение <code>WHERE attributes @&gt; ...</code> может использовать индекс только в том случае, если соответствующий индексный opclass поддерживает это условие. Одинаковая колонка может индексироваться с разной семантикой.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">p_json_ops</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="w"> </span><span class="n">jsonb_ops</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">p_json_path_ops</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="w"> </span><span class="n">jsonb_path_ops</span><span class="p">);</span>
+</code></pre></div>
+<p><code>jsonb_ops</code> — opclass по умолчанию для GIN над <code>jsonb</code>. <code>jsonb_path_ops</code> поддерживает более узкий набор операторов, оптимизируя определенные формы containment/jsonpath. Индекс размера меньше или быстрее — это распространенный результат, <strong>не универсальная гарантия</strong>. Данный opclass не ускорит условие с оператором, который не поддерживает. Проверять надо не только SQL-тип, но и <strong>пару: выражение в WHERE + operator class</strong>. См. [PG18-OPCLASS], [PG18-JSON].</p>
+<h3 id="13-operator-family-lossiness-recheck">1.3. Operator family, lossiness и recheck<a class="headerlink" href="#13-operator-family-lossiness-recheck" title="Permanent link">¶</a></h3>
+<p>Семейство операторов (operator family) связывает совместимые классы и операции. Для обычной прикладной разработки достаточно знать, что реализация индексного поиска может возвращать точный ответ или <strong>кандидатов</strong>. Если индекс хранит приближенную информацию, executor обязан заново проверить исходный предикат на heap-строке. Это называется <code>recheck</code>.</p>
+<div class="highlight"><pre><span></span><code>  Индекс: набор кандидатов TID
+              |
+              v
+   Heap / Bitmap Heap Scan
+              |
+              v
+   Recheck Cond: исходный SQL-предикат
+              |
+       +------+------+
+       |             |
+   Подходит       Не подходит
+   в ответ       отбросить
+</code></pre></div>
+<p>План <code>Bitmap Heap Scan</code> может дополнительно выполнять recheck из-за <strong>lossy bitmap pages</strong>, когда TID были укрупнены до номера heap-страницы при недостатке памяти. Это отдельная причина recheck, ее нельзя автоматически приписывать GiST или BRIN. В <code>EXPLAIN (ANALYZE, BUFFERS)</code> смотрим <code>Recheck Cond</code>, <code>Rows Removed by Index Recheck</code>, <code>Heap Blocks: exact/lossy</code> и фактические обращения к heap. См. [PG18-XINDEX], [PG18-EXPLAIN].</p>
+<h3 id="14-seq-scan">1.4. Индекс не обязан побеждать Seq Scan<a class="headerlink" href="#14-seq-scan" title="Permanent link">¶</a></h3>
+<p>Пользователь спрашивает: «Если индекс есть, почему <code>EXPLAIN</code> показывает Seq Scan?» Потому что access method лишь предлагает альтернативный путь. Планировщик сравнивает стоимость. Если предикат выбирает половину таблицы, перебор кандидатов, обращение к heap и дополнительный recheck могут стоить дороже последовательного чтения. Для короткой таблицы индекс тоже часто бессмысленен.</p>
+<p>Ключевая дисциплина: сначала воспроизводим <strong>характерный SQL и характерное распределение данных</strong>, выполняем <code>ANALYZE</code>, затем сравниваем планы, объем heap I/O и задержки. Принудительное <code>SET enable_seqscan = off</code> допускается только как диагностический эксперимент; это не исправление production-производительности.</p>
+<p><strong>Вывод раздела:</strong> index type — это алгоритм хранения; opclass — поддерживаемый набор операторов; planner — выбор альтернативы; executor — точная проверка результата. Ошибка любого из четырех слоев объясняет фразу «индекс построили, а запрос не ускорился».</p>
+<hr/>
+<h2 id="2-gin">2. GIN: инвертированный индекс, который ищет элементы внутри значения<a class="headerlink" href="#2-gin" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Почему один документ превращается в много индексных ключей<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Берем <code>jsonb</code>, массив или <code>tsvector</code>. Один документ может содержать десятки или сотни элементов, а запрос интересуется отдельным элементом. Хранить в B-tree все целые документы в некотором порядке недостаточно: нужна обратная адресация.</p>
+<p><strong>GIN (Generalized Inverted Index)</strong> хранит связи вида <code>key -&gt; множество TID строк, содержащих этот ключ</code>. Внутренний GIN имеет дерево по ключам, а для ключа хранит posting list или отдельное posting tree, если ссылок слишком много. Это детали текущей реализации PostgreSQL, описанные в [PG18-GIN].</p>
+<div class="highlight"><pre><span></span><code>   Heap                                  GIN index
+ (42,1)  tags=[camera, 4k]              key=camera -&gt; (42,1), (42,8), (73,3)
+ (42,8)  tags=[camera, oled]              key=4k     -&gt; (42,1), (90,2)
+ (73,3)  tags=[camera, wifi]              key=oled   -&gt; (42,8)
+ (90,2)  tags=[4k, vr]                   key=wifi   -&gt; (73,3)
+                                         key=vr     -&gt; (90,2)
+</code></pre></div>
+<p>Поиск <code>tags @&gt; ARRAY['camera','4k']</code> сводится к поиску posting sets и их объединению по правилам оператора. Для containment с двумя обязательными элементами логически нужна <strong>пересеченная</strong> часть наборов TID. Как именно организовать обход posting lists и проверку — внутренняя оптимизация GIN, а семантику задает operator class.</p>
+<h3 id="22-posting-list-posting-tree">2.2. Posting list, posting tree и цена частых значений<a class="headerlink" href="#22-posting-list-posting-tree" title="Permanent link">¶</a></h3>
+<p>Представим 10 миллионов товаров. Ключ <code>camera</code> встречается в шести миллионах строк, а <code>periscope</code> — лишь в десяти тысячах. Для частого ключа posting list велика; GIN может хранить TID в отдельной posting tree. Индекс по-прежнему полезен для сочетания редкого и частого ключа, но запрос только по <code>camera</code> вернет слишком много кандидатов.</p>
+<div class="highlight"><pre><span></span><code>Нечастый элемент:  periscope -&gt; 10 000 TID
+Частый элемент:    camera    -&gt; 6 000 000 TID
+
+WHERE tags @&gt; ARRAY['periscope', 'camera']
+  поиск по двум наборам; множество кандидатов ограничивает редкий ключ
+
+WHERE tags @&gt; ARRAY['camera']
+  возможно чтение большой доли heap, дорогой recheck и даже Seq Scan
+</code></pre></div>
+<p>Оптимизация здесь — качество фильтрации. <strong>Индекс ускоряет поиск кандидатов, но не уменьшает число строк, реально удовлетворяющих слишком широкому условию.</strong> Если предикат возвращает миллионы строк, конечную задержку определяют и heap I/O, и объем результата, и передача по сети.</p>
+<h3 id="23-gin-heap-mvcc">2.3. Где заканчивается GIN: heap и MVCC<a class="headerlink" href="#23-gin-heap-mvcc" title="Permanent link">¶</a></h3>
+<p>GIN хранит индексные ключи и ссылки, а не полноценные исходные документы. Поэтому <strong>GIN не поддерживает Index Only Scan</strong>: он обычно не может реконструировать исходное значение колонки по одному индексному ключу. Чтобы вернуть документ или проверить условие, PostgreSQL работает с heap и обычными правилами видимости. Этот принцип остается верным при <code>SELECT id</code>: индекс GIN не превращается автоматически в covering index по <code>id</code>.</p>
+<p>Важно разделять: для конкретного opclass индекс может дать точное логическое соответствие, но иногда реальная проверка все равно нужна; у <code>Bitmap Heap Scan</code> дополнительный recheck может появиться из-за lossy bitmap. И повторно: цена индекса не ограничивается чтением, ведь каждый новый документ дает много индексных ключей. См. [PG18-INDEXONLY], [PG18-GIN].</p>
+<h3 id="24">2.4. Минимальная демонстрация<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">attributes</span><span class="w"> </span><span class="n">jsonb</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tags</span><span class="w"> </span><span class="nb">text</span><span class="p">[]</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'{}'</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="p">,</span><span class="w"> </span><span class="n">tags</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span>
+<span class="w"> </span><span class="p">(</span><span class="s1">'{"camera":{"stabilization":true},"storage":256}'</span><span class="p">,</span>
+<span class="w">  </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'camera'</span><span class="p">,</span><span class="s1">'premium'</span><span class="p">],</span><span class="w"> </span><span class="s1">'Optical stabilizer and fast sensor'</span><span class="p">),</span>
+<span class="w"> </span><span class="p">(</span><span class="s1">'{"camera":{"stabilization":false},"storage":128}'</span><span class="p">,</span>
+<span class="w">  </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'camera'</span><span class="p">,</span><span class="s1">'budget'</span><span class="p">],</span><span class="w"> </span><span class="s1">'Entry-level phone'</span><span class="p">),</span>
+<span class="w"> </span><span class="p">(</span><span class="s1">'{"screen":"oled","storage":512}'</span><span class="p">,</span>
+<span class="w">  </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'oled'</span><span class="p">,</span><span class="s1">'premium'</span><span class="p">],</span><span class="w"> </span><span class="s1">'Large OLED tablet'</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_tags_gin</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="p">(</span><span class="n">tags</span><span class="p">);</span>
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">products</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'camera'</span><span class="p">];</span>
+</code></pre></div>
+<p>На трех строках нормальным результатом будет Seq Scan: индекс здесь только для изучения механизма. Для показательной разницы понадобится большой набор данных, достаточная селективность и холодные/теплые измерения в сопоставимых условиях.</p>
+<h3 id="25-gin-b-tree">2.5. Почему «GIN всегда быстрее B-tree» — неправильный вопрос<a class="headerlink" href="#25-gin-b-tree" title="Permanent link">¶</a></h3>
+<p>B-tree дает хороший доступ к скалярному равенству и диапазону; GIN эффективен для операций с несколькими элементами значения. Если запрос <code>WHERE id = $1</code>, нужен B-tree по <code>id</code>. Если запрос проверяет набор тегов, нужен соответствующий GIN opclass. Если клиент фильтрует и по <code>category_id</code>, и по тегам, план может сочетать индексы или использовать другую стратегию; стоимость определяется количеством кандидатов.</p>
+<p><strong>Вывод раздела:</strong> GIN покупает быстрый поиск по составным значениям ценой множества индексных ключей, дополнительной структуры posting lists/trees и более дорогой записи. Под нагрузкой дальше придется платить и за их обслуживание.</p>
+<hr/>
+<h2 id="3-gin-jsonb-jsonb_ops-jsonb_path_ops">3. GIN и JSONB: <code>jsonb_ops</code> против <code>jsonb_path_ops</code><a class="headerlink" href="#3-gin-jsonb-jsonb_ops-jsonb_path_ops" title="Permanent link">¶</a></h2>
+<h3 id="31-opclass">3.1. Два opclass, один столбец, разные поддерживаемые запросы<a class="headerlink" href="#31-opclass" title="Permanent link">¶</a></h3>
+<p>Возьмем документ:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"camera"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"stabilization"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">"zoom"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"tags"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"premium"</span><span class="p">,</span><span class="w"> </span><span class="s2">"photo"</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"brand"</span><span class="p">:</span><span class="w"> </span><span class="s2">"example"</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Для полноценных документов <code>jsonb_ops</code> по умолчанию индексирует ключи и значения по отдельным элементам структуры. <code>jsonb_path_ops</code> использует более специфические ключи, учитывающие путь к значению, и поддерживает containment/jsonpath. Он не поддерживает key-exists операторы <code>?</code>, <code>?|</code>, <code>?&amp;</code>. Эта разница — часть контракта PostgreSQL 18, а не вопрос вкуса. См. [PG18-JSON].</p>
+<table>
+<thead>
+<tr>
+<th>Пример WHERE</th>
+<th><code>jsonb_ops</code></th>
+<th><code>jsonb_path_ops</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attributes @&gt; '{"brand":"example"}'</code></td>
+<td>Да</td>
+<td>Да</td>
+</tr>
+<tr>
+<td><code>attributes ? 'brand'</code></td>
+<td>Да</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>attributes ?| array['brand','tags']</code></td>
+<td>Да</td>
+<td>Нет</td>
+</tr>
+<tr>
+<td><code>attributes @? '$.camera.zoom ? (@ &gt; 3)'</code></td>
+<td>Да*</td>
+<td>Да*</td>
+</tr>
+</tbody>
+</table>
+<p><code>*</code> Для jsonpath GIN извлекает поддерживаемые условия сравнения вида <code>accessor_chain == constant</code> и родственные индексируемые формы; <strong>не каждое</strong> выражение jsonpath превращается в селективный GIN-поиск. Наличие оператора <code>@?</code> само по себе не обещает ускорение.</p>
+<h3 id="32-jsonb_path_ops">3.2. Почему <code>jsonb_path_ops</code> часто меньше<a class="headerlink" href="#32-jsonb_path_ops" title="Permanent link">¶</a></h3>
+<p>У <code>jsonb_ops</code> одинаковое значение <code>true</code> в разных ветвях дерева дает отдельные элементы индекса, а путь и значение далее комбинируются при поиске. У <code>jsonb_path_ops</code> путь и значение участвуют в формировании индексного ключа. Запрос по конкретному вложенному значению может сразу сузиться до нужного пути.</p>
+<p>Это помогает в документах с множеством повторяющихся ключей и значений, но платим универсальностью. Кроме того, структура, не содержащая индексируемых значений (например, пустой объект по определенному пути), может обрабатываться <code>jsonb_path_ops</code> плохо: для <code>@&gt; '{"a": {}}'</code> поиск не получает обычного точного ключа и может требовать дорогого сканирования. Нельзя выбирать opclass, не изучив реальные SQL.</p>
+<h3 id="33">3.3. Ловушка: оператор <code>?</code> проверяет верхний уровень<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- key-exists на верхнем уровне JSONB:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">attributes</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">'camera'</span><span class="p">;</span>
+
+<span class="c1">-- Здесь мы сначала получаем вложенный JSONB, потом проверяем ключ:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="s1">'camera'</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">'zoom'</span><span class="p">;</span>
+</code></pre></div>
+<p>GIN по <code>attributes</code> не обязательно подходит для второй формы, поскольку оператор <code>?</code> применяется к <strong>выражению <code>(attributes -&gt; 'camera')</code></strong>, а не к целой колонке. Для повторяющегося запроса можно создать индекс выражения:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_camera_keys_gin</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">((</span><span class="n">attributes</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="s1">'camera'</span><span class="p">));</span>
+</code></pre></div>
+<p>Альтернатива — переписать условие как containment по всей колонке, если семантика допускает это:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">attributes</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="s1">'{"camera":{"zoom":5}}'</span><span class="p">::</span><span class="n">jsonb</span><span class="p">;</span>
+</code></pre></div>
+<p>Последний SQL эквивалентен проверке конкретного значения <code>zoom=5</code>, а не просто существования ключа <code>zoom</code>. Нельзя подменять семантику ради индекса.</p>
+<h3 id="34-opclass">3.4. Как выбирать opclass по реальным запросам<a class="headerlink" href="#34-opclass" title="Permanent link">¶</a></h3>
+<p>Создаем две одинаковые копии таблицы для честного эксперимента и индексируем каждую своим opclass. Меряем <code>pg_relation_size(index)</code>, <code>EXPLAIN (ANALYZE, BUFFERS)</code>, среднюю и хвостовую задержку SELECT, время построения индекса и скорость INSERT/UPDATE. Затем добавляем <code>?</code> и JSONPath-запросы.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_attrs_ops</span>
+<span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="w"> </span><span class="n">jsonb_ops</span><span class="p">);</span>
+
+<span class="c1">-- Альтернативный индекс в отдельном эксперименте, не обязательно рядом:</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_attrs_path_ops</span>
+<span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">attributes</span><span class="w"> </span><span class="n">jsonb_path_ops</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'products_attrs_ops'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">ops_size</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'products_attrs_path_ops'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">path_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Если оба индекса оставить на production-таблице, платить за поддержку придется дважды. Два индекса оправданы только при доказанной полезности разной семантики запросов.</p>
+<p><strong>Вывод раздела:</strong> opclass — фактически часть API между SQL и индексом. Изменение opclass требует сверки операторов и нагрузки, а не только размера индекса.</p>
+<hr/>
+<h2 id="4-gin-containment-overlap">4. GIN для массивов: containment, overlap и цена денормализации<a class="headerlink" href="#4-gin-containment-overlap" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Семантика операторов важнее названия колонки<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>Столбец <code>tags text[]</code> иногда удобен: каждая строка содержит набор меток. GIN с <code>array_ops</code> поддерживает важные операции:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Все указанные значения присутствуют:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'camera'</span><span class="p">,</span><span class="w"> </span><span class="s1">'premium'</span><span class="p">];</span>
+
+<span class="c1">-- Есть хотя бы одно общее значение:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'photo'</span><span class="p">,</span><span class="w"> </span><span class="s1">'budget'</span><span class="p">];</span>
+
+<span class="c1">-- Значения массива слева содержатся в указанном наборе:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">&lt;@</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'premium'</span><span class="p">,</span><span class="w"> </span><span class="s1">'camera'</span><span class="p">,</span><span class="w"> </span><span class="s1">'oled'</span><span class="p">];</span>
+
+<span class="c1">-- Равенство массива тоже поддерживается operator class:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'camera'</span><span class="p">,</span><span class="w"> </span><span class="s1">'budget'</span><span class="p">];</span>
+</code></pre></div>
+<p><code>@&gt;</code> и <code>&amp;&amp;</code> дают разную селективность. Условие <code>&amp;&amp; ARRAY['common', 'popular']</code> может вернуть слишком много кандидатов. Включение нового часто встречающегося тега увеличивает posting lists и стоимость обновления индекса.</p>
+<h3 id="42">4.2. Контрпример: массив как модель множества<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL containment массива <strong>не считает кратность вхождений</strong>: для <code>ARRAY[1] @&gt; ARRAY[1,1]</code> результат <code>true</code>. Индексная семантика отражает оператор, но само приложение иногда ошибочно считает теги мультисетом. Если важен порядок, число повторений или атрибут отдельного тега, массив может оказаться плохой предметной моделью.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">contains_duplicates</span><span class="p">;</span>
+<span class="c1">-- true</span>
+</code></pre></div>
+<p>Нормализованная связь <code>product_tags(product_id, tag)</code> с уникальным ключом позволяет хранить независимые атрибуты, ограничивать уникальность и выполнять JOIN. Она увеличивает количество строк и стоимость соединений, но дает больше контроля. Массив полезен при стабильном небольшом наборе элементов и частых проверках принадлежности; нормализация — если элемент стал самостоятельной сущностью.</p>
+<h3 id="43-update">4.3. Производственная цена UPDATE массива<a class="headerlink" href="#43-update" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">UPDATE</span><span class="w"> </span><span class="n">products</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">tags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array_append</span><span class="p">(</span><span class="n">tags</span><span class="p">,</span><span class="w"> </span><span class="s1">'new'</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>С точки зрения SQL изменился один элемент. С точки зрения индекса мог измениться состав GIN-ключей для новой версии строки, а для heap возникла новая tuple в обычной модели MVCC. Цена меняется с количеством элементов и частотой обновлений. Индекс по <code>tags</code> может лишить UPDATE возможности быть HOT для затрагиваемой индексом колонки. Не объявляйте это бесплатным полем-массивом.</p>
+<p><strong>Вывод раздела:</strong> GIN над массивом пригоден для поиска по элементам, но не заменяет предметную модель. Обязательно сверяем semantics <code>@&gt;</code>, <code>&amp;&amp;</code>, <code>&lt;@</code>, равенства и свойства обновлений.</p>
+<hr/>
+<h2 id="5-full-text-search">5. Full-Text Search: почему «найти слово» требует отдельной семантики<a class="headerlink" href="#5-full-text-search" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Поиск слов не совпадает с поиском подстроки<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Предположим, пользователь ищет «оптические камеры». Наивная реализация строит <code>ILIKE '%оптические камеры%'</code>. Но текст может содержать «камера с оптической стабилизацией», «объективы для камер» или другую словоформу и порядок слов. <code>ILIKE</code> сравнивает подстроки, не знает словаря, форм слова и смысла поискового выражения.</p>
+<p><strong>Полнотекстовый поиск (Full-Text Search, FTS)</strong> приводит документ к <code>tsvector</code>, а запрос — к <code>tsquery</code>. Парсер, словари и стоп-слова определяются конфигурацией. <code>to_tsvector</code> сохраняет нормализованные лексемы и обычно их позиции; <code>plainto_tsquery</code> формирует простой запрос из пользовательского текста.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">to_tsvector</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'Оптические камеры и объективы'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'оптическая камера'</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">to_tsvector</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'Оптические камеры и объективы'</span><span class="p">)</span>
+<span class="w">       </span><span class="o">@@</span><span class="w"> </span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'камера объектив'</span><span class="p">);</span>
+</code></pre></div>
+<p>Здесь <strong>конфигурация является частью семантики индекса</strong>: индекс строили с одной конфигурацией, а запрос лемматизировали с другой — совпадения могут отличаться. При смешанном языке следует продумать конфигурации, а не рассчитывать на несуществующий универсальный словарь. См. [PG18-FTS-CONTROL].</p>
+<h3 id="52">5.2. Как строить индекс для текстового поля<a class="headerlink" href="#52" title="Permanent link">¶</a></h3>
+<p>Покажем устойчивый вариант через сохраненный вычисляемый столбец (<code>STORED</code> generated column), чтобы не пересчитывать лексемы на каждом SELECT:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">articles</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">title</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">body</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">search_vector</span><span class="w"> </span><span class="n">tsvector</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">setweight</span><span class="p">(</span><span class="n">to_tsvector</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">::</span><span class="n">regconfig</span><span class="p">,</span><span class="w"> </span><span class="n">title</span><span class="p">),</span><span class="w"> </span><span class="s1">'A'</span><span class="p">)</span><span class="w"> </span><span class="o">||</span>
+<span class="w">    </span><span class="n">setweight</span><span class="p">(</span><span class="n">to_tsvector</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">::</span><span class="n">regconfig</span><span class="p">,</span><span class="w"> </span><span class="n">body</span><span class="p">),</span><span class="w"> </span><span class="s1">'D'</span><span class="p">)</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="n">STORED</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">articles_search_gin</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">articles</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">search_vector</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">title</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">articles</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">search_vector</span><span class="w"> </span><span class="o">@@</span><span class="w"> </span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'камера стабилизация'</span><span class="p">);</span>
+</code></pre></div>
+<p>Индекс GIN содержит лексемы и ссылки на строки. Он не превращается в поисковый движок со всеми возможностями релевантности и морфологии: важны словари, обновления контента, количество документов, ranking и требования к результатам.</p>
+<h3 id="53-ranking">5.3. Ranking: почему индекс отвечает за кандидатов, а не окончательную сортировку<a class="headerlink" href="#53-ranking" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">title</span><span class="p">,</span>
+<span class="w">       </span><span class="n">ts_rank</span><span class="p">(</span><span class="n">search_vector</span><span class="p">,</span>
+<span class="w">               </span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'камера стабилизация'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rank</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">articles</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">search_vector</span><span class="w"> </span><span class="o">@@</span><span class="w"> </span><span class="n">plainto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'камера стабилизация'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">rank</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+</code></pre></div>
+<p>GIN быстро находит кандидатов по лексемам, но <strong><code>ts_rank</code> вычисляется для подходящих документов</strong>, затем результаты обычно надо упорядочить. Даже при небольшом <code>LIMIT</code> серверу может потребоваться вычислить релевантность для большого множества совпадений. Вводим ограничение по другим атрибутам или более селективный <code>tsquery</code>, если бизнес-семантика это допускает.</p>
+<p>Если вектор содержит весовые метки A/B/C/D, учтите, что GIN индексирует лексемы, а не сами веса; некоторые условия требуют проверки исходного <code>tsvector</code>. Для FTS индекс GIN предпочтителен, а GiST предлагает другой компромисс через сигнатуру. См. [PG18-FTS-INDEX].</p>
+<h3 id="54-websearch_to_tsquery">5.4. <code>websearch_to_tsquery</code>, фразовый поиск и опасные пользовательские строки<a class="headerlink" href="#54-websearch_to_tsquery" title="Permanent link">¶</a></h3>
+<p><code>to_tsquery</code> требует синтаксис поискового языка, например <code>camera &amp; phone</code>. Прямое встраивание пользовательского ввода в SQL — ошибка и с точки зрения безопасности, и с точки зрения корректной обработки кавычек. <code>plainto_tsquery</code> безопасно формирует AND по словам; <code>websearch_to_tsquery</code> понимает привычную часть поискового синтаксиса; <code>phraseto_tsquery</code> учитывает порядок и расстояния.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">websearch_to_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'камера -пластик'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">phraseto_tsquery</span><span class="p">(</span><span class="s1">'russian'</span><span class="p">,</span><span class="w"> </span><span class="s1">'оптическая стабилизация'</span><span class="p">);</span>
+</code></pre></div>
+<p>Выбираем способ формирования <code>tsquery</code> по требованиям продукта, а не потому, что один кажется «лучше» другого. Низкоуровневые возможности FTS расширяемы, но разработку собственных словарей и парсеров мы в курс не включаем.</p>
+<h3 id="55">5.5. Что происходит под нагрузкой<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<p>Добавим 10 000 обновлений документов в секунду. Каждый UPDATE текстового поля может переписать stored <code>search_vector</code> и обновить множество ключей GIN. Индекс ускоряет поиск, но цена возникает в транзакционном пути записи, autovacuum и обслуживании GIN. При высокой частоте новых документов задержка INSERT может быть неравномерной. Эту причинную цепочку продолжим в теме 7.</p>
+<p><strong>Вывод раздела:</strong> для поиска слов нужна лексическая модель, индекс по <code>tsvector</code> и оценка итоговой стоимости ранжирования. Для поиска подстроки — другой механизм, который разбираем далее.</p>
+<hr/>
+<h2 id="6-pg_trgm-like">6. <code>pg_trgm</code>: как ускорить <code>LIKE '%...%'</code> и поиск похожих строк<a class="headerlink" href="#6-pg_trgm-like" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1. Откуда берутся триграммы<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p>Триграмма — последовательность из трех символов, получаемая при разбиении текста с предусмотренными правилами нормализации и границ слов. Для поиска выражение преобразуется в набор триграмм; индекс позволяет найти строки, содержащие подходящие части. Чем длиннее и информативнее шаблон, тем меньше кандидатов.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pg_trgm</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_description_trgm</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">description</span><span class="w"> </span><span class="n">gin_trgm_ops</span><span class="p">);</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">'%оптическая%'</span><span class="p">;</span>
+</code></pre></div>
+<p>Индекс <code>gin_trgm_ops</code> поддерживает <code>LIKE</code>, <code>ILIKE</code>, регулярные выражения и похожесть. Он полезен для текстовых поисков с незаякоренным слева шаблоном. Но <strong>триграммы ищут совпадения символов, а не нормализованные лексемы</strong>, поэтому это не замена полнотекстового поиска. См. [PG18-TRGM].</p>
+<h3 id="62">6.2. Почему слишком короткий шаблон ломает красивую модель<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">'%ab%'</span><span class="p">;</span>
+</code></pre></div>
+<p>У этого шаблона может не быть ни одной извлекаемой надежной триграммы. PostgreSQL может вынужденно просмотреть почти весь индекс или предпочесть Seq Scan. Для <code>ILIKE '%оптическая%'</code> извлекаемых триграмм больше, отбор кандидатов лучше.</p>
+<p>Аналогично с регулярными выражениями: сложный шаблон вроде <code>.*</code> не создает полезного ограничителя. <strong>Наличие GIN по trigram не гарантирует ускорение любых LIKE/regex.</strong> В логах и статистике нужно смотреть реальные шаблоны, включая очень короткие пользовательские запросы.</p>
+<h3 id="63-gin-gist-trigram">6.3. GIN против GiST для trigram<a class="headerlink" href="#63-gin-gist-trigram" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_description_gist_trgm</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">products</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gist</span><span class="w"> </span><span class="p">(</span><span class="n">description</span><span class="w"> </span><span class="n">gist_trgm_ops</span><span class="p">(</span><span class="n">siglen</span><span class="o">=</span><span class="mi">32</span><span class="p">));</span>
+
+<span class="c1">-- Похожесть определяется порогом для оператора %:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">description</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">products</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="s1">'стабилизация'</span><span class="p">;</span>
+
+<span class="c1">-- Поиск ближайших строк по расстоянию:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">description</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">products</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="o">&lt;-&gt;</span><span class="w"> </span><span class="s1">'стабилизация'</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Оба метода могут ускорять поиск похожих строк, однако <strong>GiST поддерживает эффективный nearest-neighbor поиск с <code>ORDER BY &lt;-&gt; LIMIT</code></strong>, а GIN не предоставляет аналогичный индексный top-K по расстоянию. GIN хорош для поиска всех кандидатов по порогу или подстроке, GiST — часто лучше для KNN.</p>
+<p>Для <code>gist_trgm_ops</code> хранится сигнатура; увеличение <code>siglen</code> потенциально уменьшает число ложных кандидатов, но увеличивает размер индекса. Это компромисс конкретного operator class, а не универсальное свойство GiST.</p>
+<h3 id="64">6.4. Ложные кандидаты и точная проверка<a class="headerlink" href="#64" title="Permanent link">¶</a></h3>
+<p>Общая триграмма сама по себе не доказывает совпадение всего условия <code>LIKE</code> или regex. Индекс формирует кандидатов, исходное условие проверяется повторно при необходимости. Поэтому низкий процент совпадений и слишком общий шаблон могут превратить GIN-trgm в крупный источник heap I/O. Для trigram-GiST дополнительно возможны кандидаты из-за сигнатурных коллизий.</p>
+<p>Диагностика: <code>EXPLAIN (ANALYZE, BUFFERS)</code>, фактическое число возвращенных строк, heap blocks, <code>Rows Removed by Index Recheck</code>, сравнение <code>LIKE 'prefix%'</code> и <code>LIKE '%middle%'</code>, warm/cold cache. При большой записи — отдельное измерение INSERT и UPDATE, ведь индекс содержит множество триграмм для каждой строки.</p>
+<h3 id="65-fts-trigram">6.5. Как выбрать между FTS и Trigram<a class="headerlink" href="#65-fts-trigram" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Запрос пользователя</th>
+<th>Техническая модель</th>
+<th>Инструмент</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>«Все статьи со словами камера и стабилизация»</td>
+<td>Поиск лексем, словоформ</td>
+<td><code>tsvector</code> + GIN</td>
+</tr>
+<tr>
+<td>«Найти подстроку в описании»</td>
+<td>Последовательности символов</td>
+<td><code>pg_trgm</code> + GIN/GiST</td>
+</tr>
+<tr>
+<td>«Похожие названия, top-10»</td>
+<td>Метрика похожести, KNN</td>
+<td><code>pg_trgm</code> + GiST</td>
+</tr>
+<tr>
+<td>«Точное равенство идентификатора»</td>
+<td>Скалярное равенство</td>
+<td>B-tree</td>
+</tr>
+</tbody>
+</table>
+<p>Нельзя выбрать один «самый лучший текстовый индекс» без определения поискового контракта продукта.</p>
+<p><strong>Вывод раздела:</strong> <code>pg_trgm</code> ускоряет substring/similarity за счет индексирования триграмм, но короткие шаблоны и низкая селективность делают его дорогим. GiST особенно интересен при <code>ORDER BY distance LIMIT</code>.</p>
+<hr/>
+<h2 id="7-gin-write-cost-insert-20">7. GIN Write Cost: почему INSERT внезапно становится в 20 раз медленнее<a class="headerlink" href="#7-gin-write-cost-insert-20" title="Permanent link">¶</a></h2>
+<h3 id="71-write-amplification">7.1. Проблема write amplification<a class="headerlink" href="#71-write-amplification" title="Permanent link">¶</a></h3>
+<p>При вставке одной строки в heap PostgreSQL может извлечь из JSONB или <code>tsvector</code> десятки индексных ключей. Если немедленно вставлять каждый ключ в основное дерево GIN, одна SQL-операция превращается в множество изменений индекса. Время выполнения записи растет, а конфликтные обновления страниц становятся дороже.</p>
+<p>GIN умеет отложить значительную часть этой работы с помощью <strong>fastupdate</strong> и <strong>pending list</strong>. При включенном <code>fastupdate</code> новые элементы сначала попадают во временный несортированный список внутри GIN. Позже они массово переносятся в основную структуру. См. [PG18-GIN].</p>
+<div class="highlight"><pre><span></span><code>Обычный путь                  Fast update
+-----------                   -----------
+INSERT document               INSERT document
+    |                             |
+извлечь N ключей              извлечь N ключей
+    |                             |
+обновить основное дерево      append в GIN pending list
+    |                             |
+COMMIT                        COMMIT
+                                  |
+                         позднее: bulk cleanup
+                                  |
+                         основное entry/posting tree
+</code></pre></div>
+<h3 id="72-p99-cliff">7.2. Откуда берется p99 cliff<a class="headerlink" href="#72-p99-cliff" title="Permanent link">¶</a></h3>
+<p>Пока pending list небольшая, новые INSERT обходятся дешево. Но рано или поздно ее нужно очистить. Очистку инициирует VACUUM/autoanalyze, явный <code>gin_clean_pending_list()</code> или превышение <code>gin_pending_list_limit</code>. Если порог превышает именно пользовательский INSERT, <strong>передний запрос может оплатить дорогостоящий cleanup</strong>. Это объясняет картину: p50 записи нормальная, а отдельные p99/p99.9 резко выросли.</p>
+<div class="highlight"><pre><span></span><code>INSERT latency (условно, мс):
+2.1  2.0  2.5  2.0  2.2  85.0  2.1  2.0  2.3
+                         ^
+                 foreground pending cleanup
+</code></pre></div>
+<p>При этом SELECT должен искать <strong>и в основном GIN, и в pending list</strong>. Поэтому слишком большая pending list ухудшает не только скорость очистки, но и читающие запросы. Получается обмен: дешевые записи сейчас — дополнительные расходы на чтение и редкие дорогие записи позже.</p>
+<h3 id="73">7.3. Настройки и их реальные компромиссы<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Изменить порог на уровне конкретного индекса:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_tags_gin</span>
+<span class="w">  </span><span class="k">SET</span><span class="w"> </span><span class="p">(</span><span class="n">gin_pending_list_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">8192</span><span class="p">);</span><span class="w"> </span><span class="c1">-- кБ</span>
+
+<span class="c1">-- Отключить fastupdate (не удаляет накопленный pending list мгновенно):</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">products_tags_gin</span>
+<span class="w">  </span><span class="k">SET</span><span class="w"> </span><span class="p">(</span><span class="n">fastupdate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">off</span><span class="p">);</span>
+</code></pre></div>
+<p>Увеличить порог — значит реже чистить список, но потенциально делать более дорогую очистку и дольше сканировать pending list при SELECT. Отключить fastupdate — значит сделать расходы на изменения более непосредственными и стабильными, но часто увеличить стоимость INSERT. Универсального «правильного» значения нет.</p>
+<p><code>maintenance_work_mem</code> существенно влияет на <strong>построение</strong> GIN. Для cleanup важны условия нагрузки и память, доступная соответствующей операции; настройка не отменяет фундаментальную стоимость перемещения большого числа ключей.</p>
+<h3 id="74-pending-list">7.4. Как увидеть pending list собственными глазами<a class="headerlink" href="#74-pending-list" title="Permanent link">¶</a></h3>
+<p>Поставляемое расширение <code>pgstattuple</code> содержит <code>pgstatginindex</code>, возвращающий <code>pending_pages</code> и <code>pending_tuples</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pgstattuple</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pgstatginindex</span><span class="p">(</span><span class="s1">'products_tags_gin'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+
+<span class="c1">-- Контролируемая очистка только в отдельном эксперименте:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">gin_clean_pending_list</span><span class="p">(</span><span class="s1">'products_tags_gin'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+</code></pre></div>
+<p>Значения измеряются для конкретного момента и имеют характер состояния индекса; изменение pending list возможно между запросами. Установка расширения и права на диагностическую функцию могут требовать администратора или роли <code>pg_stat_scan_tables</code>. См. [PG18-PGSTAT].</p>
+<h3 id="75">7.5. Что измерять, чтобы не лечить симптом<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<ol>
+<li>Запустить стабильную смесь INSERT/UPDATE и SELECT по тегам, а не только чистый bulk INSERT.</li>
+<li>Собрать latency в интервалах, обязательно p95/p99, count и throughput; среднее время скрывает spikes.</li>
+<li>Периодически снимать <code>pgstatginindex</code>: растет ли <code>pending_pages</code> перед всплеском?</li>
+<li>Отдельно измерять время SELECT и стоимость буферов; увеличивается ли работа со списком?</li>
+<li>Сравнить вариант с <code>fastupdate=off</code>, более агрессивным autovacuum и другим порогом, не меняя одновременно остальные параметры.</li>
+<li>После каждого изменения повторить нагрузку, проверить WAL-объем, размер индекса, потребление CPU и качество хвоста задержек.</li>
+</ol>
+<p><strong>Инженерный вывод:</strong> GIN переносит стоимость: размер, CPU и I/O никуда не исчезают. Pending list — осознанный batching-компромисс, который способен менять форму latency distribution в production.</p>
+<hr/>
+<h2 id="8-gist">8. GiST: индексируем диапазоны, пересечения и пространственные отношения<a class="headerlink" href="#8-gist" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Почему диапазон нельзя удобно выразить одним скалярным порядком<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>Появилась таблица бронирований: у каждой записи есть временной интервал. Нам нужно быстро найти бронирования, которые <strong>пересекаются</strong> с новым интервалом. Простого сравнения начала или конца недостаточно: длинный интервал может начаться далеко раньше искомого и все еще перекрывать его.</p>
+<p><strong>GiST (Generalized Search Tree)</strong> — сбалансированная структура поиска, в которой opclass задает семантику ключей, их объединения и отбора ветвей. Для диапазонов GiST умеет индексировать пересечение <code>&amp;&amp;</code>, включение <code>@&gt;</code> и другие операции. Сам GiST — инфраструктура, не единственный жестко зафиксированный алгоритм индексации.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">bookings</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">booking_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">room_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">during</span><span class="w"> </span><span class="n">tstzrange</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">bookings_during_gist</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">bookings</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gist</span><span class="w"> </span><span class="p">(</span><span class="n">during</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">booking_id</span><span class="p">,</span><span class="w"> </span><span class="n">room_id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">bookings</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">during</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">tstzrange</span><span class="p">(</span><span class="s1">'2026-12-01 10:00+00'</span><span class="p">,</span>
+<span class="w">                           </span><span class="s1">'2026-12-01 11:00+00'</span><span class="p">,</span><span class="w"> </span><span class="s1">'[)'</span><span class="p">);</span>
+</code></pre></div>
+<p>Границы <code>[)</code> означают включенную левую и исключенную правую. Соприкасающиеся без пересечения интервалы не конфликтуют, если бизнес-правила соответствуют этой модели. Время и часовые пояса важно нормализовать заранее.</p>
+<h3 id="82">8.2. От поиска пересечений к гарантии отсутствия двойных бронирований<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<p>Найти конфликт мало. Если два запроса одновременно проверили отсутствие пересечения, они могут оба попытаться вставить несовместимые данные. В PostgreSQL есть <strong>exclusion constraint</strong>, позволяющий выразить запрет пересечения прямо в схеме с использованием GiST.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">btree_gist</span><span class="p">;</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">bookings</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">no_overlapping_bookings</span>
+<span class="n">EXCLUDE</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gist</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">room_id</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="o">=</span><span class="p">,</span>
+<span class="w">  </span><span class="n">during</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Здесь <code>btree_gist</code> дает GiST-операторный класс для сравнения <code>room_id</code> по равенству. Для двух строк с одним <code>room_id</code> интервалы не могут пересекаться. Эта операция дает транзакционную защиту инварианта средствами СУБД, включая конкурентные вставки. При конфликте возможна ошибка <code>23P01</code> (<code>exclusion_violation</code>).</p>
+<p>Это новая бизнес-применимость индексного метода: структура обслуживает <strong>не только SELECT, но и ограничение целостности</strong>. Величину накладных расходов проверяем на write-нагрузке.</p>
+<h3 id="83-gist">8.3. GiST для геометрии и ограничивающих областей<a class="headerlink" href="#83-gist" title="Permanent link">¶</a></h3>
+<p>Для геометрических типов некоторые opclass используют <strong>bounding region</strong> — геометрическую область, которая покрывает индексируемый объект. При поиске выбираются ветви, чьи ограничивающие области могут пересекаться с запросом. Кандидаты затем проверяются, если индекс хранит лишь приближение.</p>
+<div class="highlight"><pre><span></span><code>                Root region
+               /           \
+       Bounding A          Bounding B
+        /    \                /    \
+       A1    A2              B1    B2
+          ^
+          intersect query region?
+</code></pre></div>
+<p>Дерево позволяет исключать большие поддеревья. Но если ограничивающие области сильно пересекаются, поиск затрагивает много ветвей. Эффективность зависит от распределения объектов, выбора opclass и характеристик данных. См. [PG18-GIST].</p>
+<h3 id="84-gist">8.4. Цена GiST под нагрузкой<a class="headerlink" href="#84-gist" title="Permanent link">¶</a></h3>
+<p>При добавлении объектов дерево может изменяться: расширяются агрегированные представления ветвей, выполняются разбиения узлов, и расходы зависят от данных. Для <code>tstzrange</code> на живой системе высокая плотность перекрывающихся интервалов может приводить к большому множеству кандидатов. Для пространственных данных плохо разделенные регионы увеличивают число посещаемых ветвей.</p>
+<p><strong>Вывод раздела:</strong> GiST — механизм для отношений типа «пересекается», «содержит», «поблизости». Его сила определяется соответствием operator class бизнес-оператору, а цена — структурой значений и количеством кандидатов.</p>
+<hr/>
+<h2 id="9-gist-recheck-knn">9. GiST Recheck &amp; KNN: где исчезает время при поиске ближайших<a class="headerlink" href="#9-gist-recheck-knn" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Почему приближенный индекс обязан проверять кандидата<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Представим индекс, хранящий прямоугольник вокруг многоугольника. Пересечение прямоугольников еще не означает пересечения самих многоугольников. Индекс вправе пропускать лишних кандидатов, но не должен потерять настоящие совпадения. Для <strong>lossy operator class</strong> он возвращает флаг, требующий повторной проверки исходного условия.</p>
+<div class="highlight"><pre><span></span><code>Запрос: polygon overlaps search_area?
+Индекс: bounding box overlaps? -&gt; MAYBE
+Heap: точная геометрическая проверка -&gt; true / false
+</code></pre></div>
+<p>Не каждый GiST opclass и не каждый оператор lossy. Например, отдельные операторы над диапазонами могут проверяться достаточно точно по индексным данным. Нельзя утверждать «GiST всегда приблизителен». План <code>Bitmap Heap Scan</code> может показать <code>Recheck Cond</code> из-за lossy bitmap даже для точных индексных методов. Диагностика должна различать причины.</p>
+<h3 id="92-k-nearest-neighbor">9.2. K-nearest neighbor: индекс может отдавать ближайшие значения по порядку<a class="headerlink" href="#92-k-nearest-neighbor" title="Permanent link">¶</a></h3>
+<p>Обычная схема top-K выглядит так: собрать кандидатов, посчитать расстояние, сортировать, взять LIMIT. Для подходящего GiST opclass предусмотрена индексная поддержка <strong>order-by operator</strong>, благодаря которой ближайшие результаты можно получать в порядке расстояния, сокращая необходимость собирать весь набор.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">places</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="k">location</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">places_location_gist</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">places</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">gist</span><span class="p">(</span><span class="k">location</span><span class="p">);</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">location</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">places</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">location</span><span class="w"> </span><span class="o">&lt;-&gt;</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="s1">'(10,20)'</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+</code></pre></div>
+<p>При подходящих статистике и объеме возможен план с <code>Index Scan</code> и <code>Order By: (location &lt;-&gt; ...)</code>. Он не гарантирован для трех записей, как и любой другой индексный план. Семантика <code>&lt;-&gt;</code> определяется типом и opclass.</p>
+<h3 id="93-order-by-distance-limit-where-distance-radius">9.3. Почему <code>ORDER BY distance LIMIT</code> и <code>WHERE distance &lt; radius</code> — разные задачи<a class="headerlink" href="#93-order-by-distance-limit-where-distance-radius" title="Permanent link">¶</a></h3>
+<p><strong>Топ-K</strong> хочет 20 ближайших точек, независимо от абсолютной дальности. <strong>Поиск в радиусе</strong> хочет все объекты, удовлетворяющие ограничению. Первый часто выигрывает от KNN, второй — от селективного пространственного предиката и точной проверки. Для измерений сравниваем количество возвращенных строк, число кандидатов, <code>BUFFERS</code>, сортировки и p95 latency.</p>
+<p>При очень плотной геометрии первые K кандидатов могут находиться на небольшом участке; при сильно неравномерном распределении или геометрии с большим перекрытием bounding regions индекс может посещать больше узлов.</p>
+<h3 id="94-recheck-heap">9.4. Частая ловушка: смешали recheck и извлечение heap<a class="headerlink" href="#94-recheck-heap" title="Permanent link">¶</a></h3>
+<p><code>Rows Removed by Index Recheck</code> — число отвергнутых строк на этапе повторной проверки индексного условия. Это не все строки, прочитанные из heap, и не прямой счетчик «ложных ключей в GiST». <code>Heap Blocks: lossy</code> — страницы, адреса которых в bitmap представлены без индивидуальных TID; это может быть следствием <code>work_mem</code>, даже если доступ по индексу точный. Для корректного вывода смотрим полную структуру плана.</p>
+<p><strong>Вывод раздела:</strong> GiST дает KNN и операторы пространственных/диапазонных отношений, но конечную стоимость определяют число рассмотренных кандидатов, точность opclass и работа с heap.</p>
+<hr/>
+<h2 id="10-sp-gist">10. SP-GiST: когда поисковое пространство выгодно делить на части<a class="headerlink" href="#10-sp-gist" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1. Другая ментальная модель: разделяем пространство, а не храним объединяющие области<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p>В GiST мы видели структуру, где внутренние узлы могут содержать ограничивающие представления набора потомков. Но что, если сами данные хорошо разделяются по <strong>дизъюнктным или относительно независимым областям</strong>? Для точек — по квадрантам; для строковых префиксов — по последовательности символов; для сетевых адресов — по префиксу битовой строки.</p>
+<p><strong>SP-GiST (Space-Partitioned Generalized Search Tree)</strong> — инфраструктура для поисковых деревьев, разбивающих пространство. В зависимости от operator class она позволяет строить quadtrees, k-d деревья, radix trees/tries и другие схемы. Важный нюанс: такие деревья не обязаны быть сбалансированными как B-tree; PostgreSQL адаптирует их к дисковым страницам и стремится сохранять эффективный доступ. См. [PG18-SPGIST].</p>
+<div class="highlight"><pre><span></span><code>                       Пространство точек
+                             |
+                  +----------+----------+
+                  |          |          |
+              quadrant NW    NE       SW/SE ...
+                  |          |
+               leafs      дальнейшее разбиение
+
+Поиск может отбросить целые области, не содержащие кандидатов.
+</code></pre></div>
+<p>В отличие от обычного партиционирования таблиц здесь <strong>одно индексное дерево</strong> делит поисковое пространство для конкретного access method. Не путать с декларативными partitions и тем более с распределенным sharding.</p>
+<h3 id="102">10.2. Пример с геометрическими точками<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">locations</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">p</span><span class="w"> </span><span class="n">point</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">locations_spgist</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">locations</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">spgist</span><span class="w"> </span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">locations</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">&lt;@</span><span class="w"> </span><span class="n">box</span><span class="w"> </span><span class="s1">'(0,0),(100,100)'</span><span class="p">;</span>
+</code></pre></div>
+<p>Встроенные SP-GiST operator classes для <code>point</code> поддерживают соответствующие пространственные операторы, а некоторые — KNN <code>&lt;-&gt;</code>. <code>quad_point_ops</code> — обычный вариант по умолчанию; <code>kd_point_ops</code> — альтернативный способ разделения пространства. Выбирать нужно по данным и нагрузке, а не по названию алгоритма.</p>
+<h3 id="103">10.3. Префиксный поиск строк<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<p>Для <code>text</code> есть SP-GiST opclass <code>text_ops</code> с поддержкой операторов, включая <code>^@</code> (начинается с заданного префикса). Пример:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">routes</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">routes_path_spgist</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">routes</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">spgist</span><span class="w"> </span><span class="p">(</span><span class="n">path</span><span class="w"> </span><span class="n">text_ops</span><span class="p">);</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">routes</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="o">^@</span><span class="w"> </span><span class="s1">'/catalog/'</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь удобно мыслить как trie по строкам, но физическое устройство определяется реализацией opclass. Это не повод считать SP-GiST универсальной заменой B-tree по <code>text</code>: для обычного сортируемого диапазона, уникальности и типовых сравнений B-tree остается естественным выбором.</p>
+<h3 id="104-sp-gist">10.4. Почему отдельная лекция по SP-GiST не нужна<a class="headerlink" href="#104-sp-gist" title="Permanent link">¶</a></h3>
+<p>Для backend-разработчика важны три факта: оператор и opclass задают применимость; разделение пространства может резко уменьшить число посещаемых страниц; распределение ключей и форма запроса определяют эффективность. Детальный <code>picksplit</code> и расположение inner/leaf tuples — уже уровень разработчика индексных методов.</p>
+<p><strong>Вывод раздела:</strong> SP-GiST полезен, когда структура ключей соответствует пространственному разбиению. Проверяем SQL-операторы, реальные планы и количество затронутых heap-страниц.</p>
+<hr/>
+<h2 id="11-brin">11. BRIN: как индекс на большую таблицу может быть очень маленьким<a class="headerlink" href="#11-brin" title="Permanent link">¶</a></h2>
+<h3 id="111">11.1. Начнем с физического порядка строк<a class="headerlink" href="#111" title="Permanent link">¶</a></h3>
+<p>Есть таблица событий на сотни миллионов строк. Каждую минуту добавляется очередная порция записей, причем <code>created_at</code> примерно возрастает вместе с физическим расположением новых heap-страниц. Для поиска последних минут традиционный B-tree хранит множество ключей и TID. Но нам часто достаточно заранее знать, какие <strong>диапазоны страниц точно не содержат</strong> нужной временной метки.</p>
+<p><strong>BRIN (Block Range Index)</strong> хранит сводку (summary) для группы последовательных heap-страниц — block range. Для распространенного <code>minmax</code> opclass это минимальное и максимальное значение столбца внутри группы страниц.</p>
+<div class="highlight"><pre><span></span><code>Heap: | pages 0..127 | pages 128..255 | pages 256..383 | ...
+             |               |                |
+             v               v                v
+BRIN:    min=09:00       min=10:00        min=11:00
+         max=09:59       max=10:59        max=11:59
+
+WHERE created_at &gt;= 11:30:
+  ranges [0..127], [128..255] исключены;
+  [256..383] кандидат -&gt; чтение и точная проверка heap.
+</code></pre></div>
+<p>В BRIN индексируется <strong>диапазон страниц</strong>, а не каждая строка. Поэтому он мал по сравнению с большими B-tree, но у него принципиально <strong>lossy</strong> характер: найденный range означает лишь «внутри могут быть подходящие строки». Executor проверит сами строки. См. [PG18-BRIN].</p>
+<h3 id="112">11.2. Что значит «корреляция с физическим порядком»<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<p>Допустим, события вставляются примерно по времени. Диапазон из 128 страниц содержит узкий интервал created_at. Тогда условие за одну минуту отберет мало диапазонов.</p>
+<p>Теперь сломаем модель: обновления <code>created_at</code> сдвигают значения в старых строках, данные массово вставляются с задержкой, или выполняется загрузка исторических событий вперемешку с новыми. Тогда один block range может содержать время от 2020 до 2026 года. Его <code>(min,max)</code> перекрывает почти любой запрос, и BRIN вынужден читать множество страниц.</p>
+<p><strong>Корреляция</strong> может измеряться статистикой <code>pg_stats.correlation</code> после <code>ANALYZE</code>. Близость абсолютного значения к 1 говорит о выраженной связи физического порядка и значений; близость к 0 — о слабой линейной корреляции. Это подсказка, не безусловный предиктор полезности BRIN.</p>
+<h3 id="113-b-tree">11.3. Создание и сравнение с B-tree<a class="headerlink" href="#113-b-tree" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">GENERATED</span><span class="w"> </span><span class="n">ALWAYS</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">IDENTITY</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">  </span><span class="n">payload</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="c1">-- Наполнить данными на отдельном стенде, чтобы изменение стоимости было видно.</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">events</span><span class="p">(</span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2025-01-01 00:00:00+00'</span><span class="w"> </span><span class="o">+</span>
+<span class="w">       </span><span class="k">g</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">interval</span><span class="w"> </span><span class="s1">'1 second'</span><span class="p">,</span><span class="w"> </span><span class="n">md5</span><span class="p">(</span><span class="k">g</span><span class="p">::</span><span class="nb">text</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2000000</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">g</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_created_brin</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">brin</span><span class="p">(</span><span class="n">created_at</span><span class="p">)</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">pages_per_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">);</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">events</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2025-01-20 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2025-01-20 01:00:00+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>В данном наборе данных фиксируем <strong>не придуманные значения</strong>, а фактический план, количество Heap Blocks и время. Для сравнения можно построить отдельную копию таблицы с B-tree по <code>created_at</code>. BRIN редко заменяет PRIMARY KEY индекс, а для высокоселективного point lookup B-tree обычно лучше.</p>
+<h3 id="114">11.4. Размер: оценка порядка величины<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Пусть таблица занимает <strong>128 ГиБ</strong>, размер heap-страницы 8 КиБ, <code>pages_per_range=128</code>. Тогда:</p>
+<div class="highlight"><pre><span></span><code>Количество heap-страниц = 128 * 2^30 / 8192 = 16 777 216
+Количество range summaries = 16 777 216 / 128 = 131 072
+</code></pre></div>
+<p>BRIN нужен примерно один summary tuple на 128 страниц, а не одна запись на строку. Реальный размер включает управляющие страницы, revmap, выравнивание, дополнительные данные и зависит от opclass. Оценка 131 072 — число диапазонов, а <strong>не обещанный размер индекса в байтах</strong>. Соотношение размеров проверяем <code>pg_relation_size</code>.</p>
+<h3 id="115-brin-seq-scan">11.5. Почему BRIN может проиграть Seq Scan<a class="headerlink" href="#115-brin-seq-scan" title="Permanent link">¶</a></h3>
+<p>Если в физическом порядке нет корреляции, почти каждый summary range будет перекрывать запрошенный интервал. BRIN добавит чтение индекса и передачу большого списка потенциальных heap-страниц, после чего придется прочитать почти весь heap. Seq Scan способен оказаться дешевле. Это честный результат, а не «PostgreSQL игнорирует индекс».</p>
+<p><strong>Вывод раздела:</strong> BRIN особенно полезен для огромных append-heavy таблиц с локальностью значений по физическому порядку. Его сила — дешевое исключение больших диапазонов, ограничение — необходимость проверки всех кандидатов внутри оставшихся диапазонов.</p>
+<hr/>
+<h2 id="12-brin-summarization">12. BRIN Summarization: почему после создания индекса новые строки еще надо учитывать<a class="headerlink" href="#12-brin-summarization" title="Permanent link">¶</a></h2>
+<h3 id="121">12.1. Что хранится при создании и при последующих вставках<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>При <code>CREATE INDEX</code> BRIN сканирует существующие heap-страницы и строит summary tuples для диапазонов. Когда новые строки попадают в уже суммаризированный range, summary может расширяться с учетом новых значений. А вот новый block range, только что появившийся при росте таблицы, <strong>не обязательно сразу получает начальную summary tuple</strong>.</p>
+<p>Несуммаризированные диапазоны нельзя просто объявить пустыми: они должны быть рассмотрены при поиске, иначе терялись бы совпадения. Следовательно, накопление несуммаризированных диапазонов может увеличивать число страниц, которые приходится проверять.</p>
+<h3 id="122-brin-ranges">12.2. Как BRIN суммаризирует новые ranges<a class="headerlink" href="#122-brin-ranges" title="Permanent link">¶</a></h3>
+<p>Документация PostgreSQL 18 описывает несколько путей:</p>
+<ul>
+<li><code>VACUUM</code> / autovacuum таблицы выполняет суммаризацию несуммаризированных диапазонов;</li>
+<li>параметр индекса <code>autosummarize=on</code> просит autovacuum выполнять нужную дополнительную работу; по умолчанию он <strong>выключен</strong>;</li>
+<li>администратор может явно вызвать <code>brin_summarize_new_values(index)</code>;</li>
+<li>для конкретного range существует <code>brin_summarize_range(index, block_number)</code>.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_created_brin_auto</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">brin</span><span class="p">(</span><span class="n">created_at</span><span class="p">)</span>
+<span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">pages_per_range</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="n">autosummarize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">on</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">brin_summarize_new_values</span><span class="p">(</span><span class="s1">'events_created_brin_auto'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+</code></pre></div>
+<p>Здесь важен нюанс: запрос на autosummarization может попасть в ограниченную очередь. Если она переполнена, в журнале появляется сообщение о том, что запрос не записан, и диапазон останется несуммаризированным до следующей обычной обработки. Сам <code>autosummarize=on</code> не является синхронной гарантией «каждый новый диапазон мгновенно суммаризирован». См. [PG18-BRIN].</p>
+<h3 id="123-pages_per_range">12.3. <code>pages_per_range</code>: точность против размера и стоимости изменений<a class="headerlink" href="#123-pages_per_range" title="Permanent link">¶</a></h3>
+<p>Меньший диапазон — точнее границы значений, меньше посторонних heap-страниц, но больше summary tuples и больше работы поддержки индекса. Больший диапазон — компактнее индекс, однако больше ложных кандидатов при узком условии.</p>
+<div class="highlight"><pre><span></span><code>pages_per_range=32   -&gt; больше summaries, обычно точнее отсечение
+pages_per_range=128  -&gt; компромиссный пример
+pages_per_range=512  -&gt; меньше summaries, но шире min/max
+</code></pre></div>
+<p>Никакое значение не следует рекомендовать без наблюдения фактической корреляции и ширины типичных предикатов. В таблице со случайными timestamps уменьшение range может дать небольшой выигрыш, но не восстановит естественную локальность данных.</p>
+<h3 id="124-range-summary">12.4. Обновили старый range: когда summary устаревает логически<a class="headerlink" href="#124-range-summary" title="Permanent link">¶</a></h3>
+<p>Если в диапазоне изменились значения, min/max часто только расширяются: это сохраняет безопасность отбора, но может делать summary менее точной, чем реальный набор строк. Для отдельных задач предусмотрен <code>brin_desummarize_range</code>, после чего диапазон можно суммаризировать заново. Это административная операция для осознанного случая, а не ежедневная профилактика каждого BRIN.</p>
+<p><strong>Вывод раздела:</strong> BRIN требует обслуживания сводок. Размер индекса сам по себе не говорит о качестве поиска; несуммаризированные и слишком широкие диапазоны могут незаметно ухудшать latency.</p>
+<hr/>
+<h2 id="13-index-cost-model">13. Index Cost Model: какую цену на самом деле добавляет индекс<a class="headerlink" href="#13-index-cost-model" title="Permanent link">¶</a></h2>
+<h3 id="131">13.1. Сначала разложим стоимость запроса на этапы<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<p>В предыдущих блоках мы уже вывели cost model PostgreSQL, поэтому повторять формулы планировщика не будем. Для новых типов индексов важно понимать, <strong>какие физические действия стоят за ценой</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Метод</th>
+<th>Пример основной индексной работы</th>
+<th>Что дополнительно оплачиваем</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GIN</td>
+<td>Поиск ключей и posting sets</td>
+<td>Heap, recheck, pending list, большие обновления</td>
+</tr>
+<tr>
+<td>GiST</td>
+<td>Поиск подходящих ветвей / KNN</td>
+<td>Иногда bounding false positives, heap recheck</td>
+</tr>
+<tr>
+<td>SP-GiST</td>
+<td>Обход частей пространства</td>
+<td>Перекосы распределения, heap, opclass-specific операции</td>
+</tr>
+<tr>
+<td>BRIN</td>
+<td>Поиск summaries диапазонов</td>
+<td>Проверка всех строк в подходящих page ranges</td>
+</tr>
+</tbody>
+</table>
+<p>Для одного SQL итоговая цена примерно складывается из доступа к индексу, чтения подходящего heap, проверки условий и формирования результата. Это <strong>учебная декомпозиция</strong>, не копия исходной формулы <code>cost_*</code> в PostgreSQL.</p>
+<h3 id="132-brin">13.2. Рассчитаем цену BRIN через долю просмотренных диапазонов<a class="headerlink" href="#132-brin" title="Permanent link">¶</a></h3>
+<p>Предположим: таблица 1 000 000 heap-страниц, <code>pages_per_range=128</code>, условие может совпасть с 1% диапазонов. Тогда кандидатных heap-страниц порядка 10 000. При 100% перекрытии придется рассмотреть около 1 000 000 страниц, и выигрыш от маленького индекса исчезнет. Кроме того, внутри выбранных диапазонов проверяются строки.</p>
+<div class="highlight"><pre><span></span><code>Cost rough order:
+  candidate_heap_pages ~= total_heap_pages * selected_range_fraction
+
+selected_range_fraction = 0.01 -&gt; ~10 000 страниц
+selected_range_fraction = 1.00 -&gt; ~1 000 000 страниц
+</code></pre></div>
+<p>На реальной нагрузке <code>selected_range_fraction</code> не равно автоматически селективности строк: один подходящий timestamp внутри диапазона делает весь range кандидатом. Именно поэтому корреляция и pages_per_range критичны.</p>
+<h3 id="133-write-amplification-gin">13.3. Рассчитаем потенциальный write amplification GIN<a class="headerlink" href="#133-write-amplification-gin" title="Permanent link">¶</a></h3>
+<p>Допустим, каждый документ дает в среднем 40 индексируемых ключей и система вставляет 25 000 документов/с. Получаем порядок <strong>1 млн логических добавлений ключей в секунду</strong>. Это не число физических WAL records и не число page writes — GIN использует batching, компрессию, страницы и другие оптимизации. Но оценка показывает, почему сравнение «25 тысяч heap INSERT» со «столькими же scalar B-tree INSERT» ошибочно.</p>
+<p>Если среднее число ключей выросло с 40 до 150 после изменения JSONB-схемы, индекс может стать узким местом без роста количества SQL-запросов. Измеряем фактический индексный размер, WAL bytes, p95/p99 записи и pending list.</p>
+<h3 id="134">13.4. Скорость построения, хранения и обслуживания<a class="headerlink" href="#134" title="Permanent link">¶</a></h3>
+<p>Создание GIN на большом документном столбце может требовать значительной памяти и времени. Для построения GIN <code>maintenance_work_mem</code> влияет на производительность. В работающей системе новая индексная структура также участвует в WAL, autovacuum и обновлениях. Индекс, который ускорил одну редкую операцию на 20 мс, но увеличил стоимость миллионов INSERT, может быть плохим инженерным решением.</p>
+<p>Для GiST и SP-GiST расходы зависят от распределения объектов; для BRIN — чаще минимальны по объему, но качество отбора может деградировать при перемешивании физического порядка.</p>
+<h3 id="135">13.5. Как не обмануться тестами<a class="headerlink" href="#135" title="Permanent link">¶</a></h3>
+<p>Нужно сравнивать одинаковое число строк, аналогичное распределение значений и одну смесь операций. После создания индекса — <code>ANALYZE</code>, стабилизация кеша, несколько прогонов, медиана и p95/p99, размеры и буферы. Нельзя сравнивать GIN на 1 млн случайных документов с B-tree на 1 млн одинаковых timestamps и делать общий вывод о методах. Для честного выбора строим несколько кандидатных вариантов, измеряем <strong>на одном бизнес-запросе</strong> и учитываем <strong>цену поддержания каждого индекса</strong>.</p>
+<p><strong>Вывод раздела:</strong> стоимость индекса — это стоимость всего профиля нагрузки, а не только SELECT, которому индекс был посвящен.</p>
+<hr/>
+<h2 id="14-index-diagnostics-postgresql-18">14. Index Diagnostics: что реально смотреть в PostgreSQL 18<a class="headerlink" href="#14-index-diagnostics-postgresql-18" title="Permanent link">¶</a></h2>
+<h3 id="141">14.1. Первое измерение — план с фактическими данными<a class="headerlink" href="#141" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">,</span><span class="w"> </span><span class="n">WAL</span><span class="p">,</span><span class="w"> </span><span class="n">SETTINGS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">products</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">attributes</span><span class="w"> </span><span class="o">@&gt;</span><span class="w"> </span><span class="s1">'{"camera":{"stabilization":true}}'</span><span class="p">;</span>
+</code></pre></div>
+<p>Смотрим выбранный access path, стоимость и фактическое время, фактическое число строк, разницу estimate/actual, <code>Buffers</code> и при наличии <code>Bitmap Heap Scan</code> — точные/приближенные страницы и <code>Rows Removed by Index Recheck</code>. <code>WAL</code> полезен для изменяющих SQL; чтение обычно не создает значимого пользовательского WAL только из-за самого SELECT, хотя некоторые физические операции обслуживания могут иметь побочные записи.</p>
+<p>Факт, что в плане выбран Seq Scan, требует объяснения через селективность, статистику и стоимость heap, а не приказа «заставить индекс работать».</p>
+<h3 id="142">14.2. Посмотреть все индексы и их методы доступа<a class="headerlink" href="#142" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">t</span><span class="p">.</span><span class="n">relname</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">relname</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">am</span><span class="p">.</span><span class="n">amname</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="n">access_method</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">i</span><span class="p">.</span><span class="n">oid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">i</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_index</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">indexrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">oid</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">indrelid</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_am</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">am</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">am</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">relam</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'products'</span><span class="p">,</span><span class="w"> </span><span class="s1">'articles'</span><span class="p">,</span><span class="w"> </span><span class="s1">'events'</span><span class="p">,</span><span class="w"> </span><span class="s1">'bookings'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">relname</span><span class="p">;</span>
+</code></pre></div>
+<p>Этот запрос отображает <strong>объекты индексов и реальные размеры</strong>. Название индекса ничего не доказывает: важно смотреть <code>amname</code>, <code>pg_get_indexdef(indexrelid)</code> и при необходимости параметры <code>pg_class.reloptions</code>. Величина <code>pg_relation_size</code> — размер отношения индекса, не суммарный физический footprint всех файлов базы.</p>
+<h3 id="143">14.3. Статистика использования индекса с важной ловушкой<a class="headerlink" href="#143" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">relname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">indexrelname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">idx_scan</span><span class="p">,</span>
+<span class="w">    </span><span class="n">idx_tup_read</span><span class="p">,</span>
+<span class="w">    </span><span class="n">idx_tup_fetch</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">indexrelid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_user_indexes</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">relname</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'products'</span><span class="p">,</span><span class="w"> </span><span class="s1">'articles'</span><span class="p">,</span><span class="w"> </span><span class="s1">'events'</span><span class="p">,</span><span class="w"> </span><span class="s1">'bookings'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">idx_scan</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p><code>idx_scan</code> — число начатых индексных поисков, не просто число SQL. <code>idx_tup_read</code> — индексные записи, возвращенные поисками. <code>idx_tup_fetch</code> на уровне <strong>конкретного индекса</strong> не учитывает heap fetch через bitmap scan так же, как обычный Index Scan: такие heap fetch относятся к статистике таблицы. Поэтому «idx_tup_fetch маленький — индекс бесполезен» является ошибочным выводом. См. [PG18-STATS].</p>
+<p>Статистика накопительная, счетчики зависят от перезапуска/сброса и прочих деталей. Для оценки частоты использования анализируем дельты за известный период, а не одну случайную фотографию.</p>
+<h3 id="144-brin">14.4. Проверка корреляции для BRIN<a class="headerlink" href="#144-brin" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ANALYZE</span><span class="w"> </span><span class="n">events</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">attname</span><span class="p">,</span><span class="w"> </span><span class="n">correlation</span><span class="p">,</span><span class="w"> </span><span class="n">n_distinct</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stats</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">schemaname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'public'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">tablename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'events'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">attname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'created_at'</span><span class="p">;</span>
+</code></pre></div>
+<p>Если <code>correlation</code> близко к 0, особенно важно проверить фактическую избирательность BRIN по диапазонам. Но даже при высокой корреляции запрос к почти всей таблице может предпочесть Seq Scan. Не делаем вывод по одному коэффициенту.</p>
+<h3 id="145-gin-pending-list">14.5. GIN pending list как источник редких задержек<a class="headerlink" href="#145-gin-pending-list" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pgstattuple</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgstatginindex</span><span class="p">(</span><span class="s1">'products_tags_gin'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+</code></pre></div>
+<p>Сопоставляем <code>pending_pages</code>, <code>pending_tuples</code> и p99 INSERT; после cleanup отдельно наблюдаем изменение времени SELECT. Если нет прав на расширение, работаем с административной учетной записью учебного стенда, не раздаем суперпользователя прикладному сервису.</p>
+<h3 id="146">14.6. Сравнение кандидатов: таблица решения<a class="headerlink" href="#146" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Проверяем</th>
+<th>Возможное решение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSONB containment медленный</td>
+<td>opclass, selectivity, GIN candidates</td>
+<td><code>jsonb_path_ops</code> для подходящих операторов</td>
+</tr>
+<tr>
+<td><code>?</code> по JSONB не использует индекс</td>
+<td><code>jsonb_path_ops</code> или выражение</td>
+<td><code>jsonb_ops</code>/expression index</td>
+</tr>
+<tr>
+<td>Вставка с GIN имеет p99 spikes</td>
+<td>pending list, autovacuum, WAL</td>
+<td>настройка fastupdate/cleanup</td>
+</tr>
+<tr>
+<td><code>ILIKE '%x%'</code> медленный</td>
+<td>длина шаблона и extractable trigrams</td>
+<td>иной контракт поиска / FTS</td>
+</tr>
+<tr>
+<td>KNN top-10 слишком дорогой</td>
+<td>GiST opclass и <code>Order By</code> в плане</td>
+<td>подходящий GiST KNN</td>
+</tr>
+<tr>
+<td>BRIN читает полтаблицы</td>
+<td>correlation, pages_per_range</td>
+<td>другой диапазон или B-tree</td>
+</tr>
+<tr>
+<td>Индекс мало используется</td>
+<td>реальные workload stats и размеры</td>
+<td>удалить только после анализа зависимостей</td>
+</tr>
+</tbody>
+</table>
+<h3 id="147">14.7. Как удалять ненужные индексы без лишнего риска<a class="headerlink" href="#147" title="Permanent link">¶</a></h3>
+<p>Перед удалением индекса проверяем DDL, зависимости ограничений, запросы в разных режимах и периодах и задержки редких операций. В production часто нужна <code>DROP INDEX CONCURRENTLY</code>, но ограничения этой команды мы уже разобрали в лекции о миграциях. Здесь не повторяем алгоритм DDL; фиксируем инженерную ответственность — удалять индекс только после подтверждения его ненужности и оценки риска регрессии.</p>
+<p><strong>Вывод раздела:</strong> <code>EXPLAIN</code> показывает конкретный SQL, статистика индексов — накопительное использование, профиль latency — цену для приложения, размер и WAL — эксплуатационные расходы. Корректная диагностика объединяет все четыре источника.</p>
+<hr/>
+<h1 id="_1">Демонстрационное продолжение: доказать работу индексов руками<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<h2 id="a-gin-jsonb-operator-class">Эксперимент A. GIN для JSONB и выбор operator class<a class="headerlink" href="#a-gin-jsonb-operator-class" title="Permanent link">¶</a></h2>
+<p>Создаем большой набор документов на изолированном стенде; часть содержит <code>camera.stabilization=true</code>, часть — нет. Сравниваем <code>jsonb_ops</code> и <code>jsonb_path_ops</code> на containment и key-exists запросах. Собираем планы, <code>BUFFERS</code>, размер индекса, время построения и стоимость UPDATE. Затем намеренно выполняем <code>?</code> при единственном <code>jsonb_path_ops</code> и показываем, почему метод не подходит для этого оператора.</p>
+<h2 id="b-gin-pending-list-spike">Эксперимент B. GIN и pending-list spike<a class="headerlink" href="#b-gin-pending-list-spike" title="Permanent link">¶</a></h2>
+<p>Создаем индекс <code>fastupdate=on</code>, генерируем многоключевые документы и многократно вставляем новые строки. Снимаем <code>pgstatginindex</code> и latency INSERT по батчам. Затем вызываем <code>gin_clean_pending_list</code> и снова проверяем число pending pages. Повторяем с <code>fastupdate=off</code> или другим порогом, сравниваем p95/p99. <strong>Дефекта в программе здесь нет; демонстрируется цена отложенного обслуживания индекса.</strong></p>
+<h2 id="c-fts">Эксперимент C. FTS против триграмм<a class="headerlink" href="#c-fts" title="Permanent link">¶</a></h2>
+<p>На одинаковых текстах выполняем поиск слов через <code>tsvector @@ tsquery</code>, поиск подстроки через <code>ILIKE</code> и top-K similarity через GiST trigram. Меняем длину шаблона на 2, 5 и 15 символов. Показываем, какие запросы теряют полезную селективность и почему GIN trigram не заменяет KNN GiST.</p>
+<h2 id="d-gist">Эксперимент D. GiST для перекрытия интервалов<a class="headerlink" href="#d-gist" title="Permanent link">¶</a></h2>
+<p>Создаем таблицу бронирований, индекс GiST и exclusion constraint. В двух сессиях одновременно пытаемся забронировать один и тот же интервал для одного ресурса. Одна из операций должна столкнуться с ограничением. Воспроизводим корректное поведение без отдельной транзакционной проверки в приложении и связываем индекс с бизнес-инвариантом.</p>
+<h2 id="e-brin">Эксперимент E. BRIN при высокой и низкой корреляции<a class="headerlink" href="#e-brin" title="Permanent link">¶</a></h2>
+<p>Берем последовательные события и копию с перемешанными временными метками, строим одинаковые BRIN (<code>pages_per_range = 32</code>, <code>128</code>, <code>512</code>). Сравниваем размер, heap blocks и время узкого временного запроса. Затем добавляем новые страницы, запускаем суммаризацию, повторяем <code>EXPLAIN</code>. Фиксируем, что <strong>эффективность зависит от физического расположения данных</strong>, а не только от количества строк.</p>
+<h2 id="f">Эксперимент F. Производственное решение<a class="headerlink" href="#f" title="Permanent link">¶</a></h2>
+<p>Выбираем два индексных кандидата для одной real-like смеси: 80% чтений JSONB, 15% UPDATE документов, 5% INSERT. Сравниваем задержки SELECT и UPDATE, p99, CPU, индексные размеры, число heap blocks и WAL. Студент должен уметь защитить выбранное решение с указанием цены, а не только показать план с <code>Bitmap Index Scan</code>.</p>
+<hr/>
+<h1 id="_2">Инженерный итог<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<ol>
+<li><strong>Индекс выбирается по оператору.</strong> Тип данных важен, но без соответствующего opclass предикат не станет индексируемым.</li>
+<li><strong>GIN ищет ключи внутри составного значения.</strong> Он покупает скорость containment/FTS/array queries ценой множества ключей, heap-доступа и более дорогой записи.</li>
+<li><strong><code>jsonb_ops</code> и <code>jsonb_path_ops</code> не взаимозаменяемы.</strong> Проверка ключей <code>?</code> требует подходящего opclass; конкретный JSONPath не всегда дает хорошую селективность.</li>
+<li><strong>Full-text и trigram — разные контракты.</strong> Первый работает с лексемами и словоформами, второй — с символьными последовательностями и похожестью.</li>
+<li><strong>GIN pending list меняет распределение задержек.</strong> Оптимизация среднего INSERT способна породить редкие, но дорогие cleanup и p99 spikes.</li>
+<li><strong>GiST и SP-GiST обслуживают специальные отношения.</strong> Их применимость и точность определяют operator classes; для GiST важны KNN и иногда recheck.</li>
+<li><strong>BRIN работает по диапазонам heap-страниц.</strong> Очень компактный индекс силен при коррелированных данных, но требует проверки кандидатов и обслуживания summaries.</li>
+</ol>
+<h2 id="_3">Что можно копнуть глубже — без включения в обязательную программу<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<p>Если реально появится сервис с тяжелыми GIN на изменяемых JSONB, полезен следующий слой: <strong>как pending list физически переносится в entry tree/posting trees и как это распределяет CPU, I/O и WAL между пользовательским backend и VACUUM</strong>. Он закроет вопрос, почему конкретный запрос INSERT внезапно платит за накопленную работу нескольких тысяч предыдущих запросов. Для нынешней основной лекции достаточно механизма, наблюдаемых симптомов и измерений; отдельную 12.1 автоматически не добавляем.</p>
+<hr/>
+<h1 id="postgresql-18">Источники: документация PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h1>
+<ul>
+<li><strong>[PG18-INDEX]</strong> Index Types: https://www.postgresql.org/docs/18/indexes-types.html</li>
+<li><strong>[PG18-OPCLASS]</strong> Operator Classes and Operator Families: https://www.postgresql.org/docs/18/indexes-opclass.html</li>
+<li><strong>[PG18-GIN]</strong> GIN Indexes, implementation and fastupdate: https://www.postgresql.org/docs/18/gin.html</li>
+<li><strong>[PG18-JSON]</strong> JSONB Indexing: https://www.postgresql.org/docs/18/datatype-json.html</li>
+<li><strong>[PG18-FTS-CONTROL]</strong> Controlling Text Search: https://www.postgresql.org/docs/18/textsearch-controls.html</li>
+<li><strong>[PG18-FTS-INDEX]</strong> Preferred Index Types for Text Search: https://www.postgresql.org/docs/18/textsearch-indexes.html</li>
+<li><strong>[PG18-TRGM]</strong> <code>pg_trgm</code>: https://www.postgresql.org/docs/18/pgtrgm.html</li>
+<li><strong>[PG18-GIST]</strong> GiST Indexes: https://www.postgresql.org/docs/18/gist.html</li>
+<li><strong>[PG18-SPGIST]</strong> SP-GiST Indexes: https://www.postgresql.org/docs/18/spgist.html</li>
+<li><strong>[PG18-BRIN]</strong> BRIN Indexes: https://www.postgresql.org/docs/18/brin.html</li>
+<li><strong>[PG18-PGSTAT]</strong> <code>pgstattuple</code> / <code>pgstatginindex</code>: https://www.postgresql.org/docs/18/pgstattuple.html</li>
+<li><strong>[PG18-STATS]</strong> Cumulative Statistics (<code>pg_stat_user_indexes</code>): https://www.postgresql.org/docs/18/monitoring-stats.html</li>
+<li><strong>[PG18-INDEXONLY]</strong> Index-Only Scans: https://www.postgresql.org/docs/18/indexes-index-only-scans.html</li>
+<li><strong>[PG18-XINDEX]</strong> Interfacing Extensions to Indexes (recheck/lossiness): https://www.postgresql.org/docs/18/xindex.html</li>
+<li><strong>[PG18-EXPLAIN]</strong> Using EXPLAIN: https://www.postgresql.org/docs/18/using-explain.html</li>
+</ul>
+<blockquote>
+<p>Материал проверен по контрактам PostgreSQL 18. Конкретные планы и измерения на учебных данных могут отличаться; приведенные в разделе 13 количественные оценки являются объяснительными расчетами, а не замерами реального сервера.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 11. PostgreSQL Partitioning &amp;amp; Large Tables" class="md-footer__link md-footer__link--prev" href="../11%20-%20Partitioning%20large%20tables/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                11. PostgreSQL Partitioning &amp; Large Tables
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 13. PostgreSQL Security &amp;amp; Row-Level Security" class="md-footer__link md-footer__link--next" href="../13%20-%20Security%20row%20level%20security/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                13. PostgreSQL Security &amp; Row-Level Security
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/11%20-%20Partitioning%20large%20tables/" rel="canonical"/>
+<link href="../10%20-%20Replication%20high%20availability/" rel="prev"/>
+<link href="../12%20-%20Advanced%20index%20types/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>11. PostgreSQL Partitioning &amp; Large Tables - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#11-postgresql-partitioning-large-tables">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              11. PostgreSQL Partitioning &amp; Large Tables
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: таблица на миллиард событий
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Зачем нужно партиционирование: новая единица управления данными
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-range-partitioning">
+<span class="md-ellipsis">
+      
+        2. RANGE Partitioning: диапазон как физический контракт
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-list-partitioning">
+<span class="md-ellipsis">
+      
+        3. LIST Partitioning: категории и взрыв количества отношений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-hash-partitioning-buckets">
+<span class="md-ellipsis">
+      
+        4. HASH Partitioning: предсказуемое число buckets и ограничения локальности
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-declarative-partitioning">
+<span class="md-ellipsis">
+      
+        5. Declarative Partitioning: что именно хранит родительская таблица
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-tuple-routing-insert">
+<span class="md-ellipsis">
+      
+        6. Tuple Routing: как INSERT выбирает физическую таблицу
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-partitioned-indexes">
+<span class="md-ellipsis">
+      
+        7. Partitioned Indexes: почему «индекс на родителе» виртуален
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-unique-primary-key-">
+<span class="md-ellipsis">
+      
+        8. UNIQUE и PRIMARY KEY: как физическое разбиение ограничивает бизнес-инварианты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-partition-pruning-sql">
+<span class="md-ellipsis">
+      
+        9. Partition Pruning: почему SQL вообще читает меньше партиций
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-prepared-statements-runtime-pruning">
+<span class="md-ellipsis">
+      
+        10. Prepared Statements &amp; Runtime Pruning: когда значение ключа появляется позднее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-partition-wise-join-aggregation">
+<span class="md-ellipsis">
+      
+        11. Partition-Wise JOIN &amp; Aggregation: когда обработка раскладывается по листьям
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-attach-detach">
+<span class="md-ellipsis">
+      
+        12. ATTACH / DETACH: как менять дерево во время работы системы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-partition-rotation">
+<span class="md-ellipsis">
+      
+        13. Partition Rotation: дешево удалить месяц, но правильно организовать весь цикл
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-production-costs">
+<span class="md-ellipsis">
+      
+        14. Production Costs: когда партиций становится слишком много
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: таблица на миллиард событий
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Зачем нужно партиционирование: новая единица управления данными
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-range-partitioning">
+<span class="md-ellipsis">
+      
+        2. RANGE Partitioning: диапазон как физический контракт
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-list-partitioning">
+<span class="md-ellipsis">
+      
+        3. LIST Partitioning: категории и взрыв количества отношений
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-hash-partitioning-buckets">
+<span class="md-ellipsis">
+      
+        4. HASH Partitioning: предсказуемое число buckets и ограничения локальности
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-declarative-partitioning">
+<span class="md-ellipsis">
+      
+        5. Declarative Partitioning: что именно хранит родительская таблица
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-tuple-routing-insert">
+<span class="md-ellipsis">
+      
+        6. Tuple Routing: как INSERT выбирает физическую таблицу
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-partitioned-indexes">
+<span class="md-ellipsis">
+      
+        7. Partitioned Indexes: почему «индекс на родителе» виртуален
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-unique-primary-key-">
+<span class="md-ellipsis">
+      
+        8. UNIQUE и PRIMARY KEY: как физическое разбиение ограничивает бизнес-инварианты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-partition-pruning-sql">
+<span class="md-ellipsis">
+      
+        9. Partition Pruning: почему SQL вообще читает меньше партиций
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-prepared-statements-runtime-pruning">
+<span class="md-ellipsis">
+      
+        10. Prepared Statements &amp; Runtime Pruning: когда значение ключа появляется позднее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-partition-wise-join-aggregation">
+<span class="md-ellipsis">
+      
+        11. Partition-Wise JOIN &amp; Aggregation: когда обработка раскладывается по листьям
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-attach-detach">
+<span class="md-ellipsis">
+      
+        12. ATTACH / DETACH: как менять дерево во время работы системы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-partition-rotation">
+<span class="md-ellipsis">
+      
+        13. Partition Rotation: дешево удалить месяц, но правильно организовать весь цикл
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-production-costs">
+<span class="md-ellipsis">
+      
+        14. Production Costs: когда партиций становится слишком много
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="11-postgresql-partitioning-large-tables">11. PostgreSQL Partitioning &amp; Large Tables<a class="headerlink" href="#11-postgresql-partitioning-large-tables" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Магистратура · PostgreSQL 18 · <code>REL_18_STABLE</code> · обязательная лекция блока 11.</strong><br/>
+<strong>Фокус:</strong> RANGE/LIST/HASH, декларативное партиционирование, маршрутизация строк, локальные индексы и уникальность, отсечение партиций на разных фазах выполнения, partition-wise операции, ATTACH/DETACH, ротация, стоимость слишком большого числа партиций.<br/>
+<strong>Уже изучено:</strong> B-tree и MVCC, planner/EXPLAIN, обычные JOIN и cost model, locks, VACUUM, DDL и миграции. Мы используем эту базу, не пересказывая алгоритмы прежних блоков.<br/>
+<strong>Принцип лекции:</strong> утверждение → проверка на нагрузке → место, где модель ломается → более точный механизм → измерение → инженерный вывод. Все команды с удалением данных рассчитаны только на изолированный стенд.</p>
+</blockquote>
+<h2 id="0">0. Инцидент: таблица на миллиард событий<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>Сервис хранит журнал клиентских операций. В таблице <code>events</code> около миллиарда строк, история — за три года. Основная нагрузка читает последние сутки или месяц, а раз в неделю нужно удалять данные старше года. Оптимизация отдельных SQL закончена: подходящие индексы есть, планы понятны. Но удаление старых событий запускает миллионы <code>DELETE</code>, генерирует большой объем WAL, оставляет версии для VACUUM и нагружает I/O.</p>
+<p>Архитектор предлагает: «Разобьем таблицу по месяцам. SELECT станет в 36 раз быстрее, а удаление истории — мгновенным». Звучит бесплатно. Бесплатное здесь заканчивается.</p>
+<p>Реальная партиционированная таблица — <strong>одна логическая таблица и множество физических отношений</strong>. PostgreSQL выбирает, в какие отношения вставлять строки, какие отношения вообще включать в план, в каких индексах проверять ограничения и какие таблицы обслуживать. За это он платит работой с метаданными, памятью и дополнительными узлами планов. Если запрос обращается к большинству партиций, выигрыш исчезает, а overhead остается.</p>
+<div class="highlight"><pre><span></span><code>                               SQL: SELECT ... FROM events WHERE created_at &gt;= :from
+                                                  |
+                                                  v
+                             Parent events: логическая схема, PARTITION BY RANGE
+                                                  |
+                         partition pruning по границам created_at
+                                /                 |                 \
+                               v                  v                  v
+                        events_2026_09      events_2026_10      events_2026_11
+                        свой heap/index     свой heap/index     свой heap/index
+                               \                  |                  /
+                                +-------- Append / MergeAppend ----+
+                                                  |
+                                                  v
+                                             результат SQL
+</code></pre></div>
+<p>Главный вопрос: <strong>когда PostgreSQL действительно может исключить физические таблицы, а когда вынужден открывать и читать множество дочерних отношений?</strong> Второй вопрос: <strong>какие бизнес-инварианты теряются, когда «одна таблица» физически становится несколькими?</strong></p>
+<p>Установим сразу три границы:</p>
+<ol>
+<li><strong>Логическая модель:</strong> клиент отправляет SQL на родительскую таблицу <code>events</code>; схема и внешний контракт одни.</li>
+<li><strong>Физическая модель:</strong> строки и обычные индексы находятся в дочерних отношениях; у родителя нет собственного heap для этих строк.</li>
+<li><strong>План исполнения:</strong> оптимизатор может отбросить дочерние отношения на основании ограничений partition key. Это свойство плана запроса, а не автоматическое ускорение любой операции.</li>
+</ol>
+<p>Сравнения производительности в лекции иллюстративные. Числа из формул используются для оценки порядка величин, а результаты <code>EXPLAIN</code> зависят от фактической статистики, данных и аппаратуры.</p>
+<hr/>
+<h2 id="1">1. Зачем нужно партиционирование: новая единица управления данными<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11-heap">1.1. От огромного heap к семейству обычных таблиц<a class="headerlink" href="#11-heap" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL декларативное партиционирование делит одно логическое отношение на независимые физические отношения — partitions. Каждый leaf — почти обычная таблица со своим heap-файлом, индексами, статистикой по физическому содержимому и обслуживанием. Родительская таблица хранит определение, ограничения и ссылки на дерево дочерних отношений, но не содержит пользовательских строк непосредственно. <code>SELECT</code> через родителя логически читает все подходящие дочерние отношения; <code>INSERT</code> через родителя направляется в одну подходящую дочернюю таблицу.</p>
+<p>Из этой физики следуют три реальных преимущества.</p>
+<p><strong>Первое — локальность рабочих данных.</strong> Если сервис почти всегда читает последние сутки, а данные разделены по месяцам, можно планировать чтение лишь одной или нескольких партиций. Их индексы и активные страницы чаще помещаются в кеш. Но запрос за три года все равно затронет всю историю.</p>
+<p><strong>Второе — жизненный цикл данных.</strong> Удаление старого месяца можно оформить как отсоединение или удаление целого физического отношения. Не нужно выполнять многомиллионный SQL <code>DELETE</code> по отдельным версиям строк. Это уменьшает объем изменяемых heap/index данных и расходы на последующую очистку. Но DDL имеет блокировки, транзакционные последствия и требует управления зависимостями.</p>
+<p><strong>Третье — неоднородное обслуживание.</strong> Текущую партицию можно интенсивно анализировать, архивную — оставить практически неизменяемой; параметры хранения, индексы и tablespace могут различаться. Такая схема особенно выгодна для time-series, событий и журналов с понятным retention policy.</p>
+<h3 id="12-sharding">1.2. Почему это не sharding<a class="headerlink" href="#12-sharding" title="Permanent link">¶</a></h3>
+<p>Обычное декларативное партиционирование PostgreSQL размещает данные внутри того же PostgreSQL-кластера. CPU, память, shared buffers, WAL, файловая система и запись primary остаются общими ресурсами экземпляра. Создание 100 партиций не превращает один сервер в 100 независимых серверов. Межсерверное распределение данных — отдельная тема блока 14.</p>
+<p>Содержательный вопрос: если все SQL фильтруют по <code>customer_id</code>, а данные разделили по месяцу, будет ли полезно? Возможно, очень мало. Планировщик не вправе исключить месяц только потому, что <code>customer_id</code> встречается редко. Нужна связь условия SQL с ключом разбиения.</p>
+<h3 id="13-select">1.3. Цена решения появляется до первого SELECT<a class="headerlink" href="#13-select" title="Permanent link">¶</a></h3>
+<p>Появляются дополнительные физические индексы, объекты системных каталогов, необходимость создавать партиции заранее, управлять retention и следить за статистикой. Много отношений означает больше работы при разрешении их структуры, планировании запросов и иногда при выполнении. Важно учитывать также количество экземпляров приложения и число уникальных SQL-планов: метаданные партиций могут загружаться в локальную память backend-процессов.</p>
+<p><strong>Инженерный вывод:</strong> сначала сформулируйте целевую операцию: ускорить запрос по partition key, управлять retention, уменьшить обслуживаемый активный набор данных. Если такой операции нет, партиционирование легко превратится в дорогостоящую организационную сложность. [PG18-PART]</p>
+<hr/>
+<h2 id="2-range-partitioning">2. RANGE Partitioning: диапазон как физический контракт<a class="headerlink" href="#2-range-partitioning" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Границы: нижняя включена, верхняя исключена<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Начнем с самого естественного варианта для событий — разбиение по времени.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">event_id</span><span class="w">   </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w">  </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">kind</span><span class="w">       </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payload</span><span class="w">    </span><span class="n">jsonb</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_2026_10</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-10-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">             </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_2026_11</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">             </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">);</span>
+</code></pre></div>
+<p>Нижняя граница <code>FROM</code> включена, верхняя <code>TO</code> исключена. Запись с <code>created_at = '2026-11-01 00:00:00+00'</code> относится к ноябрьской партиции. Это исключает пересечение диапазонов на стыке. Для <code>timestamptz</code> показываем границы с явным UTC-смещением: иначе строковое преобразование может зависеть от <code>TimeZone</code> сеанса.</p>
+<div class="highlight"><pre><span></span><code><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">VALUES</span>
+<span class="w">    </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'2026-10-31 23:59:59+00'</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{}'</span><span class="p">),</span>
+<span class="w">    </span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">,</span><span class="w"> </span><span class="s1">'paid'</span><span class="p">,</span><span class="w">    </span><span class="s1">'{}'</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">event_id</span><span class="p">,</span><span class="w"> </span><span class="n">tableoid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">physical_table</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">event_id</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаем две разные физические таблицы; <code>tableoid</code> показывает, из какого отношения пришла строка. Это удобный способ доказать физический маршрут, не гадая по названию запроса.</p>
+<h3 id="22">2.2. Запрос, который позволяет исключить партиции<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-01 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>При подходящих границах план содержит лишь ноябрьскую партицию. В реальной таблице планировщик может выбрать Seq Scan, Index Scan или другие способы внутри этой партиции. <strong>Pruning решает, какие отношения участвуют; выбор метода доступа решается отдельно.</strong> Наличие B-tree на <code>created_at</code> не требуется для самого partition pruning.</p>
+<p>Теперь другой SQL:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">tenant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Условие не ограничивает <code>created_at</code>. При отсутствии дополнительных логически доказуемых связей с partition key PostgreSQL должен рассмотреть все партиции. Даже если в каждой существует индекс <code>(tenant_id)</code>, их несколько, и их нужно обследовать.</p>
+<h3 id="23">2.3. Типичные ошибки проектирования диапазонов<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<ul>
+<li>Делать годовые партиции для запросов за один час: внутри годовой таблицы остается большой объем данных, pruning грубый.</li>
+<li>Делать минутные партиции для исторических событий: огромное число отношений увеличит стоимость каталогов и planning.</li>
+<li>Забыть будущую партицию: новая вставка не найдёт подходящий range и получит ошибку.</li>
+<li>Использовать выражение над ключом в запросе, которое мешает доказать соответствие границам: например, фильтровать только по <code>date_trunc('month', created_at)</code>, ожидая такого же pruning, как от явного диапазона <code>created_at</code>.</li>
+<li>Переносить данные по <code>created_at</code>, когда сам бизнес часто изменяет <code>created_at</code>: UPDATE ключа может превратиться в перемещение строки между физическими таблицами.</li>
+</ul>
+<p><strong>Вывод:</strong> хорошая гранулярность определяется шириной наиболее частых запросов, объемом одной партиции и требованиями удаления истории. Для событий месячная партиция — разумный кандидат, но не универсальный стандарт. [PG18-PART]</p>
+<hr/>
+<h2 id="3-list-partitioning">3. LIST Partitioning: категории и взрыв количества отношений<a class="headerlink" href="#3-list-partitioning" title="Permanent link">¶</a></h2>
+<h3 id="31">3.1. Подходящий сценарий<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<p>Есть ограниченный набор типов данных, которые различаются по порядку обслуживания: <code>incoming</code>, <code>outgoing</code>, <code>adjustment</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">ledger_events</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">direction</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">LIST</span><span class="w"> </span><span class="p">(</span><span class="n">direction</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">ledger_in</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">ledger_events</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'incoming'</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">ledger_out</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">ledger_events</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'outgoing'</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">ledger_adjustment</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">ledger_events</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'adjustment'</span><span class="p">);</span>
+</code></pre></div>
+<p><code>SELECT ... WHERE direction = 'outgoing'</code> может обследовать одну партицию. <code>direction IN ('incoming','outgoing')</code> — две. Это по-прежнему обычные физические отношения, а не разные области памяти внутри одной таблицы.</p>
+<h3 id="32-default-partition">3.2. DEFAULT PARTITION — страховка с ценой<a class="headerlink" href="#32-default-partition" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">ledger_other</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">ledger_events</span><span class="w"> </span><span class="k">DEFAULT</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь неизвестные значения не приводят к ошибке отсутствия партиции, но попадают в отдельную физическую таблицу. Если приложение неожиданно начнет генерировать новые категории, <code>DEFAULT</code> может скрыть ошибку в контракте данных. А при последующем <code>ATTACH</code> новой конкретной партиции PostgreSQL может потребоваться проверить содержимое DEFAULT: в нем не должно остаться строк, которые теперь соответствуют новому диапазону или списку. Это потенциально долгая операция с сильной блокировкой DEFAULT-партиции.</p>
+<h3 id="33-list">3.3. Почему LIST по клиенту обычно рискован<a class="headerlink" href="#33-list" title="Permanent link">¶</a></h3>
+<p>Сегодня клиентов 200, а завтра 200 000. Создавать по партиции на каждого клиента означает десятки или сотни тысяч дочерних таблиц и индексов, отдельные статистики, нагрузку на системные каталоги и память backend. Неравномерная активность даст горячие партиции; удаление клиента также не всегда совпадает с нужным жизненным циклом данных.</p>
+<p>Если нужна ограниченная степень распределения по tenant_id, стоит оценить HASH с фиксированным количеством buckets. Если нужна физическая изоляция крупнейших арендаторов, LIST может быть оправдан целенаправленно, но тогда важна долгосрочная оценка числа отношений.</p>
+<p><strong>Вывод:</strong> LIST хорош, когда множество категорий невелико и стабильно. Количество значений partition key само по себе является архитектурным ресурсом. [PG18-PART]</p>
+<hr/>
+<h2 id="4-hash-partitioning-buckets">4. HASH Partitioning: предсказуемое число buckets и ограничения локальности<a class="headerlink" href="#4-hash-partitioning-buckets" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Синтаксис и реальное вычисление<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>Предположим, запросы чаще всего выбирают данные конкретного пользователя, а временная группировка не так важна.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_state</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">customer_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">state</span><span class="w"> </span><span class="n">jsonb</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">HASH</span><span class="w"> </span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_state_p0</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">customer_state</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_state_p1</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">customer_state</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_state_p2</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">customer_state</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_state_p3</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">customer_state</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+</code></pre></div>
+<p>Для <code>WHERE customer_id = 42</code> PostgreSQL может вычислить соответствующий bucket и исключить остальные. <strong>Не нужно вручную брать <code>customer_id % 4</code>: PostgreSQL использует функции хеширования и правила hash partitioning для типа ключа.</strong> Формула modulus/remainder применяется к вычисленному хешу, а не обязательно к самому числовому значению пользователя.</p>
+<h3 id="42-hash">4.2. HASH не превращает один сервер в кластер<a class="headerlink" href="#42-hash" title="Permanent link">¶</a></h3>
+<p>Четыре buckets остаются на том же сервере PostgreSQL. Они могут улучшить локальность операций и ограничить размер отдельных индексов, но не дают независимых CPU и дисков. При распределении по hash теряется возможность оперативно удалить один конкретный календарный месяц: данные месяца теперь лежат во всех bucket-партициях.</p>
+<h3 id="43-4-8">4.3. Почему нельзя бездумно увеличить 4 на 8<a class="headerlink" href="#43-4-8" title="Permanent link">¶</a></h3>
+<p>При изменении hash-разбиения меняются правила размещения значений. Существующие данные не перераспределяются автоматически только от изменения числа дочерних таблиц. Изменение схемы buckets требует проекта переноса или перестроения данных. Даже поддерживаемые сочетания modulus/remainder должны обеспечивать корректное покрытие hash-пространства.</p>
+<p>Hash partitioning уменьшает риск экстремального дисбаланса числа строк при достаточно хорошем распределении ключей, но <strong>не гарантирует равномерную нагрузку</strong>. Если один customer_id генерирует половину трафика, его операции останутся в одном bucket — получится горячая партиция.</p>
+<p><strong>Вывод:</strong> HASH подходит, когда запросы часто ограничены равенством по ключу, число партиций контролируемо, а retention по времени не является основной задачей. [PG18-PART]</p>
+<hr/>
+<h2 id="5-declarative-partitioning">5. Declarative Partitioning: что именно хранит родительская таблица<a class="headerlink" href="#5-declarative-partitioning" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Логический интерфейс поверх физических отношений<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Возвращаемся к <code>events</code>. В большинстве запросов приложение использует одно имя <code>events</code>, хотя на диске находятся <code>events_2026_10</code>, <code>events_2026_11</code> и другие дочерние таблицы. Стандартное декларативное партиционирование PostgreSQL задается через <code>PARTITION BY</code>, а дочерние отношения — через <code>PARTITION OF</code> либо <code>ATTACH PARTITION</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">       </span><span class="n">parentrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span>
+<span class="w">       </span><span class="n">isleaf</span><span class="p">,</span><span class="w"> </span><span class="k">level</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_partition_tree</span><span class="p">(</span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">level</span><span class="p">,</span><span class="w"> </span><span class="n">relation</span><span class="p">::</span><span class="nb">text</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_get_partkeydef</span><span class="p">(</span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+</code></pre></div>
+<p><code>pg_partition_tree()</code> показывает дерево отношений. <code>pg_get_partkeydef()</code> восстанавливает определение partition key. Физический путь чтения можно наблюдать через <code>tableoid</code>, а системные каталоги <code>pg_partitioned_table</code>, <code>pg_inherits</code> и <code>pg_class</code> показывают, что именно зарегистрировано в экземпляре.</p>
+<p>Разберем ограничение: на обычную partitioned parent-таблицу нельзя «положить» строку в ее собственный heap — этого heap нет. <code>SELECT * FROM ONLY events</code> не обходит дочерние таблицы и потому не возвращает обычные строки партиций. Это не означает отсутствие данных в логической таблице.</p>
+<h3 id="52-default">5.2. DEFAULT, вложенное разбиение и предсказуемость дерева<a class="headerlink" href="#52-default" title="Permanent link">¶</a></h3>
+<p>PostgreSQL позволяет сделать дочернюю таблицу снова партиционированной, например сначала по месяцам, затем по tenant hash. Вложенное разбиение иногда помогает для особенно крупных временных диапазонов.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_nested</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">tenant_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="nb">date</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payload</span><span class="w"> </span><span class="n">jsonb</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_nested_2026_11</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events_nested</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-11-01'</span><span class="p">)</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-12-01'</span><span class="p">)</span>
+<span class="w">    </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">HASH</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_nested_2026_11_p0</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events_nested_2026_11</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_nested_2026_11_p1</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events_nested_2026_11</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">MODULUS</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">REMAINDER</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+</code></pre></div>
+<p>Тут сразу появляется цена: 24 месяца × 16 hash-бакетов = 384 leaf-отношения, 384 heap и отдельные индексы на каждом листе. При запросах по короткому диапазону времени и конкретному tenant pruning может сработать на обоих уровнях. При запросах без этих условий — весь объем дерева попадает в планирование.</p>
+<p>Не стоит преподавать вложенное разбиение как универсальную оптимизацию. Дополнительный уровень оправдан только после оценки реальных запросов и стоимости содержания дерева.</p>
+<h3 id="53">5.3. Структурные ограничения<a class="headerlink" href="#53" title="Permanent link">¶</a></h3>
+<p>Дочерние отношения должны соответствовать колонкам родителя. Партиции могут иметь дополнительные собственные индексы, ограничения и параметры хранения, но нельзя произвольно изменить набор столбцов одной дочерней таблицы и продолжать считать ее полноценной партицией. Индексы родителя являются логическими объектами: фактические индексные данные находятся в отдельных индексах листьев.</p>
+<p>Переход обычной таблицы в partitioned table не выполняется одним переключателем. Распространенный вариант — создать новый partitioned parent, заранее подготовить физические данные, а затем перенести либо подключить таблицы в соответствии с границами. Это уже эксплуатационная миграция с необходимостью обеспечить корректность данных при конкурентных INSERT.</p>
+<p><strong>Вывод:</strong> parent — устойчивое имя и логическая схема; физические листы — реальные единицы I/O, индексации, статистики и обслуживания. [PG18-PART] [PG18-INFO]</p>
+<hr/>
+<h2 id="6-tuple-routing-insert">6. Tuple Routing: как INSERT выбирает физическую таблицу<a class="headerlink" href="#6-tuple-routing-insert" title="Permanent link">¶</a></h2>
+<h3 id="61">6.1. Путь одной записи<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">(</span><span class="n">event_id</span><span class="p">,</span><span class="w"> </span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="s1">'2026-11-15 08:00:00+00'</span><span class="p">,</span><span class="w"> </span><span class="s1">'created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"source":"api"}'</span><span class="p">);</span>
+</code></pre></div>
+<p>У команды одна целевая таблица, но исполнитель должен определить конкретное leaf-отношение. Упрощенная модель алгоритма:</p>
+<div class="highlight"><pre><span></span><code>SQL INSERT INTO parent
+        |
+        v
+значение partition key из вставляемой tuple
+        |
+        v
+проверка bounds первого уровня
+        |
+        +-- подходит leaf → физическая вставка в его heap и индексы
+        |
+        +-- подходит subpartition → проверка следующего уровня
+        |
+        +-- нет подходящего leaf и DEFAULT → ERROR
+</code></pre></div>
+<p>Внутри PostgreSQL для маршрутизации используются структуры executor, содержащие сведения о partition bounds и соответствующих target relations. На уровне основной лекции нам достаточно поведения: <strong>на каждой вставке вычисляется partition key и выбирается физическое назначение</strong>. Подробный C-код <code>ExecFindPartition()</code> оставляем вне обязательного материала.</p>
+<p>Если целевой партиции нет, типичная ошибка: <code>no partition of relation "events" found for row</code>. Этот отказ наступает непосредственно на горячем пути записи. Если новая месячная партиция не была создана, сервис может начать массово возвращать ошибки сразу после полуночи UTC.</p>
+<h3 id="62-update-partition-key-update">6.2. Почему UPDATE partition key дороже обычного UPDATE<a class="headerlink" href="#62-update-partition-key-update" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">UPDATE</span><span class="w"> </span><span class="n">events</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2026-11-02 12:00:00+00'</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">event_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2026-10-31 23:59:59+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>Строка уже физически принадлежит октябрьскому отношению, а новое значение ключа соответствует ноябрю. PostgreSQL должен переместить ее между таблицами. Документация прямо описывает эту операцию как <code>DELETE</code> из исходной партиции и <code>INSERT</code> в целевую партицию на уровне внутреннего выполнения.</p>
+<p>Цена: изменение двух физических heap-отношений, соответствующих индексов и возможное влияние триггеров/ограничений. А что при конкурентном доступе? Другая транзакция, которая одновременно пытается обновить или удалить перемещаемую строку, может получить <code>SQLSTATE 40001</code> (<code>serialization_failure</code>) <strong>даже там, где на обычной таблице операция могла бы дождаться и продолжить обновление новой версии</strong>. После такой ошибки корректно повторяют всю транзакцию, а не только один SQL без бизнес-контекста. [PG18-UPDATE]</p>
+<p>Для таблиц событий чаще выбирают фактически неизменяемое <code>created_at</code>. Если дата регулярно корректируется, нужно отдельно оценить стоимость row movement и проверку идемпотентности повторной операции.</p>
+<h3 id="63">6.3. Если целевая партиция перегружена<a class="headerlink" href="#63" title="Permanent link">¶</a></h3>
+<p>Hash-разбиение по tenant_id не избавляет от горячего tenant. Все его записи идут в один bucket, который имеет отдельный индекс и горячие страницы. Range-разбиение по времени обычно направляет всю текущую запись в «сегодняшнюю» или «текущую месячную» партицию; оно не распределяет текущую нагрузку на все исторические листы.</p>
+<p>Здесь полезна простая оценка. Если 100 000 INSERT/с попадают в одну текущую партицию, наличие 35 почти неактивных исторических партиций не уменьшает этот поток. Скорость изменения активного heap/index и ресурсы WAL остаются ограничениями.</p>
+<p><strong>Вывод:</strong> partition key должен быть стабильным и полезным для фильтрации. Равномерное распределение исторических данных и равномерная нагрузка сейчас — разные задачи. [PG18-UPDATE]</p>
+<hr/>
+<h2 id="7-partitioned-indexes">7. Partitioned Indexes: почему «индекс на родителе» виртуален<a class="headerlink" href="#7-partitioned-indexes" title="Permanent link">¶</a></h2>
+<h3 id="71-sql-b-tree">7.1. Один SQL — несколько физических B-tree<a class="headerlink" href="#71-sql-b-tree" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_tenant_kind_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">(</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="p">);</span>
+</code></pre></div>
+<p>Команда создает определение индекса на родительской таблице и соответствующие дочерние индексы на существующих партициях. Будущие партиции также должны получить соответствующие индексы. <strong>Единого B-tree, в котором лежат записи из всех партиций, в обычном PostgreSQL нет.</strong> Поиск за все месяцы может потребовать обхода многих независимых B-tree.</p>
+<p>Если запрос ограничивает <code>created_at</code> и <code>tenant_id</code>, planner сначала выбирает подходящие партиции, затем может выбрать локальный индекс в каждой выбранной партиции. Если ограничение по partition key отсутствует, даже хороший локальный индекс <code>(tenant_id,kind)</code> может потребовать обращений ко всем листьям.</p>
+<h3 id="72-partition-key">7.2. Индекс только на partition key — нужен ли всегда?<a class="headerlink" href="#72-partition-key" title="Permanent link">¶</a></h3>
+<p><strong>Pruning не требует индекса на ключе партиционирования.</strong> Он использует информацию о границах. Индекс внутри партиции нужен, если он выгоден для отбора строк <em>внутри</em> этой физической таблицы.</p>
+<p>Например, запрос за весь ноябрь при партиции размером один месяц может эффективнее выполнить Seq Scan ноябрьской таблицы, чем искать все записи по B-tree <code>(created_at)</code>. Для запросов за пять минут того же месяца индекс может помочь. Решение принимает planner на основании распределения данных и стоимости доступа, что уже изучено в блоке 5.</p>
+<h3 id="73">7.3. Как построить индекс на огромном дереве без длительной остановки записи<a class="headerlink" href="#73" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 <code>CREATE INDEX CONCURRENTLY</code> <strong>не поддерживается непосредственно на родительской партиционированной таблице</strong>. Для нагруженного проекта используется поэтапная схема:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Шаг 1. Создаем родительский индекс как неполный/invalid.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_kind_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">ONLY</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="p">);</span>
+
+<span class="c1">-- Шаг 2. На каждом leaf строим индекс конкурентно.</span>
+<span class="c1">-- Каждая команда — отдельно, вне явного блока транзакции.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">events_2026_10_kind_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">events_2026_10</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">events_2026_11_kind_idx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">events_2026_11</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="p">);</span>
+
+<span class="c1">-- Шаг 3. Подключаем готовые индексы к родительскому.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_kind_idx</span><span class="w"> </span><span class="n">ATTACH</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">events_2026_10_kind_idx</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">events_kind_idx</span><span class="w"> </span><span class="n">ATTACH</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">events_2026_11_kind_idx</span><span class="p">;</span>
+</code></pre></div>
+<p>Когда все необходимые дочерние индексы присоединены, родительский индекс автоматически становится valid. Если часть листьев не обработана, процесс нельзя считать завершенным. Встроенная схема особенно важна для production, поскольку попытка обычного индекса на огромном дереве может надолго задержать изменения данных. [PG18-PART]</p>
+<h3 id="74">7.4. Индексная цена в метриках<a class="headerlink" href="#74" title="Permanent link">¶</a></h3>
+<p>Нужно учитывать совокупный размер всех дочерних индексов, а не размер виртуального родителя.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">partition_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_size</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_indexes_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">indexes_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_inherits</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">inhrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">inhparent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="p">::</span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Непропорционально большие индексы отдельной партиции могут объяснять ее локальную деградацию. Индекс всего дерева логически один, но эксплуатационно это целая коллекция физических структур.</p>
+<p><strong>Вывод:</strong> индексирование партиций нужно оценивать по реальным leaf-отношениям и фактическим запросам. Дополнительные индексы ускоряют отдельные SELECT ценой INSERT/UPDATE, места и обслуживания. [PG18-PART]</p>
+<hr/>
+<h2 id="8-unique-primary-key-">8. UNIQUE и PRIMARY KEY: как физическое разбиение ограничивает бизнес-инварианты<a class="headerlink" href="#8-unique-primary-key-" title="Permanent link">¶</a></h2>
+<h3 id="81-primary-keyid">8.1. Почему PRIMARY KEY(id) может стать невозможен<a class="headerlink" href="#81-primary-keyid" title="Permanent link">¶</a></h3>
+<p>У нас есть таблица заказов, разделенная по дате создания:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders_by_month</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">order_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="nb">date</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">);</span>
+</code></pre></div>
+<p>Мы хотим привычный ключ:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Ожидаем ошибку: partition key created_at отсутствует в PK.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders_by_month</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">order_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Почему PostgreSQL не может принять это определение? Индекс у каждой партиции проверяет уникальность внутри собственного отношения. При <code>order_id = 42</code> два разных месяца могут содержать значение 42 и оба локальных индекса будут довольны. Без глобального индекса PostgreSQL не может обеспечить обещание «42 существует только один раз во всем дереве».</p>
+<p>Для декларативной partitioned parent на PostgreSQL 18 <code>UNIQUE</code>/<code>PRIMARY KEY</code> должны включать все столбцы partition key; при этом ключ разбиения для такого ограничения не должен содержать выражений или вызовов функций.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Допустимое определение: уникальность пары, а не одного order_id.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders_by_month</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">order_id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+</code></pre></div>
+<p>Это <strong>другая бизнес-гарантия</strong>. Повторный order_id с другой датой остается возможным. Нельзя незаметно подменить требование глобальной уникальности требованием уникальности составного ключа.</p>
+<h3 id="82-order_id">8.2. Что делать, если order_id обязан быть глобально уникальным<a class="headerlink" href="#82-order_id" title="Permanent link">¶</a></h3>
+<p>Есть несколько архитектурных вариантов, каждый имеет ограничения:</p>
+<ul>
+<li>Использовать устойчивый глобальный генератор идентификаторов, например UUID либо согласованный числовой генератор. Это снижает вероятность/управляет созданием дубликатов, но генерация сама по себе не создает глобальное <code>UNIQUE</code>-ограничение для произвольных SQL-вставок.</li>
+<li>Выбирать partition key, который входит в реальный бизнес-ключ, и включать его во все операции идентификации. Например, <code>(tenant_id, order_id)</code> при HASH/LIST по tenant_id; глобальность отдельного <code>order_id</code> при этом не гарантируется.</li>
+<li>Ввести отдельную непартиционированную таблицу реестра с <code>UNIQUE(order_id)</code> и согласовать операции через транзакцию. Это дополнительная запись, отдельное место конкуренции, необходимость управлять ссылочной целостностью и жизненным циклом реестра.</li>
+<li>Пересмотреть саму стратегию partitioning, если глобальное ограничение намного важнее выигрыша от ротации.</li>
+</ul>
+<h3 id="83-foreign-keys-on-conflict">8.3. Foreign keys, ON CONFLICT и ожидания приложения<a class="headerlink" href="#83-foreign-keys-on-conflict" title="Permanent link">¶</a></h3>
+<p>PostgreSQL поддерживает внешние ключи, в том числе взаимодействие с партиционированными таблицами при выполнении допустимых ограничений. Но на стороне <code>REFERENCES</code> должен существовать подходящий уникальный/первичный ключ. <code>REFERENCES orders_by_month(order_id)</code> нельзя легально построить без поддерживаемого уникального ограничения на один <code>order_id</code>.</p>
+<p><code>INSERT ... ON CONFLICT</code> тоже работает в рамках реально определенного уникального индекса/ограничения. Не стоит считать, что проверка на всех листах возникнет автоматически. Кроме того, <code>ON CONFLICT DO UPDATE</code> имеет ограничения при попытке изменить partition key конфликтующей строки так, чтобы требовался ее перенос в другое отношение; это следует проверять на целевой версии PostgreSQL.</p>
+<p><strong>Инженерный вывод:</strong> выбор partition key затрагивает API идентификации записи и реальные business invariants. Этот проектный вопрос необходимо решить до загрузки миллиарда строк. [PG18-PART] [PG18-CREATETABLE]</p>
+<hr/>
+<h2 id="9-partition-pruning-sql">9. Partition Pruning: почему SQL вообще читает меньше партиций<a class="headerlink" href="#9-partition-pruning-sql" title="Permanent link">¶</a></h2>
+<h3 id="91-planner">9.1. Здесь уже знакомый planner — что нового<a class="headerlink" href="#91-planner" title="Permanent link">¶</a></h3>
+<p>Повторять cost model не будем. Новый механизм — <em>отсечение партиций</em> (partition pruning). PostgreSQL знает границы листьев и анализирует условия по partition key. Если из условий следует, что строк в некоторой партиции быть не может, ее можно исключить из рассматриваемых физических отношений.</p>
+<p>Пример для месяца:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="n">COSTS</span><span class="w"> </span><span class="k">OFF</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-10 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-11 00:00:00+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>При корректном дереве этот диапазон попадает лишь в ноябрь. План может содержать непосредственно сканирование соответствующей leaf без явного <code>Append</code> на один элемент. Наличие/отсутствие узла Append само по себе не является мерой успеха pruning.</p>
+<p>Проверяем границы:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="n">COSTS</span><span class="w"> </span><span class="k">OFF</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-10-31 12:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-01 12:00:00+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь выбраны две соседние партиции. Это ожидаемое и корректное поведение.</p>
+<h3 id="92-pruning-indexes">9.2. Pruning и indexes — независимые решения<a class="headerlink" href="#92-pruning-indexes" title="Permanent link">¶</a></h3>
+<p>Ошибочная модель: «PostgreSQL сначала использует индекс по created_at, чтобы найти нужную партицию». В действительности исключение партиции определяется границами, заданными схемой. После этого на конкретной партиции отдельно выбирается Seq Scan, Index Scan, Bitmap Heap Scan или другой вариант.</p>
+<p>Это объясняет неожиданный <code>Seq Scan</code>: он может быть оптимальным, если отбор охватывает почти всю выбранную партицию. Отсечение 35 из 36 партиций уже дает крупный выигрыш, даже если оставшуюся читает Seq Scan.</p>
+<h3 id="93-pruning">9.3. Как легко потерять pruning<a class="headerlink" href="#93-pruning" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Условие явно выражено диапазоном partition key.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-01 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">;</span>
+
+<span class="c1">-- Здесь planner не обязан вывести тот же диапазон по created_at.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">'month'</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">)</span><span class="w"> </span><span class="o">=</span>
+<span class="w">      </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">;</span>
+</code></pre></div>
+<p>Во втором запросе функция применена к partition key. В общем случае оптимизатор не обязан восстанавливать эквивалентные границы по исходному столбцу. Дополнительно выражение с <code>timestamptz</code> зависит от часового пояса; для конкретной задачи нужен точный контракт преобразования. Если партиционирование сделано по выражению, границы могут сопоставляться иначе; утверждать, что любая функция «всегда ломает pruning», тоже неверно.</p>
+<p>Не делайте глобальный вывод из одного случайного <code>EXPLAIN</code>. Проверяйте фактический план и выбранные leaf.</p>
+<h3 id="94">9.4. Какой объем работы мы устранили<a class="headerlink" href="#94" title="Permanent link">¶</a></h3>
+<p>Пусть 36 одинаковых месячных партиций, по 20 млн строк. Запрос читает один месяц. <strong>В идеализированной модели</strong> мы сокращаем потенциальный объем строк с 720 млн до 20 млн, то есть в 36 раз. Но реальная задержка не обязана сократиться ровно в 36 раз: есть стоимость планирования, сортировки, агрегирования, кешей, индексов и прочих операций. Если SELECT после pruning все равно возвращает 20 млн строк клиенту, сеть и сериализация результата могут стать доминирующими.</p>
+<p>Полезная формула для обсуждения:</p>
+<p>[
+T_{query} \approx T_{planning}(N) + \sum_{i \in chosen} T_{scan}(P_i) + T_{combine} + T_{client}
+]</p>
+<p>Это учебная модель, не формула PostgreSQL cost estimator. <code>N</code> — число партиций, <code>chosen</code> — выбранные физические листы. Партиционирование прежде всего стремится уменьшить множество <code>chosen</code>, но может увеличить <code>T_planning</code>.</p>
+<p><strong>Вывод:</strong> всегда сравниваем <code>Planning Time</code>, <code>Execution Time</code>, число выбранных листьев и <code>BUFFERS</code>. Отсечение работает только тогда, когда PostgreSQL может доказать невозможность подходящих строк в исключенных партициях. [PG18-PRUNE]</p>
+<hr/>
+<h2 id="10-prepared-statements-runtime-pruning">10. Prepared Statements &amp; Runtime Pruning: когда значение ключа появляется позднее<a class="headerlink" href="#10-prepared-statements-runtime-pruning" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1. Время планирования и время исполнения — разные границы<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p>Мы хотим параметризованный SQL:</p>
+<div class="highlight"><pre><span></span><code><span class="k">PREPARE</span><span class="w"> </span><span class="n">events_window</span><span class="p">(</span><span class="n">timestamptz</span><span class="p">,</span><span class="w"> </span><span class="n">timestamptz</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="err">$</span><span class="mi">2</span><span class="p">;</span>
+</code></pre></div>
+<p>Если план строится под конкретные значения, соответствующие границы можно учесть при планировании. Но при повторном использовании <strong>generic plan</strong> параметры могут оставаться неизвестными на момент подготовки общего плана. Значит ли это, что придется всегда читать все месяцы? Нет: PostgreSQL 18 умеет выполнять partition pruning также во время исполнения.</p>
+<p>Это принципиальное отличие от обычного объяснения «planner заранее убрал лишние таблицы». Отсечение бывает в нескольких фазах:</p>
+<ol>
+<li><strong>Planning-time pruning.</strong> Значения известны при построении плана; ненужные дочерние отношения могут вообще не попасть в дерево плана.</li>
+<li><strong>Executor initialization pruning.</strong> План построен с потенциальными партициями, но при запуске появились конкретные значения внешних параметров; лишние subplans исключаются на инициализации. В <code>EXPLAIN</code> может быть поле <code>Subplans Removed</code>.</li>
+<li><strong>Execution-time pruning.</strong> Значение зависит от уже выполняющегося запроса, например параметра inner side Nested Loop. При изменении такого параметра выбранные партиции могут изменяться; по <code>EXPLAIN ANALYZE</code> наблюдают различия в числе циклов и <code>(never executed)</code> для тех subplans, которые не запускались.</li>
+</ol>
+<p>Обратите внимание: на этапе инициализации некоторые исключенные партиции все равно могут потребовать получения блокировок в начале выполнения запроса. Отсутствие фактического scan не означает нулевую цену метаданных и lock acquisition. [PG18-PRUNE]</p>
+<h3 id="102">10.2. Воспроизводим разницу двух планов<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- На учебном стенде, с заранее созданными партициями.</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">plan_cache_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">force_generic_plan</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">EXECUTE</span><span class="w"> </span><span class="n">events_window</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'2026-12-01 00:00:00+00'</span>
+<span class="p">);</span>
+
+<span class="k">SET</span><span class="w"> </span><span class="n">plan_cache_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">force_custom_plan</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">EXECUTE</span><span class="w"> </span><span class="n">events_window</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'2026-12-01 00:00:00+00'</span>
+<span class="p">);</span>
+
+<span class="k">RESET</span><span class="w"> </span><span class="n">plan_cache_mode</span><span class="p">;</span>
+</code></pre></div>
+<p>Не заучиваем заранее нарисованный план: на конкретном PostgreSQL могут появляться разные формы дерева. Сравниваем <code>Planning Time</code>, <code>Subplans Removed</code>, названия сканируемых партиций, <code>Buffers</code> и реальные циклы. Нельзя сводить результат к одному факту «generic хуже custom». Generic может экономить работу повторного планирования, а executor pruning предотвращает ненужное чтение многих листьев. Иногда стоимость общего плана все равно выше из-за неидеального способа доступа или большого числа отношений.</p>
+<h3 id="103-parametrized-nested-loop-pruning">10.3. Parametrized Nested Loop и многократное pruning<a class="headerlink" href="#103-parametrized-nested-loop-pruning" title="Permanent link">¶</a></h3>
+<p>Представим внешнюю таблицу с днями, для каждого дня выбираем события. Значение ключа для внутреннего отношения может меняться при каждой итерации Nested Loop. Тогда на уровне исполнения приходится пересчитывать множество подходящих partitions.</p>
+<p>Сценарий важен под нагрузкой: дешевые выборки по одному дню могут образовать десятки тысяч повторных запусков inner side, каждый с собственным изменением параметра. Цена pruning тоже не бесплатна; она платится при изменении параметров, а не только при первом SQL.</p>
+<h3 id="104-go-">10.4. Практическое следствие для Go-приложения<a class="headerlink" href="#104-go-" title="Permanent link">¶</a></h3>
+<p>В Go-драйвере широко используются параметризованные запросы и подготовленные планы. Не стоит ради pruning вставлять дату в SQL строковым форматированием. Нужны корректные параметры, контролируемое сравнение generic/custom планов и явные диапазонные предикаты по partition key.</p>
+<p>Для интеграции с API особенно вредна «универсальная функция поиска», которая опционально задает дату таким образом:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Удобная форма, но проверяйте ее реальный план.</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="mi">1</span><span class="p">::</span><span class="n">timestamptz</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="p">(</span><span class="err">$</span><span class="mi">2</span><span class="p">::</span><span class="n">timestamptz</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="err">$</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+<p>При некоторых режимах планирования условие становится хуже для доказательства prune и оценки селективности, чем отдельные подготовленные формы для запросов «с диапазоном» и «без диапазона». Решение принимают после <code>EXPLAIN</code>, а не по общему правилу «OR всегда плох».</p>
+<p><strong>Вывод:</strong> параметризация SQL совместима с pruning; важно понимать, когда становится известен ключ и какое количество работы остается в generic плане. [PG18-PRUNE] [PG18-PLAN]</p>
+<hr/>
+<h2 id="11-partition-wise-join-aggregation">11. Partition-Wise JOIN &amp; Aggregation: когда обработка раскладывается по листьям<a class="headerlink" href="#11-partition-wise-join-aggregation" title="Permanent link">¶</a></h2>
+<h3 id="111-join-parent">11.1. Почему обычный JOIN через parent может быть дорогим<a class="headerlink" href="#111-join-parent" title="Permanent link">¶</a></h3>
+<p>Две большие таблицы <code>events</code> и <code>event_tags</code> разделены по одним и тем же месячным диапазонам <code>created_at</code>. Запрос соединяет строки по событию и времени. Если соответствующие месячные партиции можно соединять независимо друг от друга, PostgreSQL потенциально может выполнять несколько небольших JOIN вместо одного большого JOIN над объединенными входами.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">event_tags</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">event_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tag</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">)</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">RANGE</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">event_tags_2026_10</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">event_tags</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-10-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">             </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">event_tags_2026_11</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">event_tags</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-11-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">             </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">);</span>
+</code></pre></div>
+<p>Пример запроса:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">enable_partitionwise_join</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">on</span><span class="p">;</span>
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">tenant_id</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="n">e</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">event_tags</span><span class="w"> </span><span class="n">t</span>
+<span class="w">  </span><span class="k">ON</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">created_at</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">created_at</span>
+<span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">event_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">event_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-10-01 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-12-01 00:00:00+00'</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">tenant_id</span><span class="p">;</span>
+<span class="k">RESET</span><span class="w"> </span><span class="n">enable_partitionwise_join</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь equality по partition key <code>created_at</code> позволяет рассматривать соответствующие листья. Для partition-wise join нужны подходящие ключи и совместимые наборы партиций. Наличие обеих таблиц с разбиением «по времени» само по себе еще не гарантирует применение оптимизации: границы, типы и ключи соединения должны соответствовать правилам PostgreSQL 18.</p>
+<h3 id="112">11.2. Почему параметр отключен по умолчанию<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<p><code>enable_partitionwise_join</code> в PostgreSQL 18 по умолчанию <code>off</code>. Причина вполне инженерная: число plan nodes и требуемые во время выполнения экземпляры hash/sort и других операторов может расти с числом leaf-отношений. У каждого такого узла может быть собственный memory budget, связанный с <code>work_mem</code>. Включение partition-wise операций потенциально увеличивает CPU и память при планировании, а также суммарное потребление памяти во время выполнения.</p>
+<p>Иначе говоря: вместо одного Hash Join мы получаем N Hash Join. Они могут быть меньше и эффективнее по данным, но N — новый множитель по числу узлов плана и накладным расходам.</p>
+<h3 id="113-partition-wise-aggregate">11.3. Partition-Wise Aggregate: частичные и полные агрегаты<a class="headerlink" href="#113-partition-wise-aggregate" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">enable_partitionwise_aggregate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">on</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">'month'</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">month</span><span class="p">,</span>
+<span class="w">       </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">date_trunc</span><span class="p">(</span><span class="s1">'month'</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+
+<span class="k">RESET</span><span class="w"> </span><span class="n">enable_partitionwise_aggregate</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь полезно визуально сравнить два варианта: <code>Append → Aggregate</code> и <code>Append(Partial Aggregate на leaf) → Final Aggregate</code>. Если <code>GROUP BY</code> не содержит ключей разбиения в необходимой форме, независимый результат каждой партиции нельзя просто объявить окончательным: группы, пересекающие партиции, должны объединяться. Даже если данные времени фактически не пересекаются по месяцам, planner обязан следовать доказуемым правилам эквивалентности ключей.</p>
+<p><code>enable_partitionwise_aggregate</code> тоже по умолчанию <code>off</code>. При его включении план может разрастаться и расходовать память пропорционально числу участвующих партиций. [PG18-PLAN]</p>
+<h3 id="114">11.4. Нагрузка: показываем оба измерения<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Для 60 листьев сравниваем два режима с реальными данными: <code>Planning Time</code> и <code>Execution Time</code>, число <code>HashAggregate</code>/<code>Hash Join</code>, <code>Peak Memory Usage</code> где есть, spill to disk (<code>temp read/written</code>), фактически выбранные партиции.</p>
+<p>Пример концептуального компромисса:</p>
+<table>
+<thead>
+<tr>
+<th>План</th>
+<th>Выгода</th>
+<th>Цена</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Один общий JOIN</td>
+<td>Меньше plan nodes</td>
+<td>Потенциально крупные промежуточные наборы</td>
+</tr>
+<tr>
+<td>Partition-wise JOIN</td>
+<td>Локальная обработка на совместимых листьях</td>
+<td>Дополнительные plan nodes, planning и память</td>
+</tr>
+<tr>
+<td>Partial aggregate</td>
+<td>Сокращение объема перед финальной стадией</td>
+<td>Стадии частичной обработки на нескольких листьях</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Вывод:</strong> partition-wise оптимизации включают только после измерений на типичных запросах. Наличие слова <code>partition</code> в названии операции не означает гарантированное ускорение. [PG18-PLAN]</p>
+<hr/>
+<h2 id="12-attach-detach">12. ATTACH / DETACH: как менять дерево во время работы системы<a class="headerlink" href="#12-attach-detach" title="Permanent link">¶</a></h2>
+<h3 id="121-leaf">12.1. Создать новый leaf: два разных пути<a class="headerlink" href="#121-leaf" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Прямое создание как partition: операция на родителе с ACCESS EXCLUSIVE.</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_2026_12</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="k">OF</span><span class="w"> </span><span class="n">events</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">           </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2027-01-01 00:00:00+00'</span><span class="p">);</span>
+</code></pre></div>
+<p>Для пустой будущей партиции это часто быстрый способ. Но при высоком конкурентном трафике важна даже короткая сильная блокировка на parent: она может сформировать очередь. Альтернатива — создать физическую таблицу отдельно и присоединить:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_2026_12_staging</span>
+<span class="w">    </span><span class="p">(</span><span class="k">LIKE</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">INCLUDING</span><span class="w"> </span><span class="k">DEFAULTS</span><span class="w"> </span><span class="k">INCLUDING</span><span class="w"> </span><span class="k">CONSTRAINTS</span><span class="p">);</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events_2026_12_staging</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">events_2026_12_range</span>
+<span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-12-01 00:00:00+00'</span>
+<span class="w">   </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2027-01-01 00:00:00+00'</span><span class="p">);</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="n">ATTACH</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">events_2026_12_staging</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="s1">'2026-12-01 00:00:00+00'</span><span class="p">)</span>
+<span class="w">           </span><span class="k">TO</span><span class="w"> </span><span class="p">(</span><span class="s1">'2027-01-01 00:00:00+00'</span><span class="p">);</span>
+</code></pre></div>
+<p><code>ATTACH PARTITION</code> использует <code>SHARE UPDATE EXCLUSIVE</code> на родительской таблице, а присоединяемую таблицу обычно блокирует сильнее. Если доказуемого <code>CHECK</code> нет, PostgreSQL вынужден проверить реальные строки присоединяемой таблицы на соблюдение границы — потенциально сканировать большой heap при <code>ACCESS EXCLUSIVE</code> на дочернем отношении. Наличие <code>CHECK</code>, который доказывает нужный диапазон, позволяет избежать такого скана. [PG18-ALTER]</p>
+<h3 id="122-default-attach">12.2. DEFAULT может испортить безопасный ATTACH<a class="headerlink" href="#122-default-attach" title="Permanent link">¶</a></h3>
+<p>Если существует DEFAULT-партиция, новый диапазон не должен пересечь ее фактические строки. PostgreSQL может сканировать DEFAULT, удерживая <code>ACCESS EXCLUSIVE</code>, чтобы убедиться, что ранее отправленные туда данные не принадлежат новой партиции. Подходящее <code>CHECK</code> на DEFAULT, исключающее новый диапазон, может устранить эту проверку; но его корректное создание и validation — отдельное изменение, которое нельзя просто скрыть в скрипте.</p>
+<p><strong>Вот почему DEFAULT одновременно удобен и опасен:</strong> при пропущенной будущей партиции он спасет INSERT, но превратит восстановление правильной топологии в потенциально дорогое изменение нагруженной таблицы.</p>
+<h3 id="123-detach-partition-concurrently">12.3. DETACH PARTITION CONCURRENTLY<a class="headerlink" href="#123-detach-partition-concurrently" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Важно: отдельно, не внутри BEGIN/COMMIT.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events</span>
+<span class="n">DETACH</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">events_2026_10</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="p">;</span>
+</code></pre></div>
+<p>В PostgreSQL 18 <code>DETACH ... CONCURRENTLY</code> выполняется внутренне в две транзакции: сначала партиция помечается как отсоединяемая, затем система дожидается завершения определенных использующих таблицу транзакций и завершает отсоединение. На родителе применяется более мягкая блокировка <code>SHARE UPDATE EXCLUSIVE</code>, а в завершающей фазе на самой дочерней таблице требуется <code>ACCESS EXCLUSIVE</code>. Это снижает влияние на обычный трафик, но операция <strong>не является полностью неблокирующей</strong>.</p>
+<p>Ограничения важны:</p>
+<ul>
+<li><code>CONCURRENTLY</code> нельзя выполнять внутри явного блока транзакции;</li>
+<li>он запрещен для дерева с DEFAULT-партицией;</li>
+<li>одновременно только одна партиция может находиться в состоянии ожидающего detach;</li>
+<li>если процесс прервался, используется <code>DETACH PARTITION ... FINALIZE</code> для завершения оставшейся операции.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Применять только после проверки фактического состояния.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="n">DETACH</span><span class="w"> </span><span class="n">PARTITION</span><span class="w"> </span><span class="n">events_2026_10</span><span class="w"> </span><span class="n">FINALIZE</span><span class="p">;</span>
+</code></pre></div>
+<p>Обычный <code>DETACH</code> и <code>DROP</code> имеют другие блокировочные требования. Нельзя применять миграционное правило «любую DDL оборачиваем в одну транзакцию» к <code>DETACH CONCURRENTLY</code>. [PG18-ALTER]</p>
+<h3 id="124-select">12.4. Почему долгие SELECT и миграции пересекаются<a class="headerlink" href="#124-select" title="Permanent link">¶</a></h3>
+<p>Даже короткий DDL-командный текст может ждать конфликтующих блокировок, а затем создавать очередь других запросов. При ротации важно измерять не только время выполнения DDL, но и возраст транзакций, наличие <code>idle in transaction</code>, ожидающие блокировки и реакцию приложения. Для этого уже изучены <code>pg_stat_activity</code>, <code>pg_locks</code>, <code>pg_blocking_pids()</code> и <code>lock_timeout</code>; здесь применяем их к изменениям дерева партиций.</p>
+<p><strong>Вывод:</strong> безопасная ротация — согласованный протокол подготовки, ограничения допустимых данных, короткого изменения метаданных и проверки результата. [PG18-ALTER]</p>
+<hr/>
+<h2 id="13-partition-rotation">13. Partition Rotation: дешево удалить месяц, но правильно организовать весь цикл<a class="headerlink" href="#13-partition-rotation" title="Permanent link">¶</a></h2>
+<h3 id="131">13.1. Жизненный цикл месячной партиции<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<p>Проектируем заранее:</p>
+<div class="highlight"><pre><span></span><code>T-7 дней      создать будущую партицию и локальные индексы
+T-1 день      проверить наличие диапазона и readiness приложения
+T0            новые INSERT направляются в новый leaf
+T+30 дней     текущий leaf становится архивным
+T+365 дней    DETACH устаревшего leaf (по политике retention)
+после DETACH  проверить архив/копию → DROP физической таблицы
+</code></pre></div>
+<p>Это модель автоматизации, не встроенный scheduler PostgreSQL. Миграционный инструмент или задача эксплуатации должны обеспечить создание будущих диапазонов раньше первого INSERT на их границе.</p>
+<h3 id="132-delete">13.2. Сравнение DELETE и удаления партиции<a class="headerlink" href="#132-delete" title="Permanent link">¶</a></h3>
+<p>Предположим, за месяц хранится 80 млн строк. <code>DELETE FROM events WHERE created_at &lt; cutoff</code> должен логически удалить соответствующие строки; это изменяет heap/index-состояние, создает WAL, формирует устаревшие версии, которые затем должен обслужить VACUUM. Если всю старую историю образует один или несколько закрытых leaf, можно отсоединить отношения и удалить их после необходимых проверок.</p>
+<p>Преимущество принципиальное: мы перестаем проводить 80 млн отдельных DML-удалений и меняем состав дерева физических таблиц. Но это <strong>не значит «никакого I/O и блокировок»</strong>: операции каталогов, блокировки, файловые изменения, последующий архив, reindex/maintenance и мониторинг остаются.</p>
+<h3 id="133-retention">13.3. Противоречие retention и аналитических запросов<a class="headerlink" href="#133-retention" title="Permanent link">¶</a></h3>
+<p>Аналитика иногда хочет сравнить текущий квартал с тем же кварталом прошлого года. Если retention = 365 дней, а мы отсоединили партиции 366-дневной давности, необходимый SQL больше не найдет историю в исходной таблице.</p>
+<p>Поэтому политика хранения должна отвечать на вопросы: какие данные доступны online, какие переносятся в архив, какие гарантии чтения поддерживаются после detach, как изменяются отчеты и кто принимает решение об окончательном удалении.</p>
+<h3 id="134">13.4. Что может пойти не так<a class="headerlink" href="#134" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Опоздавшая новая партиция:</strong> INSERT после полуночи получает ошибки; если есть DEFAULT, запись неожиданно отправляется туда.</li>
+<li><strong>Позднее событие:</strong> событие с датой полугодовой давности пытается попасть в уже удаленный диапазон. Нужна явная бизнес-политика поздних событий.</li>
+<li><strong>Неверный cutoff:</strong> ошибка расписания удаляет нужный месяц. DDL нужно предварять проверкой периода и подсчетом, а удаление — контролируемым подтверждением/архивом.</li>
+<li><strong>Длительные транзакции:</strong> detach может ожидать, а очередь lock acquisition ухудшает задержки.</li>
+<li><strong>Отдельная статистика листьев:</strong> новый leaf создан, но реальная статистика еще не собрана; нагрузочные планы могут меняться.</li>
+</ul>
+<p><strong>Вывод:</strong> ротация дает наибольший выигрыш, когда физические границы партиций совпадают с политикой хранения. Нужен отдельный эксплуатационный контракт на late-arriving events и на архивные чтения. [PG18-PART]</p>
+<hr/>
+<h2 id="14-production-costs">14. Production Costs: когда партиций становится слишком много<a class="headerlink" href="#14-production-costs" title="Permanent link">¶</a></h2>
+<h3 id="141">14.1. Составляем бюджет отношений<a class="headerlink" href="#141" title="Permanent link">¶</a></h3>
+<p>Возьмем 5 лет данных с дневной партицией: примерно 1825 leaf-таблиц. Если у каждой три индекса — еще около 5475 физических индексных отношений. Плюс родительские объекты, catalogs, dependencies, статистика и возможные вложенные партиции.</p>
+<p>Теперь представим 30 экземпляров backend, открывающих активные PostgreSQL-сессии. Каждой сессии иногда требуются метаданные десятков или сотен партиций. Это не линейная формула точного RAM, но очевидный источник overhead: кэш системных каталогов и relation metadata загружаются в контекст каждого backend-процесса по необходимости.</p>
+<p><strong>Масштабирование числа партиций — отдельная размерность нагрузки</strong>, даже если суммарный объем строк не изменился.</p>
+<h3 id="142-planner-executor">14.2. Planner и Executor платят разную цену<a class="headerlink" href="#142-planner-executor" title="Permanent link">¶</a></h3>
+<p>Пример двух запросов:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Хорошо ограничивает range по ключу.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-01 00:00:00+00'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="o">&lt;</span><span class="w">  </span><span class="n">TIMESTAMPTZ</span><span class="w"> </span><span class="s1">'2026-11-02 00:00:00+00'</span><span class="p">;</span>
+
+<span class="c1">-- Без условия по ключу нужно учитывать множество листьев.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'failed'</span><span class="p">;</span>
+</code></pre></div>
+<p>В первом случае pruning может оставить один лист. Во втором могут потребоваться локальные сканирования всех листьев. При тысячах партиций увеличиваются время подготовки и размер плана. Даже если каждый локальный индекс мал, тысяча поисков по ним — не то же самое, что один поиск по одному глобальному индексу.</p>
+<p>Нужно измерить отдельно:</p>
+<ul>
+<li><code>Planning Time</code> и <code>Execution Time</code> из <code>EXPLAIN (ANALYZE, BUFFERS)</code>;</li>
+<li>число физических subplans и отношения, реально участвовавшие в выполнении;</li>
+<li><code>shared hit/read</code>, временные файлы, сетевой объем результата;</li>
+<li>время INSERT/UPDATE на активной партиции;</li>
+<li>число и размеры индексов;</li>
+<li>задержку ATTACH/DETACH и ожидающие блокировки;</li>
+<li>память и CPU в период высококонкурентного планирования.</li>
+</ul>
+<p>Документация PostgreSQL 18 указывает, что planner обычно способен работать с несколькими тысячами партиций достаточно хорошо, если типичные запросы оставляют лишь небольшое число листьев. При сохранении большого числа листьев overhead возрастает. Это наблюдение нельзя превращать в утверждение «5000 партиций всегда безопасны» — зависит от workload. [PG18-PART]</p>
+<h3 id="143-autovacuum">14.3. Статистика и тонкость autovacuum<a class="headerlink" href="#143-autovacuum" title="Permanent link">¶</a></h3>
+<p>Leaf-партиции обслуживаются autovacuum как обычные физические таблицы. Но родительская партиционированная таблица не содержит строк и автоматически не получает <code>ANALYZE</code> по тому же триггеру, что обычные таблицы. <strong>PostgreSQL 18 прямо рекомендует вручную запускать <code>ANALYZE</code> на partitioned parent</strong>, когда таблица впервые наполнена или существенно изменилось распределение данных между листьями.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ANALYZE</span><span class="w"> </span><span class="n">events</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">last_analyze</span><span class="p">,</span><span class="w"> </span><span class="n">last_autoanalyze</span><span class="p">,</span>
+<span class="w">       </span><span class="n">n_live_tup</span><span class="p">,</span><span class="w"> </span><span class="n">n_dead_tup</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">relname</span><span class="w"> </span><span class="k">LIKE</span><span class="w"> </span><span class="s1">'events%'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">relname</span><span class="p">;</span>
+</code></pre></div>
+<p><code>ANALYZE events</code> собирает статистику для дерева путем выборки из партиций и по умолчанию обрабатывает их рекурсивно. Статистика родителя может влиять на планирование запросов через все дерево. Не стоит ожидать, что автосбор статистики на дочерних таблицах полностью заменяет статистику логического parent. [PG18-VACUUM] [PG18-ANALYZE]</p>
+<h3 id="144">14.4. Диагностический набор для оператора<a class="headerlink" href="#144" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Структура дерева.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rel</span><span class="p">,</span><span class="w"> </span><span class="n">parentrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">parent</span><span class="p">,</span>
+<span class="w">       </span><span class="n">isleaf</span><span class="p">,</span><span class="w"> </span><span class="k">level</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_partition_tree</span><span class="p">(</span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+
+<span class="c1">-- Размеры реальных листьев, включая индексы.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rel</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_total_relation_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_relation_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_indexes_size</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">indexes_bytes</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_inherits</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">inhrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">inhparent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">total_bytes</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+
+<span class="c1">-- Определения границ.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">rel</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_expr</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relpartbound</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">bound</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_inherits</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">inhrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">inhparent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'events'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+</code></pre></div>
+<p>Суммарный объем данных и индексов рассчитываем по физическим leaf. Размер родительского relation не отражает суммарный объем всей истории.</p>
+<h3 id="145">14.5. Сравнение альтернатив на одной нагрузке<a class="headerlink" href="#145" title="Permanent link">¶</a></h3>
+<p>Задаем одинаковые данные и типовые запросы для одной обычной таблицы, месячного, недельного и дневного partitioning. Измеряем отдельные показатели:</p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Обычная таблица</th>
+<th>Месячные leaf</th>
+<th>Дневные leaf</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SELECT по 1 дню</td>
+<td>Индекс/сканирование</td>
+<td>Pruning до месяца</td>
+<td>Pruning до дня</td>
+</tr>
+<tr>
+<td>SELECT без даты</td>
+<td>Один большой план</td>
+<td>Много leaf</td>
+<td>Очень много leaf</td>
+</tr>
+<tr>
+<td>Удаление года истории</td>
+<td>Массовый DELETE</td>
+<td>Отсоединение 12 листьев</td>
+<td>Отсоединение ~365 листьев</td>
+</tr>
+<tr>
+<td>INSERT текущих данных</td>
+<td>Одна таблица</td>
+<td>Один текущий leaf</td>
+<td>Один текущий leaf</td>
+</tr>
+<tr>
+<td>Метаданные и planning</td>
+<td>Ниже</td>
+<td>Умеренно</td>
+<td>Выше при большом числе листьев</td>
+</tr>
+</tbody>
+</table>
+<p>Значения в таблице — качественная модель, не готовые результаты бенчмарка. Реальные измерения зависят от селективности, индексов, распределения, памяти и hardware.</p>
+<h3 id="146-production-decision-checklist">14.6. Production decision checklist<a class="headerlink" href="#146-production-decision-checklist" title="Permanent link">¶</a></h3>
+<p>Перед запуском схемы спросите:</p>
+<ol>
+<li>Какие ключевые SQL включают partition key и что показывает pruning на типичных параметрах?</li>
+<li>Сколько физических листьев будет через 1, 3 и 5 лет?</li>
+<li>Совпадают ли границы с retention/архивом?</li>
+<li>Можно ли безопасно менять partition key? Что с <code>40001</code> при row movement?</li>
+<li>Как будут обеспечиваться PK/UNIQUE и внешние ключи?</li>
+<li>Как заранее создавать будущие партиции и обрабатывать опоздавшие события?</li>
+<li>Кто запускает <code>ANALYZE</code> для parent, как мониторятся leaf-статистика и I/O?</li>
+</ol>
+<p><strong>Главный вывод:</strong> партиционирование дает явную управляемость огромным физическим набором данных; выигрыш зависит от запросов и от того, насколько физические границы совпадают с бизнес-операциями. Оно не устраняет ограничения одного PostgreSQL-узла. [PG18-PART] [PG18-PLAN]</p>
+<hr/>
+<h1 id="sql">Демонстрационное продолжение: доказать тезисы SQL и нагрузкой<a class="headerlink" href="#sql" title="Permanent link">¶</a></h1>
+<p>Это часть лекции: экспериментально проверяем правила, а отдельную лабораторную работу можно собрать позднее из тех же шагов.</p>
+<h2 id="a">Эксперимент A. Вставка и физическая маршрутизация<a class="headerlink" href="#a" title="Permanent link">¶</a></h2>
+<ol>
+<li>Создать <code>events</code> и два месячных leaf.</li>
+<li>Вставить строку на границе месяца.</li>
+<li>Прочитать <code>tableoid::regclass</code> и убедиться, что реальные heap различаются.</li>
+<li>Попытаться вставить строку за пределами известных диапазонов. <strong>Намеренно ожидается ошибка</strong> отсутствия партиции.</li>
+<li>Добавить нужную партицию и повторить вставку: ошибка исчезает.</li>
+</ol>
+<h2 id="b-pruning">Эксперимент B. Превратить хороший pruning в плохой запрос<a class="headerlink" href="#b-pruning" title="Permanent link">¶</a></h2>
+<ol>
+<li>Загрузить в две–четыре партиции достаточное количество строк для наблюдения планов.</li>
+<li>Выполнить <code>ANALYZE events</code>.</li>
+<li>Сравнить <code>EXPLAIN (ANALYZE, BUFFERS)</code> для диапазона <code>created_at</code> и фильтра только по <code>tenant_id</code>.</li>
+<li>Сравнить с условием через функцию над ключом.</li>
+<li>Объяснить различия в выбранных leaf и <code>Planning Time</code>.</li>
+</ol>
+<h2 id="c-genericcustom-plan">Эксперимент C. Generic/Custom Plan<a class="headerlink" href="#c-genericcustom-plan" title="Permanent link">¶</a></h2>
+<ol>
+<li>Выполнить <code>PREPARE events_window</code>.</li>
+<li><code>force_generic_plan</code> + <code>EXPLAIN EXECUTE</code>, найти <code>Subplans Removed</code> либо признаки исполнительного pruning.</li>
+<li><code>force_custom_plan</code> и повторить.</li>
+<li>Сравнить выбранные leaf и стоимость планирования; не делать универсальных выводов по одному окружению.</li>
+</ol>
+<h2 id="d-">Эксперимент D. Ломаем бизнес-ограничение<a class="headerlink" href="#d-" title="Permanent link">¶</a></h2>
+<ol>
+<li>Создать <code>orders_by_month</code>.</li>
+<li>Попробовать <code>PRIMARY KEY(order_id)</code> — <strong>намеренно ожидается ошибка</strong>.</li>
+<li>Создать допустимый составной PK <code>(order_id, created_at)</code>.</li>
+<li>Вставить одинаковый <code>order_id</code> в разные даты и убедиться, что глобальной уникальности одного ID больше нет.</li>
+<li>Обсудить корректную модель идентификатора для API.</li>
+</ol>
+<h2 id="e">Эксперимент E. Ротация на нагруженной таблице<a class="headerlink" href="#e" title="Permanent link">¶</a></h2>
+<ol>
+<li>Подготовить следующий leaf и соответствующий CHECK.</li>
+<li>Параллельно выполнять INSERT/SELECT с нескольких соединений.</li>
+<li>Выполнить <code>ATTACH PARTITION</code>, наблюдать <code>pg_stat_activity</code>/<code>pg_locks</code>.</li>
+<li>Отсоединить старую партицию через <code>DETACH ... CONCURRENTLY</code> <strong>только на стенде без DEFAULT и вне транзакционного блока</strong>.</li>
+<li>Сравнить с удалением нескольких миллионов строк обычным <code>DELETE</code>, измерив WAL/время/блокировки и последующее обслуживание.</li>
+</ol>
+<h2 id="f">Эксперимент F. Много партиций — измеряем планирование<a class="headerlink" href="#f" title="Permanent link">¶</a></h2>
+<ol>
+<li>Создать два варианта: 12 и 365 партиций на сопоставимом наборе данных (скриптом стенда).</li>
+<li>Сравнить диапазонный запрос и запрос без условия по partition key.</li>
+<li>Записать <code>Planning Time</code>, <code>Execution Time</code>, <code>Buffers</code>, число физически посещенных leaf.</li>
+<li>Объяснить, когда большая детализация помогает, а когда приносит лишние расходы.</li>
+</ol>
+<hr/>
+<h1 id="_1">Что нужно запомнить<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<ol>
+<li><strong>Parent и leaf решают разные задачи:</strong> parent — логическая схема; heap и индексы находятся в физических дочерних отношениях.</li>
+<li><strong>Pruning работает по границам partition key, а не благодаря наличию индекса.</strong> Он возможен при планировании и в executor, включая параметризованные планы.</li>
+<li><strong>Изменение partition key может перемещать строку через DELETE+INSERT.</strong> При конкуренции возможен <code>40001</code>, который требует корректной повторной транзакции.</li>
+<li><strong>Глобального уникального индекса по обычной partitioned parent нет.</strong> PK/UNIQUE должны включать все столбцы ключа разбиения; это меняет бизнес-контракт уникальности.</li>
+<li><strong>Количество партиций — ограниченный ресурс.</strong> Planning, память backend, отдельные индексы, статистика и DDL-механизмы имеют цену.</li>
+<li><strong>Ротация особенно полезна при совпадении границ с retention policy</strong>, но ATTACH/DETACH требуют управления блокировками, поздними событиями и безопасным удалением.</li>
+<li><strong>Измерение важнее догадки:</strong> всегда сравниваем выбранные leaf, <code>Planning Time</code>, <code>Execution Time</code>, <code>BUFFERS</code>, скорость записи и фактическую стоимость обслуживания.</li>
+</ol>
+<h1 id="_2">Куда можно копнуть глубже — без автоматического добавления лекции<a class="headerlink" href="#_2" title="Permanent link">¶</a></h1>
+<p>Следующий слой — <strong>executor partition pruning и row routing на уровне структур <code>PartitionPruneState</code>, partition descriptor и target relations</strong>. Он закроет вопрос, как при изменении внешних параметров executor выбирает набор leaf без повторного полного планирования SQL и как <code>INSERT</code> ищет destination среди вложенных партиций. Этот слой полезен, если студенты захотят объяснять реальные сложные планы с тысячами leaf, но для основной 11.0 достаточно приведенной модели и измерений.</p>
+<h1 id="postgresql-18">Источники: PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h1>
+<ul>
+<li><strong>[PG18-PART]</strong> Declarative partitioning, constraints, maintenance, best practices: https://www.postgresql.org/docs/18/ddl-partitioning.html</li>
+<li><strong>[PG18-PRUNE]</strong> Partition pruning: https://www.postgresql.org/docs/18/ddl-partitioning.html#DDL-PARTITION-PRUNING</li>
+<li><strong>[PG18-PLAN]</strong> Planner switches <code>enable_partition_pruning</code>, <code>enable_partitionwise_join</code>, <code>enable_partitionwise_aggregate</code>: https://www.postgresql.org/docs/18/runtime-config-query.html</li>
+<li><strong>[PG18-ALTER]</strong> <code>ATTACH PARTITION</code> / <code>DETACH PARTITION CONCURRENTLY</code>: https://www.postgresql.org/docs/18/sql-altertable.html</li>
+<li><strong>[PG18-UPDATE]</strong> <code>UPDATE</code> partition row movement / <code>40001</code>: https://www.postgresql.org/docs/18/sql-update.html</li>
+<li><strong>[PG18-INFO]</strong> <code>pg_partition_tree</code>, <code>pg_get_partkeydef</code>: https://www.postgresql.org/docs/18/functions-info.html</li>
+<li><strong>[PG18-CREATETABLE]</strong> <code>CREATE TABLE</code>, partition keys and constraints: https://www.postgresql.org/docs/18/sql-createtable.html</li>
+<li><strong>[PG18-VACUUM]</strong> Autovacuum for partitioned tables and <code>ANALYZE</code> of parent: https://www.postgresql.org/docs/18/routine-vacuuming.html</li>
+<li><strong>[PG18-ANALYZE]</strong> Partitioned <code>ANALYZE</code>: https://www.postgresql.org/docs/18/sql-analyze.html</li>
+<li><strong>[PG18-SOURCE]</strong> Current implementation of partition pruning and tuple routing: https://github.com/postgres/postgres/tree/REL_18_STABLE/src/backend/executor</li>
+</ul>
+<blockquote>
+<p>Версия механизма — PostgreSQL 18. Документация определяет поведение API/DDL и ограничения. Низкоуровневые имена и код внутренних структур относятся к конкретной реализации ветки <code>REL_18_STABLE</code>. Числа из сценариев не являются измерениями реального production-кластера.</p>
+</blockquote>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 10.0. PostgreSQL Replication &amp;amp; High Availability" class="md-footer__link md-footer__link--prev" href="../10%20-%20Replication%20high%20availability/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                10.0. PostgreSQL Replication &amp; High Availability
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 12. PostgreSQL Advanced Index Types" class="md-footer__link md-footer__link--next" href="../12%20-%20Advanced%20index%20types/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                12. PostgreSQL Advanced Index Types
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

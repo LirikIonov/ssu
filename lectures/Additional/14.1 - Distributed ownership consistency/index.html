@@ -1,0 +1,2157 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/14.1%20-%20Distributed%20ownership%20consistency/" rel="canonical"/>
+<link href="../10.2%20-%20Logical%20replication%20CDC/" rel="prev"/>
+<link href="../2.1%20-%20Go%20runtime%20deep/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>14.1. Distributed Ownership, Failover &amp; Resharding Consistency - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#141-distributed-ownership-failover-resharding-consistency">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../1%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../2%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../3%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../5%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../1.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_1">
+<span class="md-ellipsis">
+      
+        Маршрут расследования: «старый хозяин вернулся»
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Сначала формулируем гарантии: иначе оптимизируем иллюзию
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. Почему маршрутизация не является защитой от записи
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-leases">
+<span class="md-ellipsis">
+      
+        3. Leases: почему время владения само по себе не спасает
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-epoch-fencing-token">
+<span class="md-ellipsis">
+      
+        4. Epoch и fencing token: два числа с разной ролью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-sql">
+<span class="md-ellipsis">
+      
+        5. Как сделать проверку атомарной с SQL: учебная локальная модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-cas">
+<span class="md-ellipsis">
+      
+        6. Метаданные владения: CAS, ревизии и состояние переноса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-online-resharding">
+<span class="md-ellipsis">
+      
+        7. Протокол online resharding: где должна быть граница
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-coordinator">
+<span class="md-ellipsis">
+      
+        8. Состояния переноса: что делать, если coordinator умер
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. Режим без заметной паузы: почему он сложнее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-commit">
+<span class="md-ellipsis">
+      
+        10. Неопределенный COMMIT: запрос мог завершиться до потери ответа
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-operation-id">
+<span class="md-ellipsis">
+      
+        11. Идемпотентность, дедупликация и жизненный цикл operation ID
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-cutover">
+<span class="md-ellipsis">
+      
+        12. Порядок операций и согласованность чтений после cutover
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-distributed-transactions-2pc">
+<span class="md-ellipsis">
+      
+        13. Distributed transactions, 2PC и переключение владельца
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-failure-matrix">
+<span class="md-ellipsis">
+      
+        14. Failure matrix: когда какая гарантия нарушается
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        15. Цена гарантий под нагрузкой
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Диагностика: от симптома к слою нарушения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#17">
+<span class="md-ellipsis">
+      
+        17. Демонстрация и отказные эксперименты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#18-postgresql-patroni-citus-etcd">
+<span class="md-ellipsis">
+      
+        18. Как это связано с PostgreSQL, Patroni, Citus и etcd
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#19">
+<span class="md-ellipsis">
+      
+        19. Главные выводы и техническая модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_3">
+<span class="md-ellipsis">
+      
+        Источники и границы применимости
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../2.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../3.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../4.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../5.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../6.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../7.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../8.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../9.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/1%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    1 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/2%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    2 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/3%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    3 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/4%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/5%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/6%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/7%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/8%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/9%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_1">
+<span class="md-ellipsis">
+      
+        Маршрут расследования: «старый хозяин вернулся»
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Сначала формулируем гарантии: иначе оптимизируем иллюзию
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2">
+<span class="md-ellipsis">
+      
+        2. Почему маршрутизация не является защитой от записи
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-leases">
+<span class="md-ellipsis">
+      
+        3. Leases: почему время владения само по себе не спасает
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-epoch-fencing-token">
+<span class="md-ellipsis">
+      
+        4. Epoch и fencing token: два числа с разной ролью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-sql">
+<span class="md-ellipsis">
+      
+        5. Как сделать проверку атомарной с SQL: учебная локальная модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-cas">
+<span class="md-ellipsis">
+      
+        6. Метаданные владения: CAS, ревизии и состояние переноса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-online-resharding">
+<span class="md-ellipsis">
+      
+        7. Протокол online resharding: где должна быть граница
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-coordinator">
+<span class="md-ellipsis">
+      
+        8. Состояния переноса: что делать, если coordinator умер
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. Режим без заметной паузы: почему он сложнее
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-commit">
+<span class="md-ellipsis">
+      
+        10. Неопределенный COMMIT: запрос мог завершиться до потери ответа
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-operation-id">
+<span class="md-ellipsis">
+      
+        11. Идемпотентность, дедупликация и жизненный цикл operation ID
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-cutover">
+<span class="md-ellipsis">
+      
+        12. Порядок операций и согласованность чтений после cutover
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13-distributed-transactions-2pc">
+<span class="md-ellipsis">
+      
+        13. Distributed transactions, 2PC и переключение владельца
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-failure-matrix">
+<span class="md-ellipsis">
+      
+        14. Failure matrix: когда какая гарантия нарушается
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15">
+<span class="md-ellipsis">
+      
+        15. Цена гарантий под нагрузкой
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Диагностика: от симптома к слою нарушения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#17">
+<span class="md-ellipsis">
+      
+        17. Демонстрация и отказные эксперименты
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#18-postgresql-patroni-citus-etcd">
+<span class="md-ellipsis">
+      
+        18. Как это связано с PostgreSQL, Patroni, Citus и etcd
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#19">
+<span class="md-ellipsis">
+      
+        19. Главные выводы и техническая модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#_3">
+<span class="md-ellipsis">
+      
+        Источники и границы применимости
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="141-distributed-ownership-failover-resharding-consistency">14.1. Distributed Ownership, Failover &amp; Resharding Consistency<a class="headerlink" href="#141-distributed-ownership-failover-resharding-consistency" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Курс:</strong> Production backend / PostgreSQL under the hood. <strong>Версия:</strong> PostgreSQL 18 (<code>REL_18_STABLE</code>). <strong>Статус:</strong> факультативное углубление после 10.1 и 14.0. <strong>Фокус:</strong> распределенные гарантии при передаче права записи на shard.<br/>
+<strong>Задача:</strong> научиться формулировать инварианты владения, объяснять race conditions между старым и новым владельцем, строить согласованный cutover и диагностировать неопределенный результат операции.<br/>
+<strong>Границы:</strong> локальный WAL, MVCC, блокировки, 2PC, physical failover, базовые стратегии sharding и Citus уже разобраны. Здесь рассматривается их <strong>стык при смене владельца</strong>. <code>epoch</code>, <code>fencing token</code> и описанный учебный протокол — архитектурные приемы; они <strong>не являются встроенным API обычного PostgreSQL 18</strong>. Пример Citus приводится отдельно с указанием реальных гарантий продукта.</p>
+</blockquote>
+<h2 id="_1">Маршрут расследования: «старый хозяин вернулся»<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Представим платежный backend. Заказы арендатора <code>tenant_id = 42</code> находятся на <code>Shard 7</code>, который записывает PostgreSQL A. Под нагрузкой A перегревается, и мы переносим shard на PostgreSQL B. Копия готова, репликация догнала источник, маршрутизатор обновлен. Заказчик видит успешный ответ новой системы.</p>
+<p>А через секунду на A оживает старый worker, который до этого стоял на паузе: зависший процесс, задержанный пакет, долгий stop-the-world у внешнего компонента или отключившийся сетевой сегмент. У worker до сих пор в памяти <code>owner = A</code>. Он выполняет <code>UPDATE balance = balance - 100</code> и получает от A успешный COMMIT. На B этой записи нет. Параллельно новый backend пишет на B.</p>
+<p><strong>Кто теперь владелец? Что значит «запись подтверждена»? Почему менять указатель в таблице маршрутизации недостаточно?</strong></p>
+<p>В лекции мы выстроим более строгую модель. Последовательность: инварианты → authority → lease → epoch/fencing → контроль на границе данных → согласованный cutover → crash в каждой фазе → неопределенный COMMIT → идемпотентность → нагрузка → измерение и проверка отказами.</p>
+<p>Сквозные сущности:</p>
+<ul>
+<li><code>Shard 7</code>: часть набора бизнес-данных, чьи операции записи должны иметь единственного авторитетного владельца;</li>
+<li><code>A</code>, <code>B</code>: независимые PostgreSQL-инстансы, не разделяющие локальную транзакцию;</li>
+<li><code>Router</code>: выбирает назначение для запросов по версии карты размещения;</li>
+<li><code>Authority</code>: надежно упорядочивает изменения состояния владения (например, координатор на базе консенсусного хранилища);</li>
+<li><code>epoch</code>: монотонно увеличивающееся поколение назначения владельца;</li>
+<li><code>fencing</code>: принудительное отстранение прежнего владельца на пути к физическому изменению данных;</li>
+<li><code>cutover</code>: конечная граница, после которой право записи должно перейти с A на B.</li>
+</ul>
+<hr/>
+<h2 id="1">1. Сначала формулируем гарантии: иначе оптимизируем иллюзию<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Три разных вопроса<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p>Рассмотрим успешную операцию <code>Debit(account=42, amount=100, operation_id=abc)</code>.</p>
+<p><strong>Durability</strong>: переживет ли подтвержденная операция отказ хранилища и выбранной топологии? Для PostgreSQL на одном primary ответ зависит от WAL и <code>synchronous_commit</code>, для нескольких узлов — также от репликации и выбора новой истории. Разбор физической репликации был в 10.0.</p>
+<p><strong>Exclusive ownership</strong>: может ли после признания B владельцем A продолжить принимать авторитетные изменения shard? Тут помогают отказоустойчивый источник истины, fencing и протокол переключения.</p>
+<p><strong>Known outcome</strong>: если клиент получил timeout, известно ли ему, была ли операция выполнена? Нет: отсутствие ответа не означает откат. Для этого нужна безопасная процедура выяснения результата и повторных попыток.</p>
+<p>Эти свойства независимы. Синхронная репликация не закрывает возможность двух primary; fencing не восстанавливает потерянный WAL; идемпотентность не спасает от выбора реплики без подтвержденных данных.</p>
+<h3 id="12-safety-liveness">1.2. Safety и liveness<a class="headerlink" href="#12-safety-liveness" title="Permanent link">¶</a></h3>
+<p><strong>Safety</strong> — запрещаем неверные состояния. Для shard удобно записать два инварианта:</p>
+<ol>
+<li>Для одного shard в пределах рассматриваемой истории <strong>не должно существовать двух независимых владельцев, чьи записи одновременно принимаются как авторитетные</strong>.</li>
+<li>При переводе владения на B каждая подтвержденная и гарантированно сохраненная в рамках выбранной политики операция должна либо входить в состояние B, либо система обязана явно объявить потерю/деградацию соответствующей гарантии.</li>
+</ol>
+<p><strong>Liveness</strong> — при исправных участниках система когда-нибудь продолжит обработку. Если A не может доказать право владения, безопаснее временно остановить запись, чем принять ее без гарантий. Так выбираем safety ценой availability.</p>
+<p>Здесь нужно говорить осторожно: конкретная политика допускает или не допускает потерю подтвержденных операций. При asynchronous failover RPO может быть ненулевым; протокол владения не превращает асинхронную репликацию в синхронную.</p>
+<h3 id="13">1.3. Событие «передача владения» должно иметь точку линеаризации<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Точка линеаризации (<em>linearization point</em>) — событие, позволяющее считать передачу владения состоявшейся в одном логическом мгновении для наблюдателей корректного протокола. Ее можно реализовать атомарным изменением метаданных <strong>при условии</strong>, что старый путь записи предварительно закрыт, а новый не открывается раньше допустимой границы.</p>
+<p>Изменение <code>owner = B</code> в кеше роутера не является такой точкой: разные приложения видят разные версии кеше, а A еще способен выполнить COMMIT.</p>
+<p><strong>Инженерный вывод:</strong> прежде чем выбирать систему координации, сформулируйте, какие операции обязаны отвергаться <em>до</em>, <em>во время</em> и <em>после</em> cutover.</p>
+<h2 id="2">2. Почему маршрутизация не является защитой от записи<a class="headerlink" href="#2" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Карта размещения — подсказка для отправки, но не запрет<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Упрощенная схема:</p>
+<div class="highlight"><pre><span></span><code>Router-1 cache: shard 7 -&gt; A (epoch 41)
+Router-2 cache: shard 7 -&gt; B (epoch 42)
+
+Client X -&gt; Router-1 -&gt; PostgreSQL A -&gt; COMMIT
+Client Y -&gt; Router-2 -&gt; PostgreSQL B -&gt; COMMIT
+</code></pre></div>
+<p>Каждый router исправно следует своей карте. Проблема в том, что старая карта продолжает давать доступ к физической записи. Кеш влияет на доступность и задержку маршрутизации, но <strong>не может единолично доказывать право владельца</strong>.</p>
+<p>Даже если metadata service хранит одну актуальную запись, читатель карты мог сделать запрос раньше обновления, зависнуть, а выполнить SQL позже.</p>
+<h3 id="22">2.2. Конкретный гоняющийся сценарий<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>T0  Router R читает owner=A, epoch=41
+T1  R отправляет UPDATE, пакет задерживается сетью
+T2  Coordinator завершает перенос и назначает B, epoch=42
+T3  B принимает новый UPDATE и фиксирует его
+T4  Задержанный UPDATE от R приходит в A
+T5  A по-прежнему разрешает запись -&gt; подтверждает старый UPDATE
+</code></pre></div>
+<p>После T2 мы уже обещали, что B является единственным владельцем. Но запись на A произошла позже. Состояния разошлись; никакой локальный <code>UNIQUE</code> или <code>SERIALIZABLE</code> между A и B не помог.</p>
+<h3 id="23">2.3. Четыре уровня, которые нельзя смешивать<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Уровень</th>
+<th>Что решает</th>
+<th>Чего не гарантирует</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Discovery</td>
+<td>Куда направить соединение</td>
+<td>Отсутствия записи через старый адрес</td>
+</tr>
+<tr>
+<td>Router cache</td>
+<td>Быстрое сопоставление shard → node</td>
+<td>Актуальности к моменту COMMIT</td>
+</tr>
+<tr>
+<td>Authority</td>
+<td>Упорядоченный выбор владельца</td>
+<td>Автоматического запрета SQL на старом PostgreSQL</td>
+</tr>
+<tr>
+<td>Data-plane enforcement</td>
+<td>Отказ старым write-путям</td>
+<td>Сам по себе не копирует данные и WAL</td>
+</tr>
+</tbody>
+</table>
+<p>Последний уровень — физически важнейший. Система должна контролировать <strong>путь к изменяемому состоянию</strong>, а не только способ обнаружить новый адрес.</p>
+<h2 id="3-leases">3. Leases: почему время владения само по себе не спасает<a class="headerlink" href="#3-leases" title="Permanent link">¶</a></h2>
+<h3 id="31-lease">3.1. Lease как временное право<a class="headerlink" href="#31-lease" title="Permanent link">¶</a></h3>
+<p><strong>Lease</strong> — право, действительное ограниченный срок, если владелец успевает его продлевать через authority. Например, coordination service считает A лидером до истечения lease.</p>
+<p>Наивная реализация:</p>
+<div class="highlight"><pre><span></span><code>A: lease действует еще 10 секунд
+A: можно выполнять UPDATE
+A: завис на 30 секунд
+Authority: lease истек, B назначен владельцем
+A: проснулся и продолжил ранее подготовленный UPDATE
+</code></pre></div>
+<p>А может быть и задержанный сетевой запрос: процесс уже отпустил lease, но его команда движется к storage по сети. Проверка <code>now() &lt; lease_expires_at</code> в приложении перед отправкой команды не гарантирует право на момент применения.</p>
+<h3 id="32">3.2. Почему часы здесь опасны<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p>Если сравнение lease зависит от локальных часов независимых машин, рассинхронизация и скачки времени меняют смысл проверки. Согласованный coordinator может управлять временем жизни lease, однако участникам все равно приходится учитывать паузы процессов и сетевые задержки.</p>
+<p>Для инварианта safety недостаточно утверждения: «процесс обещал остановиться после TTL». У него может не быть возможности исполнить это обещание.</p>
+<h3 id="33-lease-fencing">3.3. Lease дает лидерство в метаданных; нужен еще fencing<a class="headerlink" href="#33-lease-fencing" title="Permanent link">¶</a></h3>
+<p>В Patroni, например, лидерский lock в DCS имеет TTL, а daemon должен своевременно прекращать запись при потере лидерства. Для случаев, когда daemon не может отреагировать, предусмотрен watchdog. Это реальный механизм HA. Но в учебном протоколе миграции shard мы будем отдельно строить запрет записи на бывшем владельце; <strong>fencing token не является автоматической функцией Patroni или PostgreSQL</strong>.</p>
+<p>Ссылки: Patroni leader race и watchdog в разделе источников.</p>
+<h2 id="4-epoch-fencing-token">4. Epoch и fencing token: два числа с разной ролью<a class="headerlink" href="#4-epoch-fencing-token" title="Permanent link">¶</a></h2>
+<h3 id="41-epoch">4.1. Epoch — поколение размещения<a class="headerlink" href="#41-epoch" title="Permanent link">¶</a></h3>
+<p>Представим историю:</p>
+<div class="highlight"><pre><span></span><code>shard 7, epoch 41, owner A
+shard 7, epoch 42, owner B
+shard 7, epoch 43, owner A
+</code></pre></div>
+<p>Повторное появление <code>owner A</code> не означает возвращение к прежнему состоянию. Это <strong>новое поколение</strong>. Отсюда опасность ABA: проверка только имени владельца не различает старое A и новое A.</p>
+<p>Эпоха дает монотонный порядок назначений. Ее источником должна быть authority, которая гарантирует согласованность обновлений. Простое вычисление <code>epoch = previous + 1</code> на двух разобщенных узлах не решает задачу.</p>
+<h3 id="42-fencing-token-storage">4.2. Fencing token — доказательство порядка для storage<a class="headerlink" href="#42-fencing-token-storage" title="Permanent link">¶</a></h3>
+<p>В классической модели lock-сервис выдает токены 41, затем 42; storage отвергает операции с токенами более старого поколения. Пример:</p>
+<div class="highlight"><pre><span></span><code>A acquired lease -&gt; token 41
+A paused
+B acquired lease -&gt; token 42
+Storage accepted operation(token=42)
+A resumed -&gt; operation(token=41)
+Storage rejected stale token
+</code></pre></div>
+<p>Существенная деталь: storage должен <strong>сам</strong> проверять токены. Если проверка существует только в памяти клиента, старый клиент может продолжить писать. Порядок и назначение токенов можно строить на согласованной истории метаданных, например на монотонных revisions надежного coordination store.</p>
+<h3 id="43-max_seen_token">4.3. Почему одного <code>max_seen_token</code> иногда мало<a class="headerlink" href="#43-max_seen_token" title="Permanent link">¶</a></h3>
+<p>Представим, B получил token 42, но еще не совершил ни одной записи. Storage пока помнит <code>max_seen=41</code>. Старый A посылает операцию с token 41. Условие <code>incoming &gt;= max_seen</code> пропускает ее — <strong>хотя право владения уже перешло к B</strong>.</p>
+<p>Значит, для строгой гарантии «после cutover никаких старых записей» недостаточно ждать первой операции нового владельца. Нужен один из вариантов:</p>
+<ul>
+<li>barrier: storage атомарно установил минимальную допустимую эпоху 42 <em>до</em> объявления cutover;</li>
+<li>перед новой активацией прежний путь записи надежно остановлен или изолирован;</li>
+<li>все записи проходят через enforcement point, который проверяет текущее поколение на момент фиксации.</li>
+</ul>
+<p>Это более сильный инвариант, чем просто «новый токен больше старого». Источник идеи о fencing tokens — Kleppmann; требование к переходному barrier — инженерный вывод из выбранной нами более строгой модели.</p>
+<h3 id="44">4.4. Где проверять токен<a class="headerlink" href="#44" title="Permanent link">¶</a></h3>
+<p>Проверка должна быть связана с транзакцией, изменяющей бизнес-данные. Если <code>SELECT epoch</code> происходит отдельно от UPDATE, между запросами эпоха может смениться (TOCTOU — time of check to time of use).</p>
+<p>В одном PostgreSQL возможно использовать строковую блокировку в метаданных для синхронизации проверки с cutover. Но для <strong>двух независимых PostgreSQL</strong> это не создает общей транзакции: требуется отдельная coordination и enforcement-схема.</p>
+<p><strong>Инженерный вывод:</strong> epoch — версия права, fencing — защита операции от устаревшего права. Оба работают только при наличии достоверной authority и надежной точки применения запрета.</p>
+<h2 id="5-sql">5. Как сделать проверку атомарной с SQL: учебная локальная модель<a class="headerlink" href="#5-sql" title="Permanent link">¶</a></h2>
+<h3 id="51-lock">5.1. Модель одной БД: контрольная строка и общий lock<a class="headerlink" href="#51-lock" title="Permanent link">¶</a></h3>
+<p>Следующий пример <strong>намеренно ограничен одним PostgreSQL</strong>. Он показывает принцип «проверка и изменение под одной транзакционной защитой». Он не реализует полный sharding.</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">shard_control</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">shard_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="k">owner</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">epoch</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">epoch</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="w">    </span><span class="n">writable</span><span class="w"> </span><span class="nb">boolean</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">shard_accounts</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">shard_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">account_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">balance</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">shard_id</span><span class="p">,</span><span class="w"> </span><span class="n">account_id</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">shard_control</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="s1">'A'</span><span class="p">,</span><span class="w"> </span><span class="mi">41</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">shard_accounts</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">);</span>
+</code></pre></div>
+<p>Writer A:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">epoch</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">shard_control</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'A'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">writable</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span>
+<span class="c1">-- Если строк нет: отказать. Это проверяет вызывающий код.</span>
+
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">shard_accounts</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">100</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">account_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Переключатель:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">shard_control</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'B'</span><span class="p">,</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="n">writable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'A'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">41</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="n">epoch</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p><code>UPDATE shard_control</code> не сможет изменить ту же строку, пока Writer удерживает конфликтующую блокировку <code>FOR SHARE</code>. После успешного COMMIT переключения новый Writer с <code>owner=A, epoch=41</code> не пройдет проверку.</p>
+<p><strong>Условие корректности примера:</strong> <em>все</em> пути записи действительно получают этот lock и проверяют результат <strong>в той же транзакции</strong>, а DDL/суперпользователь не обходят этот протокол. Если один сервис выполняет UPDATE напрямую, гарантия разрушена. Реальное перемещение на B и его активация здесь отсутствуют.</p>
+<h3 id="52-select-lock">5.2. Почему <code>SELECT</code> без lock не сработает<a class="headerlink" href="#52-select-lock" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">shard_control</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w">  </span><span class="c1">-- 41</span>
+<span class="c1">-- Другая транзакция успела перевести epoch в 42.</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">shard_accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">100</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">account_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Обычный <code>SELECT</code> не удерживает нужную конфликтующую блокировку до COMMIT. Изолированный <code>UPDATE</code> счета не сверяет эпоху и проходит после назначения нового владельца.</p>
+<h3 id="53-writable">5.3. Еще одна плохая идея: два независимых флага writable<a class="headerlink" href="#53-writable" title="Permanent link">¶</a></h3>
+<p>Если A и B имеют локальные строки <code>writable=true</code>, каждая проверяет только свое состояние. Межсерверная гонка сохраняется. Нужно иметь <strong>один надежный протокол передачи</strong> и запрещать независимое открытие двух write-gates.</p>
+<p><strong>Не выдавать пример за готовую SQL-рецептуру для production:</strong> он объясняет механизм транзакционной синхронизации <em>внутри</em> узла и показывает, где возникает межузловая граница.</p>
+<h2 id="6-cas">6. Метаданные владения: CAS, ревизии и состояние переноса<a class="headerlink" href="#6-cas" title="Permanent link">¶</a></h2>
+<h3 id="61-authority">6.1. Authority хранит не только адрес<a class="headerlink" href="#61-authority" title="Permanent link">¶</a></h3>
+<p>Полезная модель записи:</p>
+<div class="highlight"><pre><span></span><code>shard_id: 7
+owner: A
+next_owner: B
+state: COPYING
+owner_epoch: 41
+map_revision: 8765
+cutover_position: null
+</code></pre></div>
+<p>Наличие state позволяет отличать копирование данных от момента, когда B действительно может писать. Поле <code>map_revision</code> помогает router обнаруживать устаревший кеш. Поле <code>owner_epoch</code> защищает от переиспользования прежнего назначения.</p>
+<h3 id="62-cas-update">6.2. CAS вместо «последний UPDATE победил»<a class="headerlink" href="#62-cas-update" title="Permanent link">¶</a></h3>
+<p>CAS (<em>compare-and-swap</em>) — атомарная проверка прежнего состояния с последующей заменой. В etcd это можно реализовать транзакцией <code>Compare -&gt; Then/Else</code> над версией ключа. Пример логического перехода:</p>
+<div class="highlight"><pre><span></span><code>IF shard7.state == FENCED
+AND shard7.owner_epoch == 41
+AND shard7.transfer_id == T123
+THEN owner=B, owner_epoch=42, state=ACTIVE
+ELSE abort cutover and reconcile
+</code></pre></div>
+<p>Если два координатора одновременно пытаются выполнить переключение, только один допустимый CAS должен выиграть. Но атомарность изменения <strong>метаданных</strong> не гарантирует, что PostgreSQL A прекратил запись. Это по-прежнему отдельный этап.</p>
+<h3 id="63-router-cache">6.3. Router cache и устаревшие ревизии<a class="headerlink" href="#63-router-cache" title="Permanent link">¶</a></h3>
+<p>Кеш можно инвалидировать уведомлением, TTL, активной подпиской на изменения или отказом при несоответствии epoch. Но сообщения об инвалидации могут быть задержаны или потеряны.</p>
+<p>Корректный путь обработки устаревшей карты:</p>
+<div class="highlight"><pre><span></span><code>Router -&gt; old A: operation(epoch=41)
+A: STALE_EPOCH(current=42) или WRITE_FENCED
+Router -&gt; Authority: refresh shard map
+Router -&gt; B: retry(operation_id, epoch=42)
+</code></pre></div>
+<p>Повтор запроса должен учитывать, что первоначальная попытка могла уже зафиксироваться. Поэтому <code>operation_id</code> понадобится при разборе неопределенного COMMIT.</p>
+<h2 id="7-online-resharding">7. Протокол online resharding: где должна быть граница<a class="headerlink" href="#7-online-resharding" title="Permanent link">¶</a></h2>
+<p>Наша задача: переместить shard 7 с A на B. Вариант с управляемой короткой паузой записи проще доказать и часто достаточно практичен.</p>
+<h3 id="71-0">7.1. Шаг 0: зафиксировать предпосылки<a class="headerlink" href="#71-0" title="Permanent link">¶</a></h3>
+<p>Перед стартом:</p>
+<ul>
+<li>источник A — единственный действующий владелец epoch 41;</li>
+<li>B не принимает бизнес-записи по shard 7;</li>
+<li>алгоритм передачи фиксирует начальный snapshot и отслеживает более поздние изменения без пропусков;</li>
+<li>есть достаточные WAL/логические журналы и место под их удержание;</li>
+<li>клиентские операции имеют стабильные идентификаторы, пригодные для повторной проверки;</li>
+<li>координатор может надежно запретить запись в A и убедиться, что все старые записи завершены или отменены.</li>
+</ul>
+<p>Если последнее не выполняется, <strong>гарантию единственного владельца мы не доказали</strong>.</p>
+<h3 id="72-1-snapshot">7.2. Шаг 1: snapshot и копирование<a class="headerlink" href="#72-1-snapshot" title="Permanent link">¶</a></h3>
+<p>B получает согласованный начальный снимок данных. A продолжает принимать пользовательскую запись. Параллельно по выбранному механизму передаются дельты, возникшие после фиксированной позиции snapshot.</p>
+<div class="highlight"><pre><span></span><code>A (writer)           Change stream           B (shadow)
+Snapshot S ----------- full copy ----------&gt; initial rows
+T1 commit ---------- delta 1 ------------&gt; apply
+T2 commit ---------- delta 2 ------------&gt; apply
+T3 commit ---------- delta 3 ------------&gt; apply
+</code></pre></div>
+<p>Важно, чтобы граница snapshot и старт дельта-потока были согласованы. Произвольное «сначала COPY, потом начнем читать изменения» создает окно потери записей.</p>
+<h3 id="73-2">7.3. Шаг 2: догнать поток и оценить возможность переключения<a class="headerlink" href="#73-2" title="Permanent link">¶</a></h3>
+<p>Догоняем очередь до малого размера. Пусть A генерирует 80 МБ/с, а B применяет 110 МБ/с. Тогда при backlog 3 ГБ в идеальной модели минимальное время догоняния: <code>3000 / (110-80) = 100 секунд</code> (десятичные MB/GB, без накладных расходов). Если apply медленнее generation, backlog растет и cutover никогда не станет дешевым.</p>
+<p>Наблюдаем: объем очереди, скорость генерации/применения, конфликтующие транзакции, время удержания старого snapshot, WAL retention и свободное место.</p>
+<h3 id="74-3-write-barrier-a">7.4. Шаг 3: write barrier на A<a class="headerlink" href="#74-3-write-barrier-a" title="Permanent link">¶</a></h3>
+<p>В установленный момент координатор перестает пропускать новые операции записи на A и дожидается решения по всем ранее начатым write-транзакциям. Возможные способы: локальный сериализующий gate, остановка write endpoint, контролируемое закрытие старых соединений, инфраструктурное fencing.</p>
+<p><strong>Критично:</strong> остановить <em>только новые</em> подключения недостаточно, если старые открытые транзакции способны зафиксироваться после момента переключения. Надо либо дождаться их завершения и включить в дельту, либо гарантированно их прервать.</p>
+<h3 id="75-4-barrier-position">7.5. Шаг 4: зафиксировать barrier position<a class="headerlink" href="#75-4-barrier-position" title="Permanent link">¶</a></h3>
+<p>Когда запись на A закрыта, получаем согласованную границу <code>L_cut</code> (или иной application-level sequence). Это позиция, относительно которой доказано: <strong>после нее A больше не сможет подтверждать новые операции shard 7</strong>.</p>
+<p>В простой модели все коммиты до <code>L_cut</code> должны попасть в B до активации. Не следует путать LSN в двух разных PostgreSQL: их абсолютные значения нельзя напрямую сравнивать как глобальное время. Для логической передачи используется согласованная позиция <em>источника</em> и подтверждение ее применения приемником.</p>
+<h3 id="76-5-b">7.6. Шаг 5: B подтверждает применение границы<a class="headerlink" href="#76-5-b" title="Permanent link">¶</a></h3>
+<p>B должен доказать, что применил все изменения shard до <code>L_cut</code>. «Получил пакет» не обязательно означает «сохранил и применил транзакцию». Проверяем этап именно для выбранного механизма transfer и его durability-правил.</p>
+<p>Если часть данных потеряна или есть конфликт — cutover запрещен. Источник остается владельцем или перенос переходит в безопасный режим восстановления в зависимости от состояния write barrier.</p>
+<h3 id="77-6-cas-b">7.7. Шаг 6: CAS карты и открытие B<a class="headerlink" href="#77-6-cas-b" title="Permanent link">¶</a></h3>
+<p>После подтверждения barrier и fencing A координатор атомарно обновляет authority:</p>
+<div class="highlight"><pre><span></span><code>A / epoch 41 / FENCED  -&gt;  B / epoch 42 / ACTIVE
+</code></pre></div>
+<p>B открывает gate записи только когда видит подтвержденное назначение epoch 42. Старый A остается заблокированным независимо от того, знают ли все маршрутизаторы о новой карте.</p>
+<p>В более строгой реализации активирование B и запись метаданных должны иметь определенный протокол recovery после сбоя координатора: если процесс умер между этими шагами, система должна восстановить состояние, <strong>не открыв два gate</strong>.</p>
+<h3 id="78-7">7.8. Шаг 7: удалить старую копию только после контрольных проверок<a class="headerlink" href="#78-7" title="Permanent link">¶</a></h3>
+<p>Cleanup запускаем после установления корректной работы новой топологии и соблюдения rollback-политики. Данные A в это время уже не авторитетны. Слишком раннее удаление лишает возможности расследовать расхождения и восстановить сбой переноса.</p>
+<p><strong>Цена:</strong> краткое окно недоступности записи на одном shard, дополнительное место на B, нагрузка на WAL/logical decoding, сетевой трафик и нагрузка на координатор. «Zero downtime» часто означает небольшое короткое окно write lock, которое нужно измерять.</p>
+<h2 id="8-coordinator">8. Состояния переноса: что делать, если coordinator умер<a class="headerlink" href="#8-coordinator" title="Permanent link">¶</a></h2>
+<h3 id="81-state-machine">8.1. State machine<a class="headerlink" href="#81-state-machine" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>ACTIVE_A
+   |
+   | begin transfer T123
+   v
+COPYING_A_TO_B  -- failure --&gt; RESUME_COPY / ABORT_COPY
+   |
+   | catch-up complete
+   v
+CATCHING_UP
+   |
+   | fence A and drain writes
+   v
+FENCED_A
+   |
+   | B applied barrier
+   v
+READY_TO_SWITCH
+   |
+   | CAS metadata + controlled open B
+   v
+ACTIVE_B
+   |
+   | verification and retention window
+   v
+CLEANUP_A
+</code></pre></div>
+<p>Переходы должны быть идемпотентными: повторная команда <code>fence shard 7 for T123</code> не должна снова открывать запись и не должна случайно переносить другой shard.</p>
+<h3 id="82-crash-points">8.2. Таблица crash points<a class="headerlink" href="#82-crash-points" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Момент сбоя</th>
+<th>Возможное состояние</th>
+<th>Безопасное восстановление</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Во время COPY</td>
+<td>A владелец, B неполная копия</td>
+<td>A пишет; докопировать или пересоздать B</td>
+</tr>
+<tr>
+<td>Во время delta apply</td>
+<td>A владелец, очередь растет</td>
+<td>Возобновить по надежной позиции; проверить дедупликацию</td>
+</tr>
+<tr>
+<td>После закрытия A</td>
+<td>A fenced, B еще shadow</td>
+<td>Удерживать запись, догнать B; не открывать оба</td>
+</tr>
+<tr>
+<td>После B caught up, до CAS</td>
+<td>A fenced, B ready</td>
+<td>Повторить CAS по <code>transfer_id</code>, не перебирать вслепую владельцев</td>
+</tr>
+<tr>
+<td>После CAS, до открытия B</td>
+<td>Authority=B, запись временно недоступна</td>
+<td>B проверяет эпоху и открывается; A остается fenced</td>
+</tr>
+<tr>
+<td>После открытия B</td>
+<td>Новые записи на B</td>
+<td>Только после проверки удалить A</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-a">8.3. Почему нельзя «по таймауту открыть A обратно»<a class="headerlink" href="#83-a" title="Permanent link">¶</a></h3>
+<p>Если координатор не уверен, состоялся ли CAS, автоматическое открытие старого A по локальному timeout может создать split-brain. Сначала нужно прочитать авторитетное состояние и убедиться, что ни один новый владелец не активирован.</p>
+<h3 id="84-abort">8.4. Что означает abort переноса<a class="headerlink" href="#84-abort" title="Permanent link">¶</a></h3>
+<p>До write barrier abort прост: прекратить копирование и оставить A. После barrier — сложнее: нужно убедиться, что B не был открыт и карта не переключена, а затем <strong>согласованно</strong> снять fencing A. После первого подтвержденного COMMIT на B возврат к A требует обратного переноса или отдельного recovery-протокола; простое возвращение указателя уже теряет данные.</p>
+<h2 id="9">9. Режим без заметной паузы: почему он сложнее<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<p>Варианты без общего write-stop могут использовать dual-write, per-key ownership transfer или протокол forward/redirect. Но эти методы требуют более сложной координации.</p>
+<h3 id="91-dual-write-commit">9.1. Dual-write с двумя COMMIT<a class="headerlink" href="#91-dual-write-commit" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>write A -&gt; COMMIT OK
+write B -&gt; timeout
+</code></pre></div>
+<p>Теперь невозможно заявить атомарный результат на двух независимых PostgreSQL. Пользовательская операция частично применена. Нужны распределенная атомарность либо идемпотентная компенсация с учетом реальных бизнес-инвариантов. Простая двойная отправка SQL не делает перенос безопасным.</p>
+<h3 id="92-forwarding">9.2. Forwarding со старого владельца<a class="headerlink" href="#92-forwarding" title="Permanent link">¶</a></h3>
+<p>Старый A может после cutover возвращать <code>MOVED(epoch=42, owner=B)</code> или проксировать запрос к B. Но перенаправление обязано быть частью контролируемой схемы fencing: A не должен одновременно считать себя write-owner. Для повторной отправки используется стабильный <code>operation_id</code>.</p>
+<h3 id="93-per-key-transfer">9.3. Per-key transfer<a class="headerlink" href="#93-per-key-transfer" title="Permanent link">¶</a></h3>
+<p>Передавать ключи постепенно можно, если система отдельно хранит актуального владельца каждого диапазона/ключа и атомарно синхронизирует их gate. Это уменьшает паузу, но резко увеличивает объем метаданных и число пограничных состояний.</p>
+<h3 id="94">9.4. Обоснование компромисса<a class="headerlink" href="#94" title="Permanent link">¶</a></h3>
+<p>В backend-системе часто правильнее объяснимое окно недоступности записи 100–300 мс в контролируемом тесте, чем обещание «без остановки» с незакрытой гонкой. Конкретная длительность зависит от активных транзакций, backlog и оборудования и не гарантируется самим алгоритмом.</p>
+<h2 id="10-commit">10. Неопределенный COMMIT: запрос мог завершиться до потери ответа<a class="headerlink" href="#10-commit" title="Permanent link">¶</a></h2>
+<h3 id="101">10.1. Два неразличимых для клиента сценария<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Scenario A:
+Client -&gt; A: UPDATE; COMMIT
+A: COMMIT durable
+A -&gt; Client: OK lost in network
+Client: timeout
+
+Scenario B:
+Client -&gt; A: UPDATE; COMMIT
+A: crash before COMMIT
+Client: timeout
+</code></pre></div>
+<p>Клиент видит один и тот же timeout. В первом случае операция уже выполнена, во втором — нет. Если сюда добавить failover или cutover, попытка может находиться на старой либо новой истории.</p>
+<h3 id="102">10.2. Статусы нельзя выводить из сетевой ошибки<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<p><code>connection reset</code>, <code>context deadline exceeded</code> или <code>EOF</code> не доказывают откат. PostgreSQL-драйвер не способен восстановить потерянный результат за клиента. В случае неопределенного результата следует проверять <strong>стабильный идентификатор операции</strong> в авторитетном состоянии.</p>
+<p>Если проверка идет на standby, он может отставать; если проверка идет по старой карте, запрос может попасть на бывший владелец. Значит, сам запрос согласования обязан использовать актуальную карту и выбранную политику согласованности чтения.</p>
+<h3 id="103-async-failover">10.3. Дополнительный риск при async failover<a class="headerlink" href="#103-async-failover" title="Permanent link">¶</a></h3>
+<p>Допустим, A подтвердил COMMIT и запись в таблице <code>operation_log</code>, но выбранная асинхронная standby B этих изменений не получила. Тогда после failover B не находит ни бизнес-изменения, ни запись об идемпотентности. Повтор может снова исполнить операцию в новой истории.</p>
+<p><strong>Идемпотентность не восстанавливает потерянные подтвержденные транзакции.</strong> За эту гарантию отвечает политика durability/replication и корректное переключение. Если внешняя система уже получила эффект от старой операции, нужен отдельный процесс сверки.</p>
+<h2 id="11-operation-id">11. Идемпотентность, дедупликация и жизненный цикл operation ID<a class="headerlink" href="#11-operation-id" title="Permanent link">¶</a></h2>
+<h3 id="111-">11.1. Одна бизнес-операция, один идентификатор<a class="headerlink" href="#111-" title="Permanent link">¶</a></h3>
+<p>Пусть клиент передает <code>operation_id = 1c7...</code>. На каждом повторах он использует тот же ID, а не новый. Backend обязан атомарно сохранить бизнес-изменение и результат операции в <strong>одной транзакционной области</strong>, на которой гарантирована уникальность этого ID.</p>
+<p>Пример схемы на одном shard:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">operation_log</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">operation_id</span><span class="w"> </span><span class="n">uuid</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">request_hash</span><span class="w"> </span><span class="n">bytea</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'done'</span><span class="p">,</span><span class="s1">'rejected'</span><span class="p">)),</span>
+<span class="w">    </span><span class="k">result</span><span class="w"> </span><span class="n">jsonb</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">completed_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">now</span><span class="p">()</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">account_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">balance</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">balance</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="p">);</span>
+</code></pre></div>
+<p><code>operation_log</code> и <code>accounts</code> должны мигрировать как единая единица владения. Уникальность <code>operation_id</code> только внутри A не остановит повтор на B, если ledger не перенесен до cutover.</p>
+<h3 id="112">11.2. Учебная транзакция с дедупликацией<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="c1">-- Попытка зарезервировать ID операции в том же shard.</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">operation_log</span><span class="p">(</span><span class="n">operation_id</span><span class="p">,</span><span class="w"> </span><span class="n">request_hash</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="k">result</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(:</span><span class="n">op_id</span><span class="p">,</span><span class="w"> </span><span class="p">:</span><span class="n">hash</span><span class="p">,</span><span class="w"> </span><span class="s1">'done'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"placeholder":true}'</span><span class="p">::</span><span class="n">jsonb</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">CONFLICT</span><span class="w"> </span><span class="p">(</span><span class="n">operation_id</span><span class="p">)</span><span class="w"> </span><span class="k">DO</span><span class="w"> </span><span class="k">NOTHING</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="n">operation_id</span><span class="p">;</span>
+
+<span class="c1">-- Если INSERT ничего не вернул, нужно прочитать старый результат</span>
+<span class="c1">-- и сравнить request_hash. НЕ выполнять повторный debit.</span>
+<span class="c1">-- Если ID новый, выполняем бизнес-изменение в этой же транзакции.</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">:</span><span class="n">amount</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">account_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">account_id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="p">:</span><span class="n">amount</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="n">balance</span><span class="p">;</span>
+
+<span class="c1">-- Проверить, что изменилась ровно одна строка; иначе ROLLBACK</span>
+<span class="c1">-- или зафиксировать отказ в согласованной модели результата.</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">operation_log</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">jsonb_build_object</span><span class="p">(</span><span class="s1">'new_balance'</span><span class="p">,</span><span class="w"> </span><span class="p">:</span><span class="n">new_balance</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">operation_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">:</span><span class="n">op_id</span><span class="p">;</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Это <strong>схема алгоритма</strong>, а не готовый запускаемый SQL: <code>:op_id</code>, <code>:amount</code>, <code>:new_balance</code> — параметры приложения; ветвления и обработка ошибок должны быть реализованы явно. Все три оператора и проверки происходят в одной транзакции на авторитетном shard. Если операция откатывается, резервирование ID тоже откатывается.</p>
+<p>Для обучающей реализации проще написать функцию/Go-handler с явным различением <code>inserted</code>, <code>duplicate_same_payload</code>, <code>duplicate_different_payload</code>, <code>insufficient_funds</code>.</p>
+<h3 id="113">11.3. Почему одного уникального индекса недостаточно<a class="headerlink" href="#113" title="Permanent link">¶</a></h3>
+<p>Повтор может прийти с тем же <code>operation_id</code>, но другим payload. Нужно сверять стабильный <code>request_hash</code>, иначе злоумышленник/ошибка клиента переиспользует ID для другого действия. Храним результат, чтобы после timeout вернуть эквивалентный ответ без повторного бизнес-эффекта.</p>
+<h3 id="114-ledger">11.4. Срок хранения ledger и удаление дедупликации<a class="headerlink" href="#114-ledger" title="Permanent link">¶</a></h3>
+<p>Если старые ключи удаляются через сутки, а клиент способен повторить операцию через неделю, защита перестает работать. Политика TTL <code>operation_log</code> — часть контракта повторов. При resharding переносится и соответствующий срок удержания.</p>
+<p><strong>Цена:</strong> уникальный индекс, дополнительные записи и WAL, contention при параллельных повторах одного ID, очистка ledger. Это плата за предсказуемый результат повторных запросов.</p>
+<h2 id="12-cutover">12. Порядок операций и согласованность чтений после cutover<a class="headerlink" href="#12-cutover" title="Permanent link">¶</a></h2>
+<h3 id="121-commit">12.1. Почему два успешных COMMIT еще не означают общий порядок<a class="headerlink" href="#121-commit" title="Permanent link">¶</a></h3>
+<p>Пусть A подтвердил <code>SetBalance(900)</code>, затем B подтвердил <code>SetBalance(800)</code>. Если B получил старую копию без первой операции, конечное состояние может быть неверным. Поэтому важно передавать <strong>границу подтвержденных операций</strong>, а не только объем строк.</p>
+<h3 id="122-read-after-write-stale-readers">12.2. Read-after-write и stale readers<a class="headerlink" href="#122-read-after-write-stale-readers" title="Permanent link">¶</a></h3>
+<p>После переключения некоторые читатели продолжают обращаться к A. Их результат может быть устаревшим, а в худшем случае содержать операции, которые не попали в авторитетную новую историю. Если требуется read-your-writes, клиент должен идти на актуальный авторитетный shard и удостовериться, что нужная операция/позиция присутствует в выбранной истории.</p>
+<p>Числовые <code>epoch</code> или <code>LSN</code> на независимых PostgreSQL нельзя без дополнительного контракта интерпретировать как универсальную межсерверную временную шкалу.</p>
+<h3 id="123">12.3. Три вида порядка<a class="headerlink" href="#123" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Ownership order</strong>: epoch 41 раньше epoch 42.</li>
+<li><strong>Commit order внутри конкретного источника</strong>: упорядоченная история транзакций source A.</li>
+<li><strong>External observation order</strong>: когда клиент увидел ответ и отправил следующую операцию.</li>
+</ol>
+<p>Без протокола передачи границы эти порядки не обязаны совпадать. Из-за этого наблюдаемые последовательности могут нарушать ожидаемую линейность операций.</p>
+<h2 id="13-distributed-transactions-2pc">13. Distributed transactions, 2PC и переключение владельца<a class="headerlink" href="#13-distributed-transactions-2pc" title="Permanent link">¶</a></h2>
+<h3 id="131-2pc">13.1. Почему 2PC не является универсальным лекарством<a class="headerlink" href="#131-2pc" title="Permanent link">¶</a></h3>
+<p>У 2PC есть подготовленная транзакция и координатор, принимающий окончательное решение. Это может обеспечить атомарное решение между несколькими PostgreSQL при корректной реализации протокола, но добавляет prepared transactions, удержание ресурсов и сложное recovery координатора.</p>
+<p>В разборе shard cutover главная проблема — <strong>отмена права старого владельца и наличие согласованного состояния нового</strong>. 2PC может быть частью реализации, но не заменяет fencing, корректный routing и проверку выбора данных.</p>
+<h3 id="132-id">13.2. Две независимые операции не становятся атомарными от одинакового ID<a class="headerlink" href="#132-id" title="Permanent link">¶</a></h3>
+<p><code>operation_id</code> предотвращает повтор в пределах согласованной области дедупликации. Он не обеспечивает атомарное завершение <code>COMMIT A</code> и <code>COMMIT B</code>.</p>
+<p>Если изменение захватывает два shard, архитектура должна отдельно определить: нужна ли распределенная атомарность, допустима ли saga или операцию можно переработать так, чтобы изменять только один shard.</p>
+<h3 id="133">13.3. Почему приоритет — уменьшить распределенную область<a class="headerlink" href="#133" title="Permanent link">¶</a></h3>
+<p>Ко-локация связанных данных, единый владелец для бизнес-инварианта и минимизация cross-shard транзакций остаются полезными средствами снижения координационной стоимости. Но это напоминание результата 14.0, а не повтор алгоритмов distributed JOIN или 2PC.</p>
+<h2 id="14-failure-matrix">14. Failure matrix: когда какая гарантия нарушается<a class="headerlink" href="#14-failure-matrix" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Сбой</th>
+<th>Что происходит</th>
+<th>Какая проверка обязательна</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Потеря сети от A до authority</td>
+<td>A может думать, что lease действует</td>
+<td>Автоматический stop/fence при потере права; нельзя ждать вечного ACK</td>
+</tr>
+<tr>
+<td>Пауза A после чтения epoch</td>
+<td>A возобновляет старую операцию</td>
+<td>Data-plane проверяет текущую эпоху непосредственно при записи</td>
+</tr>
+<tr>
+<td>Отложенный пакет от router</td>
+<td>Старый запрос приходит после cutover</td>
+<td>A отвергает устаревший epoch или сам write-path закрыт</td>
+</tr>
+<tr>
+<td>Отказ в COPY</td>
+<td>B неполный</td>
+<td>A остается owner; безопасно перезапустить копирование</td>
+</tr>
+<tr>
+<td>Отказ после barrier</td>
+<td>A fenced, B shadow</td>
+<td>Не открывать A по таймауту; читать authority и завершать протокол</td>
+</tr>
+<tr>
+<td>Координатор умер после CAS</td>
+<td>B должен быть owner, но закрыт</td>
+<td>Идемпотентно открыть B; не возвращаться к A вслепую</td>
+</tr>
+<tr>
+<td>Клиент потерял COMMIT ACK</td>
+<td>Неизвестен результат</td>
+<td>Проверка <code>operation_id</code> в авторитетном shard</td>
+</tr>
+<tr>
+<td>Async failover с отстающим B</td>
+<td>На B нет части ACKed writes</td>
+<td>Признавать RPO/потерю, выполнять сверку, не обещать zero loss</td>
+</tr>
+<tr>
+<td>Дублирование delta stream</td>
+<td>Повторно пришли изменения</td>
+<td>Использовать протокол apply и дедупликацию изменений</td>
+</tr>
+<tr>
+<td>Частичное GC в старой копии</td>
+<td>Потеряно доказательство результата</td>
+<td>Удерживать ledger и audit до окончания окна повторов</td>
+</tr>
+</tbody>
+</table>
+<p>Отдельно стоит тестировать административный обход fencing, вторую write-роль в другом приложении и прямое подключение к A. Отсутствие двух владельцев в контрольном интерфейсе бесполезно, если по другому endpoint можно выполнять SQL напрямую.</p>
+<h2 id="15">15. Цена гарантий под нагрузкой<a class="headerlink" href="#15" title="Permanent link">¶</a></h2>
+<h3 id="151">15.1. Где возникают дополнительные расходы<a class="headerlink" href="#151" title="Permanent link">¶</a></h3>
+<p>Согласованное владение добавляет:</p>
+<ul>
+<li>чтение или проверку актуального состояния и epoch;</li>
+<li>удержание gate/lock во время критической операции;</li>
+<li>транзакционный <code>operation_log</code> и уникальный индекс;</li>
+<li>трафик snapshot + delta при миграции;</li>
+<li>кратковременную остановку записи на cutover;</li>
+<li>ожидание metadata CAS и повторное получение карты маршрутизации;</li>
+<li>при отказе — backlog и конкуренцию повторных запросов.</li>
+</ul>
+<h3 id="152-backlog-cutover">15.2. Расчет backlog перед cutover<a class="headerlink" href="#152-backlog-cutover" title="Permanent link">¶</a></h3>
+<p>Обозначим <code>G</code> — генерацию изменений (МБ/с), <code>A</code> — способность их применения (МБ/с), <code>Q</code> — накопленные изменения (МБ). Пока <code>A &gt; G</code>, идеальная оценка времени догоняния:</p>
+<p><code>T_catchup &gt;= Q / (A - G)</code>.</p>
+<p>Если <code>Q=6 000 МБ</code>, <code>G=75 МБ/с</code>, <code>A=125 МБ/с</code>, то <code>T &gt;= 120 с</code>. Это нижняя оценка без сетевых ретраев, блокировок, неравномерных транзакций и конкуренции за диск. Если <code>A &lt;= G</code>, очередь при непрерывной записи не исчезает; при cutover придется остановить поток и догонять остаток.</p>
+<h3 id="153-barrier">15.3. Очередь записи во время barrier<a class="headerlink" href="#153-barrier" title="Permanent link">¶</a></h3>
+<p>Если shard получает <code>λ=2500 операций/с</code>, а барьер держится <code>0.3 с</code>, во время окна образуется примерно <code>750</code> ожидающих операций при условии, что они не истекают и не отбрасываются. После открытия B возникает всплеск; без ограничений повторных попыток он может временно превысить исходную нагрузку.</p>
+<p>На практике нужна политика: backpressure, ограниченная очередь, deadline, retry budget, jitter и отказ с понятной клиенту семантикой.</p>
+<h3 id="154">15.4. Задержка по классам<a class="headerlink" href="#154" title="Permanent link">¶</a></h3>
+<p>Разделяем:</p>
+<ul>
+<li><code>route_lookup_latency</code> — получение карты;</li>
+<li><code>fencing_check_latency</code> — защита от устаревшей эпохи;</li>
+<li><code>business_tx_latency</code> — транзакционная работа на shard;</li>
+<li><code>replication_apply_lag</code> — отставание переносимых изменений;</li>
+<li><code>cutover_write_pause</code> — длительность остановки новых write;</li>
+<li><code>reconciliation_latency</code> — время проверки неопределенного результата.</li>
+</ul>
+<p>Иначе красивый p50 скрывает редкие 10-секундные хвосты во время переноса.</p>
+<h2 id="16">16. Диагностика: от симптома к слою нарушения<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<h3 id="161">16.1. Какие события писать в лог<a class="headerlink" href="#161" title="Permanent link">¶</a></h3>
+<p>Для каждой операции полезен структурированный набор: <code>operation_id</code>, <code>shard_id</code>, <code>routing_epoch</code>, <code>actual_owner</code>, <code>expected_owner</code>, <code>transfer_id</code>, <code>client_deadline</code>, <code>outcome_status</code>, <code>sqlstate</code>, <code>trace_id</code>. Не записывайте секреты и персональные данные в открытом виде; идентификаторы должны быть безопасны для журналирования.</p>
+<p>Для каждого cutover отдельно фиксировать: snapshot position, source barrier, applied position, CAS revision, фактический момент открытия B и событие fencing A.</p>
+<h3 id="162-pg_stat_activity">16.2. Почему одних <code>pg_stat_activity</code> недостаточно<a class="headerlink" href="#162-pg_stat_activity" title="Permanent link">¶</a></h3>
+<p>PostgreSQL видит свои backend-процессы и SQL, но не знает, какой <code>epoch</code> считает актуальным роутер и какую историю выбрала authority. При расследовании нужны одновременно:</p>
+<ol>
+<li>PostgreSQL журналы/LSN/транзакционные результаты на A и B;</li>
+<li>координатор: смены <code>state</code>, <code>owner</code>, <code>epoch</code>, CAS outcomes;</li>
+<li>router: карта, которую видел запрос, события refresh;</li>
+<li>бизнес-ledger: <code>operation_id</code> и результат в авторитетном shard.</li>
+</ol>
+<h3 id="163">16.3. Диагностическая матрица<a class="headerlink" href="#163" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Вероятный слой</th>
+<th>Как проверять</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STALE_EPOCH</code> резко вырос</td>
+<td>Router или давно работавшие клиенты</td>
+<td>Distribution cached epochs, время обновления карты</td>
+</tr>
+<tr>
+<td>Приняты записи на A после cutover</td>
+<td>Нарушено fencing</td>
+<td>Source audit, write-path bypass, время barrier</td>
+</tr>
+<tr>
+<td>B открыт, но данные отстают</td>
+<td>Ошибка границы apply</td>
+<td>Source <code>L_cut</code>, apply acknowledged position, conflicts</td>
+</tr>
+<tr>
+<td>Timeout без результата</td>
+<td>Неопределенный COMMIT</td>
+<td><code>operation_log</code> на текущем owner, доступность новой истории</td>
+</tr>
+<tr>
+<td>Миграция не завершается</td>
+<td>Backlog не сокращается</td>
+<td>Generation vs apply, долгие транзакции, WAL retention</td>
+</tr>
+<tr>
+<td>Всплеск ошибок сразу после cutover</td>
+<td>Старые соединения и retry storm</td>
+<td>Connection pools, <code>STALE_EPOCH</code>, retry budget</td>
+</tr>
+<tr>
+<td>Удалили A, затем нашли пропуск</td>
+<td>Ошибка в retention/cutover проверках</td>
+<td>Audit, источник дельт, журнал переноса</td>
+</tr>
+</tbody>
+</table>
+<h3 id="164">16.4. Политика реакции на нарушение<a class="headerlink" href="#164" title="Permanent link">¶</a></h3>
+<p><strong>Safety incident</strong> (подтверждены конфликтующие владельцы): немедленно прекратить запись в спорный shard, сохранить журналы обеих ветвей, определить авторитетную историю, оценить затронутые операции и выполнить бизнес-сверку. Автоматическое слияние двух записывавших копий без конфликтного протокола опасно.</p>
+<p><strong>Availability incident</strong> (все write-gates закрыты): проверить authority и состояние transfer, восстановить единственного owner по state machine, только затем открывать запись. Это неприятный отказ, но потенциально безопаснее незаметного split-brain.</p>
+<h2 id="17">17. Демонстрация и отказные эксперименты<a class="headerlink" href="#17" title="Permanent link">¶</a></h2>
+<h3 id="171-postgresql">17.1. Локально воспроизводимая гонка в одном PostgreSQL<a class="headerlink" href="#171-postgresql" title="Permanent link">¶</a></h3>
+<p><strong>Цель:</strong> показать, почему атомарная проверка права должна удерживаться до COMMIT.</p>
+<p>Используйте таблицы из раздела 5. Откройте две сессии.</p>
+<p><strong>Сессия A:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">shard_control</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="o">=</span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="k">owner</span><span class="o">=</span><span class="s1">'A'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">epoch</span><span class="o">=</span><span class="mi">41</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">writable</span>
+<span class="k">FOR</span><span class="w"> </span><span class="k">SHARE</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span><span class="w">  </span><span class="c1">-- учебная пауза, НЕ production-код</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">shard_accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="o">=</span><span class="n">balance</span><span class="o">-</span><span class="mi">100</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="o">=</span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">account_id</span><span class="o">=</span><span class="mi">42</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Сессия B (во время паузы):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">lock_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2s'</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">shard_control</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">epoch</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="k">owner</span><span class="o">=</span><span class="s1">'B'</span><span class="p">,</span><span class="w"> </span><span class="n">writable</span><span class="o">=</span><span class="k">false</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">shard_id</span><span class="o">=</span><span class="mi">7</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">epoch</span><span class="o">=</span><span class="mi">41</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаемо B получит <code>lock_timeout</code>, если A все еще удерживает <code>FOR SHARE</code>. Сразу после этого повторите эксперимент <strong>без</strong> <code>FOR SHARE</code>: B сможет изменить epoch, пока A спит, а поздний <code>UPDATE shard_accounts</code> от A пройдет. Так руками видим TOCTOU.</p>
+<p><strong>Внимание:</strong> <code>pg_sleep</code> в открытой транзакции намеренно создает плохое удержание lock. Только изолированная учебная БД.</p>
+<h3 id="172-fencing">17.2. Двухузловой эксперимент: доказательство fencing<a class="headerlink" href="#172-fencing" title="Permanent link">¶</a></h3>
+<p>Требуются два независимых PostgreSQL и тестовый координатор/маршрутизатор с собственным источником authority. Этот эксперимент не реализуется одним SQL-скриптом.</p>
+<ol>
+<li>Назначить A владельцем <code>epoch=41</code>; записать несколько тысяч операций со стабильными IDs.</li>
+<li>Начать snapshot+delta в B; параллельно продолжить запись на A.</li>
+<li>Задержать один запрос старого router сразу после чтения карты.</li>
+<li>Закрыть gate A, дождаться активных транзакций, зафиксировать source barrier.</li>
+<li>Дождаться применения barrier на B; сделать CAS <code>A/41 -&gt; B/42</code>.</li>
+<li>Открыть gate B; отпустить задержанный запрос на A.</li>
+<li>Проверить, что старый запрос отклонен, а все ранее подтвержденные операции присутствуют на B.</li>
+<li>Повторить с аварией координатора после каждого перехода state machine.</li>
+</ol>
+<p>Составьте реестр с <code>operation_id</code>, временем вызова, временем ответа, epoch, выбранным node и outcome. Именно он позволяет проверить историю после искусственных отказов.</p>
+<h3 id="173-commit">17.3. Эксперимент на неопределенный COMMIT<a class="headerlink" href="#173-commit" title="Permanent link">¶</a></h3>
+<p>Запрос на A успешно выполнил COMMIT, но тестовый прокси оборвал ответ. Клиент получает timeout. После cutover он обращается по <code>operation_id</code> к B и узнает результат без повторного списания. Повторите с остановкой A <strong>до</strong> COMMIT и сравните. При асинхронном failover отдельно включите сценарий потерянной подтвержденной операции: результат эксперимента зависит от политики replication, и это нужно прямо зафиксировать.</p>
+<h3 id="174">17.4. Какие измерения собрать<a class="headerlink" href="#174" title="Permanent link">¶</a></h3>
+<ul>
+<li>число принятых на stale owner операций (должно быть <strong>0</strong> в безопасной реализации);</li>
+<li>число подтвержденных операций, отсутствующих на новой авторитетной истории (должно соответствовать заявленной политике RPO; для zero-loss — <strong>0</strong>);</li>
+<li><code>cutover_write_pause</code> p50/p95/max;</li>
+<li>время достижения <code>L_cut</code> на B;</li>
+<li>число timeout и доля результатов, восстановленных по operation ID;</li>
+<li>доля stale-route запросов и среднее время refresh;</li>
+<li>максимальный backlog, место под WAL и скорость его роста;</li>
+<li>количество повторных бизнес-эффектов (должно быть <strong>0</strong> при заявленной идемпотентности).</li>
+</ul>
+<hr/>
+<h2 id="18-postgresql-patroni-citus-etcd">18. Как это связано с PostgreSQL, Patroni, Citus и etcd<a class="headerlink" href="#18-postgresql-patroni-citus-etcd" title="Permanent link">¶</a></h2>
+<h3 id="181-postgresql-18">18.1. PostgreSQL 18<a class="headerlink" href="#181-postgresql-18" title="Permanent link">¶</a></h3>
+<p>Стандартный PostgreSQL обеспечивает локальные транзакции и physical/logical replication, но не выдает универсальные <code>shard_epoch</code> и <code>fencing_token</code>, не содержит встроенной глобальной карты распределенных shard и не координирует произвольные cross-node cutover транзакции. <code>pg_promote()</code> повышает standby, но не запрещает старому primary принимать запись. Протоколы выше — <strong>дизайн поверх PostgreSQL</strong>, а не SQL-функции ядра.</p>
+<h3 id="182-patroni">18.2. Patroni<a class="headerlink" href="#182-patroni" title="Permanent link">¶</a></h3>
+<p>Patroni использует DCS для лидерства и TTL lease; может останавливать Postgres при утрате права лидерства и применять watchdog как дополнительную защиту. Это относится к <strong>отказоустойчивости primary конкретного PostgreSQL-кластера</strong>. Не следует выдавать этот механизм за систему передачи ownership каждого бизнес-shard между произвольными инстансами.</p>
+<h3 id="183-citus">18.3. Citus<a class="headerlink" href="#183-citus" title="Permanent link">¶</a></h3>
+<p>Документация Citus для актуальной линии описывает rebalancing через PostgreSQL logical replication: основная фаза копирования и синхронизации допускает продолжающиеся записи, а на этапе переключения размещения используется кратковременная блокировка записи и изменение метаданных. Это <strong>реальный пример контролируемого cutover</strong>. Детали внутренних блокировок и протокола зависят от версии Citus; описанная учебная <code>epoch</code>-схема не является обещанием, что Citus реализует именно такие поля.</p>
+<h3 id="184-etcd">18.4. etcd и ревизии<a class="headerlink" href="#184-etcd" title="Permanent link">¶</a></h3>
+<p>etcd предоставляет атомарные операции Compare-and-Swap и возрастающие <code>revision</code> на изменения. Их можно использовать в качестве источника монотонного порядка назначений. Но etcd не запрещает напрямую отправленный SQL на старый PostgreSQL: fencing по-прежнему должен быть обеспечен в data plane.</p>
+<hr/>
+<h2 id="19">19. Главные выводы и техническая модель<a class="headerlink" href="#19" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Routing и ownership различаются.</strong> Кеш маршрутизатора указывает адрес; право записи должно подтверждаться и принудительно соблюдаться на уровне исполнения.</li>
+<li><strong>Lease без fencing недостаточен.</strong> Старый процесс или задержанный пакет может попытаться записать после истечения lease. Epoch и токены полезны только при надежной проверке.</li>
+<li><strong>Монотонный token не равен мгновенному запрету старого владельца.</strong> До объявления cutover необходимо установить write barrier или иным образом гарантировать, что старые операции не смогут зафиксироваться.</li>
+<li><strong>Корректный cutover имеет две границы:</strong> A прекратил запись; B применил все необходимые изменения до согласованной позиции. После этого допустима атомарная смена карты и контролируемое открытие B.</li>
+<li><strong>Любой переход должен переживать crash координатора.</strong> Нельзя открывать A и B одновременно из-за timeout или неоднозначного ответа CAS.</li>
+<li><strong>Timeout после COMMIT создает неопределенность, а не откат.</strong> Нужна проверка стабильного operation ID в авторитетной истории. Ledger должен перемещаться вместе с бизнес-данными и иметь корректную durability.</li>
+<li><strong>Сильная гарантия стоит ресурсов.</strong> Write barrier, дополнительная репликация, хранение ledger, проверка epochs, retry budget и задержки cutover измеряются в production.</li>
+</ol>
+<h3 id="_2">Куда копнуть глубже — только при необходимости<a class="headerlink" href="#_2" title="Permanent link">¶</a></h3>
+<p>Следующий слой — <strong>проверка линеаризуемости истории операций</strong>. Для каждой операции фиксируем invocation/response, результат, owner epoch и порядок наблюдения. Вопрос: можно ли расположить все успешные операции в единую последовательность, согласованную с реальным порядком завершений? Это позволит отличать ошибку бизнес-логики от настоящего нарушения гарантии distributed ownership. Еще глубже — формальная модель state machine (например, TLA+) с проверкой инварианта «два owner не принимают запись одновременно» при задержках, повторах и падении координатора. Для текущей лекции достаточно правильно сформулировать и испытать инварианты.</p>
+<h2 id="_3">Источники и границы применимости<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<ol>
+<li>PostgreSQL 18, High Availability / Replication: https://www.postgresql.org/docs/18/high-availability.html</li>
+<li>PostgreSQL 18, Failover и предотвращение двух primary: https://www.postgresql.org/docs/18/warm-standby-failover.html</li>
+<li>PostgreSQL 18, streaming / standby guarantees: https://www.postgresql.org/docs/18/warm-standby.html</li>
+<li>PostgreSQL 18, <code>pg_rewind</code> и diverged timelines: https://www.postgresql.org/docs/18/app-pgrewind.html</li>
+<li>Patroni FAQ: лидерский lock, TTL и leader race: https://patroni.readthedocs.io/en/latest/faq.html</li>
+<li>Patroni watchdog: https://patroni.readthedocs.io/en/latest/watchdog.html</li>
+<li>Citus 14, кластер и rebalancing: https://learn.microsoft.com/en-us/postgresql/citus/cluster-management?view=citus-14</li>
+<li>Citus 14, utility functions и rebalance: https://learn.microsoft.com/en-us/postgresql/citus/api-udf?view=citus-14</li>
+<li>etcd v3.6: атомарные ревизии и транзакции: https://etcd.io/docs/v3.6/learning/api/</li>
+<li>etcd v3.6: guarantees и неопределенный результат: https://etcd.io/docs/v3.6/learning/api_guarantees/</li>
+<li>Martin Kleppmann, How to do distributed locking — fencing tokens: https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html</li>
+</ol>
+<p><strong>Разделение уровней:</strong> гарантия PostgreSQL — локальные транзакции, WAL и репликация в определенной конфигурации; Citus/Patroni — конкретные продукты с дополнительным управлением; epoch/fencing/authority/cutover state machine — архитектурная модель, корректность которой обеспечивается ее полной реализацией и экспериментальной проверкой.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 10.2. PostgreSQL Logical Replication &amp;amp; CDC" class="md-footer__link md-footer__link--prev" href="../10.2%20-%20Logical%20replication%20CDC/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                10.2. PostgreSQL Logical Replication &amp; CDC
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 2. Рантайм Go глубже" class="md-footer__link md-footer__link--next" href="../2.1%20-%20Go%20runtime%20deep/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                2. Рантайм Go глубже
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
