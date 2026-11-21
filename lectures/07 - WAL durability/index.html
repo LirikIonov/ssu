@@ -8,7 +8,7 @@
 <link href="../08%20-%20Diagnostics%20locks/" rel="next"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
-<title>7. PostgreSQL: WAL и durability - Go</title>
+<title>07. PostgreSQL: WAL и durability - Go</title>
 <link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
 <link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -21,7 +21,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#7-postgresql-wal-durability">
+<a class="md-skip" href="#07-postgresql-wal-durability">
           Перейти к содержанию
         </a>
 </div>
@@ -45,7 +45,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              7. PostgreSQL: WAL и durability
+              07. PostgreSQL: WAL и durability
             
           </span>
 </div>
@@ -149,7 +149,7 @@
 <span class="md-ellipsis">
     
   
-    1. Продакшен-бэкенд и эволюция Go
+    01. Продакшен-бэкенд и эволюция Go
   
 
     
@@ -161,7 +161,7 @@
 <span class="md-ellipsis">
     
   
-    2. Рантайм Go
+    02. Рантайм Go
   
 
     
@@ -173,7 +173,7 @@
 <span class="md-ellipsis">
     
   
-    3. Память Go, GC и pprof
+    03. Память Go, GC и pprof
   
 
     
@@ -185,7 +185,19 @@
 <span class="md-ellipsis">
     
   
-    4. Go под капотом
+    04. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.1. Структуры Go глубже
   
 
     
@@ -197,7 +209,7 @@
 <span class="md-ellipsis">
     
   
-    5. PostgreSQL: Explain
+    05. PostgreSQL: Explain
   
 
     
@@ -209,7 +221,7 @@
 <span class="md-ellipsis">
     
   
-    6. PostgreSQL: Joins
+    06. PostgreSQL: Joins
   
 
     
@@ -222,7 +234,7 @@
 <span class="md-ellipsis">
     
   
-    7. PostgreSQL: WAL и durability
+    07. PostgreSQL: WAL и durability
   
 
     
@@ -233,7 +245,7 @@
 <span class="md-ellipsis">
     
   
-    7. PostgreSQL: WAL и durability
+    07. PostgreSQL: WAL и durability
   
 
     
@@ -415,7 +427,7 @@
 <span class="md-ellipsis">
     
   
-    8. PostgreSQL: Diagnostics &amp; Locks
+    08. PostgreSQL: Diagnostics &amp; Locks
   
 
     
@@ -427,7 +439,7 @@
 <span class="md-ellipsis">
     
   
-    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+    09. PostgreSQL: Migrations, Backup &amp; Connection Pooling
   
 
     
@@ -507,8 +519,8 @@
 </a>
 </li>
 <li class="md-nav__item md-nav__item--nested">
-<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
-<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_17" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_17" id="__nav_2_17_label" tabindex="0">
 <span class="md-ellipsis">
     
   
@@ -519,8 +531,8 @@
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
-<label class="md-nav__title" for="__nav_2_16">
+<nav aria-expanded="false" aria-labelledby="__nav_2_17_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_17">
 <span class="md-nav__icon md-icon"></span>
             
   
@@ -618,7 +630,7 @@
 <span class="md-ellipsis">
     
   
-    04.1   Go structures deeper
+    4.1. Структуры Go глубже
   
 
     
@@ -1346,7 +1358,7 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="7-postgresql-wal-durability">7. PostgreSQL: WAL и durability<a class="headerlink" href="#7-postgresql-wal-durability" title="Permanent link">¶</a></h1>
+<h1 id="07-postgresql-wal-durability">07. PostgreSQL: WAL и durability<a class="headerlink" href="#07-postgresql-wal-durability" title="Permanent link">¶</a></h1>
 <blockquote>
 <p><strong>Основная лекция магистратуры · PostgreSQL 18 · обязательный материал.</strong></p>
 <p>Рассматриваем 13 тем согласованной программы: WAL, <code>shared_buffers</code>, dirty pages, <code>COMMIT</code>, WAL record, LSN, <code>fsync</code>, <code>synchronous_commit</code>, checkpoint, crash recovery, <code>full_page_writes</code>, batch/group commit и transaction latency. Исходники — <code>REL_18_STABLE</code>, если явно не оговорено другое. Здесь формируем физическую и инженерную модель. Детальное устройство WAL buffers, C-кода вставки и resource managers относится к 07.1; аппаратные подробности storage — к 07.2; детальное устройство <code>pg_control</code> и REDO — к 07.3. Уже разобранные ранее planner, JOIN, MVCC и распределители памяти не повторяем; блоки 08–09 не затрагиваем.</p>
@@ -2234,7 +2246,7 @@ Data page:                torn write
 </main>
 <footer class="md-footer">
 <nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
-<a aria-label="Назад: 6. PostgreSQL: Joins" class="md-footer__link md-footer__link--prev" href="../06%20-%20Join%20algorithms/">
+<a aria-label="Назад: 06. PostgreSQL: Joins" class="md-footer__link md-footer__link--prev" href="../06%20-%20Join%20algorithms/">
 <div class="md-footer__button md-icon">
 <svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
 </div>
@@ -2243,17 +2255,17 @@ Data page:                torn write
                 Назад
               </span>
 <div class="md-ellipsis">
-                6. PostgreSQL: Joins
+                06. PostgreSQL: Joins
               </div>
 </div>
 </a>
-<a aria-label="Вперед: 8. PostgreSQL: Diagnostics &amp;amp; Locks" class="md-footer__link md-footer__link--next" href="../08%20-%20Diagnostics%20locks/">
+<a aria-label="Вперед: 08. PostgreSQL: Diagnostics &amp;amp; Locks" class="md-footer__link md-footer__link--next" href="../08%20-%20Diagnostics%20locks/">
 <div class="md-footer__title">
 <span class="md-footer__direction">
                 Вперед
               </span>
 <div class="md-ellipsis">
-                8. PostgreSQL: Diagnostics &amp; Locks
+                08. PostgreSQL: Diagnostics &amp; Locks
               </div>
 </div>
 <div class="md-footer__button md-icon">
