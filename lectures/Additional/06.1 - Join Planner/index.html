@@ -1,0 +1,2021 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/06.1%20-%20Join%20Planner/" rel="canonical"/>
+<link href="../05.3%20-%20Planner/" rel="prev"/>
+<link href="../06.2%20-%20Join%20Executor/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>6.1. PostgreSQL: внутреннее устройство планировщика JOIN - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#61-postgresql-join">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. С чего продолжим расследование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. С чего продолжим расследование
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="61-postgresql-join">6.1. PostgreSQL: внутреннее устройство планировщика JOIN<a class="headerlink" href="#61-postgresql-join" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная теоретическая лекция.</strong> Ориентир: PostgreSQL 18, реализация <code>REL_18_STABLE</code>. Продолжение лекции №6 «Алгоритмы соединения таблиц» и блока 05.1 о статистике и модели стоимости. Здесь разбираем <strong>планировщик</strong>: оценку числа строк после соединения, стоимость трех физических алгоритмов, поиск порядка соединений, допустимые перестановки и генетический оптимизатор GEQO.</p>
+<p><strong>Граница:</strong> без лабораторных работ; SQL-фрагменты и числа используются для теоретического доказательства механизмов. Внутреннее устройство структур хеш-таблицы, повторные чтения на уровне исполнителя и параллельная реализация остаются для 06.2. WAL, запись транзакций и долговечность не рассматриваются.</p>
+<p><strong>Главный вопрос:</strong> PostgreSQL еще не соединил ни одной строки. Как он оценивает размер результата, сравнивает алгоритмы и ищет дерево соединений — и в каком месте его прогноз может сломаться?</p>
+</blockquote>
+<h2 id="0">0. С чего продолжим расследование<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>В основной лекции №6 мы увидели три способа физически соединять таблицы:</p>
+<ul>
+<li><code>Nested Loop</code> — для каждой строки внешнего источника запускается поиск во внутреннем.</li>
+<li><code>Hash Join</code> — строится хеш-таблица по одной стороне и выполняется поиск совпадений по другой.</li>
+<li><code>Merge Join</code> — сопоставляются два потока, упорядоченных по ключам соединения.</li>
+</ul>
+<p>В первой углубленной лекции 05.1 мы разобрали оценку <code>rows</code> <strong>для одной таблицы</strong> и стоимость <code>Seq Scan</code>, <code>Index Scan</code>, <code>Bitmap Scan</code>, <code>Sort</code>. Теперь самая важная неприятность: при соединении двух таблиц ошибка в количестве строк может увеличиваться, а не просто наследоваться.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">name</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">segment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'VIP'</span><span class="p">;</span>
+</code></pre></div>
+<p>Планировщик должен ответить как минимум на три вопроса. Сколько клиентов проходит фильтр <code>VIP</code>? Сколько заказов будет соответствовать этим клиентам? Дешевле для каждого клиента искать заказы через индекс, построить хеш-таблицу или подготовить упорядоченные входы?</p>
+<p>Все это нужно решить <strong>до выполнения</strong> запроса. Если бы PostgreSQL заранее запускал все варианты и замерял их время, сама оптимизация была бы дороже запроса.</p>
+<p>Дальше идем по цепочке:</p>
+<p><strong>Оценка строк → стоимость трех алгоритмов → варианты порядка соединений → проверка допустимости → выбранное дерево → расхождение с действительностью.</strong></p>
+<hr/>
+<h1 id="1-join-p0">1. Оценка количества строк после JOIN (P0)<a class="headerlink" href="#1-join-p0" title="Permanent link">¶</a></h1>
+<h2 id="11-cardinality">1.1. Cardinality: почему соединение нельзя оценить по размеру самой большой таблицы<a class="headerlink" href="#11-cardinality" title="Permanent link">¶</a></h2>
+<p>Начнем с пары таблиц. Предположим:</p>
+<ul>
+<li><code>customers</code> — 100 000 клиентов; <code>id</code> уникален.</li>
+<li><code>orders</code> — 1 000 000 заказов; <code>customer_id</code> ссылается на <code>customers.id</code>.</li>
+<li>Каждый заказ имеет одного клиента, и все внешние ключи корректны.</li>
+</ul>
+<p>Для простого внутреннего соединения:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="p">;</span>
+</code></pre></div>
+<p>При этих допущениях ожидается миллион пар. Каждому заказу соответствует одна строка клиентов. Но как выразить это математически, если планировщик еще не выполнил соединение?</p>
+<p>Он начинает с <strong>декартова произведения</strong> — множества всех возможных пар входных строк. Для наших таблиц их теоретически:</p>
+<div class="highlight"><pre><span></span><code>N_A × N_B = 1 000 000 × 100 000 = 100 000 000 000
+</code></pre></div>
+<p>Соединение по равенству оставляет лишь часть пар. Эта доля называется <strong>селективностью соединения</strong> (join selectivity). Базовая модель для внутреннего соединения:</p>
+<div class="highlight"><pre><span></span><code>N_join_est = N_A_est × N_B_est × s_join_est
+</code></pre></div>
+<p>Суффикс <code>_est</code> означает <strong>оценку</strong>, а не точное значение. Если селективность равна <code>1 / 100000</code>, получим:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 × 100 000 × (1 / 100 000) = 1 000 000
+</code></pre></div>
+<p>Ключевой вопрос теперь перенесся на уровень ниже: <strong>откуда взялась доля <code>1 / 100000</code>?</strong></p>
+<h2 id="12-eqjoinsel">1.2. <code>eqjoinsel</code>: оценка равенства между столбцами<a class="headerlink" href="#12-eqjoinsel" title="Permanent link">¶</a></h2>
+<p>Для простого соединения <code>a.key = b.key</code> PostgreSQL использует оценщик селективности оператора равенства для соединений. Для обычного оператора <code>=</code> это, как правило, <code>eqjoinsel</code> (конкретная функция оценивания задается для оператора в <code>pg_operator.oprjoin</code>).</p>
+<p>Важно различать две функции:</p>
+<ul>
+<li><code>eqsel</code> оценивает равенство столбца <strong>константе</strong> — <code>customer_id = 42</code>.</li>
+<li><code>eqjoinsel</code> оценивает равенство выражений <strong>из разных входных наборов</strong> — <code>orders.customer_id = customers.id</code>.</li>
+</ul>
+<p>Во втором случае PostgreSQL нужны статистики <strong>обоих</strong> столбцов. Важны:</p>
+<ul>
+<li>оценка числа различных ненулевых значений <code>n_distinct</code>;</li>
+<li>доля <code>NULL</code> (<code>null_frac</code>);</li>
+<li>часто встречающиеся значения и их частоты (MCV);</li>
+<li>сведения об уникальности и ограничениях, если они применимы;</li>
+<li>оценки входных множеств и особенности логического вида соединения.</li>
+</ul>
+<p>Выходное количество строк для соединенного набора оценивается <strong>до выбора конкретного физического алгоритма</strong>. Поэтому число <code>rows</code> узла <code>Hash Join</code>, <code>Merge Join</code> и <code>Nested Loop</code> при одинаковой логической семантике обычно основано на общей оценке результата соединения, а не на том, какую структуру данных использует конкретный алгоритм. Это важная граница между оценкой <strong>объема результата</strong> и <strong>ценой его получения</strong>. [1]</p>
+<h2 id="13-n_distinct">1.3. Равномерная модель через <code>n_distinct</code><a class="headerlink" href="#13-n_distinct" title="Permanent link">¶</a></h2>
+<p>Пока предположим, что ключи обеих таблиц распределены равномерно, <code>NULL</code> отсутствуют, а MCV не выделяет массовых ключей.</p>
+<p>Пусть:</p>
+<ul>
+<li>в <code>A</code> — 10 000 строк и примерно 100 различных ключей;</li>
+<li>в <code>B</code> — 50 000 строк и примерно 200 различных ключей;</li>
+<li>множества значений достаточно хорошо перекрываются.</li>
+</ul>
+<p>Распространенное учебное приближение для равенства:</p>
+<div class="highlight"><pre><span></span><code>s_join_est ≈ 1 / max(D_A, D_B)
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>s_join_est ≈ 1 / 200 = 0,005
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>N_join_est = 10 000 × 50 000 × 0,005 = 2 500 000
+</code></pre></div>
+<p>Откуда этот знаменатель? Если у одной стороны около 200 возможных значений и мы грубо считаем их равновероятными, одна случайная пара ключей совпадет примерно в одном случае из 200.</p>
+<p><strong>Где модель ломается.</strong> Она предполагает сопоставимость доменов и приблизительную равномерность. Если у A 100 значений, которых совсем нет у B, реальных совпадений окажется ноль. Если один ключ встречается в половине каждой таблицы, число совпадений может оказаться гигантским. Одних чисел <code>n_distinct</code> для точного ответа недостаточно.</p>
+<p>Это приближение, а не полный исходный код <code>eqjoinsel</code>. Функция учитывает специальные случаи, статистику и ограничения. [1, 2]</p>
+<h2 id="14-null">1.4. Учет <code>NULL</code>: нулевая вероятность совпадения через обычное равенство<a class="headerlink" href="#14-null" title="Permanent link">¶</a></h2>
+<p>При <code>a.key = b.key</code> строки, где соответствующий ключ равен <code>NULL</code>, не удовлетворяют условию. Сравнение дает <code>UNKNOWN</code>.</p>
+<p>Пусть:</p>
+<ul>
+<li><code>N_A = 10000</code>, <code>N_B = 50000</code>;</li>
+<li><code>D_A = D_B = 100</code>;</li>
+<li><code>null_frac_A = 0.01</code>, <code>null_frac_B = 0.05</code>;</li>
+<li>оставшиеся значения распределены равномерно.</li>
+</ul>
+<p>Тогда учебная поправка:</p>
+<div class="highlight"><pre><span></span><code>s_join_est ≈ ((1 − 0,01) × (1 − 0,05)) / 100 = 0,009405
+</code></pre></div>
+<p>Число ожидаемых пар:</p>
+<div class="highlight"><pre><span></span><code>10 000 × 50 000 × 0,009405 = 4 702 500
+</code></pre></div>
+<p>Без поправки на <code>NULL</code> мы получили бы 5 миллионов пар. Мы уже видим ошибку, хотя статистика о числе различных значений оставалась неизменной.</p>
+<p><strong>Тонкость:</strong> это математическая модель обычного равенства. Для <code>IS NOT DISTINCT FROM</code> семантика <code>NULL</code> и допустимые планы могут отличаться. И отдельно нужно учитывать, что оценщик, использующий сведения о внешнем ключе, в PostgreSQL 18 имеет собственные приближения и не обязан полностью совпадать с <code>eqjoinsel</code> по поправкам на <code>NULL</code>. [2, 3]</p>
+<h2 id="15-mcv">1.5. MCV двух таблиц: почему популярные значения нужно сопоставлять друг с другом<a class="headerlink" href="#15-mcv" title="Permanent link">¶</a></h2>
+<p>А теперь разрушим предположение равномерности.</p>
+<p>Возьмем две таблицы:</p>
+<ul>
+<li>A: 10 000 строк;</li>
+<li>B: 5 000 строк;</li>
+<li>значения <code>k=7</code> и <code>k=9</code> чаще остальных.</li>
+</ul>
+<p>Предположим, статистика дает:</p>
+<table>
+<thead>
+<tr>
+<th>Ключ</th>
+<th style="text-align: right;">Доля в A</th>
+<th style="text-align: right;">Доля в B</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>7</code></td>
+<td style="text-align: right;">0,40</td>
+<td style="text-align: right;">0,30</td>
+</tr>
+<tr>
+<td><code>9</code></td>
+<td style="text-align: right;">0,10</td>
+<td style="text-align: right;">0,20</td>
+</tr>
+<tr>
+<td>Прочие ключи</td>
+<td style="text-align: right;">0,50</td>
+<td style="text-align: right;">0,50</td>
+</tr>
+</tbody>
+</table>
+<p>Если выбирать случайную пару строк, вероятность, что <strong>обе</strong> имеют ключ <code>7</code>, по модели независимого выбора двух строк из разных таблиц:</p>
+<div class="highlight"><pre><span></span><code>P(A.k = 7 и B.k = 7) = 0,40 × 0,30 = 0,12
+</code></pre></div>
+<p>Для ключа <code>9</code>:</p>
+<div class="highlight"><pre><span></span><code>0,10 × 0,20 = 0,02
+</code></pre></div>
+<p><strong>Только два популярных ключа</strong> обеспечивают селективность:</p>
+<div class="highlight"><pre><span></span><code>s_MCV_est = 0,12 + 0,02 = 0,14
+</code></pre></div>
+<p>В декартовом произведении <code>10000 × 5000 = 50 млн</code> пар это дает:</p>
+<div class="highlight"><pre><span></span><code>50 000 000 × 0,14 = 7 000 000
+</code></pre></div>
+<p>совпадений только по двум популярным ключам.</p>
+<p>Теперь предположим, что оставшаяся половина каждой таблицы распределена примерно равномерно по еще 98 одинаковым ключам:</p>
+<div class="highlight"><pre><span></span><code>s_other_est ≈ (0,50 × 0,50) / 98 = 0,00255102
+</code></pre></div>
+<p>Суммарная селективность по <strong>этой учебной модели</strong>:</p>
+<div class="highlight"><pre><span></span><code>s_join_est ≈ 0,14 + 0,00255102 = 0,14255102
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>N_join_est ≈ 50 000 000 × 0,14255102 ≈ 7 127 551
+</code></pre></div>
+<p>Если бы мы знали только <code>n_distinct=100</code> и предположили равномерность, оценили бы <code>50 млн / 100 = 500 000</code> пар. Реальная математическая модель с двумя массовыми ключами дает <strong>более 7 миллионов</strong>.</p>
+<p>Вот зачем <code>eqjoinsel</code> сравнивает MCV двух сторон: совпадающие популярные значения дают непропорционально большой вклад в число результирующих пар. [1]</p>
+<p>Граница упрощения: настоящая функция должна аккуратно учитывать совпавшие и несовпавшие элементы MCV, остаточные массы, <code>NULL</code>, выборочные частоты и число различных значений. Простое сложение двух произведений и одного остатка корректно только при оговоренных предпосылках, что оба списка MCV содержат одни и те же популярные ключи, а оставшиеся значения образуют общий примерно равномерный домен.</p>
+<h2 id="16">1.6. Уникальность: ключ справа может ограничивать число пар<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<p>Вернемся к заказам и клиентам. <code>customers.id</code> — первичный ключ.</p>
+<p>Это сильнее, чем статистическая догадка: для каждого значения <code>id</code> в <code>customers</code> существует <strong>не более одной</strong> строки.</p>
+<p>Если соединяем заказы с клиентами по <code>o.customer_id = c.id</code>, один заказ может породить максимум одну пару. Поэтому для обычного внутреннего соединения по полному уникальному ключу, при отсутствии дополнительных размножающих факторов:</p>
+<div class="highlight"><pre><span></span><code>N_join ≤ N_orders
+</code></pre></div>
+<p>Если для рассматриваемого снимка данных все ссылки действительно разрешаются в существующие строки клиентов, <code>customer_id NOT NULL</code>, а ключ клиента уникален, то фактически получается <strong>ровно по одной паре на заказ</strong>. При отложенной проверке внешних ключей нужно помнить, что ограничение может еще не быть проверено для текущих изменений транзакции; логический расчет здесь опирается на явно названные предпосылки.</p>
+<p>Но это логический вывод с условиями:</p>
+<ul>
+<li>уникальность должна относиться ко <strong>всем</strong> столбцам соединяемого ключа;</li>
+<li><code>NULL</code> и составные внешние ключи требуют аккуратного учета;</li>
+<li>фильтры по клиентам могут удалить совпадения;</li>
+<li>дополнительные условия <code>ON</code> также способны уменьшить результат.</li>
+</ul>
+<p>Уникальность важна не только для оценки количества строк. Она позволяет планировщику учитывать свойство <code>inner_unique</code> и более дешевые сценарии ранней остановки повторных поисков.</p>
+<h2 id="17-postgresql">1.7. Внешний ключ: почему PostgreSQL имеет особую оценку<a class="headerlink" href="#17-postgresql" title="Permanent link">¶</a></h2>
+<p>Предположим, в <code>orders.customer_id</code> объявлен корректный внешний ключ на <code>customers.id</code>.</p>
+<p>В PostgreSQL есть механизм оценки соединений с учетом ограничений внешнего ключа: <code>get_foreign_key_join_selectivity()</code> в <code>costsize.c</code>.</p>
+<p>Для простого пригодного соединения по всем колонкам внешнего ключа в базовой модели используется поправка примерно:</p>
+<div class="highlight"><pre><span></span><code>s_FK_est ≈ 1 / N_referenced
+</code></pre></div>
+<p>Для нашего примера:</p>
+<div class="highlight"><pre><span></span><code>s_FK_est ≈ 1 / 100 000 = 0,00001
+</code></pre></div>
+<p>Миллион заказов, сто тысяч клиентов:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 × 100 000 × 0,00001 = 1 000 000
+</code></pre></div>
+<p>Теперь добавим фильтр по родительской таблице:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">segment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'VIP'</span><span class="p">;</span>
+</code></pre></div>
+<p>Пусть фильтр по клиентам оставляет <code>1000</code> из <code>100000</code>. При условии, что заказы распределены по клиентам относительно равномерно, оценка:</p>
+<div class="highlight"><pre><span></span><code>1 000 000 × 1 000 × (1 / 100 000) = 10 000
+</code></pre></div>
+<p><strong>Где ломается модель?</strong> Клиенты VIP могут создавать намного больше заказов среднего. Внешний ключ гарантирует принадлежность заказа существующему клиенту, но <strong>не гарантирует равномерность</strong> заказов по сегментам.</p>
+<p>И еще принципиальная тонкость PostgreSQL 18: оптимизация по FK имеет собственные правила сопоставления условий, составных ключей, констант и видов соединения. Она не применяется к каждому произвольному выражению с похожими именами столбцов. Отдельные особенности учета <code>NULL</code> могут ограничивать точность. [3]</p>
+<h2 id="18-inner-left-semi-anti">1.8. <code>INNER</code>, <code>LEFT</code>, <code>SEMI</code>, <code>ANTI</code>: разные формулы количества строк<a class="headerlink" href="#18-inner-left-semi-anti" title="Permanent link">¶</a></h2>
+<p>В основной лекции эти операции различались логически. Теперь посмотрим на прогноз.</p>
+<p><strong>Внутреннее соединение:</strong></p>
+<div class="highlight"><pre><span></span><code>N_inner_est ≈ N_A_est × N_B_est × s_join_est
+</code></pre></div>
+<p><strong>Левое внешнее соединение:</strong> каждая строка левой стороны должна сохраниться хотя бы раз до учета допустимых последующих фильтров. Для простого случая PostgreSQL использует нижнюю границу вида:</p>
+<div class="highlight"><pre><span></span><code>N_left_pre_filter_est ≥ max(N_A_est, N_A_est × N_B_est × s_ON_est)
+</code></pre></div>
+<p>При этом условия <code>ON</code> и фильтры, применяемые <strong>после</strong> внешнего соединения, учитываются по-разному. Поэтому нельзя применять это неравенство к итоговому результату после произвольного <code>WHERE</code>.</p>
+<p><strong>Полусоединение:</strong> на выходе максимум одна строка на подходящую левую строку.</p>
+<div class="highlight"><pre><span></span><code>N_semi_est ≈ N_A_est × P_est(есть хотя бы одно совпадение)
+</code></pre></div>
+<p><strong>Антисоединение:</strong> возвращаются левые строки без совпадений:</p>
+<div class="highlight"><pre><span></span><code>N_anti_est ≈ N_A_est × (1 − P_est(есть совпадение))
+</code></pre></div>
+<p>Это <strong>логико-вероятностные записи</strong>, а не полная последовательность вычислений <code>eqjoinsel_semi()</code> и <code>calc_joinrel_size_estimate()</code>; реализации имеют дополнительные поправки. Важно понять разницу: <code>SEMI JOIN</code> нельзя оценивать количеством всех совпавших <strong>пар</strong>, иначе получим завышение в случае повторяющихся правых ключей. [3]</p>
+<h2 id="19-create-statistics-join">1.9. Почему <code>CREATE STATISTICS</code> не решает все проблемы JOIN<a class="headerlink" href="#19-create-statistics-join" title="Permanent link">¶</a></h2>
+<p>В лекции 05.1 мы создавали многоколоночную статистику:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="n">orders_status_channel</span><span class="w"> </span><span class="p">(</span><span class="n">mcv</span><span class="p">,</span><span class="w"> </span><span class="n">dependencies</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">channel</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Она может улучшить оценку фильтра <strong>внутри таблицы orders</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'APP'</span>
+</code></pre></div>
+<p>Но в PostgreSQL 18 расширенная статистика <strong>не используется напрямую для оценки селективности соединений между таблицами</strong>. Это явно отмечено в документации <code>CREATE STATISTICS</code>. [4]</p>
+<p>Поэтому добавление статистики по двум столбцам одной таблицы не означает, что оценка:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ON</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">customer_id</span>
+</code></pre></div>
+<p>автоматически станет точной.</p>
+<p>Тонкость реализации: отдельные данные многоколоночной статистики могут участвовать в <strong>оценке размера хеш-корзин для стоимости Hash Join</strong>. Это другой вопрос: стоимость физического поиска, а не непосредственно значение выходного <code>rows</code> соединения. Не смешиваем эти механизмы.</p>
+<h3 id="1">Главное из раздела 1<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
+<ol>
+<li>Количество пар для <code>INNER JOIN</code> начинается с произведения размеров входов, умноженного на оценку селективности соединения.</li>
+<li><code>eqjoinsel</code> оценивает равенство <strong>между входами</strong> и использует статистику обеих сторон; <code>eqsel</code> решает другую задачу.</li>
+<li>MCV способны полностью изменить прогноз при совпадающих массовых ключах; <code>n_distinct</code> без информации о перекосах недостаточен.</li>
+<li>Уникальность и внешний ключ дают сведения сильнее простой статистической эвристики, но не гарантируют равномерность при дополнительных фильтрах.</li>
+<li>Для <code>SEMI</code> и <code>ANTI</code> считаем существование совпадения, для <code>INNER</code> — число пар.</li>
+<li>Расширенная статистика PostgreSQL 18 не устраняет напрямую ошибку оценки селективности межтабличного соединения.</li>
+</ol>
+<hr/>
+<h1 id="2-p0">2. Стоимость трех алгоритмов соединения (P0)<a class="headerlink" href="#2-p0" title="Permanent link">¶</a></h1>
+<h2 id="21">2.1. Число пар уже известно. Почему алгоритм нельзя выбрать сразу?<a class="headerlink" href="#21" title="Permanent link">¶</a></h2>
+<p>Предположим, рассчитали <code>rows=10000</code> для соединения клиентов VIP с заказами. Может показаться, что любой алгоритм должен проделать примерно десять тысяч операций.</p>
+<p>Но есть несколько совершенно разных затрат:</p>
+<ul>
+<li>сколько строк придется <strong>прочитать</strong> из исходных таблиц;</li>
+<li>сколько раз повторно запускается внутренний путь;</li>
+<li>существуют ли подходящие индексы;</li>
+<li>нужно ли строить хеш-таблицу;</li>
+<li>насколько велик ее размер и сколько потребуется партий;</li>
+<li>нужно ли сортировать один или оба входа;</li>
+<li>сколько потенциальных пар нужно проверить до выдачи результата.</li>
+</ul>
+<p>Планировщик считает стоимость не абстрактного слова <code>JOIN</code>, а <strong>конкретных путей выполнения</strong> с определенными входами и свойствами.</p>
+<p>Для PostgreSQL 18 функции, рассчитывающие стоимость соединений, расположены в <code>src/backend/optimizer/path/costsize.c</code>. Для каждого из трех алгоритмов есть две фазы:</p>
+<table>
+<thead>
+<tr>
+<th>Алгоритм</th>
+<th>Быстрая первоначальная оценка</th>
+<th>Подробная окончательная оценка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Вложенные циклы</td>
+<td><code>initial_cost_nestloop()</code></td>
+<td><code>final_cost_nestloop()</code></td>
+</tr>
+<tr>
+<td>Хеш-соединение</td>
+<td><code>initial_cost_hashjoin()</code></td>
+<td><code>final_cost_hashjoin()</code></td>
+</tr>
+<tr>
+<td>Соединение слиянием</td>
+<td><code>initial_cost_mergejoin()</code></td>
+<td><code>final_cost_mergejoin()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Первоначальная фаза позволяет отсечь явно невыгодных кандидатов без затрат на все подробные вычисления. Окончательная уточняет число проверяемых пар, стоимость условий и особенности алгоритма. Это <strong>деталь реализации</strong>, а не требование стандарта SQL. [5]</p>
+<h2 id="22-nested-loop">2.2. Nested Loop: умножение стоимости внутреннего поиска<a class="headerlink" href="#22-nested-loop" title="Permanent link">¶</a></h2>
+<p>Узлу вложенных циклов нужны два пути:</p>
+<ul>
+<li>внешний путь возвращает <code>N_o</code> строк;</li>
+<li>внутренний путь нужно выполнять для каждой внешней строки.</li>
+</ul>
+<p>Если стоимость одного внутреннего поиска примерно <code>C_i</code>, а внешний путь стоит <code>C_o</code>, получаем учебную формулу:</p>
+<div class="highlight"><pre><span></span><code>C_NL ≈ C_o + N_o × C_i + C_pairs
+</code></pre></div>
+<p>Но реальная модель тоньше. Повторный запуск внутреннего пути может стоить <strong>дешевле первого</strong> благодаря кешированию или материализации. PostgreSQL вызывает <code>cost_rescan()</code> и различает начальную стоимость, стоимость полного прохода и стоимость повторного прохода.</p>
+<p>Для обычного случая, где внутренний путь нужно исчерпать каждый раз, структурная модель:</p>
+<div class="highlight"><pre><span></span><code>C_NL ≈ C_o + C_i_first + (N_o − 1) × C_i_rescan
+       + N_examined_pairs × C_join_check + C_output
+</code></pre></div>
+<p>Здесь важна переменная <code>N_examined pairs</code>, отличная от <code>rows</code> результата. Условие соединения может отклонить огромное количество пар.</p>
+<h3 id="_1">Числовая модель<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<p>Нам нужны <code>1000</code> клиентов VIP и их заказы. Заказов всего миллион, в среднем по десять на клиента.</p>
+<p>Примем <strong>условные</strong>, одинаковые для следующих сравнений величины:</p>
+<ul>
+<li>доступ к отфильтрованным клиентам: <code>C_o = 150</code>;</li>
+<li>один параметризованный поиск заказов через индекс: <code>C_i = 6</code>;</li>
+<li>результат соединения: <code>10000</code> строк;</li>
+<li>дополнительная стоимость формирования одной пары: <code>0.003</code>;</li>
+<li>стоимость повторного поиска условно такая же, как первого.</li>
+</ul>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>C_NL ≈ 150 + 1 000 × 6 + 10 000 × 0,003 = 6 180
+</code></pre></div>
+<p>Теперь представим, что подходящего индекса нет, а внутренний проход стоит <code>22000</code>:</p>
+<div class="highlight"><pre><span></span><code>C_NL_no_index ≈ 150 + 1 000 × 22 000 + 30 = 22 000 180
+</code></pre></div>
+<p>Разница колоссальная. <strong>Наличие адресного индексного доступа меняет экономику вложенных циклов гораздо сильнее, чем сам факт их использования.</strong></p>
+<h2 id="23-semi-anti-final_cost_nestloop">2.3. SEMI / ANTI: почему реальная <code>final_cost_nestloop()</code> не умножает все одинаково<a class="headerlink" href="#23-semi-anti-final_cost_nestloop" title="Permanent link">¶</a></h2>
+<p>Для полусоединения и антисоединения выполнение может завершать внутренний поиск после первого совпадения.</p>
+<p>Планировщик пытается оценить:</p>
+<ul>
+<li>долю внешних строк, для которых существует хотя бы одно совпадение — <code>outer_match_frac</code>;</li>
+<li>среднее количество совпадений среди совпавших внешних строк — <code>match_count</code>.</li>
+</ul>
+<p>В PostgreSQL 18 одна из эвристик <code>final_cost_nestloop()</code> для ожидаемой доли просмотра внутренней стороны при успешном поиске выглядит так:</p>
+<div class="highlight"><pre><span></span><code>f_inner_scan = 2 / (match_count + 1)
+</code></pre></div>
+<p>Если <code>match_count = 9</code>, получаем:</p>
+<div class="highlight"><pre><span></span><code>f = 2 / 10 = 0,2
+</code></pre></div>
+<p>Здесь множитель 2 — <strong>преднамеренная осторожная поправка</strong> к идеализированной модели равномерного положения первого совпадения. Это не универсальная формула вероятностей и не гарантия фактического числа просмотренных строк. [5]</p>
+<p>Особенно важно, есть ли индекс, способный сразу проверить все условия соединения. Для внешней строки <strong>без совпадений</strong> индексный поиск может быстро вернуть пустой результат. Без индекса придется иногда проходить весь внутренний источник.</p>
+<p>Поэтому стоимость <code>NOT EXISTS</code> и стоимость <code>JOIN</code> с одинаковым текстом <code>ON</code> могут заметно различаться.</p>
+<h2 id="24-hash-join">2.4. Hash Join: цена построения, цена поиска, цена совпадений<a class="headerlink" href="#24-hash-join" title="Permanent link">¶</a></h2>
+<p>Физически узел хеш-соединения делит работу на две стадии:</p>
+<ol>
+<li>Считать сторону построения и создать хеш-таблицу.</li>
+<li>Считать сторону поиска и искать соответствующие ключи.</li>
+</ol>
+<p>Для учебной модели:</p>
+<div class="highlight"><pre><span></span><code>C_hash ≈ C_build_input + C_probe_input + N_b × C_hash_insert
+       + N_p × C_hash + C_match_checks + C_temp_IO
+</code></pre></div>
+<p>В исходниках PostgreSQL 18 на этапе <code>initial_cost_hashjoin()</code> учет ключей весьма конкретен:</p>
+<ul>
+<li>на каждую строку стороны построения — хеширование каждого ключевого выражения плюс базовая стоимость помещения строки в хеш-таблицу (<code>cpu_tuple_cost</code>);</li>
+<li>на каждую строку стороны поиска — вычисление хеша ключа;</li>
+<li>число корзин и партий предварительно оценивается с помощью логики размера будущей хеш-таблицы;</li>
+<li>если партий больше одной, добавляется условная стоимость работы с временными файлами;</li>
+<li>в окончательной фазе учитываются вероятные кандидаты корзины, MCV, проверка хеш-условий и дополнительных фильтров. [5]</li>
+</ul>
+<h3 id="_2">Числовая модель на тех же данных<a class="headerlink" href="#_2" title="Permanent link">¶</a></h3>
+<p>Возьмем <code>1000</code> клиентов VIP и миллион заказов, результат — <code>10000</code> пар. Пусть:</p>
+<ul>
+<li>подготовка VIP-клиентов стоит <code>150</code>;</li>
+<li>полный проход заказов стоит <code>22000</code>;</li>
+<li>хеширование и вставка строки построения стоят вместе <code>0.0125</code>;</li>
+<li>хеширование ключа строки поиска стоит <code>0.0025</code>;</li>
+<li>проверка совпадающего кандидата условно стоит <code>0.0025</code>;</li>
+<li>формирование выходной пары стоит <code>0.003</code>;</li>
+<li>хеш-таблица помещается в память, нет дополнительных партий.</li>
+</ul>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>C_hash ≈ 150 + 22 000 + 1 000 × 0,0125
+       + 1 000 000 × 0,0025 + 10 000 × 0,0025
+       + 10 000 × 0,003
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>C_hash ≈ 24 717,5
+</code></pre></div>
+<p>Сравним с <code>Nested Loop ≈ 6180</code>. При малом наборе VIP-клиентов повторные индексные поиски в наших условных расчетах существенно выгоднее. При этом нельзя складывать показанный <code>cost</code> родительского узла JOIN с <code>cost</code> его детей из <code>EXPLAIN</code>: стоимость детей уже включена в оценку родителя.</p>
+<p>А если VIP-клиентов станет <code>60000</code>? <code>Nested Loop</code> выполнит порядка 60 тысяч индексных поисков:</p>
+<div class="highlight"><pre><span></span><code>60 000 × 6 = 360 000
+</code></pre></div>
+<p>только на внутренние обращения, плюс чтение внешнего источника и формирование результата. Хеш-соединению по-прежнему понадобится один полный проход заказов и обработка клиентского набора; его стоимость вырастет, но в этой модели гораздо слабее.</p>
+<p>Отсюда математический вывод: <strong>для вложенных циклов критична величина внешнего входа и цена повторного поиска; для хеш-соединения — объем входов, цена построения и памяти</strong>.</p>
+<p>Это иллюстративные коэффициенты, <strong>не буквальный результат <code>EXPLAIN</code></strong>: реальный PostgreSQL отдельно оценивает стоимость входных путей, хеш-корзин, коллизий, фильтров и записей во временные файлы.</p>
+<h2 id="25-hash-join">2.5. Когда Hash Join перестает быть линейным и дешевым<a class="headerlink" href="#25-hash-join" title="Permanent link">¶</a></h2>
+<p>Пока мы предполагаем, что хеш-таблица помещается в память и ключи распределены достаточно равномерно.</p>
+<p>Если сторона построения не помещается в память, планировщик прогнозирует число <strong>партий</strong> (<code>batches</code>). Во время исполнения могут потребоваться дополнительные партии. Это означает записи и чтения временных рабочих файлов.</p>
+<p>С точки зрения стоимости появляются слагаемые:</p>
+<div class="highlight"><pre><span></span><code>C_hash ≈ C_RAM_scenario + C_temp_write + C_temp_read + C_extra
+</code></pre></div>
+<p>В <code>initial_cost_hashjoin()</code> при прогнозируемом <code>numbatches &gt; 1</code> есть специальный учет чтения и записи страниц обеих сторон с коэффициентом <code>seq_page_cost</code>. Используемые формулы — <strong>эвристика оценки</strong>, фактический объем временных файлов может отличаться. [5]</p>
+<p>Еще одна тонкость: ключ, встречающийся особенно часто, способен сделать одну корзину гораздо тяжелее остальных. Планировщик пытается учитывать частые значения и расчетную наполненность корзин в окончательной стоимости.</p>
+<p>Для этого используются, среди прочего, оценка <code>innerbucketsize</code> и частота наиболее распространенного значения <code>innermcvfreq</code>.</p>
+<p>Многоколоночная статистика в PostgreSQL 18 может использоваться для оценки наполненности корзин при нескольких подходящих хеш-условиях. <strong>Это влияние на стоимость хеш-соединения, а не прямое исправление оценки <code>rows</code> соединения</strong>.</p>
+<h2 id="26-merge-join">2.6. Merge Join: дешево сопоставлять, дорого готовить порядок<a class="headerlink" href="#26-merge-join" title="Permanent link">¶</a></h2>
+<p>Соединение слиянием использует упорядоченные входы. Если оба уже поступают в правильном порядке, основная работа по сопоставлению напоминает совместный линейный обход.</p>
+<p>Но если вход не отсортирован, нужна дополнительная сортировка, иногда с временными файлами.</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>C_merge ≈ C_outer_ordered + C_inner_ordered
+        + C_compare + C_rescan + C_output
+</code></pre></div>
+<p>Для неизменяемых и хорошо распределенных уникальных ключей число сравнений может иметь порядок <code>N + M</code>. Но для повторяющихся ключей возникают повторные чтения группы и большое число результирующих пар.</p>
+<p>В PostgreSQL 18 <code>initial_cost_mergejoin()</code> оценивает стоимость получения требуемого порядка, включая возможные сортировки, а также может оценить, насколько далеко в каждом входе придется продвинуться. <code>final_cost_mergejoin()</code> учитывает стоимость условий соединения, возможные повторные чтения, целесообразность <code>Materialize</code> и дополнительную обработку кандидатов. [5]</p>
+<h3 id="_3">Числовое сравнение с нашими входами<a class="headerlink" href="#_3" title="Permanent link">¶</a></h3>
+<p>Предположим:</p>
+<ul>
+<li>упорядоченный поток миллиона заказов стоит <code>30000</code>;</li>
+<li>упорядоченный поток 1000 VIP-клиентов стоит <code>450</code>;</li>
+<li>ожидаем около <code>1 001 000</code> элементарных сравнений ключей по <code>0.0025</code>;</li>
+<li>на формирование <code>10 000</code> пар требуется по <code>0.003</code>;</li>
+<li>повторных чтений и внешних сортировок сверх названных стоимостей нет.</li>
+</ul>
+<div class="highlight"><pre><span></span><code>C_merge ≈ 30 000 + 450 + 1 001 000 × 0,0025
+        + 10 000 × 0,003
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>C_merge ≈ 32 982,5
+</code></pre></div>
+<p>Итого в одном <strong>условном</strong> сценарии:</p>
+<table>
+<thead>
+<tr>
+<th>Алгоритм</th>
+<th style="text-align: right;">Прогнозная учебная стоимость</th>
+<th>Что ее определило</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Nested Loop</code></td>
+<td style="text-align: right;"><code>6 180</code></td>
+<td>Только тысяча внешних строк, дешевый индексный поиск</td>
+</tr>
+<tr>
+<td><code>Hash Join</code></td>
+<td style="text-align: right;"><code>24 717,5</code></td>
+<td>Один полный проход миллиона заказов плюс хеширование</td>
+</tr>
+<tr>
+<td><code>Merge Join</code></td>
+<td style="text-align: right;"><code>32 982,5</code></td>
+<td>Получение двух упорядоченных потоков</td>
+</tr>
+</tbody>
+</table>
+<p>Эти числа заданы для объяснения <strong>различия масштабирования затрат</strong>. Они не утверждают, что <code>Nested Loop</code> выигрывает на любом запросе с тысячей строк, или что Hash Join всегда дешевле Merge Join. Если входы уже отсортированы и сортировка не нужна, исходная стоимость Merge Join может заметно снизиться. Если индексного поиска нет, Nested Loop может стать катастрофически дорогим.</p>
+<h2 id="27">2.7. Почему двухфазная оценка имеет смысл для самого планировщика<a class="headerlink" href="#27" title="Permanent link">¶</a></h2>
+<p>Представим, что для каждого возможного порядка соединения нужно рассчитать три алгоритма, два направления входов и несколько вариантов доступа по индексам.</p>
+<p>При пяти таблицах количество вариантов уже значительно больше, чем три.</p>
+<p>Если для каждого кандидата выполнять весь подробный расчет стоимости корзин, селективностей и сортировок, <strong>само планирование</strong> начнет потреблять чрезмерно много времени и CPU.</p>
+<p>Поэтому PostgreSQL использует первоначальную, заведомо неполную оценку, чтобы быстро решить, стоит ли вообще продолжать рассматривать путь. Если он остается конкурентоспособным, рассчитываются подробности.</p>
+<p>Этот компромисс нельзя сводить к «PostgreSQL всегда сравнивает полный набор точных стоимостей»: существуют ограничения времени планирования, отсечение путей и приближенная модель.</p>
+<h3 id="2">Главное из раздела 2<a class="headerlink" href="#2" title="Permanent link">¶</a></h3>
+<ol>
+<li>Стоимость соединения включает стоимость <strong>обоих входных путей</strong>, а также собственную работу алгоритма.</li>
+<li><code>Nested Loop</code> масштабирует цену повторного внутреннего поиска по числу внешних строк; стоимость повторного прохода может отличаться от первого.</li>
+<li>Для <code>SEMI</code> и <code>ANTI</code> планировщик учитывает возможность раннего прекращения поиска.</li>
+<li><code>Hash Join</code> платит за построение, хеширование и проверку кандидатов; нехватка памяти добавляет стоимость временных файлов.</li>
+<li><code>Merge Join</code> выгоден при готовом порядке, но сортировки, группы дубликатов и повторные чтения меняют цену.</li>
+<li><code>initial_cost_*</code> и <code>final_cost_*</code> — двухэтапная оценка стоимости, экономящая ресурсы планирования.</li>
+</ol>
+<hr/>
+<h1 id="3-p1">3. Выбор порядка соединений: динамическое программирование (P1)<a class="headerlink" href="#3-p1" title="Permanent link">¶</a></h1>
+<h2 id="31">3.1. Теперь алгоритм выбирается для дерева, а не для одной пары<a class="headerlink" href="#31" title="Permanent link">¶</a></h2>
+<p>Возьмем три таблицы:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">o</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">payments</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">order_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">segment</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'VIP'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'SUCCESS'</span><span class="p">;</span>
+</code></pre></div>
+<p>Что соединить первым?</p>
+<ul>
+<li><code>customers</code> с <code>orders</code>, затем добавить <code>payments</code>.</li>
+<li><code>orders</code> с <code>payments</code>, затем добавить <code>customers</code>.</li>
+<li>В некоторых случаях можно сначала составить другую допустимую промежуточную группу, если есть соответствующие условия и сохраняется смысл запроса.</li>
+</ul>
+<p>Промежуточные наборы могут отличаться на порядки величины. Следовательно, PostgreSQL должен оценить <strong>деревья соединений</strong>, а не просто выбрать «лучший алгоритм JOIN» один раз.</p>
+<h2 id="32">3.2. Почему локально дешевое соединение не гарантирует лучшее глобальное дерево<a class="headerlink" href="#32" title="Permanent link">¶</a></h2>
+<p>Предположим, три входа уже прошли одиночные фильтры:</p>
+<ul>
+<li><code>A</code> — 1000 строк;</li>
+<li><code>B</code> — 1 000 000 строк;</li>
+<li><code>C</code> — 1 000 000 строк.</li>
+</ul>
+<p>И пусть оценки выходных строк таковы:</p>
+<ul>
+<li><code>A ⋈ B</code> — 10 000 строк;</li>
+<li><code>B ⋈ C</code> — 100 000 строк;</li>
+<li><code>A ⋈ B ⋈ C</code> — 1000 строк после применения всех условий.</li>
+</ul>
+<p>Вариант <code>(A ⋈ B) ⋈ C</code> подает на второе соединение 10 тысяч промежуточных строк.</p>
+<p>Вариант <code>A ⋈ (B ⋈ C)</code> подает на соединение с A 100 тысяч строк промежуточного результата.</p>
+<p>Кажется, что первый вариант заведомо лучше. Но если <code>B ⋈ C</code> может быть получен дешево в готовом порядке, а <code>A ⋈ B</code> требует дорогих случайных обращений, общая стоимость может оказаться противоположной.</p>
+<p><strong>Размер промежуточного результата важен, но не является единственным критерием.</strong> Планировщик также сохраняет информацию о стоимости пути, порядке строк, доступных индексах и параметризации.</p>
+<h2 id="33-reloptinfo">3.3. <code>RelOptInfo</code>: одна группа таблиц, много физических способов<a class="headerlink" href="#33-reloptinfo" title="Permanent link">¶</a></h2>
+<p>Во время поиска плана PostgreSQL описывает отношение, содержащее определенный набор исходных таблиц, структурой <code>RelOptInfo</code>.</p>
+<p>Для соединения A и B может существовать <strong>один логический набор таблиц</strong> <code>{A,B}</code>, но несколько физических путей:</p>
+<div class="highlight"><pre><span></span><code>RelOptInfo для {A,B}
+  rows = оценка количества строк соединения
+  pathlist:
+    NestedLoopPath   стоимость ... ; порядок ...
+    HashPath         стоимость ... ; порядок отсутствует
+    MergePath        стоимость ... ; порядок по ключу
+</code></pre></div>
+<p>Нужно различать:</p>
+<ul>
+<li><strong>логический результат отношения <code>{A,B}</code></strong>: какие строки он в принципе представляет;</li>
+<li><strong><code>Path</code></strong>: как физически получить эти строки;</li>
+<li><strong><code>Plan</code></strong>: окончательное дерево исполнительных узлов, построенное после выбора пути.</li>
+</ul>
+<p>Две разные последовательности <code>(A ⋈ B) ⋈ C</code> и <code>A ⋈ (B ⋈ C)</code> в конце могут представлять один и тот же набор исходных таблиц <code>{A,B,C}</code>. Но их стоимость, порядок и внутреннее устройство будут разными.</p>
+<p><strong>Вот для чего нужен поиск по подмножествам.</strong></p>
+<h2 id="34">3.4. Динамическое программирование: строим план снизу вверх<a class="headerlink" href="#34" title="Permanent link">¶</a></h2>
+<p>Обычный механизм поиска порядка соединений — <code>standard_join_search()</code> с пошаговым построением отношений через <code>join_search_one_level()</code>.</p>
+<p>На первом уровне есть исходные таблицы:</p>
+<div class="highlight"><pre><span></span><code>Уровень 1: {A}, {B}, {C}, {D}
+</code></pre></div>
+<p>На втором уровне создаются допустимые пары:</p>
+<div class="highlight"><pre><span></span><code>Уровень 2: {A,B}, {B,C}, {C,D}, ...
+</code></pre></div>
+<p>На третьем уровне — допустимые тройки, собранные из уже известных меньших наборов:</p>
+<div class="highlight"><pre><span></span><code>Уровень 3: {A,B,C}, {B,C,D}, ...
+</code></pre></div>
+<p>На четвертом — все четыре таблицы:</p>
+<div class="highlight"><pre><span></span><code>Уровень 4: {A,B,C,D}
+</code></pre></div>
+<p>Для каждой новой группы рассматриваются варианты получения ее из двух непересекающихся частей.</p>
+<p>Например, для <code>{A,B,C}</code>:</p>
+<div class="highlight"><pre><span></span><code>({A,B}) ⋈ {C}
+{A} ⋈ ({B,C})
+({A,C}) ⋈ {B}  — если допустимо и имеет смысл
+</code></pre></div>
+<p>Эта схема и называется <strong>динамическим программированием по подмножествам</strong>: оптимизатор переиспользует результаты рассмотрения меньших групп вместо того, чтобы заново вычислять стоимость каждого полного дерева с нуля.</p>
+<p>Но не перепутаем: PostgreSQL не обязан сохранять <strong>единственный</strong> минимальный по полной стоимости путь для каждого набора. Могут сохраняться разные пути с нужным порядком, дешевым началом выдачи или другими свойствами, которые пригодятся выше по дереву. [6]</p>
+<h2 id="35">3.5. Левые, правые и ветвистые деревья<a class="headerlink" href="#35" title="Permanent link">¶</a></h2>
+<p>В учебных схемах часто показывают только соединения вида:</p>
+<div class="highlight"><pre><span></span><code>((A ⋈ B) ⋈ C) ⋈ D
+</code></pre></div>
+<p>Это <strong>левостороннее дерево</strong>: на каждом следующем этапе уже собранная группа соединяется с очередной таблицей.</p>
+<p>Но существует и ветвистый вариант:</p>
+<div class="highlight"><pre><span></span><code>(A ⋈ B) ⋈ (C ⋈ D)
+</code></pre></div>
+<p>В нем обе стороны верхнего соединения уже являются результатами соединений.</p>
+<p>Зачем он нужен? Допустим, фильтры на паре <code>A,B</code> резко сокращают результат, и независимо фильтры на паре <code>C,D</code> делают то же самое. Выгодно предварительно получить два маленьких набора, а потом соединить их.</p>
+<p>Обычный поиск PostgreSQL рассматривает и подходящие ветвистые комбинации. При этом ради контроля числа вариантов он преимущественно строит соединения, для которых есть подходящие условия или ограничения порядка; декартовы произведения добавляются при необходимости. [6]</p>
+<h2 id="36">3.6. Почему перестановок так много<a class="headerlink" href="#36" title="Permanent link">¶</a></h2>
+<p>Для <code>n</code> таблиц даже число последовательностей их перечисления равно:</p>
+<div class="highlight"><pre><span></span><code>n! (факториал числа n)
+</code></pre></div>
+<p>Для восьми таблиц:</p>
+<div class="highlight"><pre><span></span><code>8! = 40 320
+</code></pre></div>
+<p>Для двенадцати:</p>
+<div class="highlight"><pre><span></span><code>12! = 479 001 600
+</code></pre></div>
+<p>Это <strong>не точное число планов PostgreSQL</strong>: одни последовательности могут давать эквивалентные результаты; существуют разные формы двоичных деревьев, разные физические алгоритмы, ограничения допустимости и отсечение. Но числа показывают, почему полный перебор быстро становится недопустимым.</p>
+<p>Число способов полностью расставить скобки для <strong>фиксированного порядка</strong> <code>n</code> элементов также растет как число Каталана:</p>
+<div class="highlight"><pre><span></span><code>C_(n−1) = (2n−2)! / (n! × (n−1)!)
+</code></pre></div>
+<p>Для четырех таблиц и фиксированного порядка это <code>C_3=5</code> структур двоичного дерева. Если разрешить перестановку листьев и выбор разных физических способов, пространство становится еще больше.</p>
+<p>В реальном PostgreSQL пространство поиска сдерживают свойства графа соединений, запреты опасных перестановок, отбрасывание проигрывающих путей и ограничение времени самого планирования.</p>
+<h2 id="37-add_path">3.7. Как <code>add_path()</code> сокращает число альтернатив<a class="headerlink" href="#37-add_path" title="Permanent link">¶</a></h2>
+<p>Предположим, есть два пути для одного и того же <code>{A,B}</code> с одинаковыми полезными свойствами:</p>
+<table>
+<thead>
+<tr>
+<th>Путь</th>
+<th style="text-align: right;">Начальная стоимость</th>
+<th style="text-align: right;">Полная стоимость</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">1000</td>
+</tr>
+<tr>
+<td>P2</td>
+<td style="text-align: right;">150</td>
+<td style="text-align: right;">1300</td>
+</tr>
+</tbody>
+</table>
+<p>P2 хуже и до первой строки, и по полной стоимости. Его обычно нет смысла сохранять.</p>
+<p>Теперь другой случай:</p>
+<table>
+<thead>
+<tr>
+<th>Путь</th>
+<th style="text-align: right;">Начальная стоимость</th>
+<th style="text-align: right;">Полная стоимость</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P3</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2000</td>
+</tr>
+<tr>
+<td>P4</td>
+<td style="text-align: right;">200</td>
+<td style="text-align: right;">1000</td>
+</tr>
+</tbody>
+</table>
+<p>Первый путь быстро выдает первые строки, второй дешевле полностью. Если на верхнем уровне появится <code>LIMIT</code>, полезным может оказаться P3.</p>
+<p>Если один путь дает требуемый порядок по ключу, а другой нет, простой расчет «кто дешевле сейчас» также недостаточен.</p>
+<p>Поэтому планировщик сохраняет <strong>недоминируемые</strong> альтернативы с учетом нескольких свойств. Для PostgreSQL 18 алгоритм <code>add_path()</code> и его критерии — деталь реализации. [6]</p>
+<h2 id="38">3.8. Что делать, если таблицы логически не связаны<a class="headerlink" href="#38" title="Permanent link">¶</a></h2>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="k">c</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="p">;</span>
+</code></pre></div>
+<p>У <code>c</code> нет ограничения связи с остальными. Если все три нужны в результате, декартова комбинация с C неизбежна.</p>
+<p>PostgreSQL обычно старается сначала использовать доступные условия соединения, чтобы не создавать огромные промежуточные декартовы произведения. Но если условие отсутствует, никакой планировщик не может изобрести семантическую связь, которой нет в SQL.</p>
+<p>Значит, медленный запрос с большим <code>JOIN</code> может быть плохим из-за отсутствующего условия связи, а вовсе не из-за «неправильного Hash Join».</p>
+<h3 id="3">Главное из раздела 3<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
+<ol>
+<li>Порядок соединений определяет размеры и стоимость промежуточных наборов.</li>
+<li>Для одного набора исходных таблиц PostgreSQL рассматривает разные физические <code>Path</code>, хранящиеся в <code>RelOptInfo</code>.</li>
+<li>Обычный поиск строит допустимые группы снизу вверх и переиспользует результаты меньших наборов.</li>
+<li>Ветвистые деревья могут быть выгоднее последовательного добавления таблиц.</li>
+<li>Планировщик отбрасывает доминируемые пути, чтобы не тратить чрезмерное время на собственную работу.</li>
+<li>Дешевый локальный JOIN необязательно делает дешевым весь запрос.</li>
+</ol>
+<hr/>
+<h1 id="4-p1">4. Ограничения перестановок соединений (P1)<a class="headerlink" href="#4-p1" title="Permanent link">¶</a></h1>
+<h2 id="41-inner-join">4.1. <code>INNER JOIN</code>: когда скобки можно переставлять<a class="headerlink" href="#41-inner-join" title="Permanent link">¶</a></h2>
+<p>Для обычных внутренних соединений при сохранении всех условий и их семантики выполняется привычная ассоциативность:</p>
+<div class="highlight"><pre><span></span><code>(A ⋈ B) ⋈ C ≡ A ⋈ (B ⋈ C)
+</code></pre></div>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">b_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>В логике результата соединить A с B первым или B с C первым можно при соответствующем переносе условий.</p>
+<p>Поэтому написанное разработчиком расположение <code>INNER JOIN</code> <strong>обычно не диктует</strong> порядок физического выполнения. Планировщик сам ищет выгодный вариант.</p>
+<p>Однако условие «сохранить семантику» существенно. <code>LATERAL</code>, особенности выражений и специальные правила некоторых соединений могут ограничить допустимые варианты.</p>
+<h2 id="42-left-join">4.2. <code>LEFT JOIN</code>: сохранение строк ломает произвольную перестановку<a class="headerlink" href="#42-left-join" title="Permanent link">¶</a></h2>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">b</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">b_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span>
+<span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>Пусть у A есть строка, для которой нет пары B–C.</p>
+<p>Логический результат все равно должен содержать эту строку A, подставив <code>NULL</code> в поля отсутствующей правой части.</p>
+<p>Если же перестроить дерево как:</p>
+<div class="highlight"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="p">)</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">b_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">id</span>
+</code></pre></div>
+<p>то последующий <strong>внутренний</strong> <code>JOIN c</code> может удалить строку A: <code>b.id</code> равен <code>NULL</code>, совпадения не будет.</p>
+<p>Результаты различаются. Такая перестановка <strong>недопустима</strong>.</p>
+<p>Но нельзя переходить к обратному упрощению: «<code>LEFT JOIN</code> вообще запрещает перестановки». Например, при независимых отношениях:</p>
+<div class="highlight"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+</code></pre></div>
+<p>многие варианты соединения B и C с A допускают перестановку, если условия удовлетворяют нужным требованиям. [7]</p>
+<h2 id="43-null">4.3. Строгое условие и <code>NULL</code>: источник ограничений и преобразований<a class="headerlink" href="#43-null" title="Permanent link">¶</a></h2>
+<p>Назовем выражение <strong>строгим по аргументу</strong>, если при <code>NULL</code> в этом аргументе результатом также будет <code>NULL</code>. Например, обычное <code>b.id = 42</code> строго относительно <code>b.id</code>.</p>
+<p>Для внешнего соединения это важно: строки отсутствующей правой части содержат <code>NULL</code>, поэтому строгое условие в <code>WHERE</code> может удалить их.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'ACTIVE'</span><span class="p">;</span>
+</code></pre></div>
+<p>Если <code>b</code> отсутствует, <code>b.status = 'ACTIVE'</code> дает <code>UNKNOWN</code> и строка не проходит <code>WHERE</code>.</p>
+<p>При подходящих условиях планировщик способен <strong>преобразовать LEFT JOIN в INNER JOIN</strong> (уменьшить строгость внешнего соединения) и тем самым расширить свободу поиска.</p>
+<p>Но переносить <code>WHERE</code> в <code>ON</code> механически нельзя:</p>
+<div class="highlight"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span>
+<span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'ACTIVE'</span>
+</code></pre></div>
+<p>сохранит строки A без подходящей активной B. Семантика уже другая.</p>
+<p>Здесь ограничение порядка соединения вытекает из корректности результата, а не из особенностей быстродействия алгоритмов.</p>
+<h2 id="44-semi-join">4.4. <code>SEMI JOIN</code>: нельзя размножить строки левой стороны<a class="headerlink" href="#44-semi-join" title="Permanent link">¶</a></h2>
+<p>Для проверки существования:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>результат содержит каждую подходящую строку A <strong>один раз</strong> независимо от числа строк B.</p>
+<p>Замена такого выражения на обычный <code>INNER JOIN</code> может создать дубликаты и изменить число строк:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>Если для одного A есть десять B, первый запрос вернет одну строку, второй — десять.</p>
+<p>Следовательно, преобразования и перестановки должны сохранять особое свойство полусоединения.</p>
+<p>В реализации PostgreSQL существуют допустимые преобразования с предварительным обеспечением уникальности правой стороны (<code>unique-ification</code>), когда они позволяют заменить часть работы обычным внутренним соединением без потери смысла. Но это специальное доказуемое преобразование, а не универсальная замена <code>EXISTS</code> на <code>JOIN</code>.</p>
+<h2 id="45-anti-join">4.5. <code>ANTI JOIN</code>: отсутствие совпадения требует другого учета<a class="headerlink" href="#45-anti-join" title="Permanent link">¶</a></h2>
+<p>Для:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">a</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">a_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>строка A должна попасть в результат, только если <strong>нет ни одного</strong> подходящего B.</p>
+<p>Соединение A с третьей таблицей C до или после проверки отсутствия B может менять кратность строк и допустимость фильтров, поэтому оптимизатор не может произвольно менять дерево.</p>
+<p>Также <code>NOT IN</code> с возможными <code>NULL</code> имеет другую трехзначную логику и не всегда преобразуется в тот же антиалгоритм без дополнительных сведений.</p>
+<h2 id="46-specialjoininfo-join_is_legal">4.6. <code>SpecialJoinInfo</code> и <code>join_is_legal</code>: как планировщик проверяет допустимость<a class="headerlink" href="#46-specialjoininfo-join_is_legal" title="Permanent link">¶</a></h2>
+<p>PostgreSQL сохраняет сведения об ограничениях внешних, полу- и антисоединений во внутренних структурах типа <code>SpecialJoinInfo</code>.</p>
+<p>Важны, среди прочего:</p>
+<ul>
+<li>вид специального соединения;</li>
+<li>минимальный набор отношений, необходимых слева;</li>
+<li>минимальный набор отношений, необходимых справа;</li>
+<li>признаки, определяющие допустимые перестановки;</li>
+<li>ограничения, связанные с правилами сохранения и исключения строк.</li>
+</ul>
+<p>При построении кандидата функция <code>join_is_legal()</code> проверяет, не нарушит ли предлагаемое соединение ограничения уже известных специальных операций.</p>
+<p>Концептуально:</p>
+<div class="highlight"><pre><span></span><code>Попытались объединить наборы {A,B} и {C}
+                |
+                v
+        join_is_legal(...)
+          /          \
+        да           нет
+        |             |
+  Создать пути     Отбросить
+  соединения       кандидат
+</code></pre></div>
+<p>Это объясняет, почему после анализа исходного SQL некоторые математически возможные деревья планировщик даже не оценивает: они <strong>не дают требуемый результат</strong>.</p>
+<p>Важное дополнение — <code>LATERAL</code>: если внутренний источник зависит от значений предыдущего источника, такая зависимость также ограничивает порядок. Здесь достаточно зафиксировать это ограничение; отдельный механизм параметризованных путей можно разобрать в будущем углублении. [6, 7]</p>
+<h2 id="47-join_collapse_limit-sql">4.7. <code>join_collapse_limit</code>: синтаксис SQL как ограничитель поиска<a class="headerlink" href="#47-join_collapse_limit-sql" title="Permanent link">¶</a></h2>
+<p>Обычно запись:</p>
+<div class="highlight"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="p">...</span>
+</code></pre></div>
+<p>не заставляет PostgreSQL выполнять внутренние соединения строго слева направо.</p>
+<p>Но параметр <code>join_collapse_limit</code> влияет на то, насколько далеко планировщик разворачивает явные конструкции <code>JOIN</code> в единый список отношений для свободного поиска.</p>
+<p>В PostgreSQL 18 стандартное значение — <code>8</code>. При <code>join_collapse_limit = 1</code> явная вложенность <code>JOIN</code> используется как ограничение порядка. Это может заметно уменьшить время планирования сложных запросов, но одновременно исключить более выгодные деревья. [7]</p>
+<p><strong>Важно:</strong> это не волшебный способ «ускорить JOIN». Мы намеренно сужаем пространство поиска и можем сделать выбранный план хуже.</p>
+<p>Похожий параметр <code>from_collapse_limit</code> влияет на разворачивание подзапросов в общий список отношений. Вмешиваться в них имеет смысл лишь после понимания, что именно создает лишнюю стоимость планирования.</p>
+<h3 id="4">Главное из раздела 4<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<ol>
+<li>Внутренние соединения допускают широкую свободу перестановок при сохранении логической семантики.</li>
+<li><code>LEFT JOIN</code> и другие специальные соединения ограничивают перестановки из-за требований сохранения либо исключения строк.</li>
+<li>Строгие условия на правой стороне могут позволить упростить <code>LEFT JOIN</code>, но перенос <code>WHERE</code> в <code>ON</code> способен изменить результат.</li>
+<li><code>SEMI JOIN</code> нельзя без доказательства заменить на <code>INNER JOIN</code>: появятся лишние дубликаты.</li>
+<li><code>SpecialJoinInfo</code> и <code>join_is_legal()</code> исключают незаконные деревья еще до оценки их стоимости.</li>
+<li><code>join_collapse_limit</code> регулирует компромисс между свободой поиска и временем самого планирования.</li>
+</ol>
+<hr/>
+<h1 id="5-geqo-p2">5. Генетический оптимизатор GEQO (P2)<a class="headerlink" href="#5-geqo-p2" title="Permanent link">¶</a></h1>
+<h2 id="51">5.1. Динамическое программирование полезно, пока вариантов не слишком много<a class="headerlink" href="#51" title="Permanent link">¶</a></h2>
+<p>Динамическое программирование экономит работу, повторно используя результаты меньших наборов. Но число возможных групп и способов их соединения быстро растет.</p>
+<p>Для трех-четырех таблиц пространство поиска обычно управляемое. Для двенадцати и более оно может стать значительно дороже: десятки и сотни тысяч сравнений альтернатив, дополнительная память под <code>Path</code>, оценка селективности и стоимости.</p>
+<p>В какой-то момент PostgreSQL должен выбирать между двумя рисками:</p>
+<ul>
+<li>продолжать подробный поиск и чрезмерно долго <strong>планировать</strong> запрос;</li>
+<li>ограничить поиск, быстрее перейти к исполнению, но иногда выбрать менее выгодное дерево.</li>
+</ul>
+<p>Здесь появляется <strong>генетический оптимизатор запросов</strong> — GEQO (<em>Genetic Query Optimizer</em>).</p>
+<h2 id="52">5.2. Когда он включается<a class="headerlink" href="#52" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 стандартные настройки, существенные для этой темы (<code>geqo_seed</code> показан как значение по умолчанию):</p>
+<div class="highlight"><pre><span></span><code>geqo = on
+geqo_threshold = 12
+geqo_effort = 5
+geqo_pool_size = 0
+geqo_generations = 0
+geqo_seed = 0
+</code></pre></div>
+<p><code>geqo_threshold = 12</code> означает, что при соответствующем количестве элементов <code>FROM</code> планировщик <strong>может перейти</strong> к GEQO. Простой вывод «любой текст SQL с двенадцатью буквальными таблицами обязательно запустит GEQO» ошибочен: число элементов формируется после преобразований и с учетом ограничений, в частности <code>FULL JOIN</code> рассматривается особым образом. [8]</p>
+<p><code>geqo_pool_size = 0</code> и <code>geqo_generations = 0</code> означают автоматический выбор величин на основе остальных параметров, а не отсутствие популяции или поколений.</p>
+<h2 id="53">5.3. Что представляет особь генетического алгоритма<a class="headerlink" href="#53" title="Permanent link">¶</a></h2>
+<p>GEQO кодирует порядок соединения последовательностью идентификаторов отношений.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>4 - 1 - 3 - 2
+</code></pre></div>
+<p>Это последовательность, задающая построение дерева соединения в поисковом алгоритме. Она не содержит весь готовый физический <code>Plan</code> со всеми индексами, сортировками и затратами.</p>
+<p>Для каждой такой последовательности GEQO пользуется <strong>обычной</strong> логикой оценки допустимых соединений и доступных физических путей. Поэтому одна «особь» оценивается через реальные механизмы планировщика, а не через абстрактное расстояние между числами. [9]</p>
+<h2 id="54">5.4. Как формируется и улучшается популяция<a class="headerlink" href="#54" title="Permanent link">¶</a></h2>
+<p>Упрощенная последовательность:</p>
+<ol>
+<li>Сформировать несколько начальных случайных допустимых последовательностей отношений.</li>
+<li>Для каждой построить оцениваемое дерево, определить стоимость и присвоить качество (fitness).</li>
+<li>Предпочитать последовательности с меньшей расчетной стоимостью.</li>
+<li>Комбинировать части перспективных последовательностей — скрещивание (crossover).</li>
+<li>Получать новые допустимые последовательности, оценивать их и заменять менее выгодные варианты.</li>
+<li>После заданного числа итераций выбрать лучший найденный вариант.</li>
+</ol>
+<p>Для PostgreSQL характерен <strong>алгоритм с постепенным обновлением популяции</strong> (<em>steady-state genetic algorithm</em>) и оператор скрещивания, сохраняющий соседство отношений (<em>edge recombination</em>).</p>
+<p>Не нужно автоматически добавлять к учебной модели обязательные случайные мутации: документация PostgreSQL указывает, что отдельный оператор мутации в этой реализации выведен из употребления. [9]</p>
+<h3 id="_4">Почему этого достаточно для ускорения планирования<a class="headerlink" href="#_4" title="Permanent link">¶</a></h3>
+<p>Вместо систематического рассмотрения огромного числа деревьев GEQO оценивает <strong>ограниченное количество</strong> последовательностей. Это снижает затраты на планирование.</p>
+<p>Цена: оптимизатор <strong>не гарантирует нахождения минимальной расчетной стоимости среди всех допустимых деревьев</strong>. Он выбирает лучшее из исследованных.</p>
+<p>И еще цена: даже выбранный минимум расчетного <code>cost</code> не является гарантией наименьшей фактической задержки — оценки строк и стоимости могут ошибаться независимо от метода поиска.</p>
+<h2 id="55-geqo_effort">5.5. Роль <code>geqo_effort</code>, размера популяции и числа поколений<a class="headerlink" href="#55-geqo_effort" title="Permanent link">¶</a></h2>
+<p><code>geqo_effort</code> — настройка интенсивности поиска. Увеличение ее значения обычно означает больше работы по поиску и повышает шанс обнаружить хороший порядок, но увеличивает стоимость планирования.</p>
+<ul>
+<li><code>geqo_pool_size</code> — количество особей в популяции.</li>
+<li><code>geqo_generations</code> — число итераций развития популяции.</li>
+<li><code>geqo_selection_bias</code> — насколько сильно предпочитаются более выгодные варианты при отборе.</li>
+<li><code>geqo_seed</code> — начальное значение генератора случайных чисел.</li>
+</ul>
+<p>При фиксированном наборе параметров и входных статистик <code>geqo_seed</code> делает ход псевдослучайного поиска воспроизводимым. Это полезно для диагностики: если изменение <code>geqo_seed</code> приводит к другому плану, это может говорить о чувствительности результата к ограниченному поиску. Но не доказывает, что одна версия плана объективно лучше при любой нагрузке. [8, 9]</p>
+<h2 id="56-sql-15-join">5.6. Почему SQL на 15 таблиц может планироваться долго, даже если JOIN выполняется быстро<a class="headerlink" href="#56-sql-15-join" title="Permanent link">¶</a></h2>
+<p>Предположим, приложение формирует большой аналитический запрос с пятнадцатью таблицами, а после фильтрации каждая из них содержит буквально несколько строк.</p>
+<p>Само исполнение выбранного плана может быть быстрым — например, миллисекунды.</p>
+<p>Но планировщик должен до исполнения исследовать:</p>
+<ul>
+<li>допустимые отношения и их порядок;</li>
+<li>селективность условий;</li>
+<li>индексы, сортировки и параметризацию путей;</li>
+<li>стоимость алгоритмов соединения;</li>
+<li>ограничения <code>LEFT</code>, <code>SEMI</code>, <code>ANTI</code>, <code>LATERAL</code>;</li>
+<li>различные свойства промежуточных путей.</li>
+</ul>
+<p>Поэтому <strong><code>Planning Time</code> может стать сопоставимым с <code>Execution Time</code> или превысить его</strong>.</p>
+<p>Снова видно ограниченный ресурс: CPU и память, потребляемые самим планировщиком.</p>
+<p>GEQO — один из механизмов контроля этой стоимости. Настройки сворачивания соединений и подзапросов — другой. Ни один из них не является гарантированным универсальным ускорением.</p>
+<h2 id="57">5.7. Как оценивать компромисс без лабораторной практики<a class="headerlink" href="#57" title="Permanent link">¶</a></h2>
+<p>Рассмотрим сконструированный пример:</p>
+<table>
+<thead>
+<tr>
+<th>Стратегия</th>
+<th style="text-align: right;">Стоимость планирования</th>
+<th style="text-align: right;">Фактическое выполнение</th>
+<th style="text-align: right;">Итоговая задержка без других расходов</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Подробный поиск</td>
+<td style="text-align: right;">400 мс</td>
+<td style="text-align: right;">20 мс</td>
+<td style="text-align: right;">420 мс</td>
+</tr>
+<tr>
+<td>GEQO</td>
+<td style="text-align: right;">40 мс</td>
+<td style="text-align: right;">35 мс</td>
+<td style="text-align: right;">75 мс</td>
+</tr>
+</tbody>
+</table>
+<p>GEQO нашел более медленный исполнительный план, но полный цикл <strong>планирование + исполнение</strong> значительно быстрее.</p>
+<p>А при повторном использовании подготовленного плана экономическая картина может поменяться:</p>
+<ul>
+<li>подробный план построен один раз и затем используется много раз;</li>
+<li>дополнительная стоимость поиска распределяется по множеству исполнений;</li>
+<li>более дешевое исполнение может окупить дорогую подготовку.</li>
+</ul>
+<p>Это отдельная ось выбора: планировщик выбирает путь по <strong>расчетной стоимости выполнения</strong>, но архитектура приложения может существенно менять долю планирования в общей нагрузке.</p>
+<h3 id="5">Главное из раздела 5<a class="headerlink" href="#5" title="Permanent link">¶</a></h3>
+<ol>
+<li>Число вариантов соединения растет намного быстрее числа таблиц; полный поиск может стать самостоятельной дорогой операцией.</li>
+<li>GEQO исследует ограниченную популяцию вариантов порядка соединений и переиспользует обычную модель стоимости PostgreSQL.</li>
+<li>Генетический поиск уменьшает время планирования, но не гарантирует глобального минимума расчетной стоимости.</li>
+<li>Параметры GEQO регулируют компромисс времени поиска и качества найденных кандидатов.</li>
+<li>Детерминированное значение <code>geqo_seed</code> помогает повторить тот же псевдослучайный поиск при неизменных прочих входных данных.</li>
+<li>Быстрый исполнительный план не гарантирует маленькую итоговую задержку, если построение плана обходится дорого.</li>
+</ol>
+<hr/>
+<h1 id="6-">6. Собираем одну причинно-следственную модель<a class="headerlink" href="#6-" title="Permanent link">¶</a></h1>
+<p>Теперь проследим путь SQL-запроса от статистики до дерева выполнения.</p>
+<div class="highlight"><pre><span></span><code>SQL с несколькими JOIN
+          |
+          v
+Логический результат и допустимые преобразования
+          |
+          v
+Статистика отдельных отношений и фильтров
+          |
+          v
+Оценка строк после JOIN
+  - eqjoinsel
+  - MCV, n_distinct, NULL
+  - уникальность и внешние ключи
+          |
+          v
+Стоимость физических алгоритмов
+  - Nested Loop: повторные поиски
+  - Hash Join: построение, поиск, память
+  - Merge Join: порядок, сравнения, сортировки
+          |
+          v
+Проверка допустимых порядков
+  - SpecialJoinInfo / join_is_legal
+          |
+          v
+Поиск по подмножествам или GEQO
+  - RelOptInfo и Paths
+  - отсечение проигрывающих вариантов
+          |
+          v
+Выбор итогового Path -&gt; построение Plan
+          |
+          v
+Executor -&gt; EXPLAIN ANALYZE
+          |
+          v
+Фактические rows, loops, BUFFERS, время
+</code></pre></div>
+<h2 id="61">6.1. Три принципиально разных ошибки<a class="headerlink" href="#61" title="Permanent link">¶</a></h2>
+<p><strong>Ошибка №1. Неверное количество строк соединения.</strong></p>
+<p>Планировщик ожидает 1000 пар, а фактически появляется миллион. Это может быть результатом сильного перекоса ключей, устаревшей статистики или отсутствующих сведений о взаимосвязи значений. В таком случае расчетные затраты почти всех последующих операций оказываются построены на неправильном объеме.</p>
+<p><strong>Ошибка №2. Количество строк близко к факту, но неверна физическая цена.</strong></p>
+<p>Например, ожидаемые и фактические <code>rows</code> совпали, но индексные поиски обращаются к значительно большему количеству страниц, чем предполагалось, либо хеш-таблица требует дополнительных партий. Тогда источник проблемы — цена выполнения, а не селективность.</p>
+<p><strong>Ошибка №3. Хороший путь не попал в рассмотренный набор или был отброшен.</strong></p>
+<p>Причины могут включать ограничение допустимости из-за семантики соединения, параметры поиска, отсечение альтернатив или ограниченный поиск GEQO. Если вариант был запрещен логикой <code>LEFT/SEMI/ANTI</code>, «включить его обратно ради скорости» нельзя — он изменит результат. Если вариант лишь не был обнаружен в эвристическом поиске, исследуют стратегию планирования и доступные свойства путей.</p>
+<h2 id="62">6.2. Инженерный вывод<a class="headerlink" href="#62" title="Permanent link">¶</a></h2>
+<p>Когда медленный запрос содержит несколько <code>JOIN</code>, нужно диагностировать <strong>всю цепочку</strong>, а не объявлять выбранный алгоритм плохим по имени.</p>
+<p>Планировщик сначала пытается понять, <strong>сколько строк</strong> создаст каждое допустимое соединение. Затем считает, <strong>сколько стоит</strong> получить их разными способами. После этого выбирает <strong>порядок соединений</strong> и физические пути, сохраняя семантику запроса. При большом числе таблиц появляется еще одно ограничение — <strong>стоимость самого поиска плана</strong>.</p>
+<p>Отсюда главный тезис лекции:</p>
+<blockquote>
+<p><strong>Плохой JOIN-план обычно имеет конкретную сломанную предпосылку: количество совпадений, стоимость доступа, допустимый порядок или полнота поиска альтернатив. Инженерная диагностика должна установить именно ее.</strong></p>
+</blockquote>
+<h2 id="63-join">6.3. Куда можно копнуть глубже — в рамках темы JOIN<a class="headerlink" href="#63-join" title="Permanent link">¶</a></h2>
+<p>Следующий полезный уровень — <strong>внутренние структуры исполнителя соединений</strong>. Устройство хеш-корзин, перераспределение партий, состояния Merge Join, параметризованные пересканирования и кеш <code>Memoize</code> закроют вопрос, <em>почему</em> уже выбранный план фактически потребляет столько памяти, CPU и временного ввода-вывода. Это предусмотрено для 06.2 и не требует перехода к WAL.</p>
+<hr/>
+<h1 id="_5">Источники и статус математических моделей<a class="headerlink" href="#_5" title="Permanent link">¶</a></h1>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/row-estimation-examples.html">PostgreSQL 18 — Row Estimation Examples</a>. Обоснование <code>eqjoinsel</code>, оценок строк, MCV и <code>n_distinct</code> при соединении.</li>
+<li><a href="https://www.postgresql.org/docs/18/planner-stats.html">PostgreSQL 18 — Statistics Used by the Planner</a>. Статистика отдельных таблиц и ее ограничения.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/path/costsize.c">PostgreSQL 18 — costsize.c (<code>REL_18_STABLE</code>)</a>. Расчет количества строк, учет внешних ключей, стоимости <code>Nested Loop</code>, <code>Hash Join</code>, <code>Merge Join</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-createstatistics.html">PostgreSQL 18 — CREATE STATISTICS</a>. Явное ограничение многоколоночной статистики для селективности межтабличных JOIN.</li>
+<li><a href="https://doxygen.postgresql.org/costsize_8c.html">PostgreSQL — исходные тексты оценки стоимости</a>. <code>initial_cost_*</code>, <code>final_cost_*</code>, <code>SemiAntiJoinFactors</code>, оценка стоимости хеширования и партий. Для проверки именно PostgreSQL 18 приоритет имеет ссылка 3.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/optimizer/README">PostgreSQL 18 — optimizer/README (<code>REL_18_STABLE</code>)</a>. Поиск по подмножествам, <code>SpecialJoinInfo</code>, <code>join_is_legal</code>, виды деревьев.</li>
+<li><a href="https://www.postgresql.org/docs/18/explicit-joins.html">PostgreSQL 18 — Explicit JOIN Clauses</a>. Перестановки <code>INNER/LEFT JOIN</code> и <code>join_collapse_limit</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">PostgreSQL 18 — Query Planning Settings</a>. <code>join_collapse_limit</code>, <code>from_collapse_limit</code> и параметры GEQO.</li>
+<li><a href="https://www.postgresql.org/docs/18/geqo-pg-intro.html">PostgreSQL 18 — GEQO</a>. Кодирование порядков, популяция, скрещивание и повторяемость <code>geqo_seed</code>.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 5.3. PostgreSQL planner internals" class="md-footer__link md-footer__link--prev" href="../05.3%20-%20Planner/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                5.3. PostgreSQL planner internals
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 6.2. PostgreSQL — внутреннее устройство исполнителя JOIN" class="md-footer__link md-footer__link--next" href="../06.2%20-%20Join%20Executor/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

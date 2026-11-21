@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/08.3%20-%20Vacuum%20freeze%20transaction%20age/" rel="canonical"/>
+<link href="../08.2%20-%20Lock%20manager/" rel="prev"/>
+<link href="../09.1%20-%20Schema%20migration/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#83-postgresql-vacuum-freeze-transaction-age-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-sql">
+<span class="md-ellipsis">
+      
+        0. Инцидент: SQL быстрый, блокировок нет, а база становится медленнее
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-sql">
+<span class="md-ellipsis">
+      
+        0. Инцидент: SQL быстрый, блокировок нет, а база становится медленнее
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="83-postgresql-vacuum-freeze-transaction-age-internals">8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals<a class="headerlink" href="#83-postgresql-vacuum-freeze-transaction-age-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная лекция магистратуры · PostgreSQL 18 · <code>REL_18_STABLE</code> · блок 8 «Diagnostics &amp; Locks».</strong></p>
+<p><strong>Место в программе.</strong> В 08 мы научились находить длинные транзакции и читать <code>age(relfrozenxid)</code>. В 08.1 разобрали, как PostgreSQL собирает статистику и показывает ожидания. В 08.2 исследовали блокировки строк, XID и MultiXact. Теперь предстоит замкнуть причинно-следственную цепочку: почему старые версии остаются в heap, как они удаляются, как VACUUM продвигает возрастные границы и почему отказ этой подсистемы способен остановить новые транзакции.</p>
+<p><strong>Границы.</strong> Здесь рассматриваем VACUUM, freezing, visibility map, XID/MultiXact aging, autovacuum, failsafe и диагностику их поведения. Подробные алгоритмы SQL planner, WAL, Lock Manager, backup и миграции из других лекций не повторяем. Сведения о публичных параметрах/представлениях соответствуют PostgreSQL 18; имена структур и алгоритмы в C — детали реализации ветки <code>REL_18_STABLE</code>. Все схемы, где не указано иное, учебные.</p>
+</blockquote>
+<h2 id="0-sql">0. Инцидент: SQL быстрый, блокировок нет, а база становится медленнее<a class="headerlink" href="#0-sql" title="Permanent link">¶</a></h2>
+<p>Представим сервис с таблицей <code>orders</code> на 80 млн строк. Каждую секунду он обрабатывает множество событий и обновляет статусы. Отдельный <code>UPDATE</code> занимает несколько миллисекунд. Первые недели все хорошо. Потом таблица занимает существенно больше места; индексы становятся тяжелее, растет чтение страниц, а на диске появляются все новые мегабайты. <code>pg_stat_activity</code> не показывает постоянно занятой строки, <code>pg_blocking_pids()</code> пуст. Тем временем autovacuum снова и снова обходит <code>orders</code>, а <code>n_dead_tup</code> ведет себя странно.</p>
+<p>Можно сказать: «База засорилась. Запустим VACUUM». Но это дает лишь список действий, не объясняя происходящее. Почему после <code>UPDATE</code> место вообще остается занятым? Когда версия строки становится удаляемой? Может ли длинная транзакция, вообще не трогающая <code>orders</code>, удерживать ее старые версии? Почему VACUUM в одной ситуации освобождает пространство, а в другой обходит миллионы страниц без заметного уменьшения размера файла? И при чем здесь 32-битный XID, если сервер давно 64-битный?</p>
+<p>Разберем реальную модель:</p>
+<div class="highlight"><pre><span></span><code>UPDATE -&gt; новая версия tuple -&gt; старая версия остается в heap
+                    |
+                    v
+             Нужна ли она снимкам?
+                |          |
+               Да         Нет
+                |          |
+       сохраняем версию   pruning / VACUUM
+                           |
+          +----------------+-------------------+
+          |                                    |
+    освобождение места                freezing старых XID/MXID
+    внутри heap/index                        |
+          |                                   v
+          v                        all-frozen / relfrozenxid
+       меньше bloat                          |
+                                             v
+                                 безопасное движение XID вперед
+</code></pre></div>
+<p>Главная тонкость: <strong>очистка мертвых версий, заморозка живых версий и предотвращение XID wraparound связаны, но имеют разные условия успеха</strong>. VACUUM может отлично очистить мертвые строки и при этом не продвинуть <code>relfrozenxid</code>. Он может заморозить миллионы живых строк почти без освобождения места. И при критическом приближении XID wraparound сервер предпочтет дорогостоящую защитную работу нормальному профилю latency.</p>
+<hr/>
+<h1 id="i-postgresql">I. Горизонт видимости: почему PostgreSQL не может сразу удалить старую версию<a class="headerlink" href="#i-postgresql" title="Permanent link">¶</a></h1>
+<h2 id="1-sql-">1. Версия строки живет дольше одного SQL-запроса<a class="headerlink" href="#1-sql-" title="Permanent link">¶</a></h2>
+<h3 id="11-update">1.1. Состояние после UPDATE<a class="headerlink" href="#11-update" title="Permanent link">¶</a></h3>
+<p>Начнем с простой модели heap. <code>UPDATE</code> обычно создает новую физическую версию строки, а прежняя остается доступной до тех пор, пока ее потенциально могут увидеть подходящие снимки транзакций. В заголовке версии хранятся <code>xmin</code> (создавший XID), <code>xmax</code> (удаливший/обновивший XID либо сведения о блокировке) и служебные признаки. Эти поля уже встречались в лекциях по MVCC и Lock Manager; здесь смотрим на их <em>срок жизни</em>.</p>
+<div class="highlight"><pre><span></span><code>До UPDATE:       tuple A  {xmin=100, xmax=0}  value='new'
+
+После UPDATE:    tuple A  {xmin=100, xmax=220} value='new'
+                 tuple B  {xmin=220, xmax=0}  value='paid'
+
+Снимок до XID 220             -&gt; может видеть A
+Подходящий новый снимок       -&gt; может видеть B
+</code></pre></div>
+<p>Из примера нельзя делать вывод, что достаточно проверить <code>xmax != 0</code> и тут же стереть A. <code>xmax</code> также используется блокировками; исход обновляющей транзакции мог быть откатом; старый снимок мог сохраниться. Сначала требуется определить статус транзакции и допустимость удаления относительно <strong>всех</strong> горизонтов видимости, которые сервер обязан учитывать.</p>
+<h3 id="12">1.2. «Невидима мне» не значит «можно удалять»<a class="headerlink" href="#12" title="Permanent link">¶</a></h3>
+<p>Представим два сеанса. В первом открыта долгая транзакция уровня <code>REPEATABLE READ</code>, зафиксировавшая старый snapshot. Во втором выполняется сто тысяч обновлений, которые успешно коммитятся. Новый запрос второго сеанса уже видит новые версии, но снимок первого сеанса все еще может нуждаться в старых. Удалить их физически означало бы нарушить семантику MVCC. Правило удаления должно быть <strong>консервативным относительно всех текущих и необходимых будущих наблюдателей</strong>, включая некоторые репликационные и подготовленные транзакционные состояния.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Сеанс A: учебная демонстрация, только тестовая БД</span>
+<span class="k">BEGIN</span><span class="w"> </span><span class="k">ISOLATION</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">REPEATABLE</span><span class="w"> </span><span class="k">READ</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span><span class="w"> </span><span class="c1">-- снимок зафиксирован</span>
+<span class="c1">-- Сеанс остается открытым</span>
+
+<span class="c1">-- Сеанс B:</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'processed'</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span>
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">)</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span><span class="w">     </span><span class="c1">-- выполняется отдельно от BEGIN</span>
+</code></pre></div>
+<p>Пока сеанс A удерживает соответствующий горизонт, VACUUM не обязан получить возможность удалить все старые версии. При этом точное влияние зависит от того, <em>какой именно</em> snapshot удерживается и к какой базе/отношению относится очищаемая информация. Просто длительный <code>BEGIN</code>, который ничего не читал и не получил XID, не эквивалентен часами удерживаемому старому <code>backend_xmin</code>.</p>
+<h3 id="13">1.3. Четыре состояния с точки зрения уборки<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Для объяснения VACUUM полезна следующая модель (не буквальный enum реализации): <strong>live</strong> — версия нужна как актуальная; <strong>recently dead</strong> — уже уступила новой версии, но еще может требоваться некоторым снимкам; <strong>dead/removable</strong> — безопасно удалять по принятому горизонту; <strong>reusable space</strong> — физическое место уже освобождено для будущих записей. Нельзя соединять два последних состояния без промежуточной работы: индекс может продолжать ссылаться на старый TID, а строковой указатель в heap пока не может стать <code>LP_UNUSED</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Состояние</th>
+<th>Что означает</th>
+<th>Что может делать система</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Live</td>
+<td>Версия остается актуальной для некоторого допустимого чтения</td>
+<td>Сохранять; при возрасте XID замораживать</td>
+</tr>
+<tr>
+<td>Recently dead</td>
+<td>Версия вытеснена, но все еще нужна старому snapshot</td>
+<td>Ждать продвижения горизонта</td>
+</tr>
+<tr>
+<td>Dead/removable</td>
+<td>Никакой защищаемый snapshot ее уже не требует</td>
+<td>Prune, подготовка удаления index entries</td>
+</tr>
+<tr>
+<td>Reusable</td>
+<td>Ссылки очищены и место освобождено</td>
+<td>Повторно использовать место на странице</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Инженерный вывод.</strong> Сколько места выделит UPDATE — зависит не только от числа новых версий, но и от <em>скорости ухода старых версий из зоны видимости</em>. При высокой интенсивности изменений даже короткая задержка уборки дает заметный объем версий, одновременно находящихся в heap.</p>
+<h2 id="2-oldestxmin">2. OldestXmin и настоящая граница безопасного удаления<a class="headerlink" href="#2-oldestxmin" title="Permanent link">¶</a></h2>
+<h3 id="21-snapshot">2.1. От локального snapshot к глобальному горизонту<a class="headerlink" href="#21-snapshot" title="Permanent link">¶</a></h3>
+<p>Каждый запрос читает данные согласно своим правилам видимости. VACUUM должен принять более сильное решение: эта старая версия уже не нужна <em>никому</em>, кого сервер обязан учитывать. Для этого вычисляется консервативная граница удаления. В исходниках PostgreSQL 18 в <code>src/backend/commands/vacuum.c</code> функция <code>vacuum_get_cutoffs()</code> получает <code>OldestXmin</code> через <code>GetOldestNonRemovableTransactionId(rel)</code> и вычисляет cutoff-значения для freezing. Этот вызов нельзя просто заменить выражением <code>min(backend_xmin)</code>: реальные ограничения включают другие источники и особенности отношения. [S2][S9]</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>                  XID растут -&gt;
+       100      140       180       220       300
+        |--------|---------|---------|---------|
+     старый snapshot      UPDATE=220    current XID
+
+Oldest non-removable horizon ≈ 140
+  -&gt; версия, удаленная XID 220, пока может быть нужна
+  -&gt; отказ от преждевременного удаления сохраняет корректность
+</code></pre></div>
+<p>Важно: численные XID здесь условные. Реальные границы в PostgreSQL имеют специальную циклическую арифметику и зависят от того, что именно сделала транзакция с конкретной версией.</p>
+<h3 id="22">2.2. Какие факторы удерживают горизонт<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p>Долгая активная транзакция с удерживаемым snapshot способна создать старый <code>backend_xmin</code>. Аналогичный эффект могут иметь подготовленные транзакции (two-phase commit), репликационные слоты с <code>xmin</code> или <code>catalog_xmin</code>, а также обратная связь от standby при соответствующих настройках. Эти источники различаются по назначению: <code>catalog_xmin</code> прежде всего защищает версии системных каталогов, поэтому нельзя трактовать его как универсальный запрет на очистку всех пользовательских таблиц.</p>
+<p>Для диагностики недостаточно одной таблицы <code>pg_stat_activity</code>. Нужны вместе <code>pg_stat_activity</code>, <code>pg_prepared_xacts</code>, <code>pg_replication_slots</code>, состояние репликации и параметры <code>hot_standby_feedback</code> в relevant окружении. Если рассматривать один из источников изолированно, легко решить, что виноват VACUUM, хотя на деле он выполняет корректное ограничение видимости.</p>
+<h3 id="23">2.3. Два независимых счетчика времени<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p><code>now() - xact_start</code> измеряет <em>время на часах</em>, а <code>age(backend_xmin)</code> — <em>число пройденных XID</em>. В базе с 100 транзакциями в минуту час может дать небольшой XID age. В системе с сотнями тысяч транзакций в секунду относительно короткая задержка может стать опасной. Поэтому «долгая транзакция» должна оцениваться двумя осями: насколько долго заняты ресурсы и как быстро растет XID age в остальном кластере.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">xact_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">tx_wall_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">backend_xid</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">backend_xmin</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xmin</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">snapshot_xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query_sample</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">xact_start</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">xact_start</span><span class="p">;</span>
+</code></pre></div>
+<p>Не следует бездумно выполнять <code>pg_terminate_backend()</code> по одной метрике. Сначала проверяем владельца операции, характер работы, возможность безопасного повтора и другие источники горизонта. В идеале устраняем причину в приложении: удерживаем снимок столько, сколько реально требуется бизнес-операции.</p>
+<hr/>
+<h1 id="ii-pruning-vacuum">II. Физическое удаление версий: pruning и фазы VACUUM<a class="headerlink" href="#ii-pruning-vacuum" title="Permanent link">¶</a></h1>
+<h2 id="3-tuple">3. Почему «удалить tuple» означает несколько разных операций<a class="headerlink" href="#3-tuple" title="Permanent link">¶</a></h2>
+<h3 id="31-heap-page-line-pointers">3.1. Heap page и line pointers<a class="headerlink" href="#31-heap-page-line-pointers" title="Permanent link">¶</a></h3>
+<p>Обычная heap-страница PostgreSQL содержит заголовок, массив указателей на элементы (<code>ItemId</code>/line pointers), сами версии tuples и свободное пространство между ними. CTID логически задается парой <code>(block, offset)</code>. Индекс хранит ссылку на heap TID, поэтому нельзя освободить указатель преждевременно, если индекс еще способен по нему обратиться. Важные состояния line pointer: <code>LP_NORMAL</code> — есть tuple; <code>LP_REDIRECT</code> — перенаправление внутри HOT-chain; <code>LP_DEAD</code> — место под tuple удалено логически, но индексные ссылки еще требуют учета; <code>LP_UNUSED</code> — указатель можно повторно использовать.</p>
+<div class="highlight"><pre><span></span><code>Страница heap 8 КиБ (учебно)
++------------------------------+
+| PageHeader                   |
++------------------------------+
+| LP1 -&gt; tuple A (old)         | &lt;-- индекс может указывать сюда
+| LP2 -&gt; tuple B (current)     |
+| LP3 -&gt; LP_DEAD / LP_UNUSED   |
++------------------------------+
+| свободное пространство       |
++------------------------------+
+| tuples в конце страницы      |
++------------------------------+
+</code></pre></div>
+<p>Ключевая проблема: страница может содержать десятки мертвых tuple, но индексная структура все еще имеет записи с их TID. Если превратить все pointers в <code>LP_UNUSED</code> до удаления индексных записей, повторное использование offset могло бы нарушить корректность поиска через старый индексный TID. Поэтому VACUUM выстраивает порядок: сначала установить безопасную удаляемость, затем убрать индексные ссылки, затем окончательно освободить heap-указатели.</p>
+<h3 id="32-heap-pruning-vacuum">3.2. Heap pruning может происходить до VACUUM<a class="headerlink" href="#32-heap-pruning-vacuum" title="Permanent link">¶</a></h3>
+<p><strong>Pruning</strong> — локальное удаление устаревших звеньев цепочек версий и уплотнение данных на конкретной heap-странице. PostgreSQL может выполнять opportunistic/on-access pruning, когда обычная операция уже пришла к странице и ей нужно освободить место или сократить цепочку HOT. В исходниках <code>src/backend/access/heap/pruneheap.c</code> участвуют <code>heap_page_prune_opt()</code> и общий механизм <code>heap_page_prune_and_freeze()</code>. Обратите внимание на разделение: on-access pruning и полный VACUUM решают частично пересекающиеся задачи, но имеют разные возможности освобождения index-referenced items. [S10]</p>
+<p>Важное ограничение: чтение или изменение одной страницы не превращается в полную очистку всех heap и индексов таблицы. Pruning работает локально; VACUUM обеспечивает систематический проход, учет index TID и долговременный контроль XID age. Нельзя полагать, что «у нас много SELECT, значит таблица сама очистится».</p>
+<h3 id="33-hot-chain">3.3. HOT-chain уменьшает цену обновления, но не делает его бесплатным<a class="headerlink" href="#33-hot-chain" title="Permanent link">¶</a></h3>
+<p>HOT (Heap-Only Tuple) может позволить создать новую версию на той же странице без создания новых индексных записей, если выполнены ограничения обновления и доступно место. Старые звенья HOT-chain могут быть отрезаны pruning, оставив корректное перенаправление. Это уменьшает индексный churn, но каждая новая версия все равно требует heap-пространства, а при долгом snapshot старые звенья нельзя преждевременно выбросить. В статистике <code>pg_stat_user_tables.n_tup_hot_upd</code> видно, насколько часто происходят HOT updates, но это накопительный счетчик, а не прямое измерение bloat.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="n">n_tup_upd</span><span class="p">,</span><span class="w"> </span><span class="n">n_tup_hot_upd</span><span class="p">,</span>
+<span class="w">       </span><span class="n">round</span><span class="p">(</span><span class="mi">100</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">n_tup_hot_upd</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">nullif</span><span class="p">(</span><span class="n">n_tup_upd</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">           </span><span class="k">AS</span><span class="w"> </span><span class="n">hot_update_pct</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">relname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="34-vacuum">3.4. Почему VACUUM не обязан уменьшить размер файла<a class="headerlink" href="#34-vacuum" title="Permanent link">¶</a></h3>
+<p>Обычный <code>VACUUM</code> преимущественно возвращает свободное место <strong>для повторного использования внутри отношения</strong>. В конце heap-файла PostgreSQL иногда может усечь полностью свободный хвост — такая операция требует краткой <code>ACCESS EXCLUSIVE</code> блокировки и может быть запрещена настройкой <code>vacuum_truncate</code>/параметром <code>TRUNCATE</code>. Если свободные участки разбросаны по середине файла, размер <code>pg_relation_size()</code> может почти не измениться, хотя полезного места стало гораздо больше. [S1][S2]</p>
+<p><code>VACUUM FULL</code> переписывает отношение, действительно уплотняя файл ценой значительно более тяжелой работы и сильной блокировки. В этой лекции это только контраст для понимания границы обычного VACUUM: нельзя назначать <code>VACUUM FULL</code> штатной реакцией на каждый всплеск <code>n_dead_tup</code>, особенно в работающей системе.</p>
+<h2 id="4-three-phase-vacuum-heap-heap">4. Three-phase vacuum: почему сначала heap, потом индекс и опять heap<a class="headerlink" href="#4-three-phase-vacuum-heap-heap" title="Permanent link">¶</a></h2>
+<h3 id="41-i-heap">4.1. Фаза I: сканирование heap<a class="headerlink" href="#41-i-heap" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 основная реализация обычного heap VACUUM находится в <code>src/backend/access/heap/vacuumlazy.c</code>. Сканирование посещает необходимые heap-страницы, выполняет pruning, находит удаляемые версии, при необходимости freezing и запоминает TID, чьи <strong>индексные ссылки</strong> нужно убрать. Для хранения таких идентификаторов используется TID store, ограниченный доступной памятью. Длинный список мертвых версий здесь физически превращается в потребность памяти и дальнейшего I/O. [S11]</p>
+<div class="highlight"><pre><span></span><code>PHASE I: scan heap
+  page #1 -&gt; prune -&gt; dead TIDs -&gt; TID store
+  page #2 -&gt; maybe skip via visibility map
+  page #3 -&gt; freeze old versions -&gt; update VM
+  ...
+  store full? -&gt; switch to index cleanup cycle
+</code></pre></div>
+<h3 id="42-ii-dead-tuples">4.2. Фаза II: удалить из индексов ссылки на dead tuples<a class="headerlink" href="#42-ii-dead-tuples" title="Permanent link">¶</a></h3>
+<p>Второй этап проходит по индексам и удаляет ссылки на версии heap, чьи TID собраны на первом этапе. Для конкретного типа индекса применяются его процедуры очистки; работа может быть дорогой по CPU и I/O. На большой таблице с множеством индексов индексная часть VACUUM порой становится существенной долей всей стоимости. Если есть несколько индексов, они все могут нуждаться в обслуживании, хотя SQL обновлял только один столбец и не менял пользовательский ключ.</p>
+<h3 id="43-iii-heap-items">4.3. Фаза III: окончательно освободить соответствующие heap items<a class="headerlink" href="#43-iii-heap-items" title="Permanent link">¶</a></h3>
+<p>После удаления индексных ссылок VACUUM получает возможность «пожать руку» страницам heap и сделать ранее отложенные элементы повторно используемыми. На стадии heap vacuuming он очищает соответствующие line pointers, высвобождает место и обновляет метаданные. Если TID store заполнился раньше, чем просмотрена вся таблица, цикл «indices → heap» выполняется несколько раз, затем возвращается к дальнейшему heap scan. Иными словами, <strong>размер памяти под dead TIDs напрямую влияет на число проходов по индексам</strong>, но выделить бесконечно много памяти тоже нельзя.</p>
+<h3 id="44">4.4. Условная схема реального цикла<a class="headerlink" href="#44" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>heap scan + pruning/freezing
+    |           |
+    |           +--&gt; VM all-visible/all-frozen (при соблюдении условий)
+    v
+TID store dead item identifiers
+    |
+    +--&gt; memory available? --&gt; продолжить scan
+    |
+    +--&gt; full/end of scan
+               |
+               v
+         index vacuuming
+               |
+               v
+          heap vacuuming
+               |
+               +--&gt; scan not finished -&gt; continue scan
+               v
+       index cleanup / tail truncate / final cleanup
+</code></pre></div>
+<p>В документации <code>pg_stat_progress_vacuum.phase</code> соответствуют этапы <code>scanning heap</code>, <code>vacuuming indexes</code>, <code>vacuuming heap</code>, <code>cleaning up indexes</code>, <code>truncating heap</code>, <code>performing final cleanup</code>. Но это <strong>текущая фаза</strong>, а не процент общего времени. <code>heap_blks_scanned</code> в PostgreSQL 18 учитывает и пропущенные через VM блоки: величина 100% не означает, что ядро физически прочитало каждую страницу. [S4]</p>
+<h3 id="45">4.5. Когда цикл сокращается<a class="headerlink" href="#45" title="Permanent link">¶</a></h3>
+<p>Если нет индексов, либо нет необходимости удалять индексные ссылки, соответствующие части могут быть пропущены. При активированном failsafe также возможно отказаться от необязательной работы по индексам ради предотвращения wraparound. Команда <code>VACUUM (INDEX_CLEANUP OFF)</code> существует, но регулярное принудительное отключение обслуживания индексов создает долг по очистке: применять ее без понимания последствий опасно. Не следует воспринимать список фаз как жесткий сценарий, который исполняется одинаково для любой таблицы.</p>
+<h2 id="5-tid-store">5. TID store и цена недостаточной памяти<a class="headerlink" href="#5-tid-store" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Что хранится в памяти<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Для индексной очистки VACUUM нужен список удаляемых <strong>heap TID</strong>. Наивно хранить каждый <code>(block, offset)</code> как отдельный полноразмерный объект — накладно. Реальный TID store применяет компактные структуры с учетом группировки по страницам и ограничивается бюджетом памяти, связанным с <code>maintenance_work_mem</code> и <code>autovacuum_work_mem</code>. Точный формат — деталь реализации, но инженерный эффект предсказуем: чем больше dead items за цикл, тем больше памяти или тем чаще приходится делать дополнительные index vacuum cycles.</p>
+<h3 id="52-maintenance_work_mem">5.2. Почему больше <code>maintenance_work_mem</code> не гарантирует кратное ускорение<a class="headerlink" href="#52-maintenance_work_mem" title="Permanent link">¶</a></h3>
+<p>Если TID store часто переполняется, увеличение бюджета уменьшит число проходов по индексам. Но если узкое место уже в чтении heap, конкуренции за I/O или медленном индексе, рост памяти почти ничего не исправит. Сотни одновременно работающих maintenance workers также могут привести к резкому общему расходу RAM. Корректная оптимизация начинается с <code>pg_stat_progress_vacuum.index_vacuum_count</code>, <code>dead_tuple_bytes</code> и реального I/O, а не с автоматического увеличения параметра на порядок.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span><span class="w"> </span><span class="n">phase</span><span class="p">,</span>
+<span class="w">       </span><span class="n">index_vacuum_count</span><span class="p">,</span><span class="w"> </span><span class="n">dead_tuple_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">max_dead_tuple_bytes</span><span class="p">,</span><span class="w"> </span><span class="n">num_dead_item_ids</span><span class="p">,</span>
+<span class="w">       </span><span class="n">indexes_processed</span><span class="p">,</span><span class="w"> </span><span class="n">indexes_total</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_progress_vacuum</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь показатели — <strong>параметры текущего VACUUM</strong>. После завершения строки из progress view исчезают. Для истории нужна метрика с периодическим сбором или журнал autovacuum.</p>
+<hr/>
+<h1 id="iii-freezing-insert">III. Freezing: почему живую строку приходится изменять спустя годы после INSERT<a class="headerlink" href="#iii-freezing-insert" title="Permanent link">¶</a></h1>
+<h2 id="6-xid">6. XID: ограниченный счетчик в бесконечно работающей базе<a class="headerlink" href="#6-xid" title="Permanent link">¶</a></h2>
+<h3 id="61-integer">6.1. Не все числа можно сравнивать как обычные integer<a class="headerlink" href="#61-integer" title="Permanent link">¶</a></h3>
+<p>PostgreSQL хранит традиционные transaction ID (<code>xid</code>) как 32-битные значения, выдавая их при необходимости операциям, которым нужен постоянный XID. Диапазон конечен, а выдача XID непрерывной серверной работе когда-нибудь приведет к циклическому использованию чисел. Простое сравнение <code>old_xid &lt; new_xid</code> не задает глобальный порядок на неограниченном времени. PostgreSQL интерпретирует обычные XID в циклическом пространстве, где сравнение корректно в ограниченном окне меньше половины пространства, то есть примерно двух миллиардов транзакций.</p>
+<div class="highlight"><pre><span></span><code>... 4 294 967 293 -&gt; 4 294 967 294 -&gt; 4 294 967 295
+                   -&gt; 3 -&gt; 4 -&gt; 5 -&gt; ...
+
+XID с малым числовым значением может оказаться НОВЕЕ,
+чем XID, значение которого близко к максимуму.
+</code></pre></div>
+<p>Числа <code>0</code>, <code>1</code>, <code>2</code> имеют специальные значения (<code>InvalidTransactionId</code>, <code>BootstrapTransactionId</code>, <code>FrozenTransactionId</code>); пример иллюстрирует wraparound обычных XID. Важна именно <strong>граница порядка</strong>, а не только факт переполнения 32-битного счетчика. Ошибка, при которой древние tuple начинают восприниматься как созданные «в будущем», способна нарушить видимость данных.</p>
+<h3 id="62-64-fulltransactionid-freezing">6.2. Почему 64-битный <code>FullTransactionId</code> не отменяет freezing<a class="headerlink" href="#62-64-fulltransactionid-freezing" title="Permanent link">¶</a></h3>
+<p>Внутри PostgreSQL существуют представления XID с эпохой (например, <code>FullTransactionId</code>), позволяющие отличать обороты счетчика в соответствующих контекстах. Но <strong>в заголовках heap tuple</strong> исторически находятся 32-битные XID, а статус старых транзакций нельзя хранить бесконечно без уборки. Просто наличие 64-битного счетчика в runtime не заменяет необходимость корректно пометить старые tuples и освобождать место в <code>pg_xact</code> и <code>pg_multixact</code>.</p>
+<p>Здесь полезно разрушить формулу «поставим bigint вместо int, и проблема исчезнет». Чтобы сделать это без freezing, пришлось бы менять on-disk формат каждой версии, механизм видимости, хранение статусов, ограничения и объем данных. PostgreSQL использует периодическую заморозку как часть долгосрочной поддержки версионного хранения.</p>
+<h3 id="63-age">6.3. Age измеряется транзакциями, а не сутками<a class="headerlink" href="#63-age" title="Permanent link">¶</a></h3>
+<p><code>age(xid)</code> считает возраст относительно текущего XID в единицах transaction IDs. Отсюда полезный расчет для оценки времени: если кластер расходует 1000 XID/с, то 200 млн XID — примерно 2,3 суток; при 100 XID/с — около 23 суток. Это <strong>условный</strong> расчет, а не прогноз работы autovacuum: фактическая скорость выдачи XID меняется, не каждый SQL получает XID, заморозка и пороги зависят от таблиц.</p>
+<div class="highlight"><pre><span></span><code>До порога 200 000 000 XID:
+  1 000 XID/s -&gt; 200 000 s ≈ 55.6 часа
+    100 XID/s -&gt; 2 000 000 s ≈ 23.1 суток
+     10 XID/s -&gt; 20 000 000 s ≈ 231 сутки
+</code></pre></div>
+<p><strong>Следствие для эксплуатации.</strong> На сервисе с большой нагрузкой нужно мониторить одновременно абсолютный XID age и скорость его прироста. Снимок <code>age(datfrozenxid)=50 млн</code> может быть почти безобиден при низком XID throughput и требовать внимания при экспоненциально растущем профиле нагрузки.</p>
+<h2 id="7-frozen-tuple-xmin">7. Frozen tuple: как версия перестает зависеть от старого <code>xmin</code><a class="headerlink" href="#7-frozen-tuple-xmin" title="Permanent link">¶</a></h2>
+<h3 id="71">7.1. Что значит «заморозить»<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<p>Представим tuple, вставленный транзакцией XID 100. Спустя огромное число транзакций он все еще жив: это справочник, где строка не изменяется годами. Но нельзя вечно рассчитывать на возможность сравнить XID 100 с текущим XID и найти старый статус в <code>pg_xact</code>. <code>VACUUM</code> помечает такую версию как <strong>frozen</strong>: для проверки видимости факт создания считается достаточно старым и окончательно подтвержденным, поэтому конкретный исторический XID больше не требуется.</p>
+<p>Нужно уточнить частое неверное объяснение: «VACUUM записывает <code>xmin=2</code> для каждой строки». PostgreSQL давно может реализовывать freezing посредством комбинации <strong>битов в infomask</strong>, известной как <code>HEAP_XMIN_FROZEN</code>, оставляя физическое значение <code>xmin</code> в заголовке; при проверке видимости это трактуется как замороженная вставка. Историческое <code>FrozenTransactionId</code> остается частью семантики. Некоторые другие поля (включая содержащие XID/MXID) тоже должны обрабатываться, когда достигнуты соответствующие условия.</p>
+<div class="highlight"><pre><span></span><code>До:       xmin = 100;  flags = обычные биты статуса
+После:    xmin = 100;  flags включает HEAP_XMIN_FROZEN
+
+Эффективный ответ функции видимости:
+  «этот creating XID больше не нуждается в просмотре pg_xact»
+</code></pre></div>
+<p>Это объясняет, почему физический <code>xmin</code>, если исследовать его низкоуровневыми инструментами, не обязательно станет равен <code>2</code>. SQL <code>xmin</code> и внутренние биты — разные уровни наблюдения. Для объяснения студентам достаточно семантики; любые эксперименты с заголовками через <code>pageinspect</code> выполняются в отдельной тестовой БД и зависят от версии формата.</p>
+<h3 id="72-freeze">7.2. Почему freeze — запись, а не бесплатная галочка<a class="headerlink" href="#72-freeze" title="Permanent link">¶</a></h3>
+<p>Чтобы выставить правильные флаги, VACUUM должен прочитать heap-страницу, проверить применимость заморозки, получить нужную блокировку страницы, изменить содержимое и при необходимости записать WAL. Включенные data checksums и FPI могут дополнительно влиять на расход I/O. То, что строка логически не менялась с момента INSERT, не делает обслуживающее изменение бесплатным. Под массовой нагрузкой freezing конкурирует с пользовательскими запросами за буферы, пропускную способность памяти и подсистему хранения.</p>
+<p>Рассмотрим таблицу на 500 ГиБ, где миллионы старых, но живых строк распределены по тысячам страниц. Если VACUUM должен посетить страницы для freezing, стоимость определяется в первую очередь количеством проверяемых <strong>страниц</strong>, а не количеством SQL-строк, логически измененных за последний час. Это становится особенно заметно при aggressive vacuum.</p>
+<h3 id="73-freeze-update-delete">7.3. Freeze не отменяет обычных UPDATE и DELETE<a class="headerlink" href="#73-freeze-update-delete" title="Permanent link">¶</a></h3>
+<p>Замороженная вставка означает, что ее <code>xmin</code> можно трактовать как безусловно старый при проверке допустимости видимости. Если транзакция позднее обновит или удалит версию, будут применены обычные MVCC-правила для удаления/обновления. <code>all-frozen</code> также может быть сброшен после модификации страницы. Поэтому «frozen» не означает «физически неизменяемая запись» и не освобождает от ведения новой версии при UPDATE.</p>
+<h2 id="8-visibility-map">8. Visibility map: две независимые полезные гарантии<a class="headerlink" href="#8-visibility-map" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Почему нужен отдельный маленький файл<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>Heap может быть огромным. Если VACUUM каждый раз читал бы все 8-КиБ страницы, чтобы выяснить, есть ли работа, фоновая уборка сама стала бы постоянной большой нагрузкой. PostgreSQL поддерживает <strong>visibility map (VM)</strong> — компактные сведения по heap-страницам. У каждой соответствующей страницы два значимых состояния: <code>all-visible</code> и <code>all-frozen</code>. Дополнительно в заголовке самой heap-страницы есть <code>PD_ALL_VISIBLE</code>. [S5]</p>
+<div class="highlight"><pre><span></span><code>heap page 0     -&gt; VM:  all-visible=1  all-frozen=1
+heap page 1     -&gt; VM:  all-visible=1  all-frozen=0
+heap page 2     -&gt; VM:  all-visible=0  all-frozen=0
+heap page 3     -&gt; VM:  all-visible=1  all-frozen=1
+</code></pre></div>
+<p>VM меньше heap на многие порядки. Она экономит работу VACUUM и помогает index-only scan, когда не требуется обращаться к heap за проверкой видимости. Но для этой лекции важнее <strong>разная сила двух битов</strong>.</p>
+<h3 id="82-all-visible-all-frozen">8.2. All-visible еще не all-frozen<a class="headerlink" href="#82-all-visible-all-frozen" title="Permanent link">¶</a></h3>
+<p><code>all-visible</code> означает, что все версии на странице, которые имеют значение для чтений, видимы всем текущим и будущим транзакциям. Это не доказывает, что в заголовках всех tuples уже удалена зависимость от потенциально слишком старых XID/MXID. Значит, <code>all-visible=1, all-frozen=0</code> — полезная для index-only scans страница, которую когда-нибудь придется проверить для freezing. <code>all-frozen=1</code> сильнее: VACUUM может пропустить такую страницу даже при aggressive freezing, пока в нее не внесут изменения.</p>
+<table>
+<thead>
+<tr>
+<th>VM-состояние</th>
+<th>Что гарантирует</th>
+<th>Для VACUUM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0 / 0</code></td>
+<td>Всеобщая видимость не доказана</td>
+<td>Обычно рассматривается как кандидат на сканирование</td>
+</tr>
+<tr>
+<td><code>1 / 0</code></td>
+<td>Видима всем, но старые XID/MXID еще могут требовать freeze</td>
+<td>Normal обычно пропускает; aggressive должен проверить; в 18 возможен eager scan</td>
+</tr>
+<tr>
+<td><code>1 / 1</code></td>
+<td>Все версии frozen</td>
+<td>Может пропускаться и при aggressive VACUUM</td>
+</tr>
+</tbody>
+</table>
+<p>Комбинация <code>0 / 1</code> не является нормальным корректным состоянием: all-frozen логически подразумевает all-visible. Информация VM должна изменяться синхронно с операциями, которые лишают страницу этих свойств.</p>
+<h3 id="83-vm">8.3. Почему VM можно исследовать, но нельзя менять вручную<a class="headerlink" href="#83-vm" title="Permanent link">¶</a></h3>
+<p>Расширение <code>pg_visibility</code> показывает эти флаги: например, <code>pg_visibility_map_summary('orders')</code> возвращает число all-visible/all-frozen страниц, а <code>pg_visibility_map('orders')</code> позволяет исследовать их по отдельности. Это данные реального on-disk механизма, а не аналог <code>n_dead_tup</code>. Запросы по отдельным блокам легкие, полный обход большого отношения тоже имеет стоимость; функции, читающие heap, существенно дороже чтения самой VM.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Только тестовая БД, при наличии прав на установку расширения</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pg_visibility</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_visibility_map_summary</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">blkno</span><span class="p">,</span><span class="w"> </span><span class="n">all_visible</span><span class="p">,</span><span class="w"> </span><span class="n">all_frozen</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_visibility_map</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">blkno</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_visibility</code> содержит функции проверки целостности VM и даже ее принудительного сброса. Последние — административные инструменты, их нельзя использовать как обычный способ «починить производительность». Нужен установленный источник повреждения и план восстановления, иначе можно увеличить работу VACUUM без устранения первопричины. [S5]</p>
+<h3 id="84-vm-fsm">8.4. Два похожих файла: VM и FSM<a class="headerlink" href="#84-vm-fsm" title="Permanent link">¶</a></h3>
+<p>Visibility map говорит об условиях видимости и заморозки. <strong>Free Space Map (FSM)</strong> содержит приблизительные сведения о свободном месте для новых tuples. Нельзя использовать долю all-frozen как измерение свободного пространства: старая статичная таблица может быть полностью frozen и при этом почти не иметь свободных байтов. Наоборот, таблица после удаления множества строк может иметь свободное место в heap, хотя еще не стала all-visible.</p>
+<h2 id="9-relfrozenxid-datfrozenxid">9. <code>relfrozenxid</code>, <code>datfrozenxid</code>: как система фиксирует прогресс<a class="headerlink" href="#9-relfrozenxid-datfrozenxid" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Проверить каждую страницу при каждом запуске было бы слишком дорого<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>PostgreSQL нужна долговременная метка: до какого минимального XID таблица гарантированно избавилась от зависимости от старых unfrozen transaction IDs. Для этого каталог <code>pg_class</code> хранит <code>relfrozenxid</code>; для MultiXact есть <code>relminmxid</code>. В <code>pg_database</code> хранятся <code>datfrozenxid</code> и <code>datminmxid</code>, отражающие наименьшие значения среди соответствующих отношений базы. Эти значения — <strong>границы гарантии</strong>, а не точная «дата самого старого INSERT». [S6][S7]</p>
+<div class="highlight"><pre><span></span><code>Table A: relfrozenxid=9000
+Table B: relfrozenxid=4500    &lt;-- самая старая граница
+Table C: relfrozenxid=7800
+
+Database datfrozenxid ≈ 4500
+  -&gt; продвинуть границу базы без решения проблемы B нельзя
+</code></pre></div>
+<p>Индивидуальная таблица может быть обновлена множеством новых транзакций, но если VACUUM не произвел полного достаточного прохода, ее <code>relfrozenxid</code> останется старым. Это консервативно: нельзя объявить, что в heap больше нет старых XID, если часть страниц с возможными unfrozen tuples вообще не исследована.</p>
+<h3 id="92-normal-vacuum-relfrozenxid">9.2. Почему normal VACUUM не всегда продвигает <code>relfrozenxid</code><a class="headerlink" href="#92-normal-vacuum-relfrozenxid" title="Permanent link">¶</a></h3>
+<p>Normal VACUUM может пропустить all-visible, но еще не all-frozen страницы, если не наступила необходимость их freezing и не выбран eager scan. На такой странице может оставаться старый XID. Следовательно, даже после быстрой успешной уборки всех новых dead tuples система не вправе существенно сдвинуть <code>relfrozenxid</code>. Для такого движения нужна гарантированная обработка <strong>каждой страницы, которая может содержать unfrozen XID/MXID</strong>. При этом страницы уже all-frozen можно пропускать безопасно. [S1]</p>
+<p>Это объясняет типичный инцидент: autovacuum регулярно проходит горячую часть таблицы, <code>n_dead_tup</code> падает, но <code>age(relfrozenxid)</code> продолжает расти. Ошибка диагностики — считать, что «раз vacuum был сегодня, возраст XID должен обнулиться». Нет, нужны определенные условия полного обхода или freezing.</p>
+<h3 id="93-sql-toast">9.3. SQL для возрастов таблиц и TOAST<a class="headerlink" href="#93-sql-toast" title="Permanent link">¶</a></h3>
+<p>У большой таблицы может быть отдельное TOAST-отношение для вынесенных крупногабаритных значений. Оно имеет собственные XID/MXID границы. Если показывать только основную таблицу и игнорировать TOAST, легко не заметить источник возраста. Следующий запрос показывает максимум двух возрастов; значения для отсутствующей TOAST-таблицы отбрасываются благодаря <code>GREATEST</code> в PostgreSQL.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="n">t</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">toast_xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">greatest</span><span class="p">(</span><span class="n">age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">),</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">t</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">max_xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mxid_age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relminmxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_mxid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mxid_age</span><span class="p">(</span><span class="n">t</span><span class="p">.</span><span class="n">relminmxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">toast_mxid_age</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">reltoastrelid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relkind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'r'</span><span class="p">,</span><span class="w"> </span><span class="s1">'m'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">max_xid_age</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_class</code> также хранит оценки <code>relpages</code>, <code>reltuples</code>, <code>relallvisible</code>, <code>relallfrozen</code>. Последние два значения в PostgreSQL 18 пригодны как <strong>приблизительные каталожные оценки</strong> и не обязаны совпадать с моментальным подсчетом по VM. Для операционной диагностики важно понимать разницу между статистикой и проверкой настоящих страниц.</p>
+<h2 id="10-normal-aggressive-eager-freezing">10. Normal, aggressive и eager freezing — три разных стратегии<a class="headerlink" href="#10-normal-aggressive-eager-freezing" title="Permanent link">¶</a></h2>
+<h3 id="101-normal-vacuum">10.1. Normal VACUUM оптимизирует обычную стоимость<a class="headerlink" href="#101-normal-vacuum" title="Permanent link">¶</a></h3>
+<p>При нормальном обслуживании PostgreSQL старается обходить страницы, где вероятны мертвые версии и другой полезный труд. Он опирается на VM, чтобы не читать лишнее. Это разумно для <code>UPDATE</code>-интенсивных сервисов: горячая часть heap меняется, холодная — годами остается all-visible. Но игнорирование холодной части навсегда привело бы к накоплению unfrozen XIDs. Поэтому системе нужен периодический более широкий обход.</p>
+<h3 id="102-aggressive-vacuum">10.2. Aggressive VACUUM гарантирует прохождение нужных страниц<a class="headerlink" href="#102-aggressive-vacuum" title="Permanent link">¶</a></h3>
+<p>Если возраст <code>relfrozenxid</code> достигает <code>vacuum_freeze_table_age</code>, либо используется соответствующий режим <code>FREEZE</code>, VACUUM выбирает <strong>aggressive scan</strong>. Его обязанность — посетить все страницы, которые могут содержать unfrozen XID/MXID. Страницы, уже отмеченные <code>all-frozen</code>, можно безопасно пропускать. После успешного полного прохода границы <code>relfrozenxid</code>/<code>relminmxid</code> могут быть продвинуты. [S1][S2]</p>
+<p>По умолчанию в PostgreSQL 18 <code>vacuum_freeze_min_age</code> равен 50 млн, <code>vacuum_freeze_table_age</code> — 150 млн, <code>autovacuum_freeze_max_age</code> — 200 млн XID. Для <code>vacuum_freeze_table_age</code> действует ограничение эффективности относительно <code>autovacuum_freeze_max_age</code>; нельзя бездумно поднимать эти значения до самого края пространства.</p>
+<h3 id="103-postgresql-18-eager-freezing">10.3. PostgreSQL 18: eager freezing начинает работу до аварийного возраста<a class="headerlink" href="#103-postgresql-18-eager-freezing" title="Permanent link">¶</a></h3>
+<p><strong>Новшество PostgreSQL 18</strong>: нормальный VACUUM может посетить часть all-visible, но еще не all-frozen страниц ради опережающей заморозки (<em>eager freezing</em>). Идея: вместо одного большого тяжелого агрессивного прохода постепенно распределять часть будущей работы между обычными VACUUM. Такой проход уменьшает объем страниц, которые придется читать позднее; цена — дополнительный I/O сейчас, возможно впустую, если страницы вскоре изменятся. [S8][S1]</p>
+<div class="highlight"><pre><span></span><code>                 Normal VACUUM 1          Normal VACUUM 2
+all-visible:      [V V V V V V V V]       [F F V V V V V V]
+all-frozen:       [0 0 0 0 0 0 0 0]       [1 1 0 0 0 0 0 0]
+                            |
+                            v
+                  Aggressive VACUUM позже
+                  читает меньше unfrozen страниц
+</code></pre></div>
+<h3 id="104">10.4. Алгоритм не замораживает все подряд<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>В исходном <code>vacuumlazy.c</code> схема eager scan содержит несколько ограничений: учитывается достаточная старость XID/MXID, есть порог размера отношения, выбор регионов и ограничение числа неудачных попыток. Параметр <code>vacuum_max_eager_freeze_failure_rate</code> по умолчанию равен <strong>0.03</strong>, то есть 3%; значение 0 отключает eager scan. Успешные eager freezes ограничиваются внутри реализации примерно <strong>20%</strong> от числа исходных all-visible, но not-all-frozen страниц. На уровне алгоритма используются регионы страниц и локальное ограничение неудач, чтобы не тратить I/O на неподходящую область. Это детали PostgreSQL 18, которые не следует приписывать старым версиям. [S2][S11]</p>
+<p>Важная тонкость: 3% не означает «ровно 3% всей таблицы будет заморожено». Это ограничитель <strong>неудачных попыток</strong> eager freezing при определенной локальной стратегии. Успехи учитываются отдельно и имеют собственный потолок. Конкретный результат зависит от распределения возраста tuples, размера таблицы, изменений страниц и доступности cleanup lock.</p>
+<h3 id="105-eager">10.5. Почему <code>eager</code> — компромисс, а не универсальное ускорение<a class="headerlink" href="#105-eager" title="Permanent link">¶</a></h3>
+<p>Для append-mostly таблицы с холодными историческими страницами опережающая заморозка часто полезна: выполненная работа долго остается актуальной. Для таблицы, где почти каждая страница постоянно получает новые updates, ранний freeze быстро обесценивается сбросом VM-битов. В первом случае увеличение eager effort может выровнять I/O; во втором — создать лишний фон, не избавив от будущей агрессивной уборки. Поэтому параметры стоит менять по фактическим метрикам и структуре нагрузки, а не по лозунгу «чем раньше freeze, тем лучше».</p>
+<hr/>
+<h1 id="iv-multixact-autovacuum">IV. MultiXact и autovacuum: два независимых долга по возрасту<a class="headerlink" href="#iv-multixact-autovacuum" title="Permanent link">¶</a></h1>
+<h2 id="11-multixact-xmin">11. MultiXact: почему возраст бывает не только у <code>xmin</code><a class="headerlink" href="#11-multixact-xmin" title="Permanent link">¶</a></h2>
+<h3 id="111-xmax">11.1. Один <code>xmax</code>, несколько блокирующих транзакций<a class="headerlink" href="#111-xmax" title="Permanent link">¶</a></h3>
+<p>Из лекции 08.2 известно: один tuple может быть совместимо заблокирован несколькими транзакциями. Поле <code>xmax</code> физически одно, поэтому при соответствующих признаках в <code>infomask</code> оно указывает не на обычный XID, а на <strong>MultiXactId (MXID)</strong>. Детальные участники MultiXact представлены в специальных структурах/SLRU на диске (<code>pg_multixact/offsets</code>, <code>pg_multixact/members</code>). Чтобы понять, кто держал строковую блокировку, PostgreSQL иногда приходится разыменовывать этот идентификатор.</p>
+<p>Теперь появляется новая проблема. MXID тоже использует ограниченное пространство идентификаторов и имеет историю, которую нужно безопасно очищать. Даже если число UPDATE в таблице невелико, интенсивные конкурентные блокировки в отдельных сценариях могут приводить к росту использования MultiXact. Значит, поддерживать корректную историю нужно по двум независимым осям — обычным XID и MXID.</p>
+<h3 id="112">11.2. Две независимые нижние границы<a class="headerlink" href="#112" title="Permanent link">¶</a></h3>
+<p>У таблицы есть <code>relfrozenxid</code> (для обычных XID) и <code>relminmxid</code> (для MXID). В <code>pg_database</code> есть <code>datfrozenxid</code> и <code>datminmxid</code>. Для возраста используется <code>age()</code> и <code>mxid_age()</code> соответственно. Эти счетчики нельзя сравнивать непосредственно между собой, складывать или считать одинаковыми единицами работы. У них разные истории выдачи, ограничения и инфраструктура хранения. [S6][S7]</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">datname</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="n">datfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mxid_age</span><span class="p">(</span><span class="n">datminmxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">mxid_age</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_database</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">xid_age</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Проверять только <code>age(datfrozenxid)</code> недостаточно. Система может иметь вполне спокойный обычный XID age и в то же время опасный долг по MultiXact. Особенно важно это при большом числе операций конкурентного блокирования одних и тех же сущностей.</p>
+<h3 id="113-freeze-xmax">11.3. Почему freeze касается <code>xmax</code><a class="headerlink" href="#113-freeze-xmax" title="Permanent link">¶</a></h3>
+<p>Для старого tuple можно признать ее creating XID замороженным и при этом оставить историческую MultiXact-ссылку в <code>xmax</code>. Это не завершает задачу: важно безопасно обработать и более не нужные MXID сведения, чтобы старые страницы <code>pg_multixact</code> можно было со временем освобождать. Поэтому aggressive VACUUM сканирует страницы с потенциально unfrozen XID <strong>или</strong> MXID. Состояние <code>all-frozen</code> должно гарантировать отсутствие необходимости в последующей freezing-работе и по соответствующим полям.</p>
+<h3 id="114-mxid">11.4. Пороговые параметры MXID отдельные<a class="headerlink" href="#114-mxid" title="Permanent link">¶</a></h3>
+<p><code>autovacuum_multixact_freeze_max_age</code>, <code>vacuum_multixact_freeze_table_age</code>, <code>vacuum_multixact_freeze_min_age</code> и <code>vacuum_multixact_failsafe_age</code> задают соответствующую политику MultiXact. Не подставляем в расчеты XID-порогов значения MXID и наоборот. В PostgreSQL предусмотрена также защита при чрезмерном росте <code>pg_multixact/members</code>, которая может запускать агрессивную обработку раньше чисто возрастного порога. [S1][S2]</p>
+<p><strong>Вывод.</strong> MultiXact — не абстракция только для блокировок. Он создает отдельный долг по хранению и очистке исторических идентификаторов. Любая эксплуатационная панель, показывающая только <code>relfrozenxid</code>, оставляет слепую зону.</p>
+<h2 id="12-autovacuum">12. Autovacuum: кто и когда запускает обслуживание<a class="headerlink" href="#12-autovacuum" title="Permanent link">¶</a></h2>
+<h3 id="121-launcher-workers">12.1. Launcher и workers<a class="headerlink" href="#121-launcher-workers" title="Permanent link">¶</a></h3>
+<p>Autovacuum в PostgreSQL — отдельная система: launcher распределяет задачи, workers выполняют VACUUM/ANALYZE для конкретных отношений. Количество активных workers ограничено параметрами конфигурации и доступными слотами. Это значит, что большое число грязных таблиц конкурирует за <strong>конечное</strong> число обслуживающих процессов, за их память и за общий I/O. Если несколько крупных relations одновременно требуют aggressive scan, остальные задачи могут ждать очереди.</p>
+<p>Еще важнее: autovacuum не знает о бизнес-приоритете твоего <code>orders</code>. Он ориентируется на статистику операций, возрасты идентификаторов и настройки таблиц. Поэтому нельзя ожидать, что горячая таблица получит «больше внимания», если настройки плохо соответствуют ее профилю изменения данных.</p>
+<h3 id="122-vacuum">12.2. Порог обычного VACUUM<a class="headerlink" href="#122-vacuum" title="Permanent link">¶</a></h3>
+<p>Документированная модель триггера по обновленным и удаленным tuples:</p>
+<p>[
+T_{vac}=\min\left(T_{max},\;T_{base}+s\cdot N\right)
+]</p>
+<p>где <code>T_base = autovacuum_vacuum_threshold</code>, <code>s = autovacuum_vacuum_scale_factor</code>, <code>N</code> — приблизительное <code>reltuples</code>, <code>T_max = autovacuum_vacuum_max_threshold</code>. Для PostgreSQL 18 типичные значения по умолчанию: <code>T_base = 50</code>, <code>s = 0.2</code>; максимальный порог по умолчанию — 100 млн tuples. Модель использует оценочную статистику, поэтому момент запуска не следует понимать как математически точное событие по каждой физической версии. [S1][S2]</p>
+<p>Пример. Для таблицы с 10 млн строк порог будет примерно <code>50 + 0.2 × 10 000 000 = 2 000 050</code> изменений. При 10 000 обновлений/с арифметически это ~200 секунд. Но это лишь расчет ожидаемого порога, не гарантия старта worker через 200 секунд: есть цикл launcher, статистика, очередь других работ и ограничения ресурсов.</p>
+<h3 id="123-scale-factor">12.3. Почему один глобальный scale factor опасен<a class="headerlink" href="#123-scale-factor" title="Permanent link">¶</a></h3>
+<p>В таблице на 100 тыс. строк 20% — около 20 тыс. измененных tuples. На таблице в миллиард строк — около 200 млн, хотя применяется максимальный порог. Для горячей таблицы такой интервал часто слишком широк: старые версии успеют занять сотни мегабайт, а один проход очистки станет тяжелым. Поэтому настройки autovacuum могут иметь смысл на уровне отдельных отношений — с учетом их churn, объема и SLO.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Пример настройки только для конкретной горячей таблицы.</span>
+<span class="c1">-- Числа учебные: в production сначала измеряются реальные скорости.</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">autovacuum_vacuum_scale_factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">.</span><span class="mi">02</span><span class="p">,</span>
+<span class="w">    </span><span class="n">autovacuum_vacuum_threshold</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1000</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Изменение этих параметров — нагрузочное решение: более частый VACUUM уменьшает накопленный долг, но добавляет чтения/записи, CPU и фоновые процессы. Реальный эффект проверяется в нескольких окнах нагрузки; параметры не копируются везде одинаково.</p>
+<h3 id="124-insert-only-freeze">12.4. INSERT-only таблицы и freeze<a class="headerlink" href="#124-insert-only-freeze" title="Permanent link">¶</a></h3>
+<p>У таблицы, в которую только вставляют строки, нет большого потока dead tuples, но старые XID все равно стареют. Поэтому PostgreSQL имеет отдельный <strong>insert-triggered VACUUM</strong>: параметры <code>autovacuum_vacuum_insert_threshold</code> и <code>autovacuum_vacuum_insert_scale_factor</code> учитывают объем вставок и незамороженную долю отношения. Такие VACUUM помогают установить VM и обработать часть старых XID заранее. Это снимает плохое упрощение «нет UPDATE/DELETE — нет необходимости VACUUM».</p>
+<h3 id="125-autovacuum">12.5. Почему отключить autovacuum — опасный эксперимент<a class="headerlink" href="#125-autovacuum" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="p">(</span><span class="n">autovacuum_enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+</code></pre></div>
+<p>Эта команда отключает обычную автоматическую обработку для отношения, но <strong>защита от XID/MXID wraparound все равно способна запускать принудительный autovacuum</strong>. При этом до защитного порога может накопиться огромный долг по dead tuples. Отключение autovacuum как «оптимизация производительности» превращает регулярную небольшую работу в поздний дорогой ремонт. В production такой способ требует специально обоснованного плана обслуживания, иначе это замедленная авария. [S1][S2]</p>
+<h2 id="13-anti-wraparound-autovacuum">13. Anti-wraparound autovacuum: когда приоритет меняется на сохранение данных<a class="headerlink" href="#13-anti-wraparound-autovacuum" title="Permanent link">¶</a></h2>
+<h3 id="131-autovacuum_freeze_max_age-deadline">13.1. <code>autovacuum_freeze_max_age</code> — не deadline в секундах<a class="headerlink" href="#131-autovacuum_freeze_max_age-deadline" title="Permanent link">¶</a></h3>
+<p>Когда <code>age(relfrozenxid)</code> превышает установленный порог <code>autovacuum_freeze_max_age</code> (по умолчанию 200 млн XID), PostgreSQL организует принудительный VACUUM для защиты от wraparound независимо от обычных сигналов по мертвым tuples. При достижении порога работа может стать aggressive, чтобы реально продвинуть границу. Даже если autovacuum конфигурационно отключен, anti-wraparound меры должны выполняться. [S1]</p>
+<p>Вот почему фраза «мы делали VACUUM каждый день, значит anti-wraparound не придет» неверна: ежедневная уборка могла пропускать cold all-visible страницы и не сдвигать <code>relfrozenxid</code>.</p>
+<h3 id="132">13.2. Что произойдет, если защита не справится<a class="headerlink" href="#132" title="Permanent link">¶</a></h3>
+<p>PostgreSQL предупреждает об опасно старом <code>datfrozenxid</code>. В документации PostgreSQL 18 описан предварительный warning примерно за 40 млн транзакций до критической точки и отказ от выдачи новых XID при остатке меньше примерно 3 млн транзакций. Это предохранительный механизм: сервер предпочитает отказ новым модифицирующим транзакциям риску неверной видимости и потери данных. Не следует описывать его как обычный «PostgreSQL перешел в read-only по настройке»; речь идет о защитном отказе выдавать XID, из-за чего некоторые операции записи не могут выполняться. [S1]</p>
+<div class="highlight"><pre><span></span><code>relfrozenxid age растет
+   |
+   +--&gt; normal service: предупреждения могут отсутствовать
+   |
+   +--&gt; anti-wraparound vacuum запускается принудительно
+   |
+   +--&gt; критически мало XID до wraparound -&gt; warnings
+   |
+   +--&gt; XID assignment blocked -&gt; операции записи с новым XID не идут
+</code></pre></div>
+<h3 id="133-vacuum">13.3. Почему долгая транзакция мешает и защитному VACUUM<a class="headerlink" href="#133-vacuum" title="Permanent link">¶</a></h3>
+<p>Если старые snapshots / prepared xacts / slots удерживают горизонт, VACUUM не вправе удалять соответствующие версии и не всегда может продвинуть нужные XID границы. Таким образом, <strong>безопасность и видимость могут вступить в конфликт с пропускной способностью</strong>: сервер должен сохранить старые версии, но счетчик транзакций продолжает расти. Запустить еще десять workers недостаточно, если первопричина — удерживаемый горизонт.</p>
+<h3 id="134">13.4. Действия при критическом возрасте<a class="headerlink" href="#134" title="Permanent link">¶</a></h3>
+<p>Порядок реакции: сначала установить, какая база/таблица удерживает <code>datfrozenxid</code>/<code>relfrozenxid</code>; отдельно проверить TOAST и MXID. Затем найти препятствия продвижению горизонта (долгие транзакции, prepared xacts, slots). Устранить подтвержденную первопричину безопасным для приложения способом. После этого дать завершиться VACUUM или организовать ручной VACUUM с необходимыми правами. <strong>Не запускать <code>VACUUM FULL</code> или массовые DDL в состоянии XID crisis</strong>: они могут требовать XID и расширять риск. Документация отдельно не рекомендует <code>VACUUM FREEZE</code> как первую реакцию в критической ситуации, поскольку он способен делать больше необходимого для возвращения сервиса к нормальной работе. [S1]</p>
+<h2 id="14-failsafe">14. Failsafe: когда правила «бережной уборки» перестают работать<a class="headerlink" href="#14-failsafe" title="Permanent link">¶</a></h2>
+<h3 id="141">14.1. Еще один порог, на котором меняется приоритет<a class="headerlink" href="#141" title="Permanent link">¶</a></h3>
+<p><code>vacuum_failsafe_age</code> (по умолчанию 1,6 млрд XID) — порог аварийной политики внутри выполняющегося VACUUM. Когда сервер понимает, что приближается системная опасность, он ослабляет ограничения обычной фоновой работы. PostgreSQL может <strong>отменить cost-based pauses</strong>, не выполнять дальнейшие необязательные index-vacuum этапы и отказаться от ограниченной buffer access strategy, чтобы быстрее выполнить основную задачу — устранить опасный возраст unfrozen XID. Для MultiXact существует <code>vacuum_multixact_failsafe_age</code>. [S2]</p>
+<div class="highlight"><pre><span></span><code>Normal VACUUM:  limit I/O -&gt; паузы -&gt; индексная очистка -&gt; осторожность
+Failsafe:       быстрее обойти обязательные страницы и выполнить freezing
+                 ^
+        иногда ценой роста I/O и задержек других запросов
+</code></pre></div>
+<h3 id="142-p99">14.2. Почему во время аварии p99 может внезапно ухудшиться<a class="headerlink" href="#142-p99" title="Permanent link">¶</a></h3>
+<p>До failsafe autovacuum старается не задавить пользовательскую нагрузку. После активации приоритетом становится защита данных от wraparound. В результате фондовые ограничения становятся мягче, и цена переносится на остальные сервисы: чтения страниц, dirty buffers, WAL, дисковую очередь, время CPU. Это осознанный компромисс PostgreSQL. Пытаться «вылечить» такой эпизод глобальным снижением приоритета VACUUM — значит снова приближать критический возраст.</p>
+<h3 id="143">14.3. Почему индексная очистка может быть отложена<a class="headerlink" href="#143" title="Permanent link">¶</a></h3>
+<p>При failsafe отказ от дополнительного index cleanup помогает быстрее заморозить опасные XID. Но оставшиеся мертвые индексные записи не исчезают магически. После устранения угрозы может потребоваться штатная уборка для уменьшения индексного долга. Поэтому рост index bloat после аварийного VACUUM не опровергает его успех: он мог пожертвовать второстепенной задачей ради корректности транзакционной истории.</p>
+<h3 id="144-failsafe-anti-wraparound-aggressive-scan">14.4. Не путать failsafe, anti-wraparound и aggressive scan<a class="headerlink" href="#144-failsafe-anti-wraparound-aggressive-scan" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Механизм</th>
+<th>Что вызывает</th>
+<th>Главная задача</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Aggressive VACUUM</td>
+<td>Порог <code>vacuum_freeze_table_age</code> / <code>FREEZE</code> / необходимость полного прохода</td>
+<td>Исследовать все потенциально unfrozen страницы и продвинуть границы</td>
+</tr>
+<tr>
+<td>Anti-wraparound autovacuum</td>
+<td>Превышение <code>autovacuum_freeze_max_age</code> / MXID-порог</td>
+<td>Принудительно запустить защитное обслуживание</td>
+</tr>
+<tr>
+<td>Failsafe</td>
+<td>Возраст критично высок <strong>во время VACUUM</strong></td>
+<td>Ускорить минимально обязательную работу, пожертвовав экономностью</td>
+</tr>
+<tr>
+<td>XID stop protection</td>
+<td>До опасной точки осталось слишком мало обычных XID</td>
+<td>Не выдавать новый XID с риском неверной видимости</td>
+</tr>
+</tbody>
+</table>
+<p>Эти режимы могут встретиться в одном инциденте, но это не четыре названия одного и того же события.</p>
+<hr/>
+<h1 id="v-vacuum-bloat-io">V. Цена VACUUM под нагрузкой: bloat, I/O и диагностические сигналы<a class="headerlink" href="#v-vacuum-bloat-io" title="Permanent link">¶</a></h1>
+<h2 id="15-bloat">15. Bloat: сколько стоит отсрочка очистки<a class="headerlink" href="#15-bloat" title="Permanent link">¶</a></h2>
+<h3 id="151">15.1. Две разновидности долгов<a class="headerlink" href="#151" title="Permanent link">¶</a></h3>
+<p><strong>Heap bloat</strong> — избыточное физическое пространство heap относительно полезных версий и потребности приложения. <strong>Index bloat</strong> — пространство индексов, удерживаемое неактуальными или неэффективно размещенными записями. У них разные механизмы накопления и восстановления. HOT часто смягчает индексный долг, но не гарантирует, что heap останется компактным. VACUUM способен повторно использовать место и поддерживать индексы, но не обязан физически уменьшать файлы.</p>
+<h3 id="152-churn">15.2. Приближенная стоимость churn<a class="headerlink" href="#152-churn" title="Permanent link">¶</a></h3>
+<p>Предположим, сервис создает 25 тысяч новых tuple versions/с, а средний размер физической версии с накладными расходами — 160 байт. Тогда за 10 минут генерируется:</p>
+<p>[
+25\,000\;\text{версий/с}\cdot160\;\text{байт}\cdot600\;\text{с}
+=2.4\;\text{ГБ}
+]</p>
+<p>Это <strong>верхнеуровневая оценка потока новых heap-версий</strong>, а не точный рост файла: часть места переиспользуется, часть версий может быть убрана pruning, индексы добавляют собственный объем. Тем не менее расчет показывает масштаб проблемы. Если старый snapshot удерживает версии 10 минут, PostgreSQL может быть вынужден сохранять гигабайты версионных данных, которые при нормальной эксплуатации успел бы переиспользовать.</p>
+<h3 id="153-n_dead_tup-bloat">15.3. Почему <code>n_dead_tup</code> не равно объему bloat<a class="headerlink" href="#153-n_dead_tup-bloat" title="Permanent link">¶</a></h3>
+<p><code>pg_stat_user_tables.n_dead_tup</code> — <strong>оценка числа мертвых строк</strong>, основанная на накопительной статистике. Она может запаздывать, не отражать недавно удаленные HOT-звенья точным образом и не показывать геометрию свободного пространства. Таблица может иметь <code>n_dead_tup≈0</code>, но оставаться большой после прежней очистки, поскольку свободное место находится внутри файла. Обратно: большая оценка dead tuples еще не означает, что весь этот объем невозможно оперативно переиспользовать.</p>
+<p>Для оценки физического объема используются вместе размеры <code>pg_relation_size</code>, динамика VACUUM, статистика DML и при необходимости расширения <code>pgstattuple</code> или <code>pgstattuple_approx</code> (если доступны). Полный <code>pgstattuple</code> читает страницы отношения, имеет заметную стоимость на большой таблице и требует соответствующих прав. [S12]</p>
+<h2 id="16-io-vacuum">16. I/O-профиль VACUUM: что именно нагружает сервер<a class="headerlink" href="#16-io-vacuum" title="Permanent link">¶</a></h2>
+<h3 id="161-wal">16.1. Чтение страниц, изменение страниц, WAL, индексный обход<a class="headerlink" href="#161-wal" title="Permanent link">¶</a></h3>
+<p>Обслуживание потенциально порождает несколько видов нагрузки: чтение heap для проверки версий; обновление heap page и VM; запись WAL для соответствующих изменений; проходы по индексам и их изменения; взаимодействие с shared buffers и page cache ОС. Не каждый VACUUM выполняет все перечисленное на каждой странице. При наличии all-frozen VM многие страницы можно пропустить, но критическая доля not-all-frozen меняет стоимость aggressive scan.</p>
+<h3 id="162-cost-based-vacuum-delay">16.2. Cost-based vacuum delay<a class="headerlink" href="#162-cost-based-vacuum-delay" title="Permanent link">¶</a></h3>
+<p>Чтобы снизить влияние на пользовательские запросы, VACUUM может условно назначать «стоимость» посещения страниц и делать паузы после достижения <code>vacuum_cost_limit</code>. В документации базовые веса: попадание в буфер <code>vacuum_cost_page_hit=1</code>, чтение отсутствующей страницы <code>vacuum_cost_page_miss=2</code>, загрязнение ранее чистой страницы <code>vacuum_cost_page_dirty=20</code>. Это <strong>приближенная внутренняя мера</strong>, а не реальные миллисекунды или байты на диске. При определенных критических действиях задержка временно не применяется. [S2]</p>
+<p>Пример. Чистая иллюстрация: 100 ранее чистых страниц, которые нужно сделать dirty, дают условную стоимость <code>100×20=2000</code>, и при limit=200 могут потребоваться остановки. Это не означает ровно десять <code>sleep</code> в конкретном выполнении: накопление, пакетирование и условия синхронизации меняют картину.</p>
+<h3 id="163">16.3. Фактические ожидания следует измерять<a class="headerlink" href="#163" title="Permanent link">¶</a></h3>
+<p><code>pg_stat_io</code> в PostgreSQL 18 позволяет наблюдать I/O по типу backend, объекту и контексту (для отношения — в том числе <code>vacuum</code>). Там имеются счетчики операций и объемов, а время чтения/записи требует соответствующего <code>track_io_timing</code>. При включении <code>track_cost_delay_timing</code> можно получить время вынужденного сна VACUUM через <code>pg_stat_progress_vacuum.delay_time</code> и связанные показатели. Следует отделять <strong>паузы из-за cost delay</strong> от <strong>ожидания диска</strong> и от <strong>конкуренции за внутренние locks</strong>. [S3][S4]</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="n">context</span><span class="p">,</span>
+<span class="w">       </span><span class="k">sum</span><span class="p">(</span><span class="k">reads</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">reads</span><span class="p">,</span><span class="w"> </span><span class="k">sum</span><span class="p">(</span><span class="n">read_bytes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">read_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="k">sum</span><span class="p">(</span><span class="n">writes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">writes</span><span class="p">,</span><span class="w"> </span><span class="k">sum</span><span class="p">(</span><span class="n">write_bytes</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">write_bytes</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_io</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">object</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'relation'</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'vacuum'</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">backend_type</span><span class="p">,</span><span class="w"> </span><span class="k">object</span><span class="p">,</span><span class="w"> </span><span class="n">context</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">read_bytes</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь приведены накопительные счетчики. Для диагностики всплеска нужны <strong>дельты за интервал</strong>, а не абсолютные числа со времени последнего сброса статистики.</p>
+<h3 id="164-autovacuum-slo">16.4. Почему ускорение autovacuum может ухудшить клиентские SLO<a class="headerlink" href="#164-autovacuum-slo" title="Permanent link">¶</a></h3>
+<p>Если увеличить число workers и отключить задержки, обслуживание завершится быстрее при свободных ресурсах. Но в нагруженной системе дополнительные конкурентные чтения увеличат очередь I/O, а dirty pages усилят давление на buffers/checkpoint. С другой стороны, слишком медленный autovacuum создаст больше dead tuples, index bloat и будущие дорогие aggressive scans. Оптимальная точка всегда зависит от характера нагрузки и доступного ресурса.</p>
+<h3 id="165-vacuum-full">16.5. Свободное место внутри страницы и <code>VACUUM FULL</code><a class="headerlink" href="#165-vacuum-full" title="Permanent link">¶</a></h3>
+<p>После cleanup внутри heap появляется reusable space. Это улучшает будущее размещение, но метрика <code>pg_relation_size()</code> может остаться прежней. <code>VACUUM FULL</code> переписывает отношение и реально возвращает больше места ОС, но требует дополнительного пространства, времени и блокировок. В рамках текущей темы важно понимать цену решения, не превращая его в автоматический совет при любом bloat. Часто устранение удерживающих горизонтов и восстановление нормального расписания VACUUM дает более устойчивый результат.</p>
+<hr/>
+<h1 id="vi">VI. Диагностика: от «почему диск растет» к конкретной причине<a class="headerlink" href="#vi" title="Permanent link">¶</a></h1>
+<h2 id="17">17. Что измерять до изменения параметров<a class="headerlink" href="#17" title="Permanent link">¶</a></h2>
+<h3 id="171">17.1. Три независимые оси<a class="headerlink" href="#171" title="Permanent link">¶</a></h3>
+<p>Для расследования VACUUM-инцидента нужно отвечать на три разных вопроса: <strong>есть ли долг по dead versions?</strong> (объем/темп churn, bloat, VM), <strong>растет ли возраст unfrozen IDs?</strong> (<code>relfrozenxid</code>, <code>relminmxid</code>, <code>datfrozenxid</code>, <code>datminmxid</code>) и <strong>что сейчас делает обслуживание?</strong> (<code>pg_stat_progress_vacuum</code>, <code>pg_stat_io</code>, журналы и собственные метрики). Если отобразить только <code>n_dead_tup</code>, можно пропустить XID crisis. Если смотреть только XID age, можно пропустить гигабайты waste space, созданные удерживаемым snapshot.</p>
+<p>Диагностировать нужно в динамике. Снимок в одну секунду не покажет, успевает ли autovacuum за количеством изменений. По хорошему снимаются дельты за 5–15 минут по каждой горячей таблице, а также долгие тренды возрастов в XID, а не только время последнего VACUUM.</p>
+<h3 id="172-no1">17.2. Запрос №1: паспорт кластера и режим обслуживания<a class="headerlink" href="#172-no1" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">version</span><span class="p">();</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">setting</span><span class="p">,</span><span class="w"> </span><span class="n">unit</span><span class="p">,</span><span class="w"> </span><span class="k">source</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_settings</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s1">'autovacuum'</span><span class="p">,</span><span class="w"> </span><span class="s1">'autovacuum_max_workers'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'autovacuum_vacuum_threshold'</span><span class="p">,</span><span class="w"> </span><span class="s1">'autovacuum_vacuum_scale_factor'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'autovacuum_vacuum_max_threshold'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'autovacuum_freeze_max_age'</span><span class="p">,</span><span class="w"> </span><span class="s1">'vacuum_freeze_table_age'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'vacuum_freeze_min_age'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'autovacuum_multixact_freeze_max_age'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'vacuum_max_eager_freeze_failure_rate'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'vacuum_failsafe_age'</span><span class="p">,</span><span class="w"> </span><span class="s1">'vacuum_multixact_failsafe_age'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'track_io_timing'</span><span class="p">,</span><span class="w"> </span><span class="s1">'track_cost_delay_timing'</span>
+<span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">name</span><span class="p">;</span>
+</code></pre></div>
+<p>Почему начинаем с этого? Потому что и обычные пороги, и возможность точных временных измерений зависят от настроек. Сначала определяем фактическую среду. Не следует сравнивать две базы только по числу VACUUM в сутки, если у них различаются разрядность нагрузки, пороги и объемы relations.</p>
+<h3 id="173-no2-xidmxid-age">17.3. Запрос №2: базы с самым большим XID/MXID age<a class="headerlink" href="#173-no2-xidmxid-age" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">datname</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="n">datfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mxid_age</span><span class="p">(</span><span class="n">datminmxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">mxid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">datallowconn</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_database</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">datfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Интерпретация: <code>datfrozenxid</code> — нижняя гарантия для всей базы. Возраст может оставаться высоким из-за одного отношения, в том числе TOAST. Это сигнал перейти к детализации, а не сигнал срочно повышать все vacuum workers.</p>
+<h3 id="174-no3-relations-toast">17.4. Запрос №3: самые старые relations, включая TOAST<a class="headerlink" href="#174-no3-relations-toast" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">nspname</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relkind</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relpages</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">mxid_age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relminmxid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">mxid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">relallvisible</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relallfrozen</span><span class="p">,</span>
+<span class="w">       </span><span class="k">c</span><span class="p">.</span><span class="n">reloptions</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_namespace</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">n</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relnamespace</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relkind</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">'r'</span><span class="p">,</span><span class="s1">'m'</span><span class="p">,</span><span class="s1">'t'</span><span class="p">)</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">relfrozenxid</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь мы намеренно показываем <code>relkind='t'</code> для TOAST. Смысл параметров <code>relallvisible</code> и <code>relallfrozen</code> — оценить состояние VM из каталога; это не проверка физических битов на каждой странице. Для relation, которая не хранит heap-версии обычным способом, поля имеют иную семантику, поэтому запрос ограничен relevant классами отношений.</p>
+<h3 id="175-no4">17.5. Запрос №4: горячие таблицы и эффективность уборки<a class="headerlink" href="#175-no4" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">schemaname</span><span class="p">,</span><span class="w"> </span><span class="n">relname</span><span class="p">,</span>
+<span class="w">       </span><span class="n">n_live_tup</span><span class="p">,</span><span class="w"> </span><span class="n">n_dead_tup</span><span class="p">,</span>
+<span class="w">       </span><span class="n">n_tup_ins</span><span class="p">,</span><span class="w"> </span><span class="n">n_tup_upd</span><span class="p">,</span><span class="w"> </span><span class="n">n_tup_del</span><span class="p">,</span>
+<span class="w">       </span><span class="n">n_tup_hot_upd</span><span class="p">,</span>
+<span class="w">       </span><span class="n">vacuum_count</span><span class="p">,</span><span class="w"> </span><span class="n">autovacuum_count</span><span class="p">,</span>
+<span class="w">       </span><span class="n">last_vacuum</span><span class="p">,</span><span class="w"> </span><span class="n">last_autovacuum</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">relid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">n_dead_tup</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+</code></pre></div>
+<p><code>n_dead_tup</code> оценивает количество, а <code>pg_relation_size</code> показывает физический размер heap (без индексов и TOAST). Сопоставляйте их с <code>pg_total_relation_size</code> для полной оценки. <code>last_autovacuum</code> не гарантирует, что его проход продвинул <code>relfrozenxid</code>: тип уборки, skipped VM pages и результат freezing важнее самого факта запуска.</p>
+<h3 id="176-no5-vacuum">17.6. Запрос №5: VACUUM прямо сейчас<a class="headerlink" href="#176-no5-vacuum" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">datname</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">phase</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">heap_blks_total</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">heap_blks_scanned</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">heap_blks_vacuumed</span><span class="p">,</span>
+<span class="w">       </span><span class="n">round</span><span class="p">(</span><span class="mi">100</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">heap_blks_scanned</span><span class="w"> </span><span class="o">/</span>
+<span class="w">             </span><span class="k">nullif</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">heap_blks_total</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">scan_pct</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">index_vacuum_count</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">num_dead_item_ids</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">dead_tuple_bytes</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">max_dead_tuple_bytes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">indexes_processed</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">indexes_total</span><span class="p">,</span>
+<span class="w">       </span><span class="n">p</span><span class="p">.</span><span class="n">delay_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_progress_vacuum</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь <code>scan_pct</code> — доля продвинутого <em>сканирования heap</em>; это <strong>не процент завершения всего VACUUM</strong>. После 100% сканирования еще могут выполняться индексные фазы, final cleanup и другие операции. Более того, пропущенные через visibility map страницы входят в <code>heap_blks_scanned</code>. Название поля кажется прямым указанием на физическое чтение, но документация фиксирует более тонкую семантику. [S4]</p>
+<h3 id="177-no6">17.7. Запрос №6: кто держит старые горизонты<a class="headerlink" href="#177-no6" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">usename</span><span class="p">,</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">now</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">xact_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">wall_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xmin</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">snapshot_age</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">160</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query_sample</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_xid</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">backend_xmin</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xmin</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<p>Если у транзакции есть старый <code>backend_xmin</code>, она потенциально влияет на движение горизонта. Но имя SQL, видимое в <code>pg_stat_activity</code>, может быть последней выполненной командой idle-сессии, а не тем запросом, который создал проблему. Для принятия решения нужны trace/context на стороне приложения, состояние соединения и характер открытой транзакции.</p>
+<h3 id="178-no7-prepared-transactions-replication-slots">17.8. Запрос №7: prepared transactions и replication slots<a class="headerlink" href="#178-no7-prepared-transactions-replication-slots" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">gid</span><span class="p">,</span><span class="w"> </span><span class="n">prepared</span><span class="p">,</span><span class="w"> </span><span class="k">database</span><span class="p">,</span><span class="w"> </span><span class="k">owner</span><span class="p">,</span>
+<span class="w">       </span><span class="k">transaction</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="k">transaction</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xid_age</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_prepared_xacts</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">prepared</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">slot_name</span><span class="p">,</span><span class="w"> </span><span class="n">slot_type</span><span class="p">,</span><span class="w"> </span><span class="k">database</span><span class="p">,</span><span class="w"> </span><span class="n">active</span><span class="p">,</span>
+<span class="w">       </span><span class="n">xmin</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">xmin</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">xmin_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">catalog_xmin</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">catalog_xmin</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">catalog_xmin_age</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_replication_slots</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">xmin</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<p>Prepared xacts могут пережить отключение клиентского процесса и продолжать удерживать важные ресурсы. Репликационный слот может оставаться неактивным, но удерживать XID-горизонт; <code>restart_lsn</code> в первую очередь связан с WAL retention и не эквивалентен <code>xmin</code>. Каталожный <code>catalog_xmin</code> нельзя механически трактовать как обычный xmin для всех пользовательских relations. Удалять replication slot ради освобождения места без проверки его потребителя рискованно: соответствующий standby/consumer может потребовать пересоздания или потерять возможность продолжить чтение.</p>
+<h3 id="179-no8">17.9. Запрос №8: приблизительная структура свободного места и индексов<a class="headerlink" href="#179-no8" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_indexes_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">indexes</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_total_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">indexrelid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">indexrelid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_size</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_index</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">indrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">pg_relation_size</span><span class="p">(</span><span class="n">indexrelid</span><span class="p">)</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Размер индекса — еще не доказательство bloat. Большой индекс может быть закономерен при количестве строк, широких ключах, низкой плотности страниц. Для доказательства избыточности нужна история роста, профиль UPDATE, точные внутренние оценки конкретного типа индекса или специализированные расширения.</p>
+<h2 id="18-vacuum">18. Как понять, почему VACUUM работает медленно<a class="headerlink" href="#18-vacuum" title="Permanent link">¶</a></h2>
+<h3 id="181-phase-scanning-heap-read-io">18.1. Phase <code>scanning heap</code>, растет read I/O<a class="headerlink" href="#181-phase-scanning-heap-read-io" title="Permanent link">¶</a></h3>
+<p>Вероятны большой объем нужных к проверке страниц, недостаточное покрытие VM, aggressive или eager freeze, холодные данные и общий I/O contention. Смотрим <code>heap_blks_total</code>, динамику <code>heap_blks_scanned</code>, VM summary, <code>pg_stat_io</code> по контексту <code>vacuum</code>, фактические дисковые метрики. Увеличение workers при ограниченной дисковой подсистеме способно ухудшить результат.</p>
+<h3 id="182-vacuuming-indexes">18.2. Повторяется <code>vacuuming indexes</code><a class="headerlink" href="#182-vacuuming-indexes" title="Permanent link">¶</a></h3>
+<p>Если <code>index_vacuum_count</code> больше одного, вероятен многоцикловый проход из-за объема dead TIDs относительно available memory. Смотрим <code>dead_tuple_bytes</code>, <code>max_dead_tuple_bytes</code>, количество и размеры индексов. Увеличивать память целесообразно после оценки числа одновременно работающих workers. Наиболее дешевое улучшение иногда лежит в уменьшении churn и продолжительности старых snapshots.</p>
+<h3 id="183-delay">18.3. Много времени в delay<a class="headerlink" href="#183-delay" title="Permanent link">¶</a></h3>
+<p><code>delay_time</code> при включенном <code>track_cost_delay_timing</code> показывает, сколько времени VACUUM спал для ограничения фоновой нагрузки. При таком профиле увеличение скорости возможно, но необходимо посмотреть p95/p99 пользовательских запросов и disk utilization. Ускоренная уборка полезна только до точки, в которой начинает заметно вредить клиентским операциям.</p>
+<h3 id="184-vacuum-relfrozenxid">18.4. VACUUM закончен, но <code>relfrozenxid</code> старый<a class="headerlink" href="#184-vacuum-relfrozenxid" title="Permanent link">¶</a></h3>
+<p>Это часто результат normal scan, который пропускал all-visible/not-all-frozen страницы. Проверяем долю <code>relallfrozen</code>/<code>relpages</code>, историю <code>VACUUM VERBOSE</code> и возраст. Если возраст приближается к threshold, ожидать следующего aggressive scan — нормально. Если же давно достигнут anti-wraparound порог и не продвигается, ищем блокирующие горизонты и ошибки работы VACUUM.</p>
+<h3 id="185-vacuum">18.5. VACUUM завершился, размер файла прежний<a class="headerlink" href="#185-vacuum" title="Permanent link">¶</a></h3>
+<p>Это ожидаемо для свободного места внутри heap. Проверяем reusable free space и динамику новых INSERT/UPDATE. Не предпринимаем поспешную тяжелую перезапись отношения, пока не оценены стоимость блокировки, свободная емкость storage и цель операции.</p>
+<h3 id="186-autovacuum">18.6. Autovacuum снова стартует и не успевает<a class="headerlink" href="#186-autovacuum" title="Permanent link">¶</a></h3>
+<p>Сравниваем темп появления dead versions, пороги по таблице, конкуренцию workers, общее I/O, актуальность статистики и log autovacuum. Иногда проблема — слишком широкий <code>scale_factor</code>, иногда — неустранимая старым snapshot задержка, а иногда — хроническая нехватка I/O. Решения в этих случаях различаются радикально.</p>
+<h2 id="19">19. Безопасные эксперименты для продолжения лекции практикой<a class="headerlink" href="#19" title="Permanent link">¶</a></h2>
+<blockquote>
+<p>Все эксперименты ниже рассчитаны <strong>только на отдельную тестовую PostgreSQL 18</strong>. Не запускайте их на производственных таблицах: генерация большого количества UPDATE может давить на WAL, indexes и autovacuum. Сначала воспроизводим поведение, затем измеряем и объясняем результат.</p>
+</blockquote>
+<h3 id="191-a-dead-versions-reuse">19.1. Эксперимент A: создаем dead versions и наблюдаем reuse<a class="headerlink" href="#191-a-dead-versions-reuse" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="w"> </span><span class="nb">integer</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payload</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">repeat</span><span class="p">(</span><span class="s1">'x'</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">)</span>
+<span class="p">)</span><span class="w"> </span><span class="k">WITH</span><span class="w"> </span><span class="p">(</span><span class="n">fillfactor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">85</span><span class="p">);</span>
+
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">g</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">100000</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">g</span><span class="p">;</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'vacuum_lab'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">before_size</span><span class="p">;</span>
+
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">50000</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">50000</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">n_tup_upd</span><span class="p">,</span><span class="w"> </span><span class="n">n_tup_hot_upd</span><span class="p">,</span><span class="w"> </span><span class="n">n_dead_tup</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_user_tables</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">relid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'vacuum_lab'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">)</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'vacuum_lab'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">after_size</span><span class="p">;</span>
+</code></pre></div>
+<p>Что хотим доказать? UPDATE создавал версионные изменения, VACUUM освобождал часть space для reuse, но <code>after_size</code> не обязан быть меньше <code>before_size</code>. Дополнительно можно сравнить <code>n_tup_hot_upd</code> и поменять fillfactor/индексируемые колонки в отдельной тестовой копии. Не ожидайте абсолютно одинаковые цифры на каждой инсталляции: план, загрузка, HOT, статистика и геометрия страниц влияют на результат.</p>
+<h3 id="192-b-snapshot">19.2. Эксперимент B: старый snapshot мешает уборке<a class="headerlink" href="#192-b-snapshot" title="Permanent link">¶</a></h3>
+<p>В двух соединениях к <strong>одной тестовой базе</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Сеанс A</span>
+<span class="k">BEGIN</span><span class="w"> </span><span class="k">ISOLATION</span><span class="w"> </span><span class="k">LEVEL</span><span class="w"> </span><span class="k">REPEATABLE</span><span class="w"> </span><span class="k">READ</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span><span class="w">  </span><span class="c1">-- установили snapshot</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_backend_pid</span><span class="p">();</span>
+<span class="c1">-- оставляем сессию открытой</span>
+
+<span class="c1">-- Сеанс B</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">30000</span><span class="p">;</span>
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">)</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span><span class="w">  </span><span class="c1">-- вне блока транзакции</span>
+
+<span class="c1">-- Сеанс C</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">backend_xmin</span><span class="p">,</span><span class="w"> </span><span class="n">age</span><span class="p">(</span><span class="n">backend_xmin</span><span class="p">),</span><span class="w"> </span><span class="k">state</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">backend_xmin</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь в сеансе A выполняем <code>COMMIT</code>, затем повторяем <code>VACUUM (VERBOSE)</code> в сеансе B. Сравниваем сообщения о removable/recently dead versions и размер/состояние таблицы. Сценарий показывает, почему корректная уборка зависит от старых snapshots, даже когда эти сеансы в текущую секунду не выполняют SQL. Для точного учебного эксперимента лучше зафиксировать конкретные версии tuples и при необходимости использовать <code>pgstattuple</code>.</p>
+<h3 id="193-c-vm-freezing">19.3. Эксперимент C: VM и freezing<a class="headerlink" href="#193-c-vm-freezing" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pg_visibility</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_visibility_map_summary</span><span class="p">(</span><span class="s1">'vacuum_lab'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">VERBOSE</span><span class="p">)</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_visibility_map_summary</span><span class="p">(</span><span class="s1">'vacuum_lab'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+
+<span class="c1">-- Только в тестовой БД: явная агрессивная заморозка.</span>
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">FREEZE</span><span class="p">,</span><span class="w"> </span><span class="k">VERBOSE</span><span class="p">)</span><span class="w"> </span><span class="n">vacuum_lab</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_visibility_map_summary</span><span class="p">(</span><span class="s1">'vacuum_lab'</span><span class="p">::</span><span class="n">regclass</span><span class="p">);</span>
+</code></pre></div>
+<p>Объяснение: all-visible и all-frozen — разные признаки; часть страниц может оставаться not-all-frozen до соответствующей работы. <code>VACUUM (FREEZE)</code> показывает механизм, но не является штатным способом «на всякий случай ускорить PostgreSQL». Это дополнительное чтение/изменение страниц, оправданность которого должна быть понятна.</p>
+<h3 id="194-d-io-production">19.4. Эксперимент D: измеряем прогресс и I/O, не ломая production<a class="headerlink" href="#194-d-io-production" title="Permanent link">¶</a></h3>
+<p>На отдельной тестовой БД с достаточно крупной таблицей запускаем <code>VACUUM (VERBOSE)</code>, во второй сессии периодически читаем <code>pg_stat_progress_vacuum</code>. Отдельно снимаем <code>pg_stat_io</code> до/после. Сравниваем обычный scan с ситуацией, когда VM уже пометила большую долю страниц all-frozen. Проверяем, как <code>scanning heap</code> и bytes read меняются без необходимости непосредственно приближаться к опасному XID age.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">phase</span><span class="p">,</span><span class="w"> </span><span class="n">heap_blks_scanned</span><span class="p">,</span><span class="w"> </span><span class="n">heap_blks_total</span><span class="p">,</span>
+<span class="w">       </span><span class="n">num_dead_item_ids</span><span class="p">,</span><span class="w"> </span><span class="n">index_vacuum_count</span><span class="p">,</span><span class="w"> </span><span class="n">delay_time</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_progress_vacuum</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="195-e-eager-freezing">19.5. Эксперимент E: параметры eager freezing без миллионов транзакций<a class="headerlink" href="#195-e-eager-freezing" title="Permanent link">¶</a></h3>
+<p>Настоящий тест eager freezing требует достаточно большой таблицы и достаточно старых XID/MXID, чтобы критерии эвристики выполнились. <code>VACUUM</code> маленькой таблицы после нескольких INSERT не доказывает, что eager scanning «не работает». На занятии достаточно прочитать параметры (<code>SHOW vacuum_max_eager_freeze_failure_rate</code>), изучить <code>pg_visibility_map_summary</code> и разобрать ветвление алгоритма в <code>vacuumlazy.c</code>. Нельзя создавать искусственный XID age в production ради демонстрации.</p>
+<h2 id="20-production-runbook">20. Production runbook: последовательность расследования<a class="headerlink" href="#20-production-runbook" title="Permanent link">¶</a></h2>
+<p><strong>Симптом 1: увеличиваются table size и read latency.</strong> Сначала смотрим скорость UPDATE/DELETE, <code>n_dead_tup</code>, HOT ratio, размер heap и индексов, историю VACUUM. Затем проверяем долгие snapshots и сравниваем потребность в очистке с ресурсами I/O. Если причины не найдены, подключаем точные инструменты физического анализа страниц, учитывая их стоимость.</p>
+<p><strong>Симптом 2: autovacuum резко потребляет I/O.</strong> Проверяем возраст <code>relfrozenxid</code>/<code>relminmxid</code>, фазу VACUUM, VM coverage и признаки aggressive/failsafe. Оценка «он мешает, отключим» может привести к очень дорогой следующей аварии. Важнее выяснить, что заставило систему накопить долг, и отрегулировать обычную фоновую работу раньше защитного режима.</p>
+<p><strong>Симптом 3: VACUUM не может продвинуть <code>datfrozenxid</code>.</strong> Ищем отношение с минимальным <code>relfrozenxid</code> с учетом TOAST, старые backend <code>xmin</code>, prepared xacts, replication slots. Не забываем независимый MXID age. Исправление может находиться вне самого VACUUM, например в транзакционном жизненном цикле backend или в обслуживании заброшенного replication slot.</p>
+<p><strong>Симптом 4: предупреждения о wraparound.</strong> Устанавливаем XID age, оставшийся запас, первопричину удержания и ход anti-wraparound VACUUM. Убираем подтвержденные старые горизонты и даем защитному обслуживанию завершиться. Не выполняем тяжелый набор DDL в попытке «пересоздать таблицу», не увеличиваем пороги до критической точки и не рекомендуем <code>VACUUM FULL</code> как первое действие.</p>
+<p><strong>Симптом 5: после успешного VACUUM p99 не восстановился.</strong> Возможны повторное использование свободного места без уменьшения файла, backlog индексов, продолжающийся churn, I/O saturation и иной bottleneck. VACUUM — часть решения, но нужно повторить исходное измерение SQL latency, I/O и размеров relations и доказать, что именно этот механизм создал или устранил деградацию.</p>
+<h2 id="21">21. Где заканчивается простая модель и начинается инженерная<a class="headerlink" href="#21" title="Permanent link">¶</a></h2>
+<p>Выпишем пять утверждений, которые студент должен уметь доказать, а не просто повторить.</p>
+<ol>
+<li><strong>Устаревшая версия удаляется только после безопасного продвижения горизонта видимости.</strong> Свежий SELECT и долго удерживаемый snapshot могут иметь разную картину мира.</li>
+<li><strong>Pruning, VACUUM cleanup и freezing выполняют разные функции.</strong> Pruning локален, VACUUM согласует heap и index references, freezing устраняет зависимость от слишком старых XID/MXID.</li>
+<li><strong><code>all-visible</code> слабее <code>all-frozen</code>.</strong> Это объясняет, зачем нужны aggressive scan и нововведение eager freezing в PostgreSQL 18.</li>
+<li><strong>Возраст определяется расходом транзакционных идентификаторов.</strong> Часы и <code>age(relfrozenxid)</code> нужны одновременно, и обычный XID aging отделен от MultiXact aging.</li>
+<li><strong>В критическом режиме PostgreSQL жертвует производительностью ради целостности.</strong> Anti-wraparound, failsafe и защита выдачи XID — инженерные предохранители, которые дешевле предотвращать регулярной уборкой, чем переживать на production.</li>
+</ol>
+<h3 id="8">Куда можно копнуть еще глубже, не выходя из блока 8<a class="headerlink" href="#8" title="Permanent link">¶</a></h3>
+<p>Если потребуется отдельный технический слой, следующий кандидат — <strong>реальная обработка одной heap page во время <code>heap_page_prune_and_freeze()</code></strong>: как формируются статусы line pointers, выбирается freeze cutoff, меняются infomask/VM и какой WAL нужен для атомарности. Это закроет вопрос «как VACUUM физически меняет страницу, не нарушая работу параллельных читателей» и полезно именно для понимания конкуренции, которую мы исследовали в блоке 8. Второй вариант — <strong>алгоритм TID store и index cleanup</strong>, чтобы объяснить стоимость нескольких index vacuum cycles и связь с памятью. Оба углубления оставляем факультативными, автоматически программу не расширяем.</p>
+<hr/>
+<h1 id="_1">Источники и границы проверенных утверждений<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>Документация ниже относится к PostgreSQL <strong>18</strong>. Для C internals указан исходный файл; конкретные сигнатуры и ветвления необходимо сверять с <code>REL_18_STABLE</code>, если выполнять разбор строки в строку. Учебные схемы и временные расчеты не являются цитатами из исходников.</p>
+<ul>
+<li><strong>[S1]</strong> PostgreSQL 18, <em>Routine Vacuuming</em>: https://www.postgresql.org/docs/18/routine-vacuuming.html — задачи VACUUM, freezing, wraparound, autovacuum, eager freezing.</li>
+<li><strong>[S2]</strong> PostgreSQL 18, <em>Vacuuming Configuration</em>: https://www.postgresql.org/docs/18/runtime-config-vacuum.html — пороги, cost delay, failsafe, <code>vacuum_max_eager_freeze_failure_rate</code>.</li>
+<li><strong>[S3]</strong> PostgreSQL 18, <em>The Cumulative Statistics System</em>: https://www.postgresql.org/docs/18/monitoring-stats.html — <code>pg_stat_all_tables</code>, <code>pg_stat_io</code>, история статистики и ограничения наблюдения.</li>
+<li><strong>[S4]</strong> PostgreSQL 18, <em>Progress Reporting</em>: https://www.postgresql.org/docs/18/progress-reporting.html — актуальные для 18 поля и фазы <code>pg_stat_progress_vacuum</code>.</li>
+<li><strong>[S5]</strong> PostgreSQL 18, <em>pg_visibility</em>: https://www.postgresql.org/docs/18/pgvisibility.html — VM, all-visible/all-frozen, функции исследования.</li>
+<li><strong>[S6]</strong> PostgreSQL 18, <em>pg_class</em>: https://www.postgresql.org/docs/18/catalog-pg-class.html — <code>relfrozenxid</code>, <code>relminmxid</code>, <code>relallfrozen</code> и оценки.</li>
+<li><strong>[S7]</strong> PostgreSQL 18, <em>pg_database</em>: https://www.postgresql.org/docs/18/catalog-pg-database.html — <code>datfrozenxid</code>, <code>datminmxid</code>.</li>
+<li><strong>[S8]</strong> PostgreSQL 18, <em>Release Notes</em>: https://www.postgresql.org/docs/18/release-18.html — нововведение eager freezing и изменения I/O.</li>
+<li><strong>[S9]</strong> <code>src/backend/commands/vacuum.c</code>: <code>vacuum_get_cutoffs()</code>, вычисление OldestXmin/freeze cutoff; дерево исходников PostgreSQL: https://github.com/postgres/postgres/tree/REL_18_STABLE/src/backend/commands</li>
+<li><strong>[S10]</strong> <code>src/backend/access/heap/pruneheap.c</code>: <code>heap_page_prune_opt()</code> и <code>heap_page_prune_and_freeze()</code>; дерево исходников: https://github.com/postgres/postgres/tree/REL_18_STABLE/src/backend/access/heap</li>
+<li><strong>[S11]</strong> <code>src/backend/access/heap/vacuumlazy.c</code>: heap scan, TID store, freezing, eager scan, failsafe; дерево исходников: https://github.com/postgres/postgres/tree/REL_18_STABLE/src/backend/access/heap</li>
+<li><strong>[S12]</strong> PostgreSQL 18, <em>pgstattuple</em>: https://www.postgresql.org/docs/18/pgstattuple.html — физическое исследование heap и index и ограничения результатов.</li>
+<li><strong>[S13]</strong> PostgreSQL 18, <em>VACUUM</em>: https://www.postgresql.org/docs/18/sql-vacuum.html — режимы, ограничения команды, блокировки, стоимость и параллельная работа.</li>
+</ul>
+<p><em>Конец лекции 08.3. Блок 8 завершен: 08, 08.1, 08.2, 08.3. Следующий блок программы здесь намеренно не рассматривается.</em></p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock" class="md-footer__link md-footer__link--prev" href="../08.2%20-%20Lock%20manager/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 9.1. PostgreSQL Schema Migration Internals" class="md-footer__link md-footer__link--next" href="../09.1%20-%20Schema%20migration/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                9.1. PostgreSQL Schema Migration Internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

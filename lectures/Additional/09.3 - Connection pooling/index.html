@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/09.3%20-%20Connection%20pooling/" rel="canonical"/>
+<link href="../09.2%20-%20Backup%20restore/" rel="prev"/>
+<link href="../10.1%20-%20High%20availability%20failover/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>9.3. PostgreSQL Connection Pooling Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#93-postgresql-connection-pooling-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              9.3. PostgreSQL Connection Pooling Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-go-postgresql">
+<span class="md-ellipsis">
+      
+        0. Инцидент: добавили экземпляры Go-сервиса — PostgreSQL стал отвечать медленнее
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-go-postgresql">
+<span class="md-ellipsis">
+      
+        0. Инцидент: добавили экземпляры Go-сервиса — PostgreSQL стал отвечать медленнее
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="93-postgresql-connection-pooling-internals">9.3. PostgreSQL Connection Pooling Internals<a class="headerlink" href="#93-postgresql-connection-pooling-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная лекция магистратуры · PostgreSQL 18 (<code>REL_18_STABLE</code>) · Go <code>database/sql</code> · PgBouncer.</strong><br/>
+<strong>Продолжение:</strong> 09.0 — назначение pooling, <code>max_connections</code>, session/transaction pooling. 09.1–09.2 — миграции и backup. В лекциях 05–08 уже разобраны SQL executor, MVCC, блокировки и диагностика; повторять их алгоритмы здесь не будем.<br/>
+<strong>Цель:</strong> понять физическую стоимость подключения, алгоритмы выдачи соединений, вложенные очереди, совместимость драйвера с transaction pooling и поведение системы при массовой конкуренции или потере PostgreSQL.<br/>
+<strong>Границы:</strong> в центре именно путь соединения и его жизненный цикл. Wire protocol используется настолько, насколько он объясняет PgBouncer, prepared statements, отмену и состояние сессии. Полный разбор байтов протокола предлагается как отдельный следующий слой, а не подменяет эту лекцию.<br/>
+<strong>Точность:</strong> пользовательские свойства PostgreSQL относятся к версии 18; фрагменты <code>database/sql</code> описывают актуальную реализацию Go, но не являются гарантиями публичного API. Возможности PgBouncer зависят от установленной версии и конфигурации. Примеры конфигурации учебные; не копировать их с паролями/лимитами в production без тестирования.</p>
+</blockquote>
+<h2 id="0-go-postgresql">0. Инцидент: добавили экземпляры Go-сервиса — PostgreSQL стал отвечать медленнее<a class="headerlink" href="#0-go-postgresql" title="Permanent link">¶</a></h2>
+<p>У нас есть сервис обработки платежных поручений. Два экземпляра приложения обслуживают 800 запросов в секунду. Средний SQL выполняется быстро, база имеет запас CPU. Менеджер просит удвоить пропускную способность. Масштабируем приложение до восьми экземпляров. И внезапно p99 вместо 45 мс становится 2 секунды; иногда появляется <code>remaining connection slots are reserved...</code>, а в Go растет <code>WaitDuration</code>.</p>
+<p>Очевидная модель звучит привлекательно: <strong>больше реплик приложения → больше параллельных SQL → больше TPS</strong>. Теперь проверим, где она ломается. Каждый экземпляр Go имеет собственный <code>sql.DB</code>; каждый <code>sql.DB</code> может открыть множество физических соединений; PostgreSQL на обычном подключении выделяет отдельный backend process. Когда приложение создает новые реплики, оно размножает не только обработчики HTTP, но и бюджеты подключений. Если этим никто не управляет, конкурентность начинает расти в месте, где ограниченными ресурсами являются память, CPU, пропускная способность дисков и внутренние структуры СУБД.</p>
+<p>Но даже после ограничения числа подключений задача не закончена. Запрос может провести 300 мс в очереди <code>database/sql</code>, потом 200 мс в очереди PgBouncer и лишь 4 мс внутри PostgreSQL. Если смотреть только <code>pg_stat_statements</code>, SQL прекрасен. Пользователю от этого не легче.</p>
+<p>Нам нужна модель <strong>нескольких последовательных очередей</strong>:</p>
+<div class="highlight"><pre><span></span><code>HTTP request / goroutine
+         │  ожидает свободную запись в локальном pool
+         ▼
+Go database/sql (per instance)
+         │  TCP: client connection to PgBouncer
+         ▼
+PgBouncer: client socket + pool queue
+         │  выделяется server connection
+         ▼
+PostgreSQL backend process
+         │  Parse/Bind/Execute, CPU/I/O/locks
+         ▼
+Result → PgBouncer → Go rows/tx → HTTP response
+</code></pre></div>
+<p>Важное замечание: <strong>одна бизнес-операция не равна одному SQL, один SQL не равен одному соединению, соединение не равно одновременно выполняемой работе</strong>. Мы будем измерять длительность <em>удержания</em> соединения отдельно от длительности SQL и искать, на каком уровне появилась очередь.</p>
+<h3 id="01">0.1. Что конкретно будем доказывать<a class="headerlink" href="#01" title="Permanent link">¶</a></h3>
+<ol>
+<li>Подключение PostgreSQL имеет цену. Ограничивать число физически созданных backend-процессов полезно, но одного ограничения недостаточно.</li>
+<li><code>sql.DB</code> — конкурентный пул с очередью. Он может тормозить запрос до первого байта, отправленного серверу.</li>
+<li>PgBouncer предоставляет второй уровень выдачи ресурсов и может разделять небольшой серверный пул между множеством клиентов.</li>
+<li>Режим <strong>transaction pooling</strong> меняет привычную связь «логическая сессия клиента ↔ физическая сессия PostgreSQL». Это влияет на state, <code>SET</code>, prepared statements и отмену запросов.</li>
+<li>Timeout и ошибка соединения не всегда раскрывают результат предыдущего <code>COMMIT</code>; безопасные повторы требуют бизнес-идемпотентности.</li>
+<li>Размер пула подбирают с измерением throughput, очереди и p99; универсального «пул равен числу ядер» нет.</li>
+</ol>
+<p>В примерах используем <code>ledgerdb</code> и условного пользователя <code>app_user</code>; пароли и внутренние адреса в файле отсутствуют. Команды <code>SHOW POOLS</code>, <code>SHOW STATS</code> исполняются через <em>административную базу PgBouncer</em>, а не внутри обычной SQL-базы PostgreSQL.</p>
+<hr/>
+<h1 id="i">I. Что стоит одно физическое соединение<a class="headerlink" href="#i" title="Permanent link">¶</a></h1>
+<h2 id="1-postgresql-connection-sql-">1. Жизненный цикл PostgreSQL connection: сокет еще не означает готовую SQL-сессию<a class="headerlink" href="#1-postgresql-connection-sql-" title="Permanent link">¶</a></h2>
+<p>Представим: клиент открывает TCP-соединение к порту PostgreSQL. Значит ли это, что запрос уже можно выполнять? Нет. Сначала необходимо пройти протокольный startup и аутентификацию, затем создать состояние backend-сессии.</p>
+<h3 id="11-dial-readyforquery">1.1. Последовательность от Dial до <code>ReadyForQuery</code><a class="headerlink" href="#11-dial-readyforquery" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Go driver                Linux / PostgreSQL                  Backend
+    │  TCP connect              │                               │
+    ├───────────────────────────►│                               │
+    │  SSLRequest / TLS, если применимо                        │
+    ├───────────────────────────►│                               │
+    │  StartupMessage(user, database, options)                  │
+    ├───────────────────────────►│ проверка pg_hba.conf            │
+    │                            │ запуск/инициализация backend ├─►
+    │◄───────────────────────────┤ Authentication request        │
+    ├───────────────────────────►│ authentication response       │
+    │◄───────────────────────────┤ AuthenticationOk              │
+    │◄───────────────────────────┤ ParameterStatus              │
+    │◄───────────────────────────┤ BackendKeyData               │
+    │◄───────────────────────────┤ ReadyForQuery                 │
+    │  можно отправлять SQL      │                               │
+</code></pre></div>
+<p>Здесь изображена <strong>логическая</strong> последовательность; реальное взаимное расположение некоторых шагов зависит от способа аутентификации, TLS и реализации ОС. До <code>ReadyForQuery</code> пользовательский SQL выполнять нельзя. <code>BackendKeyData</code> передает данные, используемые для последующей отмены запросов, а <code>ParameterStatus</code> — параметры сессии. Это часть PostgreSQL frontend/backend protocol, а не поведение конкретного Go-драйвера.</p>
+<p>С PostgreSQL 18 важно знать и тонкость версии протокола: появилась версия <strong>3.2</strong>, расширяющая формат секретного ключа отмены. Клиенты, PgBouncer и прокси могут договариваться о поддерживаемом варианте протокола; проверять реальную совместимость следует на используемых версиях. Сам факт использования PostgreSQL 18 не гарантирует, что каждый посредник говорит на протоколе 3.2.</p>
+<h3 id="12-backend-process">1.2. Где рождается backend process<a class="headerlink" href="#12-backend-process" title="Permanent link">¶</a></h3>
+<p>Классическая модель PostgreSQL — <strong>process-per-connection</strong>: процесс <code>postmaster</code> принимает новое подключение и обеспечивает отдельный backend process для пользовательской сессии. На Unix-подобных ОС создание обычно использует fork/exec-подобный платформенный механизм, но конкретные операции запуска не являются универсальным API-контрактом. Сессия имеет собственное адресное пространство и доступ к общей памяти экземпляра, включая shared buffers и служебные структуры.</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL instance
+├── postmaster / управляющий процесс
+├── shared memory (shared buffers, lock tables, stats ...)
+├── backend PID 3101 → session A → connection A
+├── backend PID 3102 → session B → connection B
+└── backend PID 3103 → session C → connection C
+</code></pre></div>
+<p><strong>Backend process ≠ выделенное ядро CPU.</strong> Сотни backend-процессов могут в течение секунды неоднократно попадать в состояние сна, ожидать клиента или ресурса. Планирует их ОС. Десять тысяч соединений не дают десять тысяч одновременно исполняемых запросов и не создают десять тысяч ядер.</p>
+<h3 id="13">1.3. Состав стоимости подключения<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Физическое соединение потребляет несколько ресурсов:</p>
+<ul>
+<li><strong>Сокеты и файловые дескрипторы:</strong> одно соединение имеет клиентскую и серверную сетевую сторону; нужны буферы и FD.</li>
+<li><strong>Процесс и память:</strong> backend имеет private memory, стек и служебные объекты. Показатель RSS процесса нельзя просто просуммировать по всем PID, поскольку shared memory будет учтена несколько раз.</li>
+<li><strong>Инициализация:</strong> аутентификация, параметры, каталоговая информация, session state, TLS и потенциальные сетевые RTT; создание соединения дороже выдачи уже существующего.</li>
+<li><strong>Накладные расходы конкурентности:</strong> планирование процессов, работа с общей памятью, внутренними очередями, общими счетчиками и синхронизацией.</li>
+<li><strong>Резерв ресурсов выполнения:</strong> активный SQL может потреблять дополнительную память операций, например сортировки или hash-таблиц; такие затраты масштабируются с <strong>активными операциями</strong>, а не исключительно с количеством соединений.</li>
+</ul>
+<p>Нельзя утверждать, что каждый backend «всегда стоит 10 МБ» или что одна сессия всегда требует отдельный <code>work_mem</code>. Реальное потребление зависит от версии PostgreSQL, workload, состояния сессии и плана запроса. Измерять его нужно на конкретной системе, исключая повторный учет общих страниц.</p>
+<h3 id="14">1.4. Разделяем три времени<a class="headerlink" href="#14" title="Permanent link">¶</a></h3>
+<p>Определим:</p>
+<ul>
+<li><code>T_connect</code> — от начала dial до готового <code>ReadyForQuery</code>;</li>
+<li><code>T_acquire</code> — ожидание выдачи уже созданного соединения локальным или внешним пулом;</li>
+<li><code>T_execute</code> — обмен сообщениями SQL и обработка на стороне PostgreSQL.</li>
+</ul>
+<p>Первый запрос нового клиента может платить за все три. При переиспользовании соединения <code>T_connect</code> исчезает из горячего пути, но <code>T_acquire</code> остается. При перегрузке именно он может стать доминирующим.</p>
+<p>Концептуальный профиль задержки:</p>
+<div class="highlight"><pre><span></span><code>TOTAL 280 ms
+  Go pool wait               130 ms
+  PgBouncer server wait       95 ms
+  PostgreSQL execution         7 ms
+  Network + decode + app      48 ms
+</code></pre></div>
+<p>Это <strong>иллюстративное разложение</strong>, не результат измерения. Важна техника расследования: не путать измеренные <code>pg_stat_statements.mean_exec_time</code> с полным временем обработки HTTP-запроса. Кроме того, драйвер может выдавать соединение из <code>sql.DB</code>, которое в действительности соединено только с PgBouncer, поэтому ожидание серверного connection появляется позднее.</p>
+<h3 id="15">1.5. Где смотреть стоимость открытия<a class="headerlink" href="#15" title="Permanent link">¶</a></h3>
+<p>На сервере:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">application_name</span><span class="p">,</span><span class="w"> </span><span class="n">client_addr</span><span class="p">,</span><span class="w"> </span><span class="n">backend_start</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">backend_start</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>На клиенте фиксируем длительность <code>db.PingContext(ctx)</code> при холодном старте и отдельно измеряем ожидание локального <code>DB.Stats()</code>. Операция <code>sql.Open</code> сама по себе <strong>не обязана открывать физическое соединение</strong>: она создает объект <code>DB</code> и проверяет аргументы на уровне драйвера, а реальный доступ можно проверить через <code>PingContext</code>.</p>
+<p>При расследовании login storm сопоставляем всплеск <code>backend_start</code>, rate новых подключений, CPU постмастера/процессов, ожидания TLS/auth и логи PgBouncer. Прежде чем увеличивать пул, выясняем, не порождают ли сами лимиты частую ротацию соединений.</p>
+<h2 id="2-max_connections">2. <code>max_connections</code>: глобальный предел и бюджет под несколько приложений<a class="headerlink" href="#2-max_connections" title="Permanent link">¶</a></h2>
+<h3 id="21-5000">2.1. Почему нельзя просто поставить 5000<a class="headerlink" href="#21-5000" title="Permanent link">¶</a></h3>
+<p><code>max_connections</code> — предельное число конкурентных клиентских подключений к PostgreSQL. Значение обычно требует <strong>перезапуска</strong> и влияет на выделение некоторых ресурсов сервера, в том числе shared memory. В PostgreSQL 18 присутствуют два уровня резерва: <code>reserved_connections</code> для ролей с <code>pg_use_reserved_connections</code> и <code>superuser_reserved_connections</code> для суперпользователей.</p>
+<p>Проверка:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">max_connections</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">reserved_connections</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">superuser_reserved_connections</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">FILTER</span><span class="w"> </span><span class="p">(</span><span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">clients</span><span class="p">,</span>
+<span class="w">       </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="n">FILTER</span><span class="w"> </span><span class="p">(</span><span class="k">WHERE</span><span class="w"> </span><span class="k">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'active'</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">active</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="p">;</span>
+</code></pre></div>
+<p>Формула <em>учебного бюджетирования</em>:</p>
+<div class="highlight"><pre><span></span><code>connection budget for application ≈
+  max_connections
+  − reserved superuser/admin slots
+  − other applications
+  − monitoring and operational headroom
+</code></pre></div>
+<p>Слот подключения — лишь один ресурс. Увеличение <code>max_connections</code> поднимает допустимое число конкурирующих backend-процессов; если PostgreSQL уже перегружен, это может усилить очереди внутри СУБД. На практике увеличение лимита без измерений нередко переносит проблему с отказа в подключении на рост p99 SQL.</p>
+<h3 id="22">2.2. Умножение пулов при горизонтальном масштабировании<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p>Предположим:</p>
+<div class="highlight"><pre><span></span><code>8 Go pods × SetMaxOpenConns(40) = 320 возможных соединений
+PostgreSQL max_connections = 180
+6 административных/служебных слотов оставлены в резерв
+</code></pre></div>
+<p>Не утверждаем, что все 320 соединений обязательно откроются. <code>SetMaxOpenConns</code> задает верхний предел, а создание идет по спросу. Но в пик каждая реплика может дойти до своего лимита. Соответственно, суммарный <strong>теоретический пик</strong> многократно превышает разрешенный бюджет PostgreSQL.</p>
+<p>Если в систему добавили еще четыре реплики, общий максимум становится 480. И это происходит без изменения кода обращения к БД. Поэтому число экземпляров приложения входит в расчет наряду с величиной локального пула.</p>
+<h3 id="23-rss-backend">2.3. Почему RSS не равен произведению «размер backend × соединения»<a class="headerlink" href="#23-rss-backend" title="Permanent link">¶</a></h3>
+<p>Процессы разделяют shared buffers и другие области. Сумма <code>RSS</code> всех PID многократно посчитает общие страницы. Для оценки вклада конкретных процессов на Linux полезнее <code>PSS</code> из <code>/proc/&lt;pid&gt;/smaps_rollup</code>, а для общей емкости — cgroup memory, память процессов и база операционных измерений. При этом дополнительные private allocations SQL могут значительно превышать базовые затраты idle-сессии.</p>
+<p>Таким образом, правильный capacity planning требует эксперимента с характерными запросами, а не умножения абстрактных мегабайт на <code>max_connections</code>.</p>
+<h3 id="24">2.4. Вывод первого раздела<a class="headerlink" href="#24" title="Permanent link">¶</a></h3>
+<p>Новый клиент может создать отдельный backend process, но не дает гарантированную пропускную способность. Pooling нужен, чтобы <strong>переиспользовать дорогие физические соединения и ограничивать работу раньше, чем она захлестнет PostgreSQL</strong>. Теперь посмотрим, как этот механизм уже встроен в Go.</p>
+<hr/>
+<h1 id="ii-go-databasesql-sql">II. Go <code>database/sql</code>: внутренняя очередь до первого SQL<a class="headerlink" href="#ii-go-databasesql-sql" title="Permanent link">¶</a></h1>
+<h2 id="3-sqldb">3. <code>sql.DB</code> — менеджер соединений и конкурентный ресурс<a class="headerlink" href="#3-sqldb" title="Permanent link">¶</a></h2>
+<p>Типичная ошибка начинается с такого кода:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">Handle</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">dsn</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="kt">error</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sql</span><span class="p">.</span><span class="nx">Open</span><span class="p">(</span><span class="s">"pgx"</span><span class="p">,</span><span class="w"> </span><span class="nx">dsn</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryRowContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="s">"SELECT 1"</span><span class="p">).</span><span class="nx">Scan</span><span class="p">(</span><span class="nb">new</span><span class="p">(</span><span class="kt">int</span><span class="p">))</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Этот пример <strong>специально плохой</strong>: при вызове из каждого HTTP-запроса он создает отдельный pool и почти не переиспользует физические соединения. При высоком RPS мы превращаем пул в фабрику подключений. Правильно создать один долгоживущий <code>*sql.DB</code> на конфигурацию сервиса и передавать его обработчикам.</p>
+<p>Далее используются имена <code>sql.DB</code>, <code>sql.Tx</code>, <code>sql.Conn</code> из standard library. Для реального PostgreSQL нужен SQL-драйвер; в коде ниже <code>_ "github.com/jackc/pgx/v5/stdlib"</code> — явная внешняя зависимость, она служит только адаптером <code>database/sql</code>.</p>
+<h3 id="31">3.1. Безопасная базовая конфигурация<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">"context"</span>
+<span class="w">    </span><span class="s">"database/sql"</span>
+<span class="w">    </span><span class="s">"log"</span>
+<span class="w">    </span><span class="s">"os"</span>
+<span class="w">    </span><span class="s">"time"</span>
+
+<span class="w">    </span><span class="nx">_</span><span class="w"> </span><span class="s">"github.com/jackc/pgx/v5/stdlib"</span>
+<span class="p">)</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sql</span><span class="p">.</span><span class="nx">Open</span><span class="p">(</span><span class="s">"pgx"</span><span class="p">,</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"DATABASE_URL"</span><span class="p">))</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxOpenConns</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span><span class="w">                  </span><span class="c1">// экспериментальный предел</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxIdleConns</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span><span class="w">                   </span><span class="c1">// &lt;= max open</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetConnMaxIdleTime</span><span class="p">(</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span><span class="w"> </span><span class="c1">// удалить долгий idle</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetConnMaxLifetime</span><span class="p">(</span><span class="mi">30</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Minute</span><span class="p">)</span>
+
+<span class="w">    </span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">(),</span><span class="w"> </span><span class="mi">3</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">PingContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="kt">int</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryRowContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="s">"SELECT 42"</span><span class="p">).</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">n</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">log</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"answer=%d stats=%+v"</span><span class="p">,</span><span class="w"> </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Stats</span><span class="p">())</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Числа 12, 6, 2 минуты и 30 минут — <strong>пример для измерений</strong>, не рекомендованные глобальные значения. Lifetime может закрывать соединения и провоцировать reconnect в пике; ротация должна быть согласована с сетевой инфраструктурой, серверными timeout и нагрузкой. <code>sql.Open</code> может возвращать объект без физического подключения; именно <code>PingContext</code> проверяет доступность.</p>
+<h3 id="32-connection">3.2. Что означает «получить connection»<a class="headerlink" href="#32-connection" title="Permanent link">¶</a></h3>
+<p>Внутри <code>database/sql</code> есть массив свободных соединений и учет числа открытых/открываемых. Типичный путь запроса на соединение:</p>
+<div class="highlight"><pre><span></span><code>QueryContext / ExecContext / BeginTx
+            │
+            ▼
+     DB.conn(ctx, strategy)
+            │
+      есть свободное?
+       ├─ да ─► проверить lifetime/состояние ─► выдать
+       └─ нет
+            │
+    numOpen &lt; maxOpen (или лимита нет)?
+       ├─ да ─► создать через driver.Connector ─► выдать
+       └─ нет ─► зарегистрировать запрос в connRequests
+                           │
+                           ▼
+                  ждать доступности или ctx.Done()
+</code></pre></div>
+<p>Идея <strong>публичного API:</strong> если лимит открытых соединений достигнут, новая операция ждет. Конкретные названия <code>freeConn</code>, <code>connRequests</code>, <code>numOpen</code>, <code>connectionOpener</code>, <code>driverConn</code> — детали реализации Go, которые полезно читать в <code>src/database/sql/sql.go</code>, но нельзя использовать как обещание стабильной внутренней структуры на будущие версии.</p>
+<h3 id="33-connrequests">3.3. <code>connRequests</code>: откуда берется очередь и кто пробуждает горутину<a class="headerlink" href="#33-connrequests" title="Permanent link">¶</a></h3>
+<p>В реализации Go ожидание не обязательно означает создание дополнительного OS thread. Горутина может ждать результат через канал запроса, пока другой запрос не вернет connection. Часть работы по открытию новых физических соединений выполняется служебным механизмом <code>connectionOpener</code>.</p>
+<p>Псевдокод, отражающий архитектуру (<strong>не копия исходника Go</strong>):</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">acquire</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">conn</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">lockPool</span><span class="p">()</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">idle</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">takeFreeConn</span><span class="p">();</span><span class="w"> </span><span class="nx">idle</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">unlockPool</span><span class="p">();</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">idle</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">canOpenAnother</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">reserveSlot</span><span class="p">();</span><span class="w"> </span><span class="nx">unlockPool</span><span class="p">();</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">dial</span><span class="p">(</span><span class="nx">ctx</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nx">request</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">enqueueRequest</span><span class="p">()</span><span class="w">  </span><span class="c1">// ожидание свободного conn</span>
+<span class="w">    </span><span class="nx">unlockPool</span><span class="p">()</span>
+<span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">request</span><span class="p">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">conn</span><span class="p">,</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">err</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Done</span><span class="p">():</span>
+<span class="w">        </span><span class="nx">removeRequest</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">Err</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>На реальном пути есть дополнительные проверки: срок службы соединения, драйверные <code>ErrBadConn</code>, reset session, race cancellation/return, счетчики и работа с mutex. Существенная причинно-следственная цепочка остается: <strong>лимит → очередь → ожидание context → либо выдача, либо отказ</strong>.</p>
+<p>Когда <code>Rows</code> закрыты, одиночный SQL завершен или <code>Tx.Commit/Rollback</code> освободил ресурс, соединение может быть передано ожидающему запросу, а не сразу помещено в свободный список. Так система не обязана каждый раз инициировать новый TCP dial.</p>
+<h3 id="34">3.4. Когда соединение реально возвращается<a class="headerlink" href="#34" title="Permanent link">¶</a></h3>
+<p>Разные API удерживают ресурс по-разному:</p>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Когда ресурс обычно освобождается</th>
+<th>Частый дефект</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DB.ExecContext</code></td>
+<td>После завершения команды</td>
+<td>Игнорировать ошибку, повторять бесконтрольно</td>
+</tr>
+<tr>
+<td><code>DB.QueryContext</code></td>
+<td>После закрытия/исчерпания <code>Rows</code></td>
+<td>Забыть <code>rows.Close()</code> или не дочитать курсор</td>
+</tr>
+<tr>
+<td><code>DB.QueryRowContext</code></td>
+<td>После <code>Scan()</code></td>
+<td>Создать <code>Row</code>, долго не вызывать <code>Scan</code></td>
+</tr>
+<tr>
+<td><code>DB.BeginTx</code></td>
+<td>После <code>Commit()</code> / <code>Rollback()</code></td>
+<td>Ждать HTTP/gRPC в открытой транзакции</td>
+</tr>
+<tr>
+<td><code>DB.Conn(ctx)</code></td>
+<td>После <code>Conn.Close()</code></td>
+<td>Навсегда закрепить физическое соединение</td>
+</tr>
+</tbody>
+</table>
+<p>Семантика <code>Rows</code> важна. Даже если SQL на сервере закончился, ресурс может оставаться занят клиентским чтением или обработкой результата. Код правильно закрывает <code>Rows</code>, проверяет <code>rows.Err()</code> и использует контекст:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">rows</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="s">`SELECT id FROM jobs WHERE state = 'ready'`</span><span class="p">)</span>
+<span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+<span class="k">for</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Next</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="kt">int64</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">id</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// Быстрый сбор результата; длительную работу вынести за пределы цикла.</span>
+<span class="p">}</span>
+<span class="k">return</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">Err</span><span class="p">()</span>
+</code></pre></div>
+<p>Если внутри <code>for rows.Next()</code> мы ходим во внешний API по 500 мс на каждую строку, то удерживаем connection и тормозим чужие запросы, даже если PostgreSQL уже подготовил данные. При больших результатах и сетевом streaming момент освобождения зависит от драйвера и протокола, но правило остается: <strong>не держать Rows открытыми дольше необходимого</strong>.</p>
+<h3 id="35-tx-connection">3.5. <code>Tx</code> как закрепленный connection<a class="headerlink" href="#35-tx-connection" title="Permanent link">¶</a></h3>
+<p>Открытая транзакция принадлежит одному физическому соединению. Это необходимо для последовательности <code>BEGIN → SQL → COMMIT</code> на одном backend process; и локальный пул, и PgBouncer не могут раздать это соединение другой бизнес-операции посередине транзакции.</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">reserve</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">db</span><span class="w"> </span><span class="o">*</span><span class="nx">sql</span><span class="p">.</span><span class="nx">DB</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="kt">int64</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">tx</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">BeginTx</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">tx</span><span class="p">.</span><span class="nx">Rollback</span><span class="p">()</span><span class="w"> </span><span class="c1">// безопасная страховка на всех ранних выходах</span>
+
+<span class="w">    </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tx</span><span class="p">.</span><span class="nx">ExecContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span>
+<span class="w">        </span><span class="s">`UPDATE reservations SET status = 'taken' WHERE id = $1`</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">tx</span><span class="p">.</span><span class="nx">Commit</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Здесь <code>defer tx.Rollback()</code> после успешного <code>Commit</code> просто вернет <code>ErrTxDone</code>, который игнорируется; это распространенный корректный шаблон. Но нельзя во время транзакции «параллельно» выполнять другие операции через <code>db</code>: они могут пойти через другое физическое соединение и оказаться вне ожидаемого контекста. Используем методы самого <code>tx</code>.</p>
+<h3 id="36-deadlock">3.6. Коварный deadlock на пуле из одного соединения<a class="headerlink" href="#36-deadlock" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">// СПЕЦИАЛЬНО ДЕФЕКТНЫЙ пример.</span>
+<span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxOpenConns</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="nx">tx</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">BeginTx</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span><span class="w"> </span><span class="c1">// удерживает единственный conn</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="kt">int</span>
+<span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryRowContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="s">"SELECT 1"</span><span class="p">).</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">n</span><span class="p">)</span><span class="w"> </span><span class="c1">// ждет другой conn</span>
+<span class="nx">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">err</span>
+<span class="nx">tx</span><span class="p">.</span><span class="nx">Rollback</span><span class="p">()</span>
+</code></pre></div>
+<p>Вызов через <code>db</code> ожидает соединение, уже удерживаемое <code>tx</code>. Если после ожидающего запроса расположен единственный <code>Rollback</code>, операция до него не дойдет до истечения context. Это типичный <strong>pool deadlock</strong>, который совершенно не обязан отображаться как deadlock PostgreSQL в <code>pg_locks</code>: запрос еще не отправлен серверу.</p>
+<p>Корректный вариант в рамках той же транзакции — <code>tx.QueryRowContext</code>. Главное диагностическое следствие: <strong>если в <code>pg_stat_activity</code> нет соответствующего SQL, исследуем очередь клиента до PostgreSQL</strong>.</p>
+<h3 id="37">3.7. Четыре настройки пула и их реальные компромиссы<a class="headerlink" href="#37" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Настройка</th>
+<th>Что ограничивает</th>
+<th>Цена слишком малого</th>
+<th>Цена слишком большого</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetMaxOpenConns(n)</code></td>
+<td>Всего одновременно открытых соединений</td>
+<td>Очередь и ожидание выдачи</td>
+<td>Много серверных сессий и конкуренции</td>
+</tr>
+<tr>
+<td><code>SetMaxIdleConns(n)</code></td>
+<td>Сколько свободных оставить</td>
+<td>Частые подключения в следующем burst</td>
+<td>Лишние idle-сессии/FD</td>
+</tr>
+<tr>
+<td><code>SetConnMaxIdleTime(d)</code></td>
+<td>Время простоя для переиспользования</td>
+<td>Чрезмерный churn</td>
+<td>Долгое удержание соединений</td>
+</tr>
+<tr>
+<td><code>SetConnMaxLifetime(d)</code></td>
+<td>Допустимый возраст reused connection</td>
+<td>Частая ротация/дополнительный dial</td>
+<td>Долгие stale-соединения при определенных сетевых сценариях</td>
+</tr>
+</tbody>
+</table>
+<p>Коннекты, которым пора закрыться по lifetime, могут закрываться <strong>лениво</strong> — при последующем использовании. Пул не обещает немедленного удаления каждого idle connection точно в миллисекунду окончания интервала. <code>SetMaxOpenConns(0)</code> по умолчанию означает отсутствие ограничения на стороне <code>database/sql</code>; у <code>SetMaxIdleConns</code> значение по умолчанию в текущей реализации — 2.</p>
+<h3 id="38-dbstats">3.8. Читаем <code>DBStats</code> как диагностику ожиданий<a class="headerlink" href="#38-dbstats" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nx">s</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Stats</span><span class="p">()</span>
+<span class="nx">log</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"open=%d in_use=%d idle=%d waits=%d waited=%s"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">s</span><span class="p">.</span><span class="nx">OpenConnections</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">InUse</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">Idle</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">WaitCount</span><span class="p">,</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">WaitDuration</span><span class="p">)</span>
+</code></pre></div>
+<p><code>WaitCount</code> и <code>WaitDuration</code> — накопительные счетчики. Их абсолютные значения после недели работы мало что скажут. Нужно измерять изменения за интервал:</p>
+<div class="highlight"><pre><span></span><code>ΔWaitCount    = WaitCount(t2)    − WaitCount(t1)
+ΔWaitDuration = WaitDuration(t2) − WaitDuration(t1)
+mean wait of recorded waits ≈ ΔWaitDuration / ΔWaitCount
+</code></pre></div>
+<p>Это <strong>средняя длительность завершившихся ожиданий</strong> за период, а не p95 и не число ожидающих прямо сейчас. <code>DBStats</code> не раскрывает текущую длину очереди напрямую; для нее понадобятся дополнительные метрики и трассировка стадии получения соединения. <code>InUse = OpenConnections - Idle</code> по текущей реализации, причем учитываются также соединения в процессе открытия; не стоит трактовать его как точное число CPU-занятых backend-процессов.</p>
+<h3 id="39-context-">3.9. <code>Context</code> ограничивает ожидание клиента, но не отменяет бизнес-неопределенность<a class="headerlink" href="#39-context-" title="Permanent link">¶</a></h3>
+<p><code>QueryContext</code> и <code>BeginTx</code> используют context для ожидания и операций драйвера. Если context истек во время ожидания в <code>database/sql</code>, запрос мог вообще не уйти в PostgreSQL. Если истек после отправки SQL, отмена зависит от поддержки драйвера и состояния сети. После отправленного <code>COMMIT</code> timeout не доказывает ни фиксацию, ни откат: без достоверного ответа результат может быть неопределен для клиента.</p>
+<p>Этот вопрос вернется в разделе про сетевые аварии и повторные попытки. Пока запомним: <strong>контекст — механизм ограничения времени и отмены работы, а не магическое подтверждение транзакционного результата</strong>.</p>
+<h2 id="4-sql-p99">4. Почему маленькая задержка SQL превращается в огромный p99: модель очередей<a class="headerlink" href="#4-sql-p99" title="Permanent link">¶</a></h2>
+<p>Перед тем как вводить PgBouncer, нужно понять: что вообще значит «достаточно соединений»? Ответ будет связан с интенсивностью поступления операций и временем, в течение которого каждое соединение занято.</p>
+<h3 id="41-littles-law">4.1. Little's Law: сколько операций одновременно находится в системе<a class="headerlink" href="#41-littles-law" title="Permanent link">¶</a></h3>
+<p>Для устойчивой системы при корректном выборе границ измерения действует закон Литтла:</p>
+<p>[
+L = \lambda W,
+]</p>
+<p>где <code>L</code> — среднее число операций в выбранной части системы; <code>λ</code> — средняя интенсивность поступления/завершения операций (операций в секунду); <code>W</code> — среднее время, проведенное операцией в этой части системы (секунды).</p>
+<p>Для <strong>занятых соединений</strong> без ожидания выдачи пулом используем время удержания соединения <code>S_hold</code>, а не весь HTTP-response time:</p>
+<p>[
+C_{busy} \approx \lambda_{db} \cdot S_{hold}.
+]</p>
+<p>Пример: 2000 DB-операций/с × 0,012 с = <strong>24 одновременно занятых соединения в среднем</strong>. Если есть 32 серверных соединения, получаем условную среднюю загрузку <code>24/32 = 75%</code>. Это только точка отсчета для эксперимента, потому что всплески, хвосты распределения и неоднородные запросы влияют на очереди значительно сильнее среднего.</p>
+<p>И еще одна ловушка: 2000 HTTP requests/sec не обязательно означают 2000 DB-операций/sec. Один HTTP-запрос может выполнить пять SQL последовательно, а другой не обращаться к базе. Для расчетов нужно использовать реальный поток операций, запрашивающих соединение, и период его удержания.</p>
+<h3 id="42-pg_stat_statementsmean_exec_time">4.2. Почему нельзя подставлять только <code>pg_stat_statements.mean_exec_time</code><a class="headerlink" href="#42-pg_stat_statementsmean_exec_time" title="Permanent link">¶</a></h3>
+<p>Предположим, SQL выполняется на стороне СУБД за 4 мс, но Go-код после <code>QueryContext</code> лениво читает результат в течение 20 мс. Среднее время <em>занятости соединения</em> будет ближе к 24 мс плюс сетевые накладные расходы. При том же <code>λ = 2000/s</code> расчет уже дает около 48 одновременно занятых соединений вместо 8.</p>
+<p>Если дополнительно приложение начинает внешнюю RPC-операцию <strong>внутри</strong> <code>sql.Tx</code>, время удержания вырастает до 120 мс: <code>2000 × 0,12 = 240</code> одновременно занятых соединений. Конфигурация с 32 серверными соединениями окажется перегружена задолго до роста среднего CPU PostgreSQL.</p>
+<div class="highlight"><pre><span></span><code>SQL execution:          [==== 4 ms ====]
+Rows decoding:                            [========== 20 ms ==========]
+External RPC inside Tx:                                            [======== 96 ms ========]
+Connection is occupied: [========================== 120 ms =================================]
+</code></pre></div>
+<p>Вывод: оптимизация плана на 1 мс может дать меньший выигрыш, чем сокращение времени удержания транзакции на 100 мс.</p>
+<h3 id="43-100">4.3. Почему при загрузке около 100% очередь растет взрывным образом<a class="headerlink" href="#43-100" title="Permanent link">¶</a></h3>
+<p>Пусть пул обслуживает не больше <code>c</code> операций одновременно, а средняя продолжительность удержания соединения — <code>S</code>. В идеализированной однородной модели его сервисная емкость примерно <code>c/S</code> операций в секунду. Если новые операции поступают быстрее, чем система может их обслужить, очередь будет увеличиваться, пока не сработают timeout, отказ или внешний backpressure.</p>
+<p>При <code>c = 20</code>, <code>S = 10 ms</code> идеализированная емкость — <code>2000/s</code>. На практике безопасная постоянная нагрузка может быть ниже из-за распределения времен, всплесков, сетевых задержек и общей СУБД. Более того, сами <code>S</code> под нагрузкой меняются, поэтому формула <strong>не является точным предсказанием TPS</strong>.</p>
+<p>Рассмотрим условный burst в 300 запросов, которым внезапно потребовался pool size 20. Даже если каждая операция занимает ровно 10 мс, очередь будет обслужена лишь за несколько последовательных волн. Последним операциям придется ждать около 140 мс до выдачи. А SQL по-прежнему занимает 10 мс.</p>
+<h3 id="44-admission-control-backpressure">4.4. Admission control и backpressure<a class="headerlink" href="#44-admission-control-backpressure" title="Permanent link">¶</a></h3>
+<p>Ограничение соединений — разновидность допуска к ресурсам. Оно защищает PostgreSQL от бесконечного параллелизма ценой появления очереди перед базой. Если очередь тоже не ограничивать по времени или размеру, HTTP-сервис получит рост числа ожидающих горутин, таймауты клиентов и увеличение потребления памяти.</p>
+<p>Инженерный выбор состоит из трех параметров: <strong>лимит параллельной работы</strong>, <strong>допустимое ожидание выдачи</strong> и <strong>политика отказа/снижения нагрузки</strong>. Следует определять их по SLO. Если клиентский дедлайн 200 мс, бессмысленно держать его 190 мс в очереди до начала SQL, который в норме занимает 30 мс.</p>
+<p>Для production измеряем раздельно время ожидания локального pool, PgBouncer queue и время обработки сервером. Важнейшая практика — устанавливать дедлайны, которые согласованно покрывают весь путь и оставляют место на возврат ответа.</p>
+<hr/>
+<h1 id="iii-pgbouncer-pool-postgresql">III. PgBouncer: второй pool между клиентом и PostgreSQL<a class="headerlink" href="#iii-pgbouncer-pool-postgresql" title="Permanent link">¶</a></h1>
+<h2 id="5-connection">5. Архитектура: зачем прокси нужен собственный учет двух видов connection<a class="headerlink" href="#5-connection" title="Permanent link">¶</a></h2>
+<p>Мы ограничили локальный пул до 12 соединений на экземпляр, но экземпляров восемь. В худшем случае остается 96 подключений. При увеличении реплик до двадцати — уже 240. Что делать, если нужно сохранить множество логических клиентов, но не наращивать число backend-процессов PostgreSQL?</p>
+<p>PgBouncer принимает <strong>клиентские соединения</strong> и поддерживает отдельные <strong>серверные соединения</strong> к PostgreSQL. Это два независимых набора сокетов и два жизненных цикла.</p>
+<h3 id="51">5.1. Схема двухстороннего прокси<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Go pod A ─ 12 client sockets ─┐
+Go pod B ─ 12 client sockets ─┤
+Go pod C ─ 12 client sockets ─┤
+Go pod D ─ 12 client sockets ─┼─► PgBouncer: 48 client connections
+                              │        │
+                              │        ├─ 20 server connections
+                              │        │        │
+                              └────────┘        ▼
+                                       PostgreSQL: 20 backend PID
+</code></pre></div>
+<p>В режиме transaction pooling <strong>клиентский socket не обязан постоянно владеть серверным socket</strong>. Прокси назначает серверное соединение только на период транзакции и возвращает его в общий пул после завершения. В результате десятки или сотни долгоживущих приложенческих TCP-соединений могут использовать существенно меньше backend-процессов PostgreSQL.</p>
+<p>Здесь важно следующее ограничение: один server connection в каждый момент способен обслуживать только одного назначенного клиента/транзакцию. Прокси не превращает 20 серверных соединений в 100 одновременно выполняющих SQL backend-процессов. Его задача — <strong>мультиплексировать спрос во времени</strong> и ограничить число физических backend-сессий.</p>
+<h3 id="52-clientserver">5.2. Состояния client/server объектов<a class="headerlink" href="#52-clientserver" title="Permanent link">¶</a></h3>
+<p>PgBouncer ведет состояние своих подключений. Полезная ментальная модель:</p>
+<div class="highlight"><pre><span></span><code>Client A: connected  ──► waiting  ──► linked to Server 7 ──► unlinked
+Client B: connected  ──► waiting ────────────────┐
+                                                  │
+Server 7: idle ──► active(client A) ──► idle ────┴─► active(client B)
+</code></pre></div>
+<p>Точные внутренние структуры и переходы зависят от версии PgBouncer. Общая архитектура реализуется в файлах <code>src/objects.c</code>, <code>src/client.c</code>, <code>src/server.c</code>, <code>src/pooler.c</code> и соседних частях исходного проекта. Это сетевой прокси со своим событийным циклом, а не дополнительный экземпляр PostgreSQL с SQL executor. Он проксирует сообщения протокола и управляет назначением соединений.</p>
+<p>Не следует автоматически считать, что PgBouncer умеет распараллелить одну SQL-транзакцию между backend-процессами. Пока транзакция активна, ее session state принадлежит конкретному серверному соединению.</p>
+<h3 id="53-pool-pgbouncer">5.3. Что такое «один pool» в PgBouncer<a class="headerlink" href="#53-pool-pgbouncer" title="Permanent link">¶</a></h3>
+<p>В типовой конфигурации отдельный пул серверных соединений создается для <strong>пары (database, user)</strong>. Это не всегда один глобальный pool на весь прокси.</p>
+<div class="highlight"><pre><span></span><code>ledgerdb / app_user     → pool A (e.g. 20)
+ledgerdb / report_user  → pool B (e.g. 20)
+auditdb  / app_user     → pool C (e.g. 20)
+</code></pre></div>
+<p>Следствие: <code>default_pool_size = 20</code> не обязательно ограничивает все подключения данного экземпляра PgBouncer двадцатью. Несколько пар database/user могут создать несколько пулов, и суммарный бюджет серверных соединений нужно считать по всем пулам, включая резервные подключения и другие экземпляры прокси.</p>
+<p>Тонкость конфигурации <code>[databases]</code>: если указан принудительный серверный <code>user</code>, многие клиентские пользователи могут использовать общий серверный пул с этой ролью. Это влияет на модель безопасности и изоляции; так делать можно только осознанно. Не забываем различать <strong>имя клиента на входе</strong> и <strong>роль подключения на PostgreSQL</strong>.</p>
+<h3 id="54">5.4. Два лимита, которые постоянно путают<a class="headerlink" href="#54" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Параметр PgBouncer</th>
+<th>На что действует</th>
+<th>Практическое следствие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_client_conn</code></td>
+<td>Число клиентских сокетов, принимаемых PgBouncer</td>
+<td>Определяет число одновременных клиентских подключений, а не размер server pool</td>
+</tr>
+<tr>
+<td><code>default_pool_size</code></td>
+<td>Базовый лимит серверных соединений <strong>на пару database/user</strong></td>
+<td>Ограничивает число PostgreSQL backend sessions, привязанных к этому pool</td>
+</tr>
+<tr>
+<td><code>reserve_pool_size</code></td>
+<td>Дополнительные серверные соединения сверх основного pool при условиях timeout</td>
+<td>Позволяет временно увеличить расход ресурсов PostgreSQL</td>
+</tr>
+<tr>
+<td><code>max_db_connections</code></td>
+<td>Общий предел серверных подключений для database в PgBouncer</td>
+<td>Нужен, если несколько user-pool должны делить общий бюджет</td>
+</tr>
+<tr>
+<td><code>max_user_connections</code></td>
+<td>Общий предел серверных подключений пользователя</td>
+<td>Ограничивает суммарную емкость по всем его пулам</td>
+</tr>
+</tbody>
+</table>
+<p><code>reserve_pool_size</code> не является «бесплатным» запасом. Когда PgBouncer откроет дополнительные server connections, PostgreSQL увидит реальные новые backend-процессы. У резервов тоже должен быть лимит в бюджете <code>max_connections</code>.</p>
+<h3 id="55">5.5. Минимальный учебный конфиг<a class="headerlink" href="#55" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">; Только лабораторная конфигурация. Секреты и TLS вынесены за рамки примера.</span>
+<span class="k">[databases]</span>
+<span class="na">ledgerdb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">host=127.0.0.1 port=5432 dbname=ledgerdb</span>
+
+<span class="k">[pgbouncer]</span>
+<span class="na">listen_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">127.0.0.1</span>
+<span class="na">listen_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">6432</span>
+<span class="na">pool_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">transaction</span>
+<span class="na">default_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">20</span>
+<span class="na">max_client_conn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">500</span>
+<span class="na">reserve_pool_size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">5</span>
+<span class="na">reserve_pool_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">3</span>
+<span class="na">query_wait_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">5</span>
+<span class="na">max_prepared_statements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">100</span>
+
+<span class="c1">; Значения ниже потребуют реального файла учетных данных.</span>
+<span class="na">auth_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">scram-sha-256</span>
+<span class="na">auth_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">/etc/pgbouncer/userlist.txt</span>
+<span class="na">admin_users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">pgbouncer_admin</span>
+<span class="na">stats_users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">pgbouncer_stats</span>
+</code></pre></div>
+<p>Это <strong>фрагмент</strong>, который не запустится без корректных ролей, <code>auth_file</code>, PostgreSQL и сервиса PgBouncer. В production потребуются безопасная конфигурация frontend/backend TLS, проверка секретов и политики доступа, запрет открытого admin listener, корректный <code>ulimit -n</code>, метрики и отказоустойчивое развертывание. Величины лимитов подобраны для демонстрации, не для банка.</p>
+<h3 id="56-max_client_conn-fd">5.6. Почему <code>max_client_conn</code> может потребовать увеличения FD<a class="headerlink" href="#56-max_client_conn-fd" title="Permanent link">¶</a></h3>
+<p>Для клиентского сокета нужен файловый дескриптор. Для каждого server connection — еще один. PgBouncer дополнительно использует слушающие сокеты, файлы журналов и другие FD. Поэтому <code>max_client_conn = 5000</code> не означает, что ОС должна разрешить ровно 5000 дескрипторов. В худшем случае потребуется заметно больше, особенно при нескольких серверных пулах.</p>
+<p>Проверять нужно системные ограничения числа открытых файлов, фактическое потребление FD и зависимость от TLS. И снова важна архитектура: сокращение числа server connections не избавляет PgBouncer от стоимости принятия и поддержания client sockets.</p>
+<h3 id="57-pgbouncer-sql-">5.7. Как PgBouncer понимает, что SQL-транзакция завершилась<a class="headerlink" href="#57-pgbouncer-sql-" title="Permanent link">¶</a></h3>
+<p>PostgreSQL wire protocol содержит сообщение <code>ReadyForQuery</code>. В нем сервер сообщает состояние транзакции:</p>
+<div class="highlight"><pre><span></span><code>'I' — idle, вне блока транзакции
+'T' — внутри блока транзакции
+'E' — внутри блока транзакции, завершившейся ошибкой
+</code></pre></div>
+<p>При <code>BEGIN</code> и нескольких SQL-командах состояние остается <code>T</code> (или <code>E</code> после ошибки) до завершения транзакции. После успешного <code>COMMIT</code> или <code>ROLLBACK</code> сервер возвращается к <code>I</code>. Это дает прокси наблюдаемую протокольную границу, когда серверную сессию можно безопасно переназначить при transaction pooling.</p>
+<div class="highlight"><pre><span></span><code>Client A         PgBouncer          PostgreSQL
+BEGIN  ────────────► ────────────────► ReadyForQuery(T)
+UPDATE ────────────► ────────────────► ReadyForQuery(T)
+COMMIT ────────────► ────────────────► ReadyForQuery(I)
+                     release server connection
+Client B         ◄─ server connection now available
+</code></pre></div>
+<p>Внимание: <strong><code>Sync</code> не завершает явно начатую транзакцию</strong>. Он завершает цикл extended protocol, после чего <code>ReadyForQuery</code> сообщает фактическое состояние. Поэтому «пришел <code>Sync</code>» и «можно освободить backend» — не синонимы.</p>
+<h3 id="58-pgbouncer">5.8. Административная консоль PgBouncer<a class="headerlink" href="#58-pgbouncer" title="Permanent link">¶</a></h3>
+<p>Обычно подключаются к специальной виртуальной базе <code>pgbouncer</code> через <code>psql</code> с разрешенной административной/статистической ролью:</p>
+<div class="highlight"><pre><span></span><code>psql<span class="w"> </span><span class="s1">'host=127.0.0.1 port=6432 dbname=pgbouncer user=pgbouncer_stats'</span>
+</code></pre></div>
+<p>В консоли:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">POOLS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">STATS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">CLIENTS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">SERVERS</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">DATABASES</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">CONFIG</span><span class="p">;</span>
+</code></pre></div>
+<p>Команды выполняются в <strong>консоли PgBouncer</strong>. Обычная SQL-база PostgreSQL на <code>5432</code> не понимает <code>SHOW POOLS</code>. Еще одна особенность: административная консоль PgBouncer использует простой протокол запросов; некоторые драйверы, всегда выбирающие extended query, для нее не подходят. <code>psql</code> — хороший инструмент именно для этого случая.</p>
+<h3 id="59-show-pools">5.9. Что означает <code>SHOW POOLS</code><a class="headerlink" href="#59-show-pools" title="Permanent link">¶</a></h3>
+<p>Наиболее полезные поля:</p>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Как читать</th>
+<th>Что подозревать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cl_active</code></td>
+<td>Подключенные клиенты, связанные с сервером либо пока не ожидающие выдачу</td>
+<td>Само по себе не число выполняемых SQL</td>
+</tr>
+<tr>
+<td><code>cl_waiting</code></td>
+<td>Клиенты, ждущие server connection</td>
+<td>Источник PgBouncer queue delay</td>
+</tr>
+<tr>
+<td><code>sv_active</code></td>
+<td>Серверные соединения, назначенные клиентам</td>
+<td>Фактическая занятость server pool</td>
+</tr>
+<tr>
+<td><code>sv_idle</code></td>
+<td>Немедленно пригодные свободные серверные соединения</td>
+<td>Запас емкости</td>
+</tr>
+<tr>
+<td><code>sv_login</code></td>
+<td>Подключения к PostgreSQL еще создаются/аутентифицируются</td>
+<td>Подозрение на дорогой startup/недоступность сервера</td>
+</tr>
+<tr>
+<td><code>sv_used</code> / <code>sv_tested</code></td>
+<td>Соединения требуют проверки либо проходят ее</td>
+<td>Дополнительная стоимость выдачи</td>
+</tr>
+<tr>
+<td><code>maxwait</code>, <code>maxwait_us</code></td>
+<td>Продолжительность ожидания старейшего клиента в очереди</td>
+<td>Устойчивый рост → нехватка пропускной способности или слишком малый пул</td>
+</tr>
+</tbody>
+</table>
+<p><code>cl_active</code> включает некоторых клиентов, которые просто подключены и пока не ждут сервера. Поэтому <code>cl_active = 100</code> не доказывает 100 SQL одновременно. Важно совместно смотреть <code>sv_active</code>, <code>cl_waiting</code> и серверные metrics.</p>
+<h3 id="510-show-stats-p99">5.10. Почему <code>SHOW STATS</code> не показывает p99<a class="headerlink" href="#510-show-stats-p99" title="Permanent link">¶</a></h3>
+<p><code>SHOW STATS</code> дает агрегаты, например <code>total_query_count</code>, <code>total_xact_count</code>, <code>total_query_time</code>, <code>total_xact_time</code>, <code>total_wait_time</code>, а также <code>avg_query_time</code>, <code>avg_xact_time</code>, <code>avg_wait_time</code>. В документации PgBouncer длительности представлены в <strong>микросекундах</strong>. Средние значения рассчитываются за интервал статистики (<code>stats_period</code>), накопительные — за время жизни процесса.</p>
+<p><code>avg_wait_time = 1000 μs</code> означает среднее около 1 мс у измеряемых ожиданий. Это не означает, что ни один клиент не ждал 2 секунды. Периодически проверяем <code>cl_waiting</code>, <code>maxwait</code> и внешние p95/p99 клиентского ожидания.</p>
+<h3 id="511-pgbouncer">5.11. Принципиальная цена PgBouncer<a class="headerlink" href="#511-pgbouncer" title="Permanent link">¶</a></h3>
+<p>PgBouncer сам расходует CPU, память, сокеты, производит проксирование и может стать узким местом. TLS с обеих сторон добавляет обработку, а высокий сетевой throughput создает нагрузку на сетевой стек. Добавление внешнего пула оправдано, когда он устраняет более дорогую проблему или упрощает управление количеством физических PostgreSQL backend-процессов.</p>
+<p><strong>Результат:</strong> мы получили второй уровень admission control. Теперь самое сложное — выбрать момент освобождения server connection, не сломав смысл PostgreSQL-сессии.</p>
+<h2 id="6-session-pooling-transaction-pooling">6. Session pooling и transaction pooling: кто владеет состоянием сессии<a class="headerlink" href="#6-session-pooling-transaction-pooling" title="Permanent link">¶</a></h2>
+<p>Договорились, что server connection дорого. Почему же PgBouncer не освобождает его после каждого SQL, как только получен результат? Потому что SQL выполняется в рамках <strong>сессии</strong>, у которой есть состояние, и это состояние меняется командами.</p>
+<h3 id="61-session-pooling-postgresql">6.1. Session pooling: привычный контракт PostgreSQL<a class="headerlink" href="#61-session-pooling-postgresql" title="Permanent link">¶</a></h3>
+<p>В режиме <code>session</code> один клиентский connection получает серверный connection на время логической клиентской сессии. Серверный connection обычно возвращается после отключения клиента. Если Go держит <code>sql.DB</code> с 12 свободными, но живыми client connections, эти клиенты могут удерживать 12 backend-процессов PostgreSQL через PgBouncer даже при отсутствии активного SQL.</p>
+<div class="highlight"><pre><span></span><code>client A: CONNECT ─────────────────────────────── DISCONNECT
+server 1:       ╔════ assigned to A ════════════╗  free
+                │ SQL... IDLE... SQL... IDLE...│
+</code></pre></div>
+<p>Плюс: сохраняется привычная семантика серверной сессии. Можно использовать session-level GUC, временные таблицы, <code>LISTEN</code>, prepared statements, session advisory locks при правильном управлении их жизненным циклом. Минус: из двадцати server connections легко получить двадцать совершенно idle, но <strong>закрепленных</strong> клиентских сессий.</p>
+<p>Если клиентов 200, а server pool 20, 180 могут ждать выдачу, даже если первые двадцать выполняют SQL лишь по 1% времени. В этом случае session pooling почти не решает задачу мультиплексирования длинноживущих клиентских соединений.</p>
+<h3 id="62-transaction-pooling">6.2. Transaction pooling: сохраняем только контракт транзакции<a class="headerlink" href="#62-transaction-pooling" title="Permanent link">¶</a></h3>
+<p>В режиме <code>transaction</code> PgBouncer выделяет серверную сессию на время <strong>одной транзакции</strong>. Клиент A выполнил короткий SQL в autocommit — серверная сессия сразу может быть назначена клиенту B. Клиент A позже начинает новую транзакцию — PgBouncer может выдать ему другой backend process.</p>
+<div class="highlight"><pre><span></span><code>time ─────────────────────────────────────────────────────────────►
+client A  [SELECT-1]           [BEGIN ─ UPDATE ─ COMMIT]   [SELECT-2]
+client B           [SELECT]                                 [UPDATE]
+server X  [A]───────[B]────────────────────────[A]───────────────[B]
+server Y                                 [A]──────────────────────
+</code></pre></div>
+<p>Схема условная. В момент одной транзакции клиент A связан только с одним backend; на следующей транзакции он может получить другой. Одно и то же серверное соединение может обслуживать разных клиентов <em>последовательно</em>, потому что PgBouncer отслеживает транзакционные границы.</p>
+<p><strong>Контракт становится другим:</strong> между транзакциями нельзя полагаться на произвольный session state, созданный в предыдущей транзакции. Если случайно все операции попадают на один серверный connection, баг может не проявляться неделями; затем при росте нагрузки прокси назначает другой backend — и приложение ломается.</p>
+<h3 id="63-backend-">6.3. Как показать смену backend-процесса<a class="headerlink" href="#63-backend-" title="Permanent link">¶</a></h3>
+<p>В нескольких параллельных <code>psql</code>-сессиях через PgBouncer выполним:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_backend_pid</span><span class="p">();</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">.</span><span class="mi">2</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_backend_pid</span><span class="p">();</span>
+</code></pre></div>
+<p>При transaction pooling значения PID <strong>могут различаться</strong>, но одинаковые значения тоже допустимы: свободный backend может быть выбран повторно. Для воспроизводимого наблюдения создаем конкурентные запросы нескольких клиентов, получаем <code>SHOW POOLS</code> и сравниваем <code>SHOW SERVERS</code>. В session pooling PID внутри непрерывной сессии должен оставаться привязанным к одному серверному соединению, пока нет обрыва/переподключения.</p>
+<p>Не стоит превращать <code>pg_backend_pid()</code> в постоянный business identifier клиента при transaction pooling: он характеризует PostgreSQL backend, обслуживающий <strong>текущую транзакцию</strong>, а не приложение.</p>
+<h3 id="64">6.4. Пример разрушения сессионной настройки<a class="headerlink" href="#64" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Клиент A, transaction pooling</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">search_path</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">tenant_a</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="p">;</span>
+<span class="c1">-- SET завершился как отдельная транзакция, server connection освободился</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+<span class="c1">-- Следующая транзакция могла получить другой backend и другой search_path.</span>
+</code></pre></div>
+<p>Это опасный сценарий: нарушение логической изоляции данных через непредсказуемую сессионную настройку. PgBouncer имеет специальное отслеживание некоторых startup parameters, но <strong>произвольный <code>SET</code>/<code>RESET</code> несовместим с обычным контрактом transaction pooling</strong>. Не нужно пытаться решить проблему включением одного «сброса сессии» после каждой транзакции: это меняет поведение и не делает state межтранзакционно переносимым.</p>
+<p>Надежная стратегия — либо не зависеть от серверного <code>search_path</code> между транзакциями, либо явно выбирать schema в SQL/через разрешенную модель, либо использовать <strong><code>SET LOCAL</code> внутри той же явной транзакции</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">search_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tenant_a</span><span class="p">,</span><span class="w"> </span><span class="k">public</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь все команды до <code>COMMIT</code> выполняются на одном server connection. <code>SET LOCAL</code> действует только в пределах текущей транзакции, поэтому его эффект не требуется переносить между серверами. При строгой изоляции tenant данные и права нужно проектировать отдельно; одна настройка <code>search_path</code> не заменяет авторизацию и защиту объектов.</p>
+<h3 id="65">6.5. Совместимость распространенных функций<a class="headerlink" href="#65" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Возможность PostgreSQL</th>
+<th>Session pooling</th>
+<th>Transaction pooling</th>
+<th>Почему</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Обычные SQL/транзакции</td>
+<td>Да</td>
+<td>Да</td>
+<td>Server connection удерживается до завершения транзакции</td>
+</tr>
+<tr>
+<td><code>SET</code> сессионного параметра</td>
+<td>Да</td>
+<td>Нельзя полагаться</td>
+<td>Следующая транзакция может получить другую сессию</td>
+</tr>
+<tr>
+<td><code>SET LOCAL</code> внутри <code>BEGIN...COMMIT</code></td>
+<td>Да</td>
+<td>Да</td>
+<td>Состояние ограничено одной транзакцией</td>
+</tr>
+<tr>
+<td><code>LISTEN</code></td>
+<td>Да</td>
+<td>Нет</td>
+<td>Слушатель должен постоянно владеть одной сессией</td>
+</tr>
+<tr>
+<td><code>NOTIFY</code></td>
+<td>Да</td>
+<td>Да</td>
+<td>Команда отправки уведомления не требует сохранить сессию</td>
+</tr>
+<tr>
+<td>Temp table <code>ON COMMIT DROP</code></td>
+<td>Да</td>
+<td>Да при корректном использовании</td>
+<td>Объект живет в рамках транзакции</td>
+</tr>
+<tr>
+<td>Temp table <code>PRESERVE ROWS</code></td>
+<td>Да</td>
+<td>Нет</td>
+<td>Объект сохраняется в физической серверной сессии</td>
+</tr>
+<tr>
+<td>Cursor <code>WITH HOLD</code></td>
+<td>Да</td>
+<td>Нет</td>
+<td>Потребность в курсоре после конца транзакции</td>
+</tr>
+<tr>
+<td>Session advisory lock</td>
+<td>Да</td>
+<td>Нет</td>
+<td>Lock относится к серверной сессии</td>
+</tr>
+<tr>
+<td>Transaction advisory lock</td>
+<td>Да</td>
+<td>Да</td>
+<td>Lock освобождается вместе с транзакцией</td>
+</tr>
+<tr>
+<td>SQL <code>PREPARE</code>/<code>EXECUTE</code></td>
+<td>Да</td>
+<td>Нет</td>
+<td>Создается серверный state по имени</td>
+</tr>
+<tr>
+<td>Protocol-level named prepared statement</td>
+<td>Да</td>
+<td>При <code>max_prepared_statements &gt; 0</code> и совместимом клиенте</td>
+<td>PgBouncer отслеживает и при необходимости воспроизводит подготовку</td>
+</tr>
+</tbody>
+</table>
+<p>Это концептуальная таблица <strong>для PgBouncer с возможностями, описанными в актуальной документации</strong>. Строгую матрицу для вашей версии проверяйте по <code>https://www.pgbouncer.org/features.html</code>; специфические расширения и драйверы могут добавлять ограничения.</p>
+<h3 id="66-server-connection">6.6. Почему транзакция продолжает удерживать server connection, даже когда ничего не делает<a class="headerlink" href="#66-server-connection" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">reserved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reserved</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_sleep</span><span class="p">(</span><span class="mi">30</span><span class="p">);</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Во время <code>pg_sleep</code> backend не выполняет полезной работы, но находится внутри активной транзакции. PgBouncer не может безопасно передать его другому клиенту. После <code>UPDATE</code> он также удерживает транзакционные ресурсы. Если клиент выполняет <code>BEGIN</code> и уходит в состояние <code>idle in transaction</code>, занятие server pool может длиться бесконечно до timeout или завершения соединения.</p>
+<p>Поэтому <code>transaction pooling</code> дает выигрыш при <strong>коротких транзакциях с большой долей времени ожидания между ними</strong>. Для работы, которая удерживает транзакцию по 30 секунд, экономия серверных соединений будет значительно меньше. Архитектура приложения влияет на результат сильнее, чем галочка в ini-файле.</p>
+<h3 id="67-statement-pooling">6.7. Место <code>statement pooling</code><a class="headerlink" href="#67-statement-pooling" title="Permanent link">¶</a></h3>
+<p>PgBouncer поддерживает третий режим, <code>statement</code>: соединение освобождается после команды, а явные транзакции из нескольких команд запрещаются. В этой лекции он нужен лишь как граница: он подходит специализированным сценариям, но для транзакционных backend-сервисов, использующих <code>BEGIN...COMMIT</code>, обычно не является прямой заменой transaction pooling. Детального разбора здесь не требуется.</p>
+<h3 id="68-server_reset_query">6.8. Почему <code>server_reset_query</code> работает иначе в двух режимах<a class="headerlink" href="#68-server_reset_query" title="Permanent link">¶</a></h3>
+<p>В session pooling при возврате backend после отключения клиента полезно очистить session state, чтобы следующий клиент не унаследовал <code>SET</code>, temp tables или SQL prepared statements. В конфигурации PgBouncer типичный <code>server_reset_query = DISCARD ALL</code>. Это имеет цену: часть подготовленной работы надо выполнять снова.</p>
+<p>В transaction pooling <code>server_reset_query</code> <strong>по умолчанию не применяется</strong> при каждой транзакции. Приложение само обязано не использовать состояние, выходящее за транзакционные границы. Параметр <code>server_reset_query_always</code> существует для особых случаев, но не превращает transaction pooling в session pooling и может сделать несовместимое приложение просто предсказуемо ломающимся.</p>
+<p><strong>Инженерный вывод:</strong> сохранение сессионного состояния и высокий коэффициент повторного использования server connections находятся в конфликте. Эту цену нужно выбирать на уровне архитектуры клиента, а не маскировать настройками прокси.</p>
+<hr/>
+<h1 id="iv-prepared-statements">IV. Prepared statements: самый частый источник скрытой несовместимости<a class="headerlink" href="#iv-prepared-statements" title="Permanent link">¶</a></h1>
+<h2 id="7">7. Что именно драйвер «подготавливает» на сервере<a class="headerlink" href="#7" title="Permanent link">¶</a></h2>
+<p>Мы переключили PgBouncer в <code>transaction</code>. Сразу появился отчет: иногда команда возвращает <code>prepared statement "stmt_1" does not exist</code>, а иногда — <code>prepared statement "stmt_1" already exists</code>. Почему все происходило нормально до появления прокси?</p>
+<h3 id="71">7.1. Два механизма с похожим названием<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<p><strong>SQL-level preparation</strong> — это явные команды:</p>
+<div class="highlight"><pre><span></span><code><span class="k">PREPARE</span><span class="w"> </span><span class="n">find_account</span><span class="p">(</span><span class="nb">bigint</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">$</span><span class="mi">1</span><span class="p">;</span>
+
+<span class="k">EXECUTE</span><span class="w"> </span><span class="n">find_account</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
+<span class="k">DEALLOCATE</span><span class="w"> </span><span class="n">find_account</span><span class="p">;</span>
+</code></pre></div>
+<p><code>PREPARE</code> создает именованный объект в текущей серверной сессии PostgreSQL. Если следующая команда попала на другой backend, имя может отсутствовать либо относиться к другому объекту. PgBouncer <strong>не переписывает обычные SQL-команды <code>PREPARE</code>/<code>EXECUTE</code></strong> как протокольные prepared statements.</p>
+<p><strong>Protocol-level named prepared statement</strong> создается через сообщение <code>Parse</code> расширенного протокола PostgreSQL. Клиент может затем отправить <code>Bind</code> и <code>Execute</code>, ссылаясь на заранее названный statement. Для PgBouncer это структурированное протокольное сообщение; он способен отслеживать его и переписывать имена, если поддержка включена.</p>
+<p>Эти два подхода часто называются одним словом «prepared statement», но для transaction pooling их совместимость принципиально различается.</p>
+<h3 id="72-extended-query-protocol-parse-bind-execute-sync">7.2. Extended query protocol: <code>Parse</code>, <code>Bind</code>, <code>Execute</code>, <code>Sync</code><a class="headerlink" href="#72-extended-query-protocol-parse-bind-execute-sync" title="Permanent link">¶</a></h3>
+<p>Упрощенная последовательность:</p>
+<div class="highlight"><pre><span></span><code>Client                                               PostgreSQL
+Parse(name="q1", sql="SELECT ... WHERE id=$1") ───────► ParseComplete
+Bind(portal="", statement="q1", params=[42]) ────────► BindComplete
+Execute(portal="") ──────────────────────────────────► DataRow / CommandComplete
+Sync ────────────────────────────────────────────────► ReadyForQuery(I)
+</code></pre></div>
+<p><code>Parse</code> создает серверное подготовленное описание запроса, <code>Bind</code> связывает значения параметров и portal, <code>Execute</code> исполняет. <code>Sync</code> запрашивает завершение цикла; если явная транзакция открыта, <code>ReadyForQuery(T)</code> сигнализирует, что backend все еще занят клиентской транзакцией.</p>
+<p>Разбор формы отдельных пакетов оставим следующему техническому слою. Сейчас достаточно понять, что <strong>имя prepared statement существует в пространстве конкретного PostgreSQL backend process</strong>, а PgBouncer пытается создать стабильную абстракцию поверх множества таких процессов.</p>
+<h3 id="73-max_prepared_statements-0">7.3. Что делает <code>max_prepared_statements &gt; 0</code><a class="headerlink" href="#73-max_prepared_statements-0" title="Permanent link">¶</a></h3>
+<p>Начиная с PgBouncer 1.21 поддерживается отслеживание протокольных именованных prepared statements в transaction pooling (при соответствующей настройке). Механизм концептуально такой:</p>
+<div class="highlight"><pre><span></span><code>Client A: Parse "find" = SELECT ... WHERE id=$1
+              │
+              ▼
+PgBouncer: сопоставить SQL с внутренним ID
+           client(A, "find") → PGBOUNCER_7
+              │
+              ▼
+Server S1: подготовить PGBOUNCER_7 при необходимости
+              │
+              ▼
+Client A later gets Server S2
+              │
+              ▼
+PgBouncer: S2 еще не знает PGBOUNCER_7
+           → выполнить подготовку на S2
+           → Bind/Execute с новым именем
+</code></pre></div>
+<p>При разных клиентах одинаковый SQL может получить одинаковый внутренний идентификатор в PgBouncer, а на серверном соединении подготовка выполняется по мере потребности. Параметр <code>max_prepared_statements</code> ограничивает размер LRU-кеша подготовленных statements <strong>на одном server connection</strong>. При вытеснении потребуется повторная подготовка, увеличивающая стоимость горячего пути.</p>
+<p>Никакого общего глобального плана SQL для всех backend-процессов PostgreSQL при этом не возникает: у них по-прежнему собственные server-side prepared statements. Прокси хранит соответствия и автоматизирует повторную подготовку на конкретном сервере.</p>
+<h3 id="74-max_prepared_statements-0">7.4. Почему <code>max_prepared_statements = 0</code> меняет картину<a class="headerlink" href="#74-max_prepared_statements-0" title="Permanent link">¶</a></h3>
+<p>При значении 0 (по умолчанию в некоторых версиях/конфигурациях) указанное отслеживание protocol-level named prepared statements выключено. Если драйвер ожидает сохранение имени между транзакциями, оно может исчезнуть при смене backend. Поэтому настройку нельзя обсуждать без конкретного драйвера и способа выполнения запросов.</p>
+<p>Включение поддержки тоже не гарантирует, что приложение, использующее произвольные session-level операции, теперь полностью совместимо с transaction pooling. Оно закрывает <strong>одну конкретную</strong> категорию зависимости от server-side state.</p>
+<h3 id="75-pgxv5">7.5. Пример с pgx/v5: почему режим исполнения важен<a class="headerlink" href="#75-pgxv5" title="Permanent link">¶</a></h3>
+<p><code>pgx/v5</code> по умолчанию может использовать extended protocol с кешированием prepared statements (<code>cache_statement</code>). При несовместимом PgBouncer это создает проблему, если proxy не отслеживает подготовку. У pgx существуют режимы <code>exec</code>, <code>simple_protocol</code> и другие; параметр конфигурации <code>default_query_exec_mode</code> позволяет выбрать стратегию исполнения. Например, для целевого тестирования альтернативы prepared cache:</p>
+<div class="highlight"><pre><span></span><code>postgres://app_user@pgbouncer:6432/ledgerdb?default_query_exec_mode=exec
+</code></pre></div>
+<p>Это пример URI без пароля. <code>QueryExecModeExec</code> использует extended protocol, но не использует named prepared statement cache по модели <code>cache_statement</code>. Это может изменить издержки, работу с типами и семантику кодирования отдельных пользовательских типов. <code>simple_protocol</code> еще сильнее меняет протокол и способ интерполяции параметров — включать его автоматически ради «исправления ошибки» не следует.</p>
+<p>Обязательно тестируем выбранный драйвер и режим на сценариях: подготовка, изменение схемы, переподключение, смена backend, одновременные транзакции, <code>COMMIT</code>/<code>ROLLBACK</code>, отмена. Кэш prepared statements может инвалидироваться после DDL и давать ошибки независимо от PgBouncer; это отдельный механизм.</p>
+<h3 id="76-prepared-cache">7.6. Стоимость и диагностика prepared cache<a class="headerlink" href="#76-prepared-cache" title="Permanent link">¶</a></h3>
+<p>PgBouncer <code>SHOW STATS</code> предоставляет, среди прочего, показатели <code>total_client_parse_count</code>, <code>total_server_parse_count</code>, <code>total_bind_count</code> при включенной поддержке prepared statements. Если приложению приходится постоянно готовить statements на серверных соединениях, ожидаемый выигрыш от кэша может исчезнуть.</p>
+<p>Диагностические вопросы:</p>
+<ol>
+<li>Клиент использует SQL <code>PREPARE</code> или протокольный <code>Parse</code>?</li>
+<li>Какой режим <code>pgx</code>/другого драйвера включен?</li>
+<li>Достаточно ли большой <code>max_prepared_statements</code> на server connection?</li>
+<li>Не происходит ли постоянная ротация server connections?</li>
+<li>Совпадает ли число новых server-side preparations с ожидаемым числом уникальных запросов и подключений?</li>
+<li>Есть ли сообщения <code>already exists</code> / <code>does not exist</code> и воспроизводятся ли они только с transaction pooling?</li>
+</ol>
+<p><strong>Вывод:</strong> совместимость prepared statements — это вопрос конкретных протокольных сообщений, состояния физического backend и поддержки прокси, а не абстрактной надписи «prepared=true» в конфигурации приложения.</p>
+<hr/>
+<h1 id="v-cancel">V. Отказы, cancel и таймауты: как не превратить сбой в лавину подключений<a class="headerlink" href="#v-cancel" title="Permanent link">¶</a></h1>
+<h2 id="8">8. Сначала выясняем, где клиент провел свое время<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<p>У нас три последовательных этапа ожидания, каждый со своей точкой отмены:</p>
+<div class="highlight"><pre><span></span><code>[Go local acquire] → [PgBouncer queue] → [PostgreSQL operation] → [response]
+      (A)                  (B)                    (C)              (D)
+</code></pre></div>
+<p>Если случился timeout, без разметки по этапам трудно понять, где была задержка. Поэтому строим временной бюджет одного запроса и приводим взаимосвязанные параметры к одному SLO.</p>
+<h3 id="81-timeout">8.1. Слои timeout: кому принадлежит каждый<a class="headerlink" href="#81-timeout" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Инструмент</th>
+<th>Что ограничивает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP/Go</td>
+<td><code>context.WithTimeout</code></td>
+<td>Общий дедлайн вызова, включая локальное ожидание, если передан в API</td>
+</tr>
+<tr>
+<td>Go pool</td>
+<td><code>DB.SetMaxOpenConns</code> + context</td>
+<td>Параллелизм и длительность ожидания свободного connection</td>
+</tr>
+<tr>
+<td>PgBouncer</td>
+<td><code>query_wait_timeout</code></td>
+<td>Ожидание server connection; при превышении отключает клиента</td>
+</tr>
+<tr>
+<td>PgBouncer</td>
+<td><code>server_connect_timeout</code></td>
+<td>Установление и login server connection</td>
+</tr>
+<tr>
+<td>PgBouncer</td>
+<td><code>idle_transaction_timeout</code> / <code>transaction_timeout</code></td>
+<td>Избыточно долгую idle/overall транзакцию; могут отключать клиента</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td><code>statement_timeout</code></td>
+<td>Время выполнения SQL-команды на стороне сервера</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td><code>lock_timeout</code></td>
+<td>Ожидание получения блокировки, если именно она является проблемой</td>
+</tr>
+<tr>
+<td>TCP/driver</td>
+<td>Dial timeout, TLS timeout, keepalive</td>
+<td>Сетевые этапы, зависят от драйвера и ОС</td>
+</tr>
+</tbody>
+</table>
+<p>Настройки нельзя свести к одному «всем поставить 5 секунд». Если PgBouncer оборвет клиента через <code>query_wait_timeout = 5 s</code>, а Go context истекает через 200 ms, пользователь все равно увидит 200 ms timeout; внешний прокси может некоторое время обрабатывать прекращение. Если, напротив, PgBouncer держит очередь 120 секунд, приложение обязано иметь собственный ограниченный дедлайн на ожидание.</p>
+<h3 id="82-postgresql">8.2. Как работает отмена запроса в протоколе PostgreSQL<a class="headerlink" href="#82-postgresql" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL CancelRequest отправляется <strong>через отдельное соединение</strong> с данными, выданными backend при startup (<code>BackendKeyData</code>). Причина: основной backend может быть занят выполнением SQL и не обязан постоянно читать новые клиентские команды из уже использующегося канала.</p>
+<p>При наличии PgBouncer становится сложнее:</p>
+<div class="highlight"><pre><span></span><code>Client logical connection A ──► PgBouncer ──► currently Server S7
+        │                           ▲
+        └── CancelRequest ──────────┘
+                                    │
+                       Найти выполняющийся backend
+                                    │
+                                    └──► PostgreSQL S7: cancel
+</code></pre></div>
+<p>Proxy должен сопоставить клиентскую отмену с текущим назначенным backend, поскольку за жизнь клиентской сессии server connection мог измениться. А если PgBouncer за load balancer представлен несколькими экземплярами, новый TCP connection для отмены может попасть не к тому экземпляру, который обрабатывает запрос. В PgBouncer для сложных топологий существуют механизмы peers/forwarding cancel requests. Их корректность проверяют по конкретной версии и topology.</p>
+<p>В PostgreSQL 18 протокол 3.2 изменил формат секретного ключа отмены; при обновлении прокси и драйверов нужно тестировать negotiation/cancel end-to-end. Нельзя обещать, что формат пакетной отмены одинаков на всех версиях.</p>
+<h3 id="83-cancel-commit">8.3. Cancel не сообщает, был ли уже выполнен <code>COMMIT</code><a class="headerlink" href="#83-cancel-commit" title="Permanent link">¶</a></h3>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>T1: client sends COMMIT
+T2: PostgreSQL commits successfully
+T3: network connection drops before client sees CommandComplete
+T4: client receives timeout / EOF
+</code></pre></div>
+<p>На T4 приложение <strong>не знает</strong>, зафиксирована ли транзакция. Отправить еще один <code>COMMIT</code> бесполезно: это уже другая сессия и другая транзакция. Бездумно повторить всю операцию опасно: можно списать деньги второй раз.</p>
+<p>Инженерное решение остается на уровне бизнес-идемпотентности: уникальный operation ID, устойчивый ключ операции, проверка результата в БД после неопределенного исхода и согласование ожидаемого состояния. Это не новая лекция про транзакционные алгоритмы; здесь важно следствие для любой стратегии reconnect/retry.</p>
+<h3 id="84-reconnect-storm">8.4. Reconnect storm: когда все клиенты одновременно решили переподключиться<a class="headerlink" href="#84-reconnect-storm" title="Permanent link">¶</a></h3>
+<p>После короткого сбоя PostgreSQL теряет серверные соединения PgBouncer. Приложения получают сетевые ошибки, их локальные пулы начинают открывать новые клиентские соединения; PgBouncer пытается восстановить свои server pools. Если все клиенты одновременно повторяют запросы без ограничения скорости, получается двойной шторм: <code>dial</code> + <code>retry SQL</code>.</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL restart
+   │
+   ├─ old server connections invalid
+   ├─ thousands of client retries
+   ├─ PgBouncer opens new server connections
+   ├─ authentication + TLS + backend initialization spike
+   └─ очереди растут, дедлайны истекают, retry усиливает шторм
+</code></pre></div>
+<p>В приложении нужно ограничивать параллелизм повторов, использовать bounded retry с jitter/backoff только для операций, безопасность повторения которых доказана, и сохранять общий request deadline. В PgBouncer есть <code>server_login_retry</code>, <code>server_connect_timeout</code>, резервные/ожидательные настройки. На операционной стороне полезен controlled restart/rolling update, когда это возможно.</p>
+<p>Отдельное правило: <strong>создавать новый <code>sql.DB</code> на каждую ошибку — плохой способ восстановить соединение</strong>. <code>database/sql</code> уже управляет жизненным циклом и выбраковкой дефектных connections через поддерживаемые драйверные механизмы.</p>
+<h3 id="85-tls-pgbouncer">8.5. TLS с двух сторон PgBouncer<a class="headerlink" href="#85-tls-pgbouncer" title="Permanent link">¶</a></h3>
+<p>При использовании PgBouncer между приложением и СУБД возникают <strong>две независимые сетевые границы</strong>:</p>
+<div class="highlight"><pre><span></span><code>Go client ══ TLS #1 ══ PgBouncer ══ TLS #2 ══ PostgreSQL
+</code></pre></div>
+<p>Шифрование на клиентской стороне не доказывает, что соединение PgBouncer → PostgreSQL тоже защищено. Сертификаты, политика проверки сервера, требования к имени хоста и логика повторного соединения конфигурируются для каждой границы. Подмена «раньше TLS до базы, теперь TLS до прокси» может неожиданно изменить фактическую модель безопасности.</p>
+<h3 id="86-session-state">8.6. Session state после обрыва соединения<a class="headerlink" href="#86-session-state" title="Permanent link">¶</a></h3>
+<p>При потере физического соединения исчезают session-level объекты: подготовленные statements на этом backend, session-level advisory locks, LISTEN и временные таблицы, завязанные на сессию. Go driver может заново подключиться, но не обязан автоматически восстановить все пользовательское session state.</p>
+<p>Следовательно, в session pooling необходимо проектировать re-initialization по необходимости и контролировать reconnect. В transaction pooling лучше минимизировать межтранзакционный server state с самого начала.</p>
+<hr/>
+<h1 id="vi-production-sizing">VI. Production: sizing, измерения и расследование деградации<a class="headerlink" href="#vi-production-sizing" title="Permanent link">¶</a></h1>
+<h2 id="9">9. Правильный размер пула нельзя получить одной константой<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<p>Вернемся к нашему инциденту. У нас восемь Go-подов, в каждом <code>SetMaxOpenConns(20)</code>. Перед PostgreSQL стоят два экземпляра PgBouncer, у каждого <code>default_pool_size = 40</code> для одной пары database/user. PostgreSQL разрешает 120 соединений. Можно считать, что теперь все безопасно?</p>
+<p>Посчитаем <strong>потолок</strong>:</p>
+<div class="highlight"><pre><span></span><code>Go clients maximum: 8 × 20 = 160
+PgBouncer #1 server pool: 40
+PgBouncer #2 server pool: 40
+Total potential PostgreSQL server connections: 80
+PostgreSQL max_connections: 120
+</code></pre></div>
+<p>В показанной конфигурации основной бюджет серверных connections не превышает 80, если действительно имеется одна соответствующая пара database/user, нет дополнительных пулов, reserve и других клиентов. Но эти оговорки критичны: четыре роли × две базы, резервные пулы, сторонние сервисы и административные connections могут полностью изменить итог.</p>
+<p>Затем нужно проверить <strong>способность БД обслуживать нагрузку</strong>. Если PostgreSQL способен выполнять при данной смеси запросов лишь 700 транзакций в секунду, наличие 80 backend-процессов не даст 2000 TPS; запросы будут ждать внутри СУБД или PgBouncer.</p>
+<h3 id="91-connection-budget">9.1. Connection budget — сумма всех потребителей<a class="headerlink" href="#91-connection-budget" title="Permanent link">¶</a></h3>
+<p>Для многоуровневой системы используем бюджет не одного сервиса, а всего кластера:</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL max_connections = 120
+  reserve superuser and privileged = 6
+  monitoring / console / maintenance = 8
+  other applications = 16
+  safety headroom = 10
+──────────────────────────────────────
+available PgBouncer server budget ≈ 80
+</code></pre></div>
+<p>Числа учебные; статус конкретных резервов определяется <code>reserved_connections</code>, <code>superuser_reserved_connections</code> и правами ролей. В примере остаются 80 для пула приложения. Если PgBouncer развернут в двух экземплярах, предварительный ориентир — не больше ~40 основных server connections на экземпляр при равномерной нагрузке. Но нужно также учесть <code>reserve_pool_size</code>, дополнительные пары user/db и аварийные ситуации, когда весь трафик переходит на один экземпляр.</p>
+<p><strong>Самая частая ошибка:</strong> выделить каждому PgBouncer по 80, потому что «на PostgreSQL доступно 80». Два экземпляра могут суммарно открыть 160 серверных connections.</p>
+<h3 id="92">9.2. Разделяем емкость по трем слоям<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Какой ресурс лимитируем</th>
+<th>Что в очереди</th>
+<th>Чем наблюдаем</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HTTP/service</td>
+<td>Одновременная бизнес-работа</td>
+<td>Request/goroutine</td>
+<td>APM, active requests, queue, latency</td>
+</tr>
+<tr>
+<td>Go <code>database/sql</code></td>
+<td>Client connections к PgBouncer</td>
+<td>Ожидающие goroutine</td>
+<td><code>DBStats.WaitCount</code>, <code>WaitDuration</code>, <code>InUse</code>, <code>Idle</code></td>
+</tr>
+<tr>
+<td>PgBouncer</td>
+<td>Server connections к PostgreSQL</td>
+<td><code>cl_waiting</code></td>
+<td><code>SHOW POOLS</code>, <code>SHOW STATS</code></td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>Реальное исполнение SQL и ресурсы</td>
+<td>Ожидания CPU/I/O/locks</td>
+<td><code>pg_stat_activity</code>, <code>pg_stat_statements</code>, OS metrics</td>
+</tr>
+</tbody>
+</table>
+<p>В нормальной системе желательно знать, <strong>на каком именно уровне мы хотим допустить очередь</strong>. Локальная очередь Go быстро реагирует на context и ограничивает объем клиентских запросов к PgBouncer. Очередь PgBouncer полезна для объединения клиентских пулов множества реплик, но при долгом ожидании клиенты удерживают свои подключения к прокси. Перегрузка внутри PostgreSQL обычно наиболее дорогая, потому что там уже используются backend-процессы и ресурсы СУБД.</p>
+<h3 id="93-databasesql">9.3. Измеряем <code>database/sql</code> в динамике<a class="headerlink" href="#93-databasesql" title="Permanent link">¶</a></h3>
+<p>Псевдоэкспорт метрик на Go с использованием standard library (хранить прошлую выборку и экспортировать Prometheus можно отдельно):</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">logPool</span><span class="p">(</span><span class="nx">db</span><span class="w"> </span><span class="o">*</span><span class="nx">sql</span><span class="p">.</span><span class="nx">DB</span><span class="p">,</span><span class="w"> </span><span class="nx">prev</span><span class="w"> </span><span class="o">*</span><span class="nx">sql</span><span class="p">.</span><span class="nx">DBStats</span><span class="p">)</span><span class="w"> </span><span class="nx">sql</span><span class="p">.</span><span class="nx">DBStats</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">now</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Stats</span><span class="p">()</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">prev</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">dw</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">now</span><span class="p">.</span><span class="nx">WaitCount</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">prev</span><span class="p">.</span><span class="nx">WaitCount</span>
+<span class="w">        </span><span class="nx">dt</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">now</span><span class="p">.</span><span class="nx">WaitDuration</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">prev</span><span class="p">.</span><span class="nx">WaitDuration</span>
+<span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">mean</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">dw</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mean</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">dt</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span><span class="p">(</span><span class="nx">dw</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="nx">log</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"open=%d inuse=%d idle=%d waited=%d avg_wait=%s"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">now</span><span class="p">.</span><span class="nx">OpenConnections</span><span class="p">,</span><span class="w"> </span><span class="nx">now</span><span class="p">.</span><span class="nx">InUse</span><span class="p">,</span><span class="w"> </span><span class="nx">now</span><span class="p">.</span><span class="nx">Idle</span><span class="p">,</span><span class="w"> </span><span class="nx">dw</span><span class="p">,</span><span class="w"> </span><span class="nx">mean</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">now</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>WaitCount</code> — число зарегистрированных ожиданий, а не текущая длина очереди. Если <code>InUse</code> постоянно упирается в лимит и <code>ΔWaitCount</code> быстро растет, есть признак saturation локального пула. Однако причина может быть и в длительном удержании connections транзакциями/Rows; увеличивать лимит нужно только после измерения <strong>hold time</strong>.</p>
+<p>Один <code>DBStats</code> не дает полную p99 задержки выдачи. Для production обычно добавляют наблюдение на границе операции (активная трассировка acquisition и SQL). Это должно быть совместимо с API выбранного драйвера и не вносить существенную избыточную нагрузку.</p>
+<h3 id="94-pgbouncer">9.4. Измеряем PgBouncer без догадок<a class="headerlink" href="#94-pgbouncer" title="Permanent link">¶</a></h3>
+<p>В административной консоли:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">POOLS</span><span class="p">;</span><span class="w">    </span><span class="c1">-- cl_waiting / sv_active / sv_idle / maxwait</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">STATS</span><span class="p">;</span><span class="w">    </span><span class="c1">-- avg_wait_time / avg_xact_time / avg_query_time</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">CLIENTS</span><span class="p">;</span><span class="w">  </span><span class="c1">-- видим клиентские соединения</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">SERVERS</span><span class="p">;</span><span class="w">  </span><span class="c1">-- видим server connections к PostgreSQL</span>
+</code></pre></div>
+<p>Что означает типичная запись: <code>cl_waiting = 60</code>, <code>sv_active = 20</code>, <code>sv_idle = 0</code>, <code>maxwait = 3.2</code>? Пул серверных соединений занят, 60 клиентов ждут, один из них более трех секунд. Это <strong>симптом</strong>, а не автоматически доказанная причина. Возможно, пул объективно слишком мал при свободной СУБД. А возможно, PostgreSQL исполняет тяжелые SQL по 2 секунды, и расширение пула ухудшит проблему.</p>
+<p>Сопоставляем <code>avg_xact_time</code> и <code>avg_query_time</code>. Если <code>avg_xact_time</code> намного больше <code>avg_query_time</code>, стоит проверить время бездействия внутри транзакций и операционную логику клиентов. <code>avg_wait_time</code> полезен как агрегат, но не заменяет p99. Учитываем, что <code>SHOW STATS</code> обновляет усреднения периодически, поэтому мгновенная картина может отличаться от исторических счетчиков.</p>
+<h3 id="95-postgresql">9.5. Что смотреть в PostgreSQL<a class="headerlink" href="#95-postgresql" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">n</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Анализируем реальные запросы и состояние backend-процессов. Но если подавляющая часть клиентов <strong>ждет в PgBouncer</strong>, PostgreSQL не увидит их как отдельные backend sessions. Отсутствие 500 ожидающих процессов в <code>pg_stat_activity</code> в таком случае — нормальный результат работы pooling.</p>
+<p>Сервер может быть загружен CPU без выраженного <code>wait_event</code>, может ждать I/O или блокировки. Диагностику конкретного SQL, его плана и причин ожидания мы уже проходили в лекциях 05–08. Здесь связываем этот вывод с решением о числе серверных connections.</p>
+<h3 id="96">9.6. Матрица «симптом → слой → действие»<a class="headerlink" href="#96" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Наблюдение</th>
+<th>Вероятный слой</th>
+<th>Проверка перед изменением лимитов</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Go <code>InUse</code> ≈ <code>MaxOpenConnections</code>, растет <code>WaitCount</code></td>
+<td>Local Go pool</td>
+<td>Удержание Rows/Tx, p95 acquisition, количество pods</td>
+</tr>
+<tr>
+<td>Go локальная очередь мала, PgBouncer <code>cl_waiting</code> растет</td>
+<td>PgBouncer server pool</td>
+<td><code>sv_active</code>, <code>maxwait</code>, БД и user pools, реальная загрузка PostgreSQL</td>
+</tr>
+<tr>
+<td>PgBouncer <code>sv_active</code> высокий, SQL p99/CPU сильно выросли</td>
+<td>PostgreSQL</td>
+<td>Состав SQL, wait events, ресурсы, нагрузочный предел</td>
+</tr>
+<tr>
+<td><code>sv_login</code> постоянно растет, много новых backend PID</td>
+<td>Connection startup/churn</td>
+<td>Lifetime/idle, TLS, auth, массовые рестарты</td>
+</tr>
+<tr>
+<td>Много <code>idle in transaction</code> на PostgreSQL</td>
+<td>Приложение удерживает транзакции</td>
+<td>Время между BEGIN/COMMIT, внешние вызовы, ошибки</td>
+</tr>
+<tr>
+<td><code>prepared statement does not exist</code> при transaction mode</td>
+<td>Driver/proxy compatibility</td>
+<td>Protocol-level vs SQL PREPARE, PgBouncer config, pgx mode</td>
+</tr>
+<tr>
+<td>Падает только при смене backend PID</td>
+<td>Session state leakage</td>
+<td><code>SET</code>, temp table, LISTEN, advisory locks</td>
+</tr>
+<tr>
+<td>Timeout после COMMIT и дубль операции после retry</td>
+<td>Business boundary</td>
+<td>Идемпотентность и reconciliation по operation ID</td>
+</tr>
+</tbody>
+</table>
+<h3 id="97-latency-pg_stat_statements-6">9.7. Пример: растет latency, а <code>pg_stat_statements</code> показывает 6 мс<a class="headerlink" href="#97-latency-pg_stat_statements-6" title="Permanent link">¶</a></h3>
+<p>Симулируем рабочую картину:</p>
+<div class="highlight"><pre><span></span><code>Traffic: 1600 operations/s
+Go pool: 8 pods × 16 connections
+PgBouncer: 2 instances × 24 server connections
+PostgreSQL: 48 server backends from PgBouncer
+
+Measured:
+  average SQL = 6 ms
+  average connection hold time = 35 ms
+  Go WaitCount +5000/minute
+  PgBouncer cl_waiting ≈ 15 ... 80
+  HTTP p99 = 1700 ms
+</code></pre></div>
+<p><code>λ × S_hold = 1600 × 0.035 = 56</code> означает около 56 одновременно занятых server connections в среднем, если указанное время удержания действительно приходится на server connection. У нас доступно 48, так что такая нагрузка не может устойчиво обслуживаться без очереди или изменения среднего времени удержания. Этот расчет уже находит возможную первопричину.</p>
+<p>Увеличение PgBouncer с 48 до 80 connections может уменьшить ожидание, <strong>если PostgreSQL способен исполнять больше активных транзакций без деградации</strong>. Но полезнее сначала выяснить, почему <code>S_hold = 35 ms</code> при SQL 6 ms. Если приложение удерживает connection во время 29 ms синхронного бизнес-кода, убираем эту задержку из транзакции; тогда необходимая средняя конкурентность может упасть с 56 до ~10. Это значительно лучше простой раздачи дополнительных backend-процессов.</p>
+<p>Замечание про формулы: нельзя смешивать среднее время удержания <strong>Go connection</strong> с временем удержания <strong>server connection PgBouncer</strong>. Они могут различаться: Go connection может простаивать как клиентский socket, не занимая server connection. Для <code>λ × S</code> выше выбираем <strong>одну границу измерения</strong> и считаем ее последовательно.</p>
+<h3 id="98">9.8. Пошаговая настройка вместо «увеличить все»<a class="headerlink" href="#98" title="Permanent link">¶</a></h3>
+<ol>
+<li>Определяем целевые throughput, p95/p99 и предельную долю ошибок на конкретном workload.</li>
+<li>Измеряем количество DB-операций на HTTP-запрос и время удержания Go/серверного connection.</li>
+<li>Определяем безопасную верхнюю границу PostgreSQL connections с учетом всех пользователей и экземпляров PgBouncer.</li>
+<li>Выбираем разумные начальные размеры <code>sql.DB</code> и PgBouncer, оставляя запас на мониторинг и административный доступ.</li>
+<li>Нагружаем систему при стабильном потоке, затем делаем кратковременные bursts и reconnect/failover сценарии.</li>
+<li>Сравниваем уменьшение queue wait с ростом SQL p99, CPU, памяти, I/O, <code>sv_login</code> и ошибок.</li>
+<li>Проверяем совместимость transaction pooling и драйвера на всей используемой функциональности, не только на SELECT 1.</li>
+<li>Фиксируем измеренные параметры, пределы и деградационный режим. Повторяем эксперимент после изменения числа pods, SQL-профиля или версии PgBouncer.</li>
+</ol>
+<p>Никакого универсального «по 10 connections на ядро» здесь нет. Формулы позволяют обнаружить противоречия, а реальный capacity test определяет рабочую конфигурацию.</p>
+<hr/>
+<h1 id="vii">VII. Демонстрация: нагрузили, нашли очередь, исправили<a class="headerlink" href="#vii" title="Permanent link">¶</a></h1>
+<h2 id="101">10.1. Минимальный тестовый стенд<a class="headerlink" href="#101" title="Permanent link">¶</a></h2>
+<p>Для этой лекции достаточно отдельных PostgreSQL 18, PgBouncer и Go-приложения. Важно иметь два DSN:</p>
+<div class="highlight"><pre><span></span><code>DATABASE_URL_DIRECT   → PostgreSQL :5432
+DATABASE_URL_PGBOUNCER → PgBouncer :6432 / ledgerdb
+</code></pre></div>
+<p>Оба DSN задаются через переменные окружения в локальном стенде; логировать реальные пароли нельзя. Для сравнения нужны одинаковые схема, данные, SQL и параметры времени. В production нельзя специально отключать подключения или вызывать массовые cancel на рабочей БД.</p>
+<h2 id="102">10.2. Создаем безопасную учебную нагрузку<a class="headerlink" href="#102" title="Permanent link">¶</a></h2>
+<p>Простейший запрос, способный удерживать серверное соединение контролируемое время:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">.</span><span class="mi">025</span><span class="p">);</span>
+</code></pre></div>
+<p>Это <em>искусственная</em> нагрузка: она имитирует длительность занятости server connection, но почти не использует CPU/диск PostgreSQL. Из-за этого итоговый TPS нельзя переносить на реальную базу. Зато удобно изучать именно механизм очереди и различать локальную и внешнюю saturation.</p>
+<p>Для следующего эксперимента используем короткий реальный SQL (<code>SELECT 1</code>) и сравним его со <code>pg_sleep</code>. При наличии внешних пользовательских транзакций важно видеть количество одновременно открытых Tx, а не только число SQL-команд.</p>
+<h2 id="103-go-">10.3. Исполняемый Go-проверяльщик пула<a class="headerlink" href="#103-go-" title="Permanent link">¶</a></h2>
+<p>Внешняя зависимость только драйвер <code>github.com/jackc/pgx/v5/stdlib</code>; concurrency и статистика — standard library. Этот код запускаем <strong>только на учебном стенде</strong> с заданным ограничением общего числа операций.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">"context"</span>
+<span class="w">    </span><span class="s">"database/sql"</span>
+<span class="w">    </span><span class="s">"fmt"</span>
+<span class="w">    </span><span class="s">"log"</span>
+<span class="w">    </span><span class="s">"os"</span>
+<span class="w">    </span><span class="s">"strconv"</span>
+<span class="w">    </span><span class="s">"sync"</span>
+<span class="w">    </span><span class="s">"sync/atomic"</span>
+<span class="w">    </span><span class="s">"time"</span>
+
+<span class="w">    </span><span class="nx">_</span><span class="w"> </span><span class="s">"github.com/jackc/pgx/v5/stdlib"</span>
+<span class="p">)</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">dsn</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"DATABASE_URL"</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">dsn</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="s">"DATABASE_URL is required"</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">poolSize</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">4</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">Getenv</span><span class="p">(</span><span class="s">"POOL_SIZE"</span><span class="p">);</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">strconv</span><span class="p">.</span><span class="nx">Atoi</span><span class="p">(</span><span class="nx">v</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="s">"invalid POOL_SIZE"</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="nx">poolSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">n</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">sql</span><span class="p">.</span><span class="nx">Open</span><span class="p">(</span><span class="s">"pgx"</span><span class="p">,</span><span class="w"> </span><span class="nx">dsn</span><span class="p">)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Close</span><span class="p">()</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxOpenConns</span><span class="p">(</span><span class="nx">poolSize</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nx">SetMaxIdleConns</span><span class="p">(</span><span class="nx">poolSize</span><span class="p">)</span>
+
+<span class="w">    </span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">cancel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">context</span><span class="p">.</span><span class="nx">Background</span><span class="p">(),</span><span class="w"> </span><span class="mi">20</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="nx">cancel</span><span class="p">()</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">PingContext</span><span class="p">(</span><span class="nx">ctx</span><span class="p">);</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">log</span><span class="p">.</span><span class="nx">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">requests</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">concurrency</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">40</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">ok</span><span class="p">,</span><span class="w"> </span><span class="nx">failed</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Int64</span>
+<span class="w">    </span><span class="nx">tasks</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kd">struct</span><span class="p">{},</span><span class="w"> </span><span class="nx">requests</span><span class="p">)</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">requests</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}{}</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="nb">close</span><span class="p">(</span><span class="nx">tasks</span><span class="p">)</span>
+
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">wg</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">WaitGroup</span>
+<span class="w">    </span><span class="nx">start</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Now</span><span class="p">()</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">concurrency</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">wg</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="w">        </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">defer</span><span class="w"> </span><span class="nx">wg</span><span class="p">.</span><span class="nx">Done</span><span class="p">()</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tasks</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nx">op</span><span class="p">,</span><span class="w"> </span><span class="nx">stop</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">WithTimeout</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="o">*</span><span class="nx">time</span><span class="p">.</span><span class="nx">Second</span><span class="p">)</span>
+<span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">ignored</span><span class="w"> </span><span class="kt">any</span>
+<span class="w">                </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">QueryRowContext</span><span class="p">(</span><span class="nx">op</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">"SELECT pg_sleep(0.025)"</span><span class="p">).</span><span class="nx">Scan</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">ignored</span><span class="p">)</span>
+<span class="w">                </span><span class="nx">stop</span><span class="p">()</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">failed</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ok</span><span class="p">.</span><span class="nx">Add</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nx">wg</span><span class="p">.</span><span class="nx">Wait</span><span class="p">()</span>
+<span class="w">    </span><span class="nx">stats</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">db</span><span class="p">.</span><span class="nx">Stats</span><span class="p">()</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"elapsed=%s ok=%d failed=%d\n"</span><span class="p">,</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Since</span><span class="p">(</span><span class="nx">start</span><span class="p">),</span><span class="w"> </span><span class="nx">ok</span><span class="p">.</span><span class="nx">Load</span><span class="p">(),</span><span class="w"> </span><span class="nx">failed</span><span class="p">.</span><span class="nx">Load</span><span class="p">())</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">"open=%d inuse=%d idle=%d waits=%d wait_time=%s\n"</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">stats</span><span class="p">.</span><span class="nx">OpenConnections</span><span class="p">,</span><span class="w"> </span><span class="nx">stats</span><span class="p">.</span><span class="nx">InUse</span><span class="p">,</span><span class="w"> </span><span class="nx">stats</span><span class="p">.</span><span class="nx">Idle</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">stats</span><span class="p">.</span><span class="nx">WaitCount</span><span class="p">,</span><span class="w"> </span><span class="nx">stats</span><span class="p">.</span><span class="nx">WaitDuration</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Параметр <code>POOL_SIZE</code> позволяет сравнивать 2, 4, 8, 16 соединений при одинаковом числе задач. Для PostgreSQL-драйвера <code>Scan(&amp;ignored)</code> с <code>pg_sleep</code> возвращает одну NULL-колонку; <code>*any</code> допускает NULL. Если драйвер сообщает особенности обработки результата, альтернативой является <code>SELECT 1 FROM pg_sleep(0.025)</code> с <code>Scan(&amp;n)</code> — она явно возвращает целое число.</p>
+<p>Запуск:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># DSN задается вне командной строки в окружении стенда</span>
+<span class="nv">POOL_SIZE</span><span class="o">=</span><span class="m">2</span><span class="w">  </span>go<span class="w"> </span>run<span class="w"> </span>.
+<span class="nv">POOL_SIZE</span><span class="o">=</span><span class="m">8</span><span class="w">  </span>go<span class="w"> </span>run<span class="w"> </span>.
+<span class="nv">POOL_SIZE</span><span class="o">=</span><span class="m">16</span><span class="w"> </span>go<span class="w"> </span>run<span class="w"> </span>.
+</code></pre></div>
+<p>Для модуля потребуется импортировать драйвер: <code>go mod init example.com/pooldemo</code> и <code>go get github.com/jackc/pgx/v5/stdlib</code> в отдельном каталоге. Команды не фиксируют версию драйвера: в воспроизводимом семестровом стенде ее надо зафиксировать через <code>go.mod</code>/<code>go.sum</code>.</p>
+<p>Смотрим, как изменяются <code>WaitCount</code>, общее время выполнения и количество завершенных операций. После появления PgBouncer дополнительно наблюдаем <code>SHOW POOLS</code> и <code>SHOW STATS</code>.</p>
+<h2 id="104-1-go">10.4. Эксперимент 1 — локальная очередь Go<a class="headerlink" href="#104-1-go" title="Permanent link">¶</a></h2>
+<p>Шаг 1: подключаемся напрямую к PostgreSQL, ограничиваем Go pool двумя соединениями и запускаем 40 workers. Предсказываем: большинство workers ждут локальную выдачу, а SQL на сервере одновременно выполняют не более двух клиентов данного <code>sql.DB</code>.</p>
+<p>Шаг 2: во время теста выполняем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">application_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'pooldemo'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">backend_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'client backend'</span><span class="p">;</span>
+</code></pre></div>
+<p>Для точной фильтрации добавляем <code>application_name=pooldemo</code> в DSN; иначе запрос может показывать ноль. Увидим максимум порядка размера локального пула, а не числа горутин. <code>WaitCount</code> увеличится даже при низком CPU PostgreSQL. Это и есть доказательство, что задержка может находиться <strong>до сервера</strong>.</p>
+<p>Шаг 3: увеличиваем <code>POOL_SIZE</code>. Очередь уменьшается до определенного предела; после достижения емкости сервера эффект исчезает или становится отрицательным.</p>
+<h2 id="105-2-pgbouncer">10.5. Эксперимент 2 — очередь PgBouncer<a class="headerlink" href="#105-2-pgbouncer" title="Permanent link">¶</a></h2>
+<p>Подключаем Go к PgBouncer в transaction pooling. Поставим на учебном стенде <code>default_pool_size = 2</code>, а локальный Go pool — 10. Во время нагрузки смотрим в админ-консоли:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">POOLS</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаем <code>sv_active</code> около двух при устойчивом спросе, <code>sv_idle = 0</code> и рост <code>cl_waiting</code>. В отличие от предыдущего эксперимента, локальный Go pool может иметь свободную емкость либо удерживать клиентские соединения, ожидающие PgBouncer. <code>pg_stat_activity</code> показывает реальные server backends PgBouncer, а не всех его клиентов.</p>
+<p>Построим причинную цепочку: <strong>Go выдал connection → PgBouncer принял запрос → его server pool исчерпан → клиент ждет, хотя PostgreSQL не видел этот SQL как отдельную выполняемую команду</strong>.</p>
+<h2 id="106-3">10.6. Эксперимент 3 — сломанное состояние между транзакциями<a class="headerlink" href="#106-3" title="Permanent link">¶</a></h2>
+<p>В transaction pooling последовательно выполним:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">application_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'attempted_state'</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">current_setting</span><span class="p">(</span><span class="s1">'application_name'</span><span class="p">);</span>
+</code></pre></div>
+<p>Этот пример <strong>не является надежным тестом несохранения состояния</strong>, поскольку <code>application_name</code> входит в параметры, которые PgBouncer умеет отслеживать специально. Поэтому для проверки ошибки лучше использовать <code>SET</code> произвольного session GUC, например <code>SET work_mem='8MB'</code>, затем читать <code>SHOW work_mem</code> на другом backend при конкурентной нагрузке. Даже здесь совпадение прежнего значения возможно случайно, и нельзя считать его подтверждением корректной архитектуры.</p>
+<p>Для строгой семантической проверки используем session-specific объект:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="n">TEMP</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">session_demo</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">COMMIT</span><span class="w"> </span><span class="k">PRESERVE</span><span class="w"> </span><span class="k">ROWS</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">session_demo</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="c1">-- Между следующими транзакциями PgBouncer может сменить backend.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">session_demo</span><span class="p">;</span>
+</code></pre></div>
+<p>Сценарий <strong>специально несовместим</strong> с transaction pooling. Он может падать с <code>relation does not exist</code>, случайно работать при попадании на тот же backend либо обнаружить чужое состояние на переиспользованном backend. Запускать только в изолированной среде. Исправление — не зависеть от temp table за пределами транзакции или использовать session pooling для такого клиента.</p>
+<h2 id="107-4-prepared-statements">10.7. Эксперимент 4 — prepared statements и смена режима<a class="headerlink" href="#107-4-prepared-statements" title="Permanent link">¶</a></h2>
+<p>Сравниваем одну SQL-операцию:</p>
+<ul>
+<li>direct PostgreSQL с pgx default <code>cache_statement</code>;</li>
+<li>PgBouncer transaction pooling с <code>max_prepared_statements = 0</code>;</li>
+<li>PgBouncer transaction pooling с положительным <code>max_prepared_statements</code>;</li>
+<li>PgBouncer transaction pooling с драйверным <code>default_query_exec_mode=exec</code>.</li>
+</ul>
+<p>Для теста важно много транзакций, <strong>конкурентность и смена server backends</strong>. Единичный запрос ничего не доказывает. Измеряем ошибки, число server-side parse и latency; отдельно проверяем, не поменялась ли семантика передачи параметров. Команды SQL <code>PREPARE</code> следует рассматривать отдельно: настройка отслеживания протокольных подготовок не переносит их между серверными соединениями.</p>
+<h2 id="108-5-reconnect-storm">10.8. Эксперимент 5 — reconnect storm и потерянный ответ<a class="headerlink" href="#108-5-reconnect-storm" title="Permanent link">¶</a></h2>
+<p>В лаборатории останавливаем PostgreSQL или разрываем один тестовый backend connection (не production). Наблюдаем:</p>
+<ul>
+<li>увеличение ошибок и изменение <code>sv_login</code>/<code>SHOW SERVERS</code> при восстановлении;</li>
+<li>попытки клиента переоткрыть соединение;</li>
+<li>ограничение максимума подключений в Go и PgBouncer;</li>
+<li>затраты холодного startup;</li>
+<li>дедлайны и порядок безопасных повторов.</li>
+</ul>
+<p>В отдельном тесте имитируем потерю ответа <strong>после</strong> изменения данных и проверяем идемпотентность операции по ее бизнес-ключу. Отправка повторного SQL без такой защиты в платежном сценарии недопустима.</p>
+<hr/>
+<h1 id="viii">VIII. Инженерные правила и проверки понимания механизма<a class="headerlink" href="#viii" title="Permanent link">¶</a></h1>
+<h2 id="11">11. Типовые неверные модели, которые мы исправили<a class="headerlink" href="#11" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Простая модель</th>
+<th>Где ломается</th>
+<th>Точная инженерная модель</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sql.DB</code> — открытое соединение</td>
+<td>100 запросов соревнуются за <code>MaxOpenConns=4</code></td>
+<td><code>sql.DB</code> — менеджер нескольких физических соединений с очередью</td>
+</tr>
+<tr>
+<td>Каждый HTTP-запрос получает свой PostgreSQL process</td>
+<td>Между приложением и БД стоит PgBouncer</td>
+<td>Go connection может заканчиваться на прокси; backend PostgreSQL выдается позднее</td>
+</tr>
+<tr>
+<td><code>max_connections</code> увеличивает TPS</td>
+<td>CPU/I/O насыщены и растет конкурентная работа</td>
+<td>Лимит подключения отделен от вычислительной емкости базы</td>
+</tr>
+<tr>
+<td>Если SQL 5 мс, HTTP тоже должен быть быстрым</td>
+<td>300 мс ожидания в двух пулах</td>
+<td>Время SQL — часть end-to-end latency</td>
+</tr>
+<tr>
+<td>Transaction pooling сохраняет сессию</td>
+<td>Следующая транзакция назначена другому backend</td>
+<td>Сохраняется контекст <strong>одной транзакции</strong>, session state может исчезнуть</td>
+</tr>
+<tr>
+<td>Prepared statements всегда несовместимы</td>
+<td>PgBouncer tracking protocol-level Parse</td>
+<td>Совместимость зависит от механизма подготовки, версии и конфигурации</td>
+</tr>
+<tr>
+<td>Cancel означает rollback</td>
+<td>Ответ COMMIT потерян после успешной фиксации</td>
+<td>Неопределенный результат требует reconciliation и идемпотентности</td>
+</tr>
+<tr>
+<td>Большой пул всегда лучше</td>
+<td>Рост p99 при постоянном CPU</td>
+<td>Размер пула — ограничитель допуска, выбирается измерениями</td>
+</tr>
+</tbody>
+</table>
+<h2 id="111">11.1. Что студент должен уметь после лекции<a class="headerlink" href="#111" title="Permanent link">¶</a></h2>
+<ol>
+<li>По схеме приложения определить количество локальных и потенциальных серверных соединений, учитывая replicas, user/database pools, reserves и другие сервисы.</li>
+<li>Объяснить, как <code>sql.DB</code> выдает соединение, где ожидает горутина и чем отличаются <code>Rows</code>, <code>Tx</code>, <code>Conn</code> по времени удержания.</li>
+<li>Разложить latency на ожидание Go-pool, ожидание PgBouncer, работу PostgreSQL и network/app overhead.</li>
+<li>По <code>DBStats</code>, <code>SHOW POOLS</code> и <code>pg_stat_activity</code> установить уровень saturation.</li>
+<li>Объяснить границу транзакции через <code>ReadyForQuery(I/T/E)</code> и назвать session-level возможности, которые теряются при transaction pooling.</li>
+<li>Отличить SQL <code>PREPARE</code> от protocol-level named prepared statements и выбрать совместимую конфигурацию драйвера/прокси.</li>
+<li>Планировать timeout/retry при разрыве соединения, не делая ложного вывода о результате COMMIT.</li>
+<li>Рассчитать начальную емкость по <code>λ × S_hold</code>, а затем проверить ее нагрузочными измерениями.</li>
+</ol>
+<h2 id="112-">11.2. Главные причинно-следственные связи<a class="headerlink" href="#112-" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Каждый физический PostgreSQL connection имеет стоимость</strong>, поэтому безлимитное создание backend-процессов под нагрузкой дорого и опасно.</li>
+<li><strong>Локальный пул создает очередь раньше SQL.</strong> При saturation большая часть задержки может быть невидима PostgreSQL.</li>
+<li><strong>PgBouncer снижает число server connections, мультиплексируя запросы во времени</strong>, но не увеличивает физическую вычислительную емкость PostgreSQL.</li>
+<li><strong>Session pooling сохраняет физическую сессию</strong>, transaction pooling освобождает ее после транзакции; за выигрыш платим ограничением session state.</li>
+<li><strong>Время удержания соединения определяет необходимую конкурентность.</strong> Длинные <code>Rows</code>, транзакции и внешние операции внутри Tx повышают спрос на pool.</li>
+<li><strong>Prepared statements живут в конкретном backend.</strong> PgBouncer может отслеживать протокольные подготовки, но не любые SQL-команды и session-level состояния.</li>
+<li><strong>Сбой сети разрывает связь «отправили команду» ↔ «получили подтверждение».</strong> Повторная бизнес-операция должна быть безопасна при неопределенном исходе.</li>
+</ol>
+<h2 id="113">11.3. Куда копнуть следующий слой, не расширяя текущую лекцию<a class="headerlink" href="#113" title="Permanent link">¶</a></h2>
+<p>Отдельное углубление — <strong>wire protocol PostgreSQL и внутренняя state machine PgBouncer</strong>: байтовое представление <code>Parse</code>, <code>Bind</code>, <code>Execute</code>, <code>Sync</code>, <code>ReadyForQuery</code>, работа <code>BackendKeyData</code>/<code>CancelRequest</code>, отображение клиентских prepared names на серверные и поведение при partial reads/packet framing. Оно ответит на вопрос: <strong>как PgBouncer технически гарантирует, что следующую транзакцию можно передать другому backend, и почему SQL PREPARE нельзя перехватить так же надежно, как протокольный Parse?</strong> В текущем блоке достаточно модели; подробный разбор имеет смысл только при работе с драйверами или прокси.</p>
+<hr/>
+<h1 id="_1">Источники и привязка к версиям<a class="headerlink" href="#_1" title="Permanent link">¶</a></h1>
+<p>Ниже — основные первичные источники, используемые для версионной проверки. Документация PgBouncer обновляется независимо от PostgreSQL, поэтому для воспроизведения поведения следует фиксировать ее версию вместе с версией бинарника:</p>
+<ol>
+<li>PostgreSQL 18: <a href="https://www.postgresql.org/docs/18/runtime-config-connection.html">Connections and Authentication</a> — <code>max_connections</code>, <code>reserved_connections</code>, <code>superuser_reserved_connections</code>.</li>
+<li>PostgreSQL 18: <a href="https://www.postgresql.org/docs/18/protocol-overview.html">Frontend/Backend Protocol Overview</a> — протокол 3.2 и совместимость.</li>
+<li>PostgreSQL 18: <a href="https://www.postgresql.org/docs/18/protocol-flow.html">Message Flow</a> — startup, <code>Parse/Bind/Execute</code>, cancel request, <code>ReadyForQuery</code>.</li>
+<li>PostgreSQL 18: <a href="https://www.postgresql.org/docs/18/protocol-message-formats.html">Message Formats</a> — байты <code>ReadyForQuery</code> (<code>I/T/E</code>).</li>
+<li>PostgreSQL 18: <a href="https://www.postgresql.org/docs/18/monitoring-stats.html">Monitoring Statistics</a> — <code>pg_stat_activity</code>.</li>
+<li>Go: <a href="https://go.dev/doc/database/manage-connections">Managing Connections</a> — настройки <code>database/sql</code> и очереди.</li>
+<li>Go: <a href="https://pkg.go.dev/database/sql">Package database/sql</a> — публичный контракт <code>sql.DB</code>, <code>Rows</code>, <code>Tx</code>, <code>DBStats</code>.</li>
+<li>Go: <a href="https://go.dev/src/database/sql/sql.go">src/database/sql/sql.go</a> — детали <code>connRequests</code>, <code>connectionOpener</code>, <code>driverConn</code>.</li>
+<li>PgBouncer: <a href="https://www.pgbouncer.org/config.html">Configuration</a> — <code>pool_mode</code>, пределы и server reset, prepared tracking, timeout.</li>
+<li>PgBouncer: <a href="https://www.pgbouncer.org/features.html">Features</a> — официальная матрица совместимости session/transaction pooling.</li>
+<li>PgBouncer: <a href="https://www.pgbouncer.org/usage.html">Usage and Administrative Console</a> — <code>SHOW POOLS</code>, <code>SHOW STATS</code>, измеряемые поля и единицы.</li>
+<li>PgBouncer: <a href="https://www.pgbouncer.org/faq.html">FAQ</a> — prepared statement tracking начиная с 1.21.</li>
+<li>PgBouncer: <a href="https://github.com/pgbouncer/pgbouncer/blob/master/src/objects.c">Source src/objects.c</a> — управление объектами прокси; исходники без зафиксированного тега считать ориентиром, а не неизменным контрактом.</li>
+<li>pgx/v5: <a href="https://pkg.go.dev/github.com/jackc/pgx/v5">Package documentation</a> — <code>DefaultQueryExecMode</code>, режимы <code>cache_statement</code>, <code>exec</code>, <code>simple_protocol</code>.</li>
+</ol>
+<p><strong>Итог:</strong> подключение — измеряемый и ограниченный ресурс. Хороший pooling сохраняет корректность транзакционных операций, переносит избыточное ожидание к управляемой границе и не допускает, чтобы приложение бездумно создавало больше конкурентной работы, чем PostgreSQL способен выполнить.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 9.2. PostgreSQL Backup &amp;amp; Restore Internals" class="md-footer__link md-footer__link--prev" href="../09.2%20-%20Backup%20restore/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                9.2. PostgreSQL Backup &amp; Restore Internals
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 10.1. PostgreSQL High Availability &amp;amp; Failover Internals" class="md-footer__link md-footer__link--next" href="../10.1%20-%20High%20availability%20failover/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                10.1. PostgreSQL High Availability &amp; Failover Internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

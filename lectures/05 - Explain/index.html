@@ -1,0 +1,3041 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/05%20-%20Explain/" rel="canonical"/>
+<link href="../04%20-%20Go%20under%20the%20hood/" rel="prev"/>
+<link href="../06%20-%20Join%20algorithms/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>5. PostgreSQL: Explain - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#5-postgresql-explain">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              5. PostgreSQL: Explain
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-postgresql">
+<span class="md-ellipsis">
+      
+        1. Почему PostgreSQL вообще нужен планировщик?
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-explain">
+<span class="md-ellipsis">
+      
+        2. Как читать дерево EXPLAIN
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-cost-postgresql">
+<span class="md-ellipsis">
+      
+        3. Расчетная стоимость (cost) — что оценивает PostgreSQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-rows-width">
+<span class="md-ellipsis">
+      
+        4. Число строк (rows) и ширина строки (width): прогноз результата узла
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-explain-analyze">
+<span class="md-ellipsis">
+      
+        5. EXPLAIN ANALYZE: где прогноз встречается с реальностью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-seq-scan">
+<span class="md-ellipsis">
+      
+        6. Последовательное сканирование (Seq Scan): почему оно иногда быстрее индекса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-index-scan-b-">
+<span class="md-ellipsis">
+      
+        7. Сканирование по индексу (Index Scan): почему B-дерево не означает дешевое чтение
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-bitmap-scan">
+<span class="md-ellipsis">
+      
+        8. Сканирование по битовой карте (Bitmap Scan): промежуточная стратегия
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-filter-index-cond">
+<span class="md-ellipsis">
+      
+        9. Фильтр (Filter) и условие индекса (Index Cond): почему цена отличается
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-sort-order-by">
+<span class="md-ellipsis">
+      
+        10. Сортировка (Sort): почему ORDER BY может начать писать на диск
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-buffers">
+<span class="md-ellipsis">
+      
+        11. Буферные обращения (BUFFERS): сколько страниц затронул запрос
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-postgresql">
+<span class="md-ellipsis">
+      
+        12. Оценки планировщика: откуда PostgreSQL знает количество строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        13. Где оценки планировщика ломаются: зависимые столбцы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-analyze">
+<span class="md-ellipsis">
+      
+        14. Почему ANALYZE иногда помогает, а иногда вообще ничего не исправляет
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-explain-http-">
+<span class="md-ellipsis">
+      
+        15. Почему EXPLAIN не показывает реальную задержку HTTP-запроса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Как инструмент измерения влияет на результат
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#17">
+<span class="md-ellipsis">
+      
+        17. Как читать плохой план в рабочей системе
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#18">
+<span class="md-ellipsis">
+      
+        18. Практика: проверяем работу планировщика
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#19">
+<span class="md-ellipsis">
+      
+        19. Что происходит под нагрузкой
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#20-explain">
+<span class="md-ellipsis">
+      
+        20. Итоговая модель EXPLAIN
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-postgresql">
+<span class="md-ellipsis">
+      
+        1. Почему PostgreSQL вообще нужен планировщик?
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-explain">
+<span class="md-ellipsis">
+      
+        2. Как читать дерево EXPLAIN
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-cost-postgresql">
+<span class="md-ellipsis">
+      
+        3. Расчетная стоимость (cost) — что оценивает PostgreSQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-rows-width">
+<span class="md-ellipsis">
+      
+        4. Число строк (rows) и ширина строки (width): прогноз результата узла
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-explain-analyze">
+<span class="md-ellipsis">
+      
+        5. EXPLAIN ANALYZE: где прогноз встречается с реальностью
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-seq-scan">
+<span class="md-ellipsis">
+      
+        6. Последовательное сканирование (Seq Scan): почему оно иногда быстрее индекса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-index-scan-b-">
+<span class="md-ellipsis">
+      
+        7. Сканирование по индексу (Index Scan): почему B-дерево не означает дешевое чтение
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-bitmap-scan">
+<span class="md-ellipsis">
+      
+        8. Сканирование по битовой карте (Bitmap Scan): промежуточная стратегия
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9-filter-index-cond">
+<span class="md-ellipsis">
+      
+        9. Фильтр (Filter) и условие индекса (Index Cond): почему цена отличается
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-sort-order-by">
+<span class="md-ellipsis">
+      
+        10. Сортировка (Sort): почему ORDER BY может начать писать на диск
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-buffers">
+<span class="md-ellipsis">
+      
+        11. Буферные обращения (BUFFERS): сколько страниц затронул запрос
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12-postgresql">
+<span class="md-ellipsis">
+      
+        12. Оценки планировщика: откуда PostgreSQL знает количество строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#13">
+<span class="md-ellipsis">
+      
+        13. Где оценки планировщика ломаются: зависимые столбцы
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#14-analyze">
+<span class="md-ellipsis">
+      
+        14. Почему ANALYZE иногда помогает, а иногда вообще ничего не исправляет
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#15-explain-http-">
+<span class="md-ellipsis">
+      
+        15. Почему EXPLAIN не показывает реальную задержку HTTP-запроса
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#16">
+<span class="md-ellipsis">
+      
+        16. Как инструмент измерения влияет на результат
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#17">
+<span class="md-ellipsis">
+      
+        17. Как читать плохой план в рабочей системе
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#18">
+<span class="md-ellipsis">
+      
+        18. Практика: проверяем работу планировщика
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#19">
+<span class="md-ellipsis">
+      
+        19. Что происходит под нагрузкой
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#20-explain">
+<span class="md-ellipsis">
+      
+        20. Итоговая модель EXPLAIN
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="5-postgresql-explain">5. PostgreSQL: Explain<a class="headerlink" href="#5-postgresql-explain" title="Permanent link">¶</a></h1>
+<p><em>Техническая лекция. Основная версия — PostgreSQL 18. На 11 ноября 2026 года PostgreSQL 19 еще находится на стадии кандидата на выпуск, стабильный релиз запланирован на 19 ноября. Основные механизмы, которые мы будем разбирать, применимы и к предыдущим версиям.</em></p>
+<h2 id="1-postgresql">1. Почему PostgreSQL вообще нужен планировщик?<a class="headerlink" href="#1-postgresql" title="Permanent link">¶</a></h2>
+<p>Предположим, у нас есть таблица с десятью миллионами заказов.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>На первый взгляд задача элементарная: найти заказы клиента 42.</p>
+<p>Но как именно их искать?</p>
+<p>PostgreSQL может прочитать таблицу целиком, проверить <code>customer_id</code> у каждой строки и отбросить неподходящие.</p>
+<p>Если есть индекс по <code>customer_id</code>, можно воспользоваться им. Индекс позволит найти ссылки на подходящие строки, после чего PostgreSQL сможет получить сами строки из таблицы.</p>
+<p>Есть и третий вариант: сначала собрать через индекс ссылки на подходящие строки, сгруппировать обращения к страницам таблицы и затем прочитать необходимые страницы.</p>
+<p>Все три способа возвращают одинаковый результат.</p>
+<p>Но стоимость выполнения у них разная.</p>
+<p>Допустим, клиенту 42 принадлежит всего три заказа. Читать десять миллионов строк ради трех результатов было бы расточительно.</p>
+<p>А теперь изменим условие:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</code></pre></div>
+<p>Предположим, ему соответствует 99% таблицы.</p>
+<p>Индекс есть. Но зачем через него получать ссылки практически на каждую строку, затем обращаться к соответствующим страницам таблицы?</p>
+<p>Последовательное чтение может оказаться существенно дешевле.</p>
+<p><strong>Получается, наличие индекса само по себе не определяет оптимальный способ выполнения запроса. Важны количество подходящих строк, их физическое расположение, объем данных, стоимость доступа и другие условия.</strong></p>
+<p>Вот здесь и появляется планировщик PostgreSQL — <em>планировщик и оптимизатор запросов</em>.</p>
+<p>Он строит варианты выполнения SQL-запроса, оценивает их стоимость и выбирает один из них.</p>
+<p>Но возникает вопрос: откуда он знает, сколько строк соответствует условию?</p>
+<p>Он ведь еще не выполнял наш <code>SELECT</code>.</p>
+<p>Это ключевая проблема, которую мы будем постепенно разбирать.</p>
+<h3 id="11">1.1. Два основных участника<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<p><strong>Планировщик</strong></p>
+<p>Получает обработанное представление SQL-запроса, использует статистику таблиц, индексов и стоимости операций, сравнивает допустимые планы и выбирает способ выполнения.</p>
+<p>↓</p>
+<p><strong>План выполнения</strong></p>
+<p>Дерево операций: откуда читать строки, как фильтровать, соединять, сортировать и агрегировать данные.</p>
+<p>↓</p>
+<p><strong>Исполнитель</strong></p>
+<p>Выполняет узлы выбранного плана, обращается к индексам и страницам таблиц, проверяет условия и возвращает результат.</p>
+<p>Планировщик работает с прогнозами. Исполнитель — с реальными данными.</p>
+<p>Отсюда два инструмента:</p>
+<ul>
+<li><code>EXPLAIN</code> показывает выбранный план и прогноз планировщика.</li>
+<li><code>EXPLAIN ANALYZE</code> действительно выполняет запрос и дополняет план фактическими измерениями.</li>
+</ul>
+<p>Сравнивая прогноз и реальность, мы можем понять, где модель планировщика ошиблась и к каким последствиям это привело.</p>
+<h2 id="2-explain">2. Как читать дерево EXPLAIN<a class="headerlink" href="#2-explain" title="Permanent link">¶</a></h2>
+<p>Начнем с запроса:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Предположим, для него выбран следующий план.</p>
+<p><em>Условный пример плана. Числа иллюстративные.</em></p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  (cost=0.43..28.50 rows=5 width=64)
+  Index Cond: (customer_id = 42)
+</code></pre></div>
+<p>Здесь пока все просто: один узел <code>Index Scan</code>.</p>
+<p>Добавим сортировку:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможный план:</p>
+<div class="highlight"><pre><span></span><code>Sort
+  Sort Key: total_amount DESC
+  -&gt; Index Scan using idx_orders_customer on orders
+       Index Cond: (customer_id = 42)
+</code></pre></div>
+<p>Внешний узел <code>Sort</code> получает строки от дочернего узла <code>Index Scan</code>.</p>
+<div class="highlight"><pre><span></span><code>              Sort
+   Получает строки, сортирует
+       и отдает результат
+                ↑
+           Index Scan
+  Ищет строки по индексу
+         customer_id
+</code></pre></div>
+<p>План принято читать <strong>с нижних узлов вверх</strong>, но при этом нужно понимать, кто запускает их выполнение.</p>
+<p>В типичной модели исполнитель использует интерфейс, похожий на итератор: родитель запрашивает следующую строку у дочернего узла.</p>
+<p>Например, <code>Sort</code> должен получить строки от <code>Index Scan</code>, прежде чем сможет полностью отсортировать их.</p>
+<p>Для простого <code>Index Scan</code> получение строк может быть потоковым: нашли очередную подходящую строку — передали наверх.</p>
+<p>У <code>Sort</code> поведение другое. Обычная сортировка должна собрать входные строки, прежде чем сможет выдать первую отсортированную строку.</p>
+<p>И вот это принципиально.</p>
+<p>Два SQL-запроса могут вернуть одинаковое количество строк, но один начнет отдавать результат практически сразу, а другой сначала потратит существенное время на подготовку.</p>
+<p>Для описания этой разницы в плане существуют два значения <code>cost</code>.</p>
+<h2 id="3-cost-postgresql">3. Расчетная стоимость (<code>cost</code>) — что оценивает PostgreSQL<a class="headerlink" href="#3-cost-postgresql" title="Permanent link">¶</a></h2>
+<p>Посмотрим на строку:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  (cost=0.00..18500.00 rows=100000 width=64)
+</code></pre></div>
+<p>Разберем:</p>
+<div class="highlight"><pre><span></span><code>cost=0.00..18500.00
+     ^       ^
+     |       |
+   startup  total
+</code></pre></div>
+<h3 id="31-startup-cost">3.1. Начальная стоимость (<code>startup cost</code>)<a class="headerlink" href="#31-startup-cost" title="Permanent link">¶</a></h3>
+<p><code>Startup cost</code> — расчетная стоимость работы, которую нужно выполнить до того, как узел сможет выдать первую строку.</p>
+<p>У обычного <code>Seq Scan</code> она часто близка к нулю.</p>
+<p>Почему?</p>
+<p>Потому что последовательное сканирование может начать отдавать подходящие строки без предварительного чтения всей таблицы.</p>
+<p>А у <code>Sort</code> начальная стоимость бывает большой.</p>
+<p>Сортировка должна получить и обработать входные данные до выдачи первой строки.</p>
+<h3 id="32-total-cost">3.2. Полная стоимость (<code>total cost</code>)<a class="headerlink" href="#32-total-cost" title="Permanent link">¶</a></h3>
+<p><code>Total cost</code> — расчетная стоимость выполнения узла до завершения, то есть до выдачи всех его строк.</p>
+<p>И здесь есть две важные детали.</p>
+<p><strong>Первая:</strong> <code>cost</code> измеряется в условных единицах, а не в миллисекундах.</p>
+<div class="highlight"><pre><span></span><code>cost=0.00..18500.00
+</code></pre></div>
+<p>Это не 18 500 миллисекунд, не 18,5 секунды и не 18 500 операций ввода-вывода.</p>
+<p>Это число из внутренней модели стоимости PostgreSQL.</p>
+<p><strong>Вторая:</strong> стоимость родительского узла включает расчетную стоимость его дочерних узлов.</p>
+<p>Поэтому нельзя взять <code>cost</code> каждого узла дерева, сложить все числа и получить общую стоимость запроса.</p>
+<p>Получится двойной учет.</p>
+<h3 id="33">3.3. Откуда берутся условные единицы<a class="headerlink" href="#33" title="Permanent link">¶</a></h3>
+<p>PostgreSQL использует набор коэффициентов стоимости.</p>
+<p>При стандартных настройках PostgreSQL 18:</p>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th style="text-align: right;">Значение</th>
+<th>Что моделирует</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>seq_page_cost</code></td>
+<td style="text-align: right;">1.0</td>
+<td>Последовательный доступ к странице</td>
+</tr>
+<tr>
+<td><code>random_page_cost</code></td>
+<td style="text-align: right;">4.0</td>
+<td>Непоследовательный доступ к странице</td>
+</tr>
+<tr>
+<td><code>cpu_tuple_cost</code></td>
+<td style="text-align: right;">0.01</td>
+<td>Обработка строки</td>
+</tr>
+<tr>
+<td><code>cpu_index_tuple_cost</code></td>
+<td style="text-align: right;">0.005</td>
+<td>Обработка записи индекса</td>
+</tr>
+<tr>
+<td><code>cpu_operator_cost</code></td>
+<td style="text-align: right;">0.0025</td>
+<td>Вычисление оператора или функции</td>
+</tr>
+</tbody>
+</table>
+<p>Это относительные коэффициенты, определяющие предпочтения планировщика. Значения для конкретного экземпляра PostgreSQL можно изменить.</p>
+<p>Возьмем простейшую таблицу:</p>
+<ul>
+<li>100 000 строк;</li>
+<li>1000 страниц данных;</li>
+<li>никаких условий <code>WHERE</code>;</li>
+<li>без параллельного выполнения.</li>
+</ul>
+<p>Упрощенная формула последовательного сканирования:</p>
+<p><code>seq_page_cost</code> — расчетная стоимость последовательного чтения одной страницы; <code>cpu_tuple_cost</code> — расчетная стоимость обработки одной строки. В этой учебной модели мы считаем, что дополнительных условий и вычислений нет, и сканирование доходит до конца таблицы. Все стоимости выражены в <strong>условных единицах</strong>, а не в миллисекундах.</p>
+<div class="highlight"><pre><span></span><code>Стоимость Seq Scan =
+    (Количество страниц таблицы × seq_page_cost)
+  + (Количество обрабатываемых строк × cpu_tuple_cost)
+</code></pre></div>
+<p>Для таблицы из 1 000 страниц и 100 000 строк подставляем стандартные коэффициенты <code>seq_page_cost = 1,0</code> и <code>cpu_tuple_cost = 0,01</code>:</p>
+<div class="highlight"><pre><span></span><code>Чтение страниц:    1 000 × 1,0  = 1 000
+Обработка строк: 100 000 × 0,01 = 1 000
+                                 -----
+Итого:                           2 000 условных единиц
+</code></pre></div>
+<p>Получаем приблизительный план:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  (cost=0.00..2000.00 rows=100000 width=...)
+</code></pre></div>
+<p>Теперь добавим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+</code></pre></div>
+<p>PostgreSQL должен вычислять условие для просматриваемых строк.</p>
+<p>Если для упрощения считать стоимость проверки одной операцией с коэффициентом <code>cpu_operator_cost</code>, появится дополнительная величина:</p>
+<div class="highlight"><pre><span></span><code>Проверка условия: 100 000 строк × 0,0025 = 250
+Итого с фильтром: 2 000 + 250 = 2 250 условных единиц
+</code></pre></div>
+<p>Расчетная стоимость полного сканирования увеличится примерно до 2250.</p>
+<p>Заметь: если условию соответствует 10% строк, последовательное сканирование все равно должно проверить все строки таблицы.</p>
+<p>Меньшее число строк в результате не означает пропорционального уменьшения работы.</p>
+<p>Полная реальная формула сложнее: есть стоимость выражений, особенности хранения, параметры доступа и другие слагаемые. Но этот пример показывает главный принцип формирования <code>cost</code>.</p>
+<h3 id="34-random_page_cost-40">3.4. Почему <code>random_page_cost = 4.0</code>?<a class="headerlink" href="#34-random_page_cost-40" title="Permanent link">¶</a></h3>
+<p>При индексном поиске PostgreSQL может обращаться к страницам таблицы в непоследовательном порядке.</p>
+<p>Для жестких дисков случайные обращения особенно дороги. На SSD разница меньше, но не исчезает автоматически.</p>
+<p>Кроме того, планировщик учитывает ожидаемый эффект кеширования.</p>
+<p>Поэтому <code>random_page_cost = 4.0</code> — модель усредненной относительной стоимости, а не утверждение, что любой случайный доступ физически в четыре раза медленнее последовательного.</p>
+<p>На некоторых системах с быстрыми накопителями и хорошим кешированием уменьшение <code>random_page_cost</code> может улучшить выбор планов.</p>
+<p>Но менять его только ради одного медленного запроса опасно: параметр влияет на стоимость доступа для множества запросов.</p>
+<h3 id="35">3.5. Почему минимальная полная стоимость не всегда определяет выбор<a class="headerlink" href="#35" title="Permanent link">¶</a></h3>
+<p>Предположим, планировщик сравнивает два варианта:</p>
+<table>
+<thead>
+<tr>
+<th>План</th>
+<th style="text-align: right;">Начальная стоимость</th>
+<th style="text-align: right;">Полная стоимость</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1000</td>
+</tr>
+<tr>
+<td>B</td>
+<td style="text-align: right;">300</td>
+<td style="text-align: right;">500</td>
+</tr>
+</tbody>
+</table>
+<p>Если нужны все строки, вариант B выглядит выгоднее.</p>
+<p>Но что изменится при:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможно, достаточно получить одну строку.</p>
+<p>План A способен сделать это почти сразу. План B тратит больше работы до первого результата.</p>
+<p>Следовательно, планировщик учитывает, сколько строк потребуется родительскому узлу. Для <code>LIMIT</code> он может оценивать частичную стоимость плана, а для <code>EXISTS</code> особенно важна возможность быстро получить первую строку.</p>
+<p><strong>Инженерный вывод:</strong> большие значения <code>cost</code> сами по себе не свидетельствуют о проблеме. Важны сравнение альтернативных планов и соответствие расчетной модели фактическому выполнению.</p>
+<h2 id="4-rows-width">4. Число строк (<code>rows</code>) и ширина строки (<code>width</code>): прогноз результата узла<a class="headerlink" href="#4-rows-width" title="Permanent link">¶</a></h2>
+<p>Возьмем:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  (cost=0.00..2250.00 rows=10000 width=64)
+  Filter: (status = 'PAID')
+</code></pre></div>
+<p><code>rows=10000</code> означает, что планировщик ожидает получить из этого узла примерно 10 000 строк.</p>
+<p>При этом таблица может содержать 100 000 строк.</p>
+<p>Почему указано только 10 000?</p>
+<p>Потому что условие <code>status = 'PAID'</code>, по оценке планировщика, пройдет примерно для 10% строк.</p>
+<p>Это называется <strong>селективность (selectivity)</strong> условия.</p>
+<div class="highlight"><pre><span></span><code>Селективность = количество подходящих строк / общее количество строк
+</code></pre></div>
+<p>Если селективность 0,1:</p>
+<div class="highlight"><pre><span></span><code>Ожидается: 100 000 × 0,1 = 10 000 строк
+</code></pre></div>
+<p>Здесь скрывается одна из важнейших причин неоптимальных планов PostgreSQL.</p>
+<p>Планировщик может ошибиться в селективности.</p>
+<p>Он ожидает 10 000 строк, а фактически получает 900 000.</p>
+<p>Тогда индексный доступ, который казался выгодным, может привести к огромному количеству обращений к страницам таблицы.</p>
+<p>И наоборот: PostgreSQL может ожидать почти всю таблицу, выбрать <code>Seq Scan</code>, хотя в действительности запрос возвращает несколько строк.</p>
+<h3 id="41-rows">4.1. Оценка количества строк (<code>rows</code>) описывает выход узла<a class="headerlink" href="#41-rows" title="Permanent link">¶</a></h3>
+<p>Важно различать:</p>
+<ul>
+<li>сколько строк узел прочитал или рассмотрел;</li>
+<li>сколько строк узел передал родителю.</li>
+</ul>
+<p><code>rows</code> в плане описывает <strong>ожидаемое количество выходных строк</strong>.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  (rows=10000)
+  Filter: (status = 'PAID')
+</code></pre></div>
+<p>Сканирование может просмотреть 100 000 строк, отбросить 90 000 и выдать 10 000.</p>
+<p>При добавлении <code>EXPLAIN ANALYZE</code> мы сможем увидеть, сколько строк действительно было возвращено и сколько отклонено фильтром.</p>
+<h3 id="42-width">4.2. Расчетная ширина строки (<code>width</code>)<a class="headerlink" href="#42-width" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>rows=10000 width=64
+</code></pre></div>
+<p><code>width=64</code> означает оценку среднего размера одной выходной строки в байтах.</p>
+<p>Почему планировщику нужен размер строки?</p>
+<p>Допустим, сортировка должна обработать миллион строк.</p>
+<p>В одном случае каждая строка занимает в среднем 16 байт.</p>
+<p>В другом — 500 байт.</p>
+<p>Объем данных отличается более чем в 30 раз.</p>
+<p>Это влияет на:</p>
+<ul>
+<li>оценку затрат на обработку данных;</li>
+<li>память для сортировок и промежуточных структур;</li>
+<li>возможность обработки в оперативной памяти;</li>
+<li>стоимость передачи строк между узлами.</li>
+</ul>
+<p><code>width</code> — расчетный показатель, который зависит в том числе от выбранных столбцов и статистики. Он не равен обязательно размеру исходной строки на диске.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>и</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>могут иметь разные <code>width</code>, даже когда читают одну и ту же таблицу.</p>
+<hr/>
+<h2 id="5-explain-analyze">5. <code>EXPLAIN ANALYZE</code>: где прогноз встречается с реальностью<a class="headerlink" href="#5-explain-analyze" title="Permanent link">¶</a></h2>
+<p>Теперь выполним:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="p">;</span>
+</code></pre></div>
+<p>Условный результат:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  (cost=0.00..2250.00 rows=10000 width=64)
+  (actual time=0.025..18.400 rows=12000 loops=1)
+  Filter: (status = 'PAID')
+  Rows Removed by Filter: 88000
+  Buffers: shared hit=1000
+
+Planning Time: 0.200 ms
+Execution Time: 19.100 ms
+</code></pre></div>
+<p>Сразу заметна принципиальная разница.</p>
+<p>Планировщик ожидал 10 000 строк. Исполнитель вернул 12 000.</p>
+<p>Расхождение небольшое: оценка примерно соответствует реальности.</p>
+<p>Но теперь представим, что фактически получилось 900 000 строк.</p>
+<p>Значит, оценка ошиблась в 90 раз.</p>
+<p><strong>Именно такие расхождения нужно искать при анализе медленных запросов, потому что от них зависит выбор способа выполнения.</strong></p>
+<h3 id="51-actual-time">5.1. Фактическое время (<code>actual time</code>)<a class="headerlink" href="#51-actual-time" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>actual time=0.025..18.400
+</code></pre></div>
+<p>Оба числа измеряются в миллисекундах.</p>
+<p>Первое — среднее время до выдачи первой строки за один запуск узла.</p>
+<p>Второе — среднее время до завершения выдачи строк за один запуск узла.</p>
+<p>При <code>loops=1</code> это времена единственного выполнения.</p>
+<p>Для обычного сканирования первое значение часто небольшое: узел быстро нашел первую строку.</p>
+<p>Для <code>Sort</code> первое значение может быть гораздо больше — сортировке нужно предварительно обработать входные данные.</p>
+<p>Но здесь появляется важная тонкость: измеренное время узла включает работу его дочерних узлов, если он их вызывает.</p>
+<p>Поэтому нельзя бездумно складывать значения <code>actual time</code> по всему дереву.</p>
+<h3 id="52-loops">5.2. Число запусков (<code>loops</code>) — сколько раз выполнялся узел<a class="headerlink" href="#52-loops" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>rows=12000 loops=1
+</code></pre></div>
+<p>Узел был выполнен один раз.</p>
+<p>А теперь представим:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  (actual time=0.012..0.035 rows=3 loops=10000)
+</code></pre></div>
+<p>Это означает, что узел запускался 10 000 раз.</p>
+<p>Показатели <code>actual time</code> и <code>rows</code> в такой строке усреднены <strong>за один запуск узла</strong>.</p>
+<p>Следовательно:</p>
+<div class="highlight"><pre><span></span><code>Всего строк ≈ 3 строки за запуск × 10 000 запусков = 30 000
+</code></pre></div>
+<p>И ориентировочная суммарная стоимость по измеренному времени выполнения этого узла за все запуски:</p>
+<div class="highlight"><pre><span></span><code>Сумма времен узла ≈ 0,035 мс × 10 000 запусков = 350 мс
+</code></pre></div>
+<p>Последняя величина — сумма времен работы узла, а не обязательно 350 мс дополнительного времени всего запроса: вложенные измерения и параллельное выполнение требуют отдельной интерпретации.</p>
+<p>Вот здесь легко ошибиться.</p>
+<p>Можно увидеть <code>actual time=0.035</code> и решить, что индекс работает практически бесплатно.</p>
+<p>Но десять тысяч повторных запусков меняют картину.</p>
+<p>Именно поэтому <strong><code>actual time</code> нельзя интерпретировать без <code>loops</code></strong>.</p>
+<h2 id="6-seq-scan">6. Последовательное сканирование (<code>Seq Scan</code>): почему оно иногда быстрее индекса<a class="headerlink" href="#6-seq-scan" title="Permanent link">¶</a></h2>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="p">;</span>
+</code></pre></div>
+<p>План:</p>
+<div class="highlight"><pre><span></span><code>Seq Scan on orders
+  Filter: (status = 'PAID')
+</code></pre></div>
+<p>Что происходит физически?</p>
+<p>Таблица PostgreSQL хранится в файлах, организованных в страницы. Обычно размер страницы составляет 8 КиБ.</p>
+<p>Внутри страниц таблицы находятся версии строк. PostgreSQL использует MVCC, поэтому при чтении исполнитель должен учитывать видимость версий строк для текущего снимка транзакции.</p>
+<p>Упрощенная последовательность:</p>
+<ol>
+<li><strong>Получить страницу таблицы.</strong> Через буферный менеджер PostgreSQL.</li>
+<li><strong>Найти доступные версии строк.</strong> Проверить условия видимости MVCC.</li>
+<li><strong>Вычислить фильтр.</strong> Например, <code>status = 'PAID'</code>.</li>
+<li><strong>Передать подходящие строки.</strong> В родительский узел плана.</li>
+<li><strong>Перейти к следующей странице.</strong> Продолжать до завершения или остановки родителем.</li>
+</ol>
+<p>Для чтения больших объемов PostgreSQL может использовать последовательный доступ, предварительное чтение страниц и специальные стратегии работы с буферным кешем.</p>
+<p>А индексный поиск может требовать отдельных обращений к страницам, которые физически находятся далеко друг от друга.</p>
+<h3 id="61">6.1. Когда последовательное сканирование выгодно<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p>Предположим:</p>
+<ul>
+<li>таблица занимает 100 000 страниц;</li>
+<li>запрос возвращает 90% строк;</li>
+<li>строки физически распределены по всей таблице.</li>
+</ul>
+<p>Если идти через обычный индекс, может потребоваться прочитать множество записей индекса, а затем обратиться практически ко всем страницам таблицы.</p>
+<p>Последовательное сканирование часто дешевле.</p>
+<p>В таком случае <code>Seq Scan</code> — вполне обоснованное решение планировщика.</p>
+<h3 id="62">6.2. Когда последовательное сканирование становится проблемой<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p>Изменим запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Допустим, возвращается 5 строк из 10 миллионов, но PostgreSQL все равно использует <code>Seq Scan</code>.</p>
+<p>Тогда стоит проверить:</p>
+<ul>
+<li>существует ли подходящий индекс;</li>
+<li>какую селективность ожидает планировщик;</li>
+<li>актуальна ли статистика;</li>
+<li>можно ли использовать индекс с данным условием;</li>
+<li>какова реальная стоимость альтернативного плана.</li>
+</ul>
+<p>Особенно важно сравнить <code>rows</code> и <code>actual rows</code>.</p>
+<p>Если планировщик ожидал найти 5 миллионов строк, но нашел пять, перед нами сильная ошибка оценки селективности.</p>
+<p>Однако даже здесь нельзя утверждать, что виновата именно статистика. Индекс может отсутствовать, быть неподходящим или не поддерживать требуемое выражение.</p>
+<h2 id="7-index-scan-b-">7. Сканирование по индексу (<code>Index Scan</code>): почему B-дерево не означает дешевое чтение<a class="headerlink" href="#7-index-scan-b-" title="Permanent link">¶</a></h2>
+<p>Теперь создадим индекс:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_customer</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Выполним:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможный результат:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  Index Cond: (customer_id = 42)
+</code></pre></div>
+<p>Что реально происходит?</p>
+<p>Для обычного индекса на основе B-дерева PostgreSQL ищет подходящие записи в индексной структуре.</p>
+<p>Запись содержит информацию, позволяющую найти соответствующую версию строки в таблице. В частности, для обычной таблицы это идентификатор строки TID, включающий номер страницы и позицию внутри страницы.</p>
+<div class="highlight"><pre><span></span><code>                 B-tree index
+        Поиск customer_id = 42
+                       |
+                       v
+  TID (10, 4)  TID (850, 2)  TID (9000, 8)
+       |             |             |
+       v             v             v
+     Page 10       Page 850     Page 9000
+              Heap таблицы
+</code></pre></div>
+<p><em>Условная иллюстрация: три подходящие записи индекса ссылаются на три разные страницы таблицы.</em></p>
+<p>Теперь неприятный вопрос.</p>
+<p>Что будет, если индекс вернул миллион подходящих записей, а соответствующие строки расположены на сотнях тысяч страниц?</p>
+<p>Появляется большое количество обращений к таблице.</p>
+<p>Даже если все страницы находятся в памяти, это означает дополнительную работу буферного менеджера, обращения к разным областям памяти и проверки видимости.</p>
+<p>Если данные отсутствуют в оперативной памяти, стоимость может стать еще выше.</p>
+<p>Именно поэтому <strong>индекс может существовать и корректно работать, но планировщик предпочтет последовательное сканирование</strong>.</p>
+<h3 id="71">7.1. Почему физический порядок строк важен<a class="headerlink" href="#71" title="Permanent link">¶</a></h3>
+<p>Предположим, индекс построен по <code>created_at</code>.</p>
+<p>Если строки вставлялись примерно в хронологическом порядке, соседние значения индекса часто ссылаются на близко расположенные страницы таблицы.</p>
+<p>Если данные многократно обновлялись или вставлялись в произвольном порядке, связь логического порядка индекса с физическим размещением строк может быть слабее.</p>
+<p>Статистика <code>correlation</code> в <code>pg_stats</code> помогает планировщику учитывать связь порядка значений столбца с физическим порядком строк таблицы.</p>
+<p>При высокой корреляции диапазонный <code>Index Scan</code> может быть существенно выгоднее, чем при случайном расположении строк.</p>
+<h2 id="8-bitmap-scan">8. Сканирование по битовой карте (<code>Bitmap Scan</code>): промежуточная стратегия<a class="headerlink" href="#8-bitmap-scan" title="Permanent link">¶</a></h2>
+<p>Мы увидели две крайности.</p>
+<p><code>Seq Scan</code> читает таблицу последовательно.</p>
+<p><code>Index Scan</code> находит подходящие записи через индекс, но может выполнять множество разрозненных обращений к таблице.</p>
+<p>Что если нам подходит, например, 5% строк?</p>
+<p>Читать всю таблицу может быть дорого. Но и выполнять множество случайных обращений неудобно.</p>
+<p>Здесь появляется <strong>сканирование по битовой карте</strong>.</p>
+<p>Типичный план выглядит так:</p>
+<div class="highlight"><pre><span></span><code>Bitmap Heap Scan on orders
+  Recheck Cond: (total_amount &gt; 9000)
+  -&gt; Bitmap Index Scan on idx_orders_amount
+       Index Cond: (total_amount &gt; 9000)
+</code></pre></div>
+<h3 id="81-bitmap-index-scan">8.1. Как строится битовая карта по индексу (<code>Bitmap Index Scan</code>)<a class="headerlink" href="#81-bitmap-index-scan" title="Permanent link">¶</a></h3>
+<p>Сначала PostgreSQL проходит по индексу и собирает ссылки на потенциально подходящие строки в структуру <code>TIDBitmap</code>.</p>
+<p>Она позволяет сгруппировать найденные позиции по страницам таблицы.</p>
+<p>Упрощенный пример:</p>
+<div class="highlight"><pre><span></span><code>Индекс нашел строки:
+
+Page 10, offset 3
+Page 800, offset 7
+Page 10, offset 15
+Page 500, offset 2
+Page 800, offset 12
+</code></pre></div>
+<p>В результате можно представить данные так:</p>
+<div class="highlight"><pre><span></span><code>Page 10  → offsets 3, 15
+Page 500 → offset 2
+Page 800 → offsets 7, 12
+</code></pre></div>
+<p>Теперь <code>Bitmap Heap Scan</code> обходит страницы таблицы в подходящем порядке и получает нужные строки.</p>
+<p>В результате уменьшается количество хаотичных переходов между страницами.</p>
+<div class="highlight"><pre><span></span><code>      Bitmap Index Scan
+  Собрать подходящие TID по индексу
+               |
+               v
+            TIDBitmap
+     Сгруппировать по страницам
+               |
+               v
+       Bitmap Heap Scan
+  Читать подходящие страницы и строки
+</code></pre></div>
+<p>Это полезный компромисс, но за него приходится платить.</p>
+<p>Сначала нужно собрать битовую карту. Это требует памяти и времени.</p>
+<p>Кроме того, обход по таблице не сохраняет порядок строк по ключу индекса. Поэтому последующий <code>ORDER BY</code> может потребовать отдельной сортировки.</p>
+<h3 id="82-bitmapand-bitmapor">8.2. Пересечение и объединение битовых карт (<code>BitmapAnd</code>, <code>BitmapOr</code>)<a class="headerlink" href="#82-bitmapand-bitmapor" title="Permanent link">¶</a></h3>
+<p>PostgreSQL может комбинировать результаты нескольких индексов.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5000</span><span class="p">;</span>
+</code></pre></div>
+<p>Пусть есть два независимых индекса:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_customer</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_amount</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">total_amount</span><span class="p">);</span>
+</code></pre></div>
+<p>Планировщик может выбрать:</p>
+<div class="highlight"><pre><span></span><code>Bitmap Heap Scan on orders
+  Recheck Cond: (
+    customer_id = 42
+    AND total_amount &gt; 5000
+  )
+  -&gt; BitmapAnd
+       -&gt; Bitmap Index Scan on idx_orders_customer
+            Index Cond: (customer_id = 42)
+       -&gt; Bitmap Index Scan on idx_orders_amount
+            Index Cond: (total_amount &gt; 5000)
+</code></pre></div>
+<p>Первый индекс дает набор TID по клиенту.</p>
+<p>Второй — по сумме заказа.</p>
+<p><code>BitmapAnd</code> находит пересечение наборов.</p>
+<p><code>BitmapOr</code> может аналогично объединять наборы для подходящих условий <code>OR</code>.</p>
+<p>При этом составной индекс <code>(customer_id, total_amount)</code> в ряде случаев будет выгоднее, поскольку позволяет сразу ограничивать поиск по обоим столбцам, не создавая два отдельных набора.</p>
+<h3 id="83">8.3. Точная и приближенная битовая карта<a class="headerlink" href="#83" title="Permanent link">¶</a></h3>
+<p>Теперь добавим нагрузку.</p>
+<p>Запрос вернул огромное количество TID. Bitmap растет и начинает потреблять существенную память.</p>
+<p>Но память ограничена.</p>
+<p>PostgreSQL умеет переходить от точного хранения позиций отдельных строк к более грубому представлению для части страниц.</p>
+<p>Есть два варианта:</p>
+<ul>
+<li><strong>Точная:</strong> битовая карта содержит точные позиции строк для страницы.</li>
+<li><strong>Приближенная:</strong> битовая карта отмечает страницу как потенциально содержащую подходящие строки, без точного списка всех позиций.</li>
+</ul>
+<p>План может сообщать:</p>
+<div class="highlight"><pre><span></span><code>Heap Blocks: exact=5000 lossy=800
+Rows Removed by Index Recheck: 12000
+</code></pre></div>
+<p>На 800 страницах информация была менее точной.</p>
+<p>Поэтому исполнитель должен повторно проверить индексное условие у кандидатов с этих страниц.</p>
+<p>Отсюда <code>Recheck Cond</code>.</p>
+<p>Но важная деталь: <strong>само наличие строки <code>Recheck Cond</code> в плане не доказывает, что все строки проходили повторную проверку</strong>. Для обычных точных битовых карт, построенных по B-дереву, повторная проверка условия может не потребоваться. Существуют также индексные методы доступа, возвращающие приблизительные совпадения, для которых проверка необходима.</p>
+<p><code>Rows Removed by Index Recheck</code> показывает количество кандидатов, отвергнутых повторной проверкой.</p>
+<p>В рабочей системе большое количество <code>lossy</code>-страниц и повторных проверок — повод оценить стоимость битовой карты, объем возвращаемых данных и настройки памяти для рабочих операций.</p>
+<h2 id="9-filter-index-cond">9. Фильтр (<code>Filter</code>) и условие индекса (<code>Index Cond</code>): почему цена отличается<a class="headerlink" href="#9-filter-index-cond" title="Permanent link">¶</a></h2>
+<p>Рассмотрим индекс:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_customer</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+</code></pre></div>
+<p>И запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможный план:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  Index Cond: (customer_id = 42)
+  Filter: (status = 'PAID')
+</code></pre></div>
+<p>Здесь PostgreSQL выполняет две логически разные операции.</p>
+<p><code>Index Cond</code> определяет условие, которое индекс может использовать для поиска или ограничения кандидатов.</p>
+<p><code>Filter</code> применяется к строкам, полученным узлом сканирования, чтобы отбросить неподходящие.</p>
+<p>Для нашего примера:</p>
+<ol>
+<li>По индексу находится <code>customer_id = 42</code>.</li>
+<li>Исполнитель получает кандидатов.</li>
+<li>Проверяет <code>status = 'PAID'</code>.</li>
+<li>Возвращает подходящие строки.</li>
+</ol>
+<p>Теперь представим:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  (actual time=0.100..250.000 rows=10 loops=1)
+  Index Cond: (customer_id = 42)
+  Filter: (status = 'PAID')
+  Rows Removed by Filter: 999990
+</code></pre></div>
+<p>Это условный диагностический пример.</p>
+<p>Индекс привел нас к миллиону кандидатов, а фильтр оставил только десять.</p>
+<p>Мы прочитали и проверили огромный объем данных ради маленького результата.</p>
+<h3 id="91">9.1. Что может изменить составной индекс<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Создадим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_customer_status</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+</code></pre></div>
+<p>Для того же SQL можно получить:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer_status on orders
+  Index Cond: (
+    (customer_id = 42)
+    AND (status = 'PAID')
+  )
+</code></pre></div>
+<p>Теперь оба условия могут использоваться при поиске по индексу.</p>
+<p>Это может значительно сократить число кандидатов и обращений к таблице.</p>
+<p>Но составной индекс занимает место, увеличивает стоимость записи и обслуживания. Его эффективность зависит от запросов и распределения данных.</p>
+<h3 id="92-rows-removed-by-filter">9.2. Строки, отклоненные фильтром (<code>Rows Removed by Filter</code>)<a class="headerlink" href="#92-rows-removed-by-filter" title="Permanent link">¶</a></h3>
+<p>Еще один полезный счетчик:</p>
+<div class="highlight"><pre><span></span><code>Rows Removed by Filter: 500000
+</code></pre></div>
+<p>Это количество строк, отклоненных фильтром.</p>
+<p>Если узел выполнялся несколько раз, значение представлено как среднее на один запуск, с округлением.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>Rows Removed by Filter: 100
+loops=1000
+</code></pre></div>
+<p>Ориентировочно это 100 000 отклоненных строк за все запуски.</p>
+<p>Необходимо также помнить, что <code>Rows Removed by Filter</code> не включает все возможные виды работы. Например, неподходящие записи, исключенные непосредственно условиями индексного поиска, не обязаны попадать в этот счетчик.</p>
+<h3 id="93">9.3. Когда дополнительный фильтр вполне нормален<a class="headerlink" href="#93" title="Permanent link">¶</a></h3>
+<p>Предположим:</p>
+<div class="highlight"><pre><span></span><code>Index Scan
+  Index Cond: (customer_id = 42)
+  Filter: (status = 'PAID')
+  Rows Removed by Filter: 2
+</code></pre></div>
+<p>Ради двух отклоненных строк создавать и поддерживать новый составной индекс, скорее всего, бессмысленно.</p>
+<p>Само наличие <code>Filter</code> не говорит о плохом плане.</p>
+<p>Важна стоимость работы, выполненной до фильтрации.</p>
+<h2 id="10-sort-order-by">10. Сортировка (<code>Sort</code>): почему ORDER BY может начать писать на диск<a class="headerlink" href="#10-sort-order-by" title="Permanent link">¶</a></h2>
+<p>Возьмем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможный план:</p>
+<div class="highlight"><pre><span></span><code>Sort
+  Sort Key: total_amount DESC
+  -&gt; Seq Scan on orders
+       Filter: (status = 'PAID')
+</code></pre></div>
+<p>Сначала PostgreSQL получает подходящие строки.</p>
+<p>Затем сортирует их по <code>total_amount</code>.</p>
+<p>Если строк мало, сортировка обычно выполняется в оперативной памяти.</p>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code>Sort
+  Sort Key: total_amount DESC
+  Sort Method: quicksort  Memory: 512kB
+</code></pre></div>
+<p>Видим алгоритм сортировки и использованную память.</p>
+<p>А теперь пусть вместо нескольких тысяч строк нам нужно отсортировать пять миллионов.</p>
+<p>Рабочий объем может оказаться больше доступной для сортировки памяти.</p>
+<p>PostgreSQL может использовать внешнюю сортировку, записывая промежуточные данные во временные файлы.</p>
+<div class="highlight"><pre><span></span><code>Sort
+  Sort Key: total_amount DESC
+  Sort Method: external merge  Disk: 256000kB
+</code></pre></div>
+<p>Число условное, но диагностический смысл точен: сортировка потребовала временного хранения на диске.</p>
+<h3 id="101">10.1. Что ограничивает память сортировки<a class="headerlink" href="#101" title="Permanent link">¶</a></h3>
+<p>Основной параметр:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">work_mem</span><span class="p">;</span>
+</code></pre></div>
+<p><code>work_mem</code> ограничивает объем памяти для отдельной подходящей операции выполнения запроса — например, сортировки. При превышении лимита операция может перейти к работе с временными файлами.</p>
+<p>Но важный момент: <code>work_mem</code> не является общим ограничением памяти одного SQL-запроса.</p>
+<p>Предположим:</p>
+<ul>
+<li>один запрос содержит три одновременно активных узла сортировки;</li>
+<li>одновременно работают 50 запросов;</li>
+<li>каждому узлу разрешено до 64 МиБ.</li>
+</ul>
+<p>Теоретический масштаб памяти только для этих узлов:</p>
+<div class="highlight"><pre><span></span><code>3 сортировки × 50 одновременных запросов × 64 МиБ = 9 600 МиБ
+</code></pre></div>
+<p>Почти 9,4 ГиБ.</p>
+<p>Это не прогноз точного RSS — операции могут потреблять меньше, выполнять работу в разное время и использовать дополнительные механизмы. Но модель показывает, почему бездумное глобальное увеличение <code>work_mem</code> опасно.</p>
+<p>С параллельными работниками потенциальное потребление еще сложнее.</p>
+<h3 id="102-limit">10.2. <code>LIMIT</code> меняет алгоритм<a class="headerlink" href="#102-limit" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Нужно найти десять максимальных значений.</p>
+<p>PostgreSQL может использовать ограниченную сортировку с кучей:</p>
+<div class="highlight"><pre><span></span><code>Sort Method: top-N heapsort  Memory: 25kB
+</code></pre></div>
+<p>Вместо хранения и полноценной сортировки всех входных строк можно поддерживать небольшой набор лучших кандидатов.</p>
+<p>Однако при отсутствии подходящего индекса исполнитель все равно может быть обязан прочитать все входные строки, чтобы узнать, какие десять действительно максимальные.</p>
+<p><code>LIMIT 10</code> сам по себе не означает чтение десяти строк.</p>
+<h3 id="103">10.3. Когда индекс позволяет обойтись без сортировки<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<p>Создадим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_orders_amount</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="p">(</span><span class="n">total_amount</span><span class="p">);</span>
+</code></pre></div>
+<p>Теперь запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>может воспользоваться обратным обходом B-дерева:</p>
+<div class="highlight"><pre><span></span><code>Limit
+  -&gt; Index Scan Backward using idx_orders_amount
+       on orders
+</code></pre></div>
+<p>Индекс предоставляет порядок, который требуется запросу.</p>
+<p>Отдельный узел <code>Sort</code> становится не нужен.</p>
+<p>Но вот здесь абстракция снова начинает протекать.</p>
+<p>Если убрать <code>LIMIT 10</code> и запросить все десять миллионов строк, обход индекса может потребовать множества обращений к таблице.</p>
+<p>Планировщик вправе выбрать <code>Seq Scan + Sort</code>, даже если индекс уже хранит ключи в нужном порядке.</p>
+<p><strong>Инженерный вывод:</strong> оптимизация <code>ORDER BY</code> — выбор между стоимостью получения строк в готовом порядке и стоимостью получения строк с последующей сортировкой.</p>
+<hr/>
+<h2 id="11-buffers">11. Буферные обращения (<code>BUFFERS</code>): сколько страниц затронул запрос<a class="headerlink" href="#11-buffers" title="Permanent link">¶</a></h2>
+<p>До сих пор мы разбирали вычислительную часть.</p>
+<p>Но в рабочей системе PostgreSQL часто ограничен стоимостью доступа к памяти и накопителю.</p>
+<p>Добавим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Условный вывод:</p>
+<div class="highlight"><pre><span></span><code>Index Scan using idx_orders_customer on orders
+  (actual time=0.080..4.500 rows=50 loops=1)
+  Index Cond: (customer_id = 42)
+  Buffers: shared hit=120 read=35
+</code></pre></div>
+<p>Разберем.</p>
+<h3 id="111-shared-hit">11.1. <code>shared hit</code><a class="headerlink" href="#111-shared-hit" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>shared hit=120
+</code></pre></div>
+<p>Это число успешных обращений к блокам, которые уже находились в общем буферном кеше PostgreSQL — <code>shared_buffers</code>.</p>
+<p>PostgreSQL смог использовать эти страницы без необходимости заново читать их из файлов таблиц или индексов.</p>
+<p><strong>120 попаданий не означают 120 уникальных страниц.</strong></p>
+<p>Одна и та же страница могла использоваться много раз и давать несколько попаданий.</p>
+<h3 id="112-shared-read">11.2. <code>shared read</code><a class="headerlink" href="#112-shared-read" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>shared read=35
+</code></pre></div>
+<p>Это число обращений, при которых требуемого блока не оказалось в <code>shared_buffers</code> и потребовалось прочитать его из файлового слоя.</p>
+<p>Но означает ли это, что PostgreSQL физически прочитал 35 страниц с SSD?</p>
+<p>Не обязательно.</p>
+<p>Посмотрим на путь доступа:</p>
+<div class="highlight"><pre><span></span><code>       Executor PostgreSQL
+ Запрашивает блок таблицы или индекса
+                 |
+                 v
+    PostgreSQL shared_buffers
+     Найдено → shared hit
+                 |
+                 v
+    Файловый кеш ОС / page cache
+  Промах shared_buffers; чтение может
+         обслужиться из RAM ОС
+                 |
+                 v
+               Storage
+ Физическое чтение при отсутствии
+          нужных данных в кеше
+</code></pre></div>
+<p>Это упрощенный путь обычного буферизованного чтения. Детали зависят от конфигурации ввода-вывода.</p>
+<p>Получается:</p>
+<div class="highlight"><pre><span></span><code>shared read=35
+</code></pre></div>
+<p>говорит об отсутствии страниц в <code>shared_buffers</code> при соответствующих обращениях.</p>
+<p>Но не дает точного числа физических операций чтения накопителя.</p>
+<p>ОС могла обслужить часть чтений из файлового кеша ОС. Это прямо согласуется с разграничением буферной статистики PostgreSQL и кеша файловой системы в документации.</p>
+<h3 id="113-buffers">11.3. Остальные показатели BUFFERS<a class="headerlink" href="#113-buffers" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Показатель</th>
+<th>Значение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shared hit</code></td>
+<td>Попадания в общий буферный кеш</td>
+</tr>
+<tr>
+<td><code>shared read</code></td>
+<td>Чтения блоков при отсутствии в общем буферном кеше</td>
+</tr>
+<tr>
+<td><code>shared dirtied</code></td>
+<td>Страницы, впервые сделанные грязными в рамках учета запроса</td>
+</tr>
+<tr>
+<td><code>shared written</code></td>
+<td>Записи ранее загрязненных страниц, выполненные данным процессом</td>
+</tr>
+<tr>
+<td><code>local hit/read</code></td>
+<td>Обращения к локальным буферам временных таблиц</td>
+</tr>
+<tr>
+<td><code>temp read/written</code></td>
+<td>Чтение и запись блоков временных рабочих файлов</td>
+</tr>
+</tbody>
+</table>
+<p>Здесь особенно важно различать <code>dirtied</code> и <code>written</code>.</p>
+<p>Если запрос изменил страницу, она может стать грязной — <em>загрязненной</em>.</p>
+<p>Но ее непосредственная запись на накопитель не обязана произойти в рамках того же запроса. Она может выполняться позже соответствующими механизмами PostgreSQL.</p>
+<p>В то же время <code>shared written</code> может отражать запись страницы, измененной ранее.</p>
+<p>Поэтому <code>shared dirtied</code> и <code>shared written</code> не являются синонимами.</p>
+<h3 id="114">11.4. Почему сумма буферных обращений по узлам обманывает<a class="headerlink" href="#114" title="Permanent link">¶</a></h3>
+<p>Предположим:</p>
+<div class="highlight"><pre><span></span><code>Sort
+  Buffers: shared hit=10000
+  -&gt; Seq Scan
+       Buffers: shared hit=10000
+</code></pre></div>
+<p>Можно ли утверждать, что запрос выполнил 20 000 обращений?</p>
+<p>Нет.</p>
+<p>Показатели родительского узла включают данные дочерних узлов.</p>
+<p>Для этого примера верхний <code>Sort</code> может показывать те же 10 000 обращений, которые были произведены при чтении строк дочерним <code>Seq Scan</code>.</p>
+<p>Нужно анализировать иерархию, а не складывать одинаковые счетчики.</p>
+<h3 id="115-shared-hit">11.5. Большой <code>shared hit</code> тоже может означать проблему<a class="headerlink" href="#115-shared-hit" title="Permanent link">¶</a></h3>
+<p>Допустим:</p>
+<div class="highlight"><pre><span></span><code>Index Scan
+  Buffers: shared hit=3000000 read=0
+</code></pre></div>
+<p>Все данные в оперативной памяти.</p>
+<p>Можно ли успокоиться?</p>
+<p>Нет.</p>
+<p>Три миллиона обращений к страницам могут означать значительную работу по поиску, получению буферов, проверкам и обработке строк.</p>
+<p>Под высокой конкуренцией эта работа потребляет CPU и создает давление на подсистему памяти.</p>
+<p>Отсутствие физических чтений не гарантирует дешевый запрос.</p>
+<h3 id="116-">11.6. Как измерить время ввода-вывода<a class="headerlink" href="#116-" title="Permanent link">¶</a></h3>
+<p>При включенном:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">track_io_timing</span><span class="p">;</span>
+</code></pre></div>
+<p>PostgreSQL может дополнительно отображать время операций чтения и записи.</p>
+<p>Настройка обычно требует повышенных привилегий для изменения.</p>
+<p>В плане могут появиться показатели вроде:</p>
+<div class="highlight"><pre><span></span><code>I/O Timings: shared read=42.500
+</code></pre></div>
+<p>Это измеренное время соответствующей операции ввода-вывода в миллисекундах.</p>
+<p>Его нельзя автоматически считать временем работы физического диска: операции могут проходить через кеш и файловую систему.</p>
+<p>Зато показатель помогает обнаружить, что существенная доля времени запроса связана с получением блоков.</p>
+<p>Под нагрузкой его полезно сопоставлять со статистикой ввода-вывода, ожиданиями процессов и характеристиками накопителя.</p>
+<h2 id="12-postgresql">12. Оценки планировщика: откуда PostgreSQL знает количество строк<a class="headerlink" href="#12-postgresql" title="Permanent link">¶</a></h2>
+<p>Мы подошли к центральному вопросу.</p>
+<p>Планировщик выбирает между <code>Seq Scan</code>, <code>Index Scan</code>, <code>Bitmap Scan</code> и другими операциями по расчетной стоимости.</p>
+<p>Но стоимость во многом зависит от количества строк.</p>
+<p>А количество строк заранее неизвестно.</p>
+<p>Неужели PostgreSQL выполняет запрос один раз для оценки, а потом еще раз для получения результата?</p>
+<p>Нет. Это сделало бы планирование слишком дорогим.</p>
+<p>Вместо этого PostgreSQL хранит <strong>статистическую модель данных</strong>.</p>
+<p>Она создается и обновляется командой <code>ANALYZE</code>, в том числе автоматически через механизм автоматического сбора статистики.</p>
+<h3 id="121">12.1. Статистика размера таблицы<a class="headerlink" href="#121" title="Permanent link">¶</a></h3>
+<p>Для начала планировщику нужно примерно понимать, сколько строк и страниц содержит таблица.</p>
+<p>Эти сведения доступны через <code>pg_class</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">relname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">reltuples</span><span class="p">,</span>
+<span class="w">    </span><span class="n">relpages</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_class</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span><span class="p">;</span>
+</code></pre></div>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>relname | reltuples | relpages
+--------+-----------+---------
+orders  | 1000000   | 15000
+</code></pre></div>
+<p><code>reltuples</code> — приблизительное количество строк.</p>
+<p><code>relpages</code> — приблизительное количество страниц.</p>
+<p>Эти показатели не обновляются после каждой вставки или удаления строки. PostgreSQL корректирует их при обслуживании таблицы и может масштабировать оценку количества строк с учетом текущего физического размера таблицы.</p>
+<p>Поэтому <code>reltuples</code> не нужно воспринимать как точный аналог <code>COUNT(*)</code>.</p>
+<p>Но знать общий размер недостаточно.</p>
+<p>Планировщику требуется ответить на другой вопрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+</code></pre></div>
+<p>Какую долю таблицы вернет это условие?</p>
+<h3 id="122-pg_stats">12.2. <code>pg_stats</code>: статистика распределения значений<a class="headerlink" href="#122-pg_stats" title="Permanent link">¶</a></h3>
+<p>Проверим:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">attname</span><span class="p">,</span>
+<span class="w">    </span><span class="n">null_frac</span><span class="p">,</span>
+<span class="w">    </span><span class="n">n_distinct</span><span class="p">,</span>
+<span class="w">    </span><span class="n">most_common_vals</span><span class="p">,</span>
+<span class="w">    </span><span class="n">most_common_freqs</span><span class="p">,</span>
+<span class="w">    </span><span class="n">histogram_bounds</span><span class="p">,</span>
+<span class="w">    </span><span class="n">correlation</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stats</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">schemaname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'public'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">tablename</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">;</span>
+</code></pre></div>
+<p>Важные поля:</p>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Что описывает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>null_frac</code></td>
+<td>Доля значений <code>NULL</code></td>
+</tr>
+<tr>
+<td><code>n_distinct</code></td>
+<td>Оценка количества различных значений</td>
+</tr>
+<tr>
+<td><code>most_common_vals</code></td>
+<td>Часто встречающиеся значения (MCV)</td>
+</tr>
+<tr>
+<td><code>most_common_freqs</code></td>
+<td>Частоты этих значений</td>
+</tr>
+<tr>
+<td><code>histogram_bounds</code></td>
+<td>Границы статистической гистограммы</td>
+</tr>
+<tr>
+<td><code>correlation</code></td>
+<td>Корреляция порядка значений с физическим порядком строк</td>
+</tr>
+</tbody>
+</table>
+<p>Дополнительно есть <code>avg_width</code> — средняя ширина значения столбца, используемая в оценке объема данных.</p>
+<p>Эти статистики вычисляются по выборке строк. Поэтому даже свежая статистика остается приближенной.</p>
+<h3 id="123-mcv-status">12.3. MCV — почему <code>status</code> нельзя оценивать равномерно<a class="headerlink" href="#123-mcv-status" title="Permanent link">¶</a></h3>
+<p>Представим миллион заказов.</p>
+<p>Распределение статусов:</p>
+<table>
+<thead>
+<tr>
+<th>Статус</th>
+<th style="text-align: right;">Доля строк</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PAID</code></td>
+<td style="text-align: right;">80%</td>
+</tr>
+<tr>
+<td><code>NEW</code></td>
+<td style="text-align: right;">15%</td>
+</tr>
+<tr>
+<td><code>CANCELLED</code></td>
+<td style="text-align: right;">5%</td>
+</tr>
+</tbody>
+</table>
+<p><em>Условное распределение для объяснения селективности.</em></p>
+<p>Если планировщик просто разделит миллион строк на три статуса, он получит примерно 333 333 строки на каждый.</p>
+<p>Но действительное распределение сильно неравномерно.</p>
+<p>Для запроса:</p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+</code></pre></div>
+<p>ожидается около 800 000 строк.</p>
+<p>А для:</p>
+<div class="highlight"><pre><span></span><code><span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'CANCELLED'</span>
+</code></pre></div>
+<p>всего около 50 000.</p>
+<p>MCV позволяет сохранить распространенные значения и их частоты.</p>
+<p>Планировщик может учитывать, что <code>PAID</code> встречается гораздо чаще <code>CANCELLED</code>.</p>
+<p>Это напрямую влияет на выбор между последовательным и индексным доступом.</p>
+<h3 id="124-n_distinct">12.4. <code>n_distinct</code>: когда точная частота неизвестна<a class="headerlink" href="#124-n_distinct" title="Permanent link">¶</a></h3>
+<p>Предположим, <code>customer_id</code> имеет примерно 100 000 различных значений и распределен относительно равномерно между миллионом строк.</p>
+<p>Если конкретного значения нет в MCV, планировщик может использовать оценку на основе количества различных значений с учетом других статистических сведений.</p>
+<p>Упрощенная модель:</p>
+<div class="highlight"><pre><span></span><code>Селективность ≈ 1 / 100 000
+</code></pre></div>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>Ожидается: 1 000 000 × (1 / 100 000) = 10 строк
+</code></pre></div>
+<p>Это работает достаточно хорошо для почти равномерного распределения.</p>
+<p>А теперь один клиент создал 200 000 заказов, остальные — значительно меньше.</p>
+<p>Равномерная модель перестает отражать реальность.</p>
+<p>Если популярное значение обнаружено при сборе статистики и попало в MCV, оценка может существенно улучшиться.</p>
+<p>В PostgreSQL отрицательное значение <code>n_distinct</code> также имеет особый смысл: оно обозначает оценку доли различных значений относительно числа строк, а не отрицательное количество уникальных значений.</p>
+<h3 id="125">12.5. Гистограмма: как оценить диапазон<a class="headerlink" href="#125" title="Permanent link">¶</a></h3>
+<p>Теперь запрос:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">total_amount</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">5000</span><span class="p">;</span>
+</code></pre></div>
+<p>Как оценить долю строк, попадающих в диапазон?</p>
+<p>Считать каждое значение слишком дорого.</p>
+<p>PostgreSQL может использовать статистическую гистограмму.</p>
+<p>Упрощенно представим, что границы подобраны так, чтобы между соседними границами находились примерно равные доли значений, не включенных в список MCV.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>0 ── 100 ── 300 ── 1000 ── 5000 ── 100000
+</code></pre></div>
+<p>Расстояния по числовой шкале разные, поскольку распределение неравномерное.</p>
+<p>Планировщик оценивает, в какую часть распределения попадают границы условия.</p>
+<p>Это значительно полезнее предположения, что суммы заказов равномерно распределены между минимумом и максимумом.</p>
+<p>Но гистограмма имеет конечную детализацию.</p>
+<p>Если большинство значений концентрируется внутри очень узкого диапазона, а статистика грубая, оценка может ошибаться.</p>
+<h3 id="126">12.6. Корреляция: одна колонка, две разные физические стоимости<a class="headerlink" href="#126" title="Permanent link">¶</a></h3>
+<p>Мы уже обсуждали <code>Index Scan</code>.</p>
+<p>Соседние записи B-дерева могут ссылаться на соседние страницы таблицы либо на страницы, расположенные далеко друг от друга.</p>
+<p>Показатель <code>correlation</code> помогает оценивать это различие.</p>
+<p>Важная тонкость: значения около <code>+1</code> означают сильную прямую связь порядков, около <code>-1</code> — сильную обратную. Для оценки локальности оба случая могут быть полезны.</p>
+<p>Значения около нуля указывают на слабую связь между порядком столбца и физическим порядком строк.</p>
+<p>Индекс по <code>created_at</code> может быть выгоден на таблице, заполненной хронологически, и заметно дороже на таблице, где значения времени случайно распределены по таблице.</p>
+<p><strong>Селективность сообщает, сколько строк потребуется. Корреляция помогает оценить, насколько дорогим может оказаться доступ к ним.</strong></p>
+<h2 id="13">13. Где оценки планировщика ломаются: зависимые столбцы<a class="headerlink" href="#13" title="Permanent link">¶</a></h2>
+<p>А вот здесь начинается самое интересное.</p>
+<p>Предположим, есть миллион заказов.</p>
+<p>Из них:</p>
+<ul>
+<li>100 000 имеют статус <code>PAID</code>;</li>
+<li>100 000 созданы через канал <code>APP</code>;</li>
+<li>все заказы со статусом <code>PAID</code> созданы через <code>APP</code>.</li>
+</ul>
+<p>Выполним:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'APP'</span><span class="p">;</span>
+</code></pre></div>
+<p>Планировщик знает селективность каждого условия:</p>
+<div class="highlight"><pre><span></span><code>Доля заказов PAID = 0,1 (10%)
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>Доля заказов APP = 0,1 (10%)
+</code></pre></div>
+<p>Если предположить, что условия независимы:</p>
+<div class="highlight"><pre><span></span><code>Оценка совместной доли при независимости = 0,1 × 0,1 = 0,01 (1%)
+</code></pre></div>
+<p>Получится:</p>
+<div class="highlight"><pre><span></span><code>Ожидается: 1 000 000 × 0,01 = 10 000 строк
+</code></pre></div>
+<p>Планировщик ожидает десять тысяч строк.</p>
+<p>Но фактически их сто тысяч!</p>
+<p>Ошибка в десять раз.</p>
+<p>Почему?</p>
+<p>Потому что статус и канал в нашем наборе данных полностью связаны друг с другом.</p>
+<p>Независимость условий оказалась неправильным предположением.</p>
+<h3 id="131">13.1. Почему это опасно для выполнения запроса<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<p>Предположим, PostgreSQL использует полученную оценку как количество строк на входе следующей операции.</p>
+<p>Вместо 10 000 строк туда поступает 100 000.</p>
+<p>Если это сортировка, ей потребуется больше времени и памяти.</p>
+<p>Если это внутренняя сторона соединения, выбранный алгоритм может оказаться неудачным.</p>
+<p>Если это построение хеш-таблицы, ее размер может превысить первоначальные ожидания.</p>
+<p>Таким образом, ошибка оценки распространяется дальше по дереву.</p>
+<div class="highlight"><pre><span></span><code>Неправильная селективность
+Ожидали 10 000 строк, получили 100 000
+               ↓
+Неправильная стоимость операций
+Доступ и обработка оказываются дороже прогноза
+               ↓
+Неудачный выбор плана
+Выбранный путь рассчитан на другой объем данных
+               ↓
+Повышенное потребление ресурсов
+Больше CPU, обращений к страницам, памяти или временных файлов
+               ↓
+Рост задержки под нагрузкой
+Система дольше обслуживает запросы и хуже переносит конкуренцию
+</code></pre></div>
+<h3 id="132">13.2. Расширенная статистика<a class="headerlink" href="#132" title="Permanent link">¶</a></h3>
+<p>PostgreSQL поддерживает многоколоночную статистику — <em>расширенная статистика</em>.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="n">orders_status_channel_stats</span><span class="w"> </span><span class="p">(</span><span class="n">mcv</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">channel</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Теперь PostgreSQL может собирать статистику распространенных сочетаний двух столбцов.</p>
+<p>Это позволяет учитывать, что пара:</p>
+<div class="highlight"><pre><span></span><code>('PAID', 'APP')
+</code></pre></div>
+<p>встречается намного чаще, чем следовало бы из предположения независимости.</p>
+<p>Есть несколько разновидностей расширенной статистики:</p>
+<table>
+<thead>
+<tr>
+<th>Вид</th>
+<th>Для чего применяется</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mcv</code></td>
+<td>Частые сочетания значений нескольких столбцов</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td>Функциональные зависимости между столбцами</td>
+</tr>
+<tr>
+<td><code>ndistinct</code></td>
+<td>Количество различных сочетаний, особенно для оценок группировок</td>
+</tr>
+</tbody>
+</table>
+<p>Они решают разные проблемы.</p>
+<p>Например, <code>dependencies</code> полезна для некоторых условий равенства, когда значение одного столбца определяет или почти определяет значение другого.</p>
+<p>Но ее применение ограничено: она не является универсальным решением для любых <code>JOIN</code>, <code>LIKE</code> или диапазонных условий.</p>
+<p>Важно и другое: расширенная статистика собирается по явно определенным наборам столбцов. PostgreSQL не строит ее автоматически для всех возможных комбинаций — стоимость такого подхода была бы слишком высокой.</p>
+<h2 id="14-analyze">14. Почему <code>ANALYZE</code> иногда помогает, а иногда вообще ничего не исправляет<a class="headerlink" href="#14-analyze" title="Permanent link">¶</a></h2>
+<p>Есть известный совет:</p>
+<p>«Запрос начал тормозить? Выполни <code>ANALYZE</code>».</p>
+<p>Иногда это действительно помогает.</p>
+<p>Например, вчера в таблице было 100 000 строк, а после массового импорта стало 20 миллионов.</p>
+<p>Статистика могла перестать соответствовать актуальному состоянию данных.</p>
+<p>Обновление:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ANALYZE</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>позволяет пересчитать оценки и помогает планировщику выбрать более подходящий план при последующем планировании запроса.</p>
+<p>Но почему иногда после <code>ANALYZE</code> ничего не меняется?</p>
+<p>Возможные причины:</p>
+<table>
+<thead>
+<tr>
+<th>Причина</th>
+<th>Что происходит</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Недостаточная детализация</td>
+<td>Выборка и статистические структуры плохо отражают распределение</td>
+</tr>
+<tr>
+<td>Зависимые условия</td>
+<td>Обычная статистика по отдельным столбцам не отражает совместное распределение</td>
+</tr>
+<tr>
+<td>Неподходящий индекс</td>
+<td>Планировщику нечего выбрать для эффективного доступа</td>
+</tr>
+<tr>
+<td>Неверная модель стоимости</td>
+<td>Коэффициенты плохо соответствуют характеристикам системы и нагрузки</td>
+</tr>
+<tr>
+<td>Неподходящая форма запроса</td>
+<td>SQL-выражение ограничивает доступные способы использования индекса</td>
+</tr>
+<tr>
+<td>Кешированный план</td>
+<td>В некоторых сценариях план зависит от режима работы подготовленных запросов и используемых параметров</td>
+</tr>
+</tbody>
+</table>
+<p>Для увеличения детализации статистики отдельного столбца:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">total_amount</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Значение 1000 увеличивает целевой объем статистики по сравнению с обычной настройкой 100.</p>
+<p>Но улучшение оценки не гарантировано. Кроме того, растут затраты на сбор и хранение статистики.</p>
+<h2 id="15-explain-http-">15. Почему EXPLAIN не показывает реальную задержку HTTP-запроса<a class="headerlink" href="#15-explain-http-" title="Permanent link">¶</a></h2>
+<p>Предположим:</p>
+<div class="highlight"><pre><span></span><code>Planning Time: 0.250 ms
+Execution Time: 12.500 ms
+</code></pre></div>
+<p>Приложение при этом измеряет 120 мс от вызова SQL до получения результата.</p>
+<p>Где потерялись остальные 107 миллисекунд?</p>
+<p>Сначала разберем, что измеряет сам PostgreSQL.</p>
+<p><code>Planning Time</code> — время построения и оптимизации плана после разбора и переписывания запроса. Время синтаксического разбора и переписывания в него не входит.</p>
+<p><code>Execution Time</code> — время работы исполнителя, включая соответствующую инициализацию и завершение. Для запросов с триггерами есть дополнительные нюансы учета их выполнения.</p>
+<p>Но обычный <code>EXPLAIN ANALYZE</code> не отправляет набор результирующих строк клиенту.</p>
+<p>Поэтому в нем не учитывается вся стоимость сериализации результата, сетевой передачи и обработки данных приложением.</p>
+<p>В PostgreSQL 18 есть дополнительная возможность:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">ANALYZE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">BUFFERS</span><span class="p">,</span>
+<span class="w">    </span><span class="n">SERIALIZE</span><span class="w"> </span><span class="nb">TEXT</span>
+<span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="p">;</span>
+</code></pre></div>
+<p>Она позволяет дополнительно измерить сериализацию выходных значений в текстовое представление.</p>
+<p>Это особенно полезно для широких строк, сложных типов и TOAST-значений, хранящихся вне основной строки.</p>
+<p>Но сетевую отправку результата <code>EXPLAIN</code> все равно не воспроизводит.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>HTTP latency
+    ├── ожидание получения соединения из пула
+    ├── отправка SQL
+    ├── разбор и планирование на сервере
+    ├── выполнение на сервере
+    ├── передача результатов
+    ├── декодирование строк клиентом
+    └── работа приложения
+</code></pre></div>
+<p><code>Execution Time</code> — только часть этой картины.</p>
+<p>Практическое следствие: нельзя обвинять PostgreSQL в 120 мс задержки только потому, что запрос выполняется через PostgreSQL.</p>
+<p>И наоборот, 12 мс внутри PostgreSQL могут быть существенной проблемой, если запрос вызывается тысячи раз в секунду.</p>
+<h2 id="16">16. Как инструмент измерения влияет на результат<a class="headerlink" href="#16" title="Permanent link">¶</a></h2>
+<p><code>EXPLAIN ANALYZE</code> добавляет инструментирование узлов плана.</p>
+<p>Нужно собирать счетчики строк, время выполнения, количество запусков и другую статистику.</p>
+<p>Это создает дополнительную работу.</p>
+<p>На коротких узлах, которые выполняются огромное количество раз, стоимость измерений может быть заметной относительно полезной работы.</p>
+<p>Если нам нужны прежде всего реальные количества строк и обращения к буферам, можно отключить детальное измерение времени узлов:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">ANALYZE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">BUFFERS</span><span class="p">,</span>
+<span class="w">    </span><span class="n">TIMING</span><span class="w"> </span><span class="k">OFF</span>
+<span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p><code>actual rows</code> и <code>loops</code> останутся, но времена отдельных узлов отображаться не будут.</p>
+<p>Общее <code>Execution Time</code> продолжит измеряться.</p>
+<p>Это полезно при исследовании запросов с множеством очень коротких итераций.</p>
+<p>Если нужен формат для программного анализа:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">ANALYZE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">BUFFERS</span><span class="p">,</span>
+<span class="w">    </span><span class="n">FORMAT</span><span class="w"> </span><span class="n">JSON</span>
+<span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>JSON удобен для автоматизированного сравнения планов, анализа оценок и построения инструментов диагностики.</p>
+<h3 id="161">16.1. Осторожно с изменяющими запросами<a class="headerlink" href="#161" title="Permanent link">¶</a></h3>
+<p>Для <code>SELECT</code> команда обычно безопасна в смысле отсутствия изменений строк, хотя функции внутри запроса могут иметь побочные эффекты.</p>
+<p>А вот:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="k">ANALYZE</span>
+<span class="k">DELETE</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="p">;</span>
+</code></pre></div>
+<p>действительно выполнит удаление.</p>
+<p>Для изолированного эксперимента можно использовать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">,</span><span class="w"> </span><span class="n">WAL</span><span class="p">)</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+<p>Изменения строк будут отменены при откате транзакции.</p>
+<p>Однако сам эксперимент уже мог создать нагрузку, получить блокировки, сгенерировать WAL и выполнить другие действия. Последовательности и внешние побочные эффекты также не обязательно откатываются.</p>
+<p>В рабочей системе подобные измерения требуют осторожности.</p>
+<hr/>
+<h2 id="17">17. Как читать плохой план в рабочей системе<a class="headerlink" href="#17" title="Permanent link">¶</a></h2>
+<p>Теперь соберем все в единую методику.</p>
+<p>Предположим, SQL-запрос серверного приложения стал выполняться 15 секунд вместо обычных 100 мс.</p>
+<p>Мы получили план и видим:</p>
+<div class="highlight"><pre><span></span><code>Nested Loop
+  (cost=... rows=100 ...)
+  (actual time=... rows=100000 loops=1)
+
+  -&gt; Seq Scan on customers
+       (cost=... rows=100 ...)
+       (actual time=... rows=100000 loops=1)
+
+  -&gt; Index Scan using idx_orders_customer on orders
+       (cost=... rows=1 ...)
+       (actual time=0.050..0.100 rows=1 loops=100000)
+       Index Cond: (customer_id = customers.id)
+</code></pre></div>
+<p>Числа условные.</p>
+<p>Здесь первый интересный симптом:</p>
+<div class="highlight"><pre><span></span><code>rows=100
+actual rows=100000
+</code></pre></div>
+<p>Планировщик ожидал сто клиентов.</p>
+<p>Фактически получил сто тысяч.</p>
+<p>Второй симптом:</p>
+<div class="highlight"><pre><span></span><code>Index Scan
+loops=100000
+</code></pre></div>
+<p>Внутренний индексный поиск выполнялся сто тысяч раз.</p>
+<p>Третий:</p>
+<div class="highlight"><pre><span></span><code>actual time=0.050..0.100
+</code></pre></div>
+<p>Один поиск кажется дешевым.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>Сумма времен внутренних запусков ≈ 100 000 × 0,100 мс
+                                    = 10 000 мс (10 секунд)
+</code></pre></div>
+<p>Получается примерно десять секунд суммарного измеренного времени внутреннего узла.</p>
+<p>Вот почему поверхностный анализ <code>EXPLAIN</code> часто приводит к неправильным выводам.</p>
+<p>Можно увидеть <code>Index Scan</code>, решить, что индекс есть и все хорошо, и пропустить настоящую причину.</p>
+<p><strong>Ошибка началась выше — в оценке числа строк. Именно она привела к огромному количеству повторных индексных поисков.</strong></p>
+<p>Исправление может заключаться в актуализации или расширении статистики, изменении запроса, подходящих индексах либо выборе другого плана через корректную настройку модели стоимости.</p>
+<p>Простое увеличение <code>work_mem</code> или добавление случайного индекса эту причинно-следственную цепочку не исправит.</p>
+<h3 id="171">17.1. Быстрая диагностика по симптомам<a class="headerlink" href="#171" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Что видно в плане</th>
+<th>Что проверить первым</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rows=10</code>, <code>actual rows=100000</code></td>
+<td>Селективность, статистика, зависимости столбцов</td>
+</tr>
+<tr>
+<td><code>loops=100000</code></td>
+<td>Почему родитель повторно запускает дочерний узел</td>
+</tr>
+<tr>
+<td>Много <code>Rows Removed by Filter</code></td>
+<td>Условия доступа, составные индексы, число кандидатов</td>
+</tr>
+<tr>
+<td>Большой <code>shared read</code></td>
+<td>Рабочий набор, кеш, измерение времени ввода-вывода</td>
+</tr>
+<tr>
+<td>Большой <code>shared hit</code> при медленном запросе</td>
+<td>Повторная работа с буферами, CPU, количество сканирований</td>
+</tr>
+<tr>
+<td><code>Sort Method: external merge</code></td>
+<td>Объем сортировки, <code>work_mem</code>, возможность получить нужный порядок через индекс</td>
+</tr>
+<tr>
+<td><code>Heap Blocks: lossy=...</code></td>
+<td>Точность битовой карты, количество кандидатов, повторные проверки</td>
+</tr>
+<tr>
+<td>Высокий <code>Execution Time</code> при правильных <code>rows</code></td>
+<td>Стоимость выбранных операций, ввод-вывод, повторения, конкуренция</td>
+</tr>
+</tbody>
+</table>
+<p>Если ошибки оценки нет, а запрос все равно медленный, следующий шаг — смотреть фактическую стоимость доступа и обработки данных.</p>
+<p>Один только <code>EXPLAIN</code> не раскроет все причины ожиданий под нагрузкой. Например, ожидания блокировок и конкуренция за ресурсы требуют сопоставления с другими механизмами наблюдаемости PostgreSQL.</p>
+<h2 id="18">18. Практика: проверяем работу планировщика<a class="headerlink" href="#18" title="Permanent link">¶</a></h2>
+<p>Нам нужна таблица, на которой можно воспроизвести разные способы доступа, ошибки оценок и проблемы сортировки.</p>
+<p>Работаем в отдельной учебной базе.</p>
+<h3 id="0">Эксперимент 0. Подготовка данных<a class="headerlink" href="#0" title="Permanent link">¶</a></h3>
+<p>Создадим таблицу с 500 000 заказов.</p>
+<div class="highlight"><pre><span></span><code><span class="k">DROP</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">explain_orders</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span>
+<span class="w">    </span><span class="n">n</span><span class="p">::</span><span class="nb">bigint</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">id</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10000</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)::</span><span class="nb">int</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">customer_id</span><span class="p">,</span>
+<span class="w">    </span><span class="k">CASE</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="w">        </span><span class="k">ELSE</span><span class="w"> </span><span class="s1">'NEW'</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">status</span><span class="p">,</span>
+<span class="w">    </span><span class="k">CASE</span>
+<span class="w">        </span><span class="k">WHEN</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="s1">'APP'</span>
+<span class="w">        </span><span class="k">ELSE</span><span class="w"> </span><span class="s1">'WEB'</span>
+<span class="w">    </span><span class="k">END</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">channel</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">10000</span><span class="p">)::</span><span class="nb">int</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span>
+<span class="w">    </span><span class="k">timestamp</span><span class="w"> </span><span class="s1">'2026-01-01'</span>
+<span class="w">        </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">180</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nb">interval</span><span class="w"> </span><span class="s1">'1 day'</span>
+<span class="w">        </span><span class="k">AS</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span>
+<span class="w">    </span><span class="n">repeat</span><span class="p">(</span><span class="s1">'x'</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">payload</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">500000</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">s</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_explain_customer</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">(</span><span class="n">customer_id</span><span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_explain_amount</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">(</span><span class="n">amount</span><span class="p">);</span>
+
+<span class="k">VACUUM</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">)</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Здесь специально созданы два свойства.</p>
+<p>Первое: один <code>customer_id</code> соответствует примерно 50 заказам.</p>
+<p>Второе: <code>status</code> и <code>channel</code> полностью зависимы. Все заказы <code>PAID</code> имеют канал <code>APP</code>.</p>
+<p>Отключим параллельное выполнение для учебных экспериментов, чтобы упростить интерпретацию планов:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="n">max_parallel_workers_per_gather</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</code></pre></div>
+<p>Настройка действует в текущей сессии.</p>
+<h3 id="1">Эксперимент 1. последовательное сканирование<a class="headerlink" href="#1" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">status</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'NEW'</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаем увидеть <code>Seq Scan</code>.</p>
+<p>Почему?</p>
+<p>Статус <code>NEW</code> имеют 90% строк, а индекса по статусу нет.</p>
+<p>Нужно посмотреть:</p>
+<ul>
+<li><code>rows</code> и <code>actual rows</code>;</li>
+<li><code>Rows Removed by Filter</code>;</li>
+<li><code>Buffers: shared hit/read</code>;</li>
+<li><code>Execution Time</code>.</li>
+</ul>
+<p>Затем запустить запрос повторно.</p>
+<p>Обратить внимание, изменились ли обращения к кешу и время выполнения.</p>
+<p>Если показатели изменились, объяснить их через состояние кешей и нагрузки, а не считать второй запуск абсолютным эталоном.</p>
+<h3 id="2">Эксперимент 2. сканирование по индексу<a class="headerlink" href="#2" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаем <code>Index Scan</code>, поскольку индекс по <code>customer_id</code> существует, а подходящих строк мало.</p>
+<p>Сравним число выходных строк и количество обращений к буферам с предыдущим экспериментом.</p>
+<p>Обратим внимание: <code>Buffers</code> включает работу как с индексом, так и с таблицей.</p>
+<p>Теперь запросим более широкий диапазон:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">customer_id</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">9000</span><span class="p">;</span>
+</code></pre></div>
+<p>Условию соответствует большая доля таблицы.</p>
+<p>Посмотрим, поменяет ли планировщик стратегию.</p>
+<h3 id="3">Эксперимент 3. сканирование по битовой карте<a class="headerlink" href="#3" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">2000</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">2500</span><span class="p">;</span>
+</code></pre></div>
+<p>Это примерно 5% строк.</p>
+<p>PostgreSQL может выбрать <code>Bitmap Heap Scan</code>, но конкретный результат зависит от статистики и параметров стоимости.</p>
+<p>Если он выбрал другой план, сравним альтернативу в отдельной транзакции:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">enable_seqscan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">off</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">enable_indexscan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">off</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">2000</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">2500</span><span class="p">;</span>
+
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+<p>Эти настройки позволяют исследовать стоимость альтернативного способа доступа. Использовать их как постоянное решение для рабочей системы не следует.</p>
+<p>При сканировании по битовой карте смотрим <code>Bitmap Index Scan</code>, <code>Bitmap Heap Scan</code>, <code>Recheck Cond</code> и <code>Heap Blocks</code>.</p>
+<h3 id="4">Эксперимент 4. Фильтр против условия индекса<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">1500</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span><span class="p">;</span>
+</code></pre></div>
+<p>У нас есть индекс только по <code>amount</code>.</p>
+<p>Поэтому ожидаем, что условие по <code>amount</code> сможет участвовать в индексном поиске, а условие по <code>status</code> придется проверять дополнительно.</p>
+<p>Теперь добавим составной индекс:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_explain_amount_status</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">(</span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">status</span><span class="p">);</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Повторим <code>EXPLAIN</code>.</p>
+<p>Сравним, какие условия оказались в <code>Index Cond</code>, сколько кандидатов было отклонено и как изменились буферные обращения.</p>
+<p>При этом планировщик не обязан выбирать новый индекс, если считает другую стратегию дешевле.</p>
+<h3 id="5">Эксперимент 5. Специально ломаем сортировку<a class="headerlink" href="#5" title="Permanent link">¶</a></h3>
+<p>Ограничим память сортировки:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">work_mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'64kB'</span><span class="p">;</span>
+
+<span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+
+<span class="k">ROLLBACK</span><span class="p">;</span>
+</code></pre></div>
+<p>На таком объеме ожидаем внешнюю сортировку с временными файлами.</p>
+<p>Ищем:</p>
+<div class="highlight"><pre><span></span><code>Sort Method: external merge
+Disk: ...
+Buffers: temp read=... written=...
+</code></pre></div>
+<p>Теперь повторим с:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">work_mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'64MB'</span><span class="p">;</span>
+</code></pre></div>
+<p>в новой транзакции, сохранив тот же запрос.</p>
+<p>Сравним метод сортировки, время, временные файлы и использование памяти.</p>
+<p>Затем исследуем <code>LIMIT</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">created_at</span><span class="w"> </span><span class="k">DESC</span>
+<span class="k">LIMIT</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+</code></pre></div>
+<p>Возможно появление <code>top-N heapsort</code>.</p>
+<p>Нужно объяснить, почему объем памяти небольшой, хотя исполнитель все равно должен изучить большой набор входных строк.</p>
+<h3 id="6-planner-estimates">Эксперимент 6. Ломаем planner estimates<a class="headerlink" href="#6-planner-estimates" title="Permanent link">¶</a></h3>
+<p>Теперь самое содержательное.</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'PAID'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'APP'</span><span class="p">;</span>
+</code></pre></div>
+<p>Фактически подходящих строк 50 000.</p>
+<p>Обычная статистика по отдельным столбцам может привести к оценке порядка 5000, поскольку оба условия по отдельности имеют селективность 10%.</p>
+<p>Посмотрим реальную оценку в <code>rows</code>.</p>
+<p>Теперь создадим многоколоночную статистику:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="n">explain_status_channel</span><span class="w"> </span><span class="p">(</span><span class="n">mcv</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">channel</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">;</span>
+
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">explain_orders</span><span class="p">;</span>
+</code></pre></div>
+<p>Повторим запрос.</p>
+<p>Ожидаем, что оценка приблизится к фактическим 50 000 строкам.</p>
+<p>Обрати внимание: сам SQL не изменился. Индексов мы не добавляли.</p>
+<p>Изменилась статистическая модель, которую использует планировщик.</p>
+<p>Это один из самых полезных экспериментов для понимания PostgreSQL.</p>
+<h3 id="7">Эксперимент 7. Индексное сканирование без чтения таблицы<a class="headerlink" href="#7" title="Permanent link">¶</a></h3>
+<p>Это небольшой дополнительный эксперимент для понимания <code>Index Scan</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">amount</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">explain_orders</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">1000</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">1010</span><span class="p">;</span>
+</code></pre></div>
+<p>Поскольку запросу нужны только значения <code>amount</code>, которые есть в B-дереве, PostgreSQL может использовать <code>Index Only Scan</code>.</p>
+<p>Но остается вопрос MVCC: как проверить видимость строки, если мы не читаем таблицу?</p>
+<p>Здесь используется карта видимости.</p>
+<p>Для страниц, отмеченных как <code>all-visible</code>, можно избежать обращения к таблице для проверки видимости. В остальных случаях потребуется посетить соответствующую строку таблицы.</p>
+<p>План показывает:</p>
+<div class="highlight"><pre><span></span><code>Heap Fetches: ...
+</code></pre></div>
+<p>Чем больше таких обращений, тем меньше практическая выгода от сканирования только по индексу.</p>
+<p>Это демонстрирует, почему даже наличие всех необходимых столбцов в индексе не гарантирует полностью автономного чтения по индексу.</p>
+<p>После практики вернем стандартную настройку сессии:</p>
+<div class="highlight"><pre><span></span><code><span class="k">RESET</span><span class="w"> </span><span class="n">max_parallel_workers_per_gather</span><span class="p">;</span>
+</code></pre></div>
+<hr/>
+<h2 id="19">19. Что происходит под нагрузкой<a class="headerlink" href="#19" title="Permanent link">¶</a></h2>
+<p>Теперь перенесем наши наблюдения в контекст серверного приложения.</p>
+<p>Предположим, один запрос выполняется за 20 мс.</p>
+<p>Сервис вызывает его 500 раз в секунду.</p>
+<p>Даже если все данные находятся в оперативной памяти, суммарная работа значительна.</p>
+<p>Если запрос делает большое количество обращений к буферам, создает временные файлы или повторно выполняет внутренние индексные поиски, при росте конкуренции могут появиться новые ограничения.</p>
+<p>Важно различать несколько сценариев.</p>
+<table>
+<thead>
+<tr>
+<th>Ограниченный ресурс</th>
+<th>Возможный симптом</th>
+<th>Что измерять</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>Высокая загрузка при преимущественно кешированных данных</td>
+<td>CPU, узлы плана, число обработанных строк</td>
+</tr>
+<tr>
+<td>Оперативная память и буферный кеш</td>
+<td>Рост <code>shared read</code>, вытеснение полезных страниц</td>
+<td><code>BUFFERS</code>, статистика кеша</td>
+</tr>
+<tr>
+<td>Накопитель</td>
+<td>Рост задержек ввода-вывода, временные файлы сортировки</td>
+<td>измерение времени ввода-вывода, <code>temp read/written</code></td>
+</tr>
+<tr>
+<td>Память сортировок</td>
+<td>Переход на внешнюю сортировку слиянием при больших результатах</td>
+<td><code>Sort Method</code>, <code>Disk</code>, <code>work_mem</code></td>
+</tr>
+<tr>
+<td>Планирование</td>
+<td>Существенное время подготовки сложных планов</td>
+<td><code>Planning Time</code>, статистика планирования</td>
+</tr>
+<tr>
+<td>Повторные сканирования</td>
+<td>Огромные <code>loops</code> при небольшом времени одной итерации</td>
+<td><code>loops</code>, <code>actual time</code>, <code>rows</code></td>
+</tr>
+</tbody>
+</table>
+<p>Еще один нюанс: PostgreSQL обычно выбирает план до начала его исполнения. Если фактическое количество строк оказалось намного больше ожидаемого, исполнитель не обязан автоматически перестроить весь запрос на более выгодный алгоритм.</p>
+<p>Поэтому неправильная оценка может дорого обходиться на протяжении всего выполнения.</p>
+<p>Для поиска проблемных SQL в работающей системе полезен <code>pg_stat_statements</code>.</p>
+<p>Он позволяет анализировать накопленные показатели по запросам: частоту выполнения, суммарное и среднее время, разброс длительностей, обращения к блокам и другие метрики.</p>
+<p>Сначала находим запросы, которые действительно создают нагрузку. Затем исследуем их конкретные планы с помощью <code>EXPLAIN</code>.</p>
+<p>Это эффективнее, чем оптимизировать произвольный SQL, который выглядит некрасиво, но выполняется два раза в сутки.</p>
+<h2 id="20-explain">20. Итоговая модель EXPLAIN<a class="headerlink" href="#20-explain" title="Permanent link">¶</a></h2>
+<p>После этой лекции важно удерживать семь принципов.</p>
+<ol>
+<li>
+<p><strong>Планировщик работает с оценками.</strong> Количество строк, размеры данных, селективность и стоимость операций определяют выбор плана.</p>
+</li>
+<li>
+<p><strong><code>cost</code> — относительная оценка затрат.</strong> Она позволяет сравнивать допустимые планы и зависит от параметров модели стоимости. Ее нельзя напрямую переводить в миллисекунды.</p>
+</li>
+<li>
+<p><strong><code>rows</code> описывает выход узла.</strong> Сравнение с <code>actual rows</code> показывает, насколько точными оказались предположения планировщика.</p>
+</li>
+<li>
+<p><strong><code>actual time</code> нужно читать вместе с <code>loops</code>.</strong> Дешевый отдельный запуск может превратиться в дорогую операцию при тысячах повторений.</p>
+</li>
+<li>
+<p><strong><code>Seq Scan</code>, <code>Index Scan</code> и <code>Bitmap Scan</code> решают одну задачу разными способами.</strong> Их эффективность зависит от селективности, физического расположения строк, кешей и стоимости доступа.</p>
+</li>
+<li>
+<p><strong><code>BUFFERS</code> раскрывает работу со страницами PostgreSQL.</strong> Попадания в кеш и чтения блоков не равнозначны уникальным страницам или физическим операциям ввода-вывода накопителя.</p>
+</li>
+<li>
+<p><strong>Ошибки оценок способны определять производительность всего дерева.</strong> Поэтому диагностику нужно начинать с расхождений между прогнозируемым и фактическим количеством строк, а затем исследовать реальную стоимость выполнения.</p>
+</li>
+</ol>
+<p>Итоговая инженерная цепочка:</p>
+<p><strong>SQL → статистика → оценки селективности → стоимость альтернатив → выбранный план → выполнение → обращения к страницам → измерения → диагностика.</strong></p>
+<p>Основные источники:</p>
+<ul>
+<li><a href="https://www.postgresql.org/docs/18/using-explain.html">Использование EXPLAIN — PostgreSQL 18</a></li>
+<li><a href="https://www.postgresql.org/docs/18/planner-stats.html">Статистика, используемая планировщиком</a></li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-query.html">Коэффициенты стоимости планировщика</a></li>
+</ul>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 4. Go под капотом" class="md-footer__link md-footer__link--prev" href="../04%20-%20Go%20under%20the%20hood/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                4. Go под капотом
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 6. PostgreSQL: Joins" class="md-footer__link md-footer__link--next" href="../06%20-%20Join%20algorithms/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                6. PostgreSQL: Joins
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

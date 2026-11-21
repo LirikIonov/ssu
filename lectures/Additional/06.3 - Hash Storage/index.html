@@ -1,0 +1,2388 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/06.3%20-%20Hash%20Storage/" rel="canonical"/>
+<link href="../06.2%20-%20Join%20Executor/" rel="prev"/>
+<link href="../07.1%20-%20WAL%20Internals/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#63-postgresql-">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Что планировщик передал исполнителю
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-hashjointuple">
+<span class="md-ellipsis">
+      
+        1. Что хранится внутри HashJoinTuple
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-dense_alloc-hashmemorychunk">
+<span class="md-ellipsis">
+      
+        2. dense_alloc и HashMemoryChunk: как разместить миллионы строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. Корзины и партии на уровне битов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-exechashincreasenumbatches">
+<span class="md-ellipsis">
+      
+        4. ExecHashIncreaseNumBatches(): точный ход перераспределения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. Когда дальнейшее дробление перестает работать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-buffile">
+<span class="md-ellipsis">
+      
+        6. BufFile: что именно записывается во временный файл
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-tuplestore">
+<span class="md-ellipsis">
+      
+        7. tuplestore: поток строк, который можно прочитать повторно
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-sharedtuplestore-join">
+<span class="md-ellipsis">
+      
+        8. SharedTuplestore: почему параллельному JOIN нужно другое хранилище
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. Сравнение трех временных механизмов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-postgresql">
+<span class="md-ellipsis">
+      
+        10. Диагностика: как увидеть стоимость этих механизмов в PostgreSQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-">
+<span class="md-ellipsis">
+      
+        11. Единая причинно-следственная модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        12. Источники и граница точности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Что планировщик передал исполнителю
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1-hashjointuple">
+<span class="md-ellipsis">
+      
+        1. Что хранится внутри HashJoinTuple
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-dense_alloc-hashmemorychunk">
+<span class="md-ellipsis">
+      
+        2. dense_alloc и HashMemoryChunk: как разместить миллионы строк
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3">
+<span class="md-ellipsis">
+      
+        3. Корзины и партии на уровне битов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-exechashincreasenumbatches">
+<span class="md-ellipsis">
+      
+        4. ExecHashIncreaseNumBatches(): точный ход перераспределения
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5">
+<span class="md-ellipsis">
+      
+        5. Когда дальнейшее дробление перестает работать
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6-buffile">
+<span class="md-ellipsis">
+      
+        6. BufFile: что именно записывается во временный файл
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7-tuplestore">
+<span class="md-ellipsis">
+      
+        7. tuplestore: поток строк, который можно прочитать повторно
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#8-sharedtuplestore-join">
+<span class="md-ellipsis">
+      
+        8. SharedTuplestore: почему параллельному JOIN нужно другое хранилище
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#9">
+<span class="md-ellipsis">
+      
+        9. Сравнение трех временных механизмов
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#10-postgresql">
+<span class="md-ellipsis">
+      
+        10. Диагностика: как увидеть стоимость этих механизмов в PostgreSQL
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#11-">
+<span class="md-ellipsis">
+      
+        11. Единая причинно-следственная модель
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#12">
+<span class="md-ellipsis">
+      
+        12. Источники и граница точности
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="63-postgresql-">6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища<a class="headerlink" href="#63-postgresql-" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная техническая лекция.</strong> Ориентир — PostgreSQL 18, реализация <code>REL_18_STABLE</code>. Продолжение основной лекции №6 и углубления 06.2. Рассматриваем физический путь записи через <code>HashJoinTuple</code>, плотное выделение памяти, перераспределение партий, а затем <code>tuplestore</code>, <code>BufFile</code> и <code>SharedTuplestore</code>. Не рассматриваем WAL, COMMIT, fsync, checkpoint и восстановление после сбоя.</p>
+<p><strong>Статус примеров.</strong> Приведенные числовые хеш-коды, размеры кортежей, конфигурации памяти и планы являются учебными примерами, а имена C-структур, функций, ключевые формулы и ветвления сверены с PostgreSQL 18. Во всех вычислениях используется обычный Markdown без LaTeX.</p>
+<p><strong>Главный вопрос:</strong> PostgreSQL держит в памяти часть хеш-соединения, затем неожиданно превышает бюджет. Как он находит каждую уже записанную строку, куда перемещает ее, почему пары не теряются, когда появляются временные файлы, и почему при сильном перекосе увеличение числа партий может перестать помогать?</p>
+</blockquote>
+<h2 id="0">0. Что планировщик передал исполнителю<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>В 06.1 планировщик оценил стоимость соединения и выбрал дерево. В 06.2 мы уже выяснили, что <code>Hash Join</code> строит временную хеш-таблицу и может обрабатывать вход по партиям.</p>
+<div class="highlight"><pre><span></span><code>Hash Join
+  Hash Cond: (o.customer_id = c.id)
+  -&gt; Seq Scan on orders o
+  -&gt; Hash
+       -&gt; Seq Scan on customers c
+</code></pre></div>
+<p><code>Hash</code> — внутренний вход соединения. Именно он подготавливает данные для поиска. В PostgreSQL построение выполняется через <code>MultiExecHash()</code>; сам узел <code>Hash</code> не использует обычный интерфейс «верни очередную строку» для основной операции. При обычном соединении по строгому равенству строки с <code>NULL</code> в ключе не могут образовать совпадение; соответствующие ветви исполнителя вправе не помещать их в основные хеш-корзины. Для некоторых внешних соединений такие строки обрабатываются отдельно, чтобы корректно выдать несопоставленные строки.</p>
+<p>Нам предстоит ответить на два независимых вопроса. Первый — как храним строки <em>в памяти</em> и как меняем их распределение по партиям. Второй — как сохраняем строки <em>для последующего чтения</em>: на уровне одного процесса и нескольких процессов. Для этих задач применяются разные структуры; важно их не смешивать.</p>
+<h2 id="1-hashjointuple">1. Что хранится внутри <code>HashJoinTuple</code><a class="headerlink" href="#1-hashjointuple" title="Permanent link">¶</a></h2>
+<h3 id="11">1.1. Ключа недостаточно<a class="headerlink" href="#11" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">name</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="p">;</span>
+</code></pre></div>
+<p>Построенная по <code>customers</code> хеш-таблица должна хранить данные, нужные для получения <code>c.name</code>. Кроме ключа, нужны сведения для обхода коллизий и вычисленный хеш.</p>
+<p>В PostgreSQL 18 внутреннее представление устроено примерно так (сокращенный фрагмент реальной структуры <code>src/include/executor/hashjoin.h</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">HashJoinTupleData</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">union</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">struct</span><span class="w"> </span><span class="nc">HashJoinTupleData</span><span class="w"> </span><span class="o">*</span><span class="n">unshared</span><span class="p">;</span>
+<span class="w">        </span><span class="n">dsa_pointer</span><span class="w"> </span><span class="n">shared</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="n">next</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">uint32</span><span class="w"> </span><span class="n">hashvalue</span><span class="p">;</span>
+<span class="w">    </span><span class="cm">/* Затем в памяти располагается MinimalTuple */</span>
+<span class="p">}</span><span class="w"> </span><span class="n">HashJoinTupleData</span><span class="p">;</span>
+</code></pre></div>
+<p><code>next.unshared</code> — обычный адрес следующего элемента цепочки в рамках одного процесса. <code>next.shared</code> — указатель-смещение для разделяемой области памяти, поскольку виртуальные адреса разных процессов могут не совпадать. <code>hashvalue</code> — 32-битный хеш-код ключа, а <code>MinimalTuple</code> — сохраненное компактное представление входной строки.</p>
+<p>Важно: <code>MinimalTuple</code> не обязан включать все столбцы исходной таблицы. Исполнитель сохраняет то, что поступило из дочернего узла плана. Однако это больше одного ключа, если вышестоящим узлам нужны дополнительные столбцы.</p>
+<h3 id="12-minimaltuple">1.2. Где начинается MinimalTuple<a class="headerlink" href="#12-minimaltuple" title="Permanent link">¶</a></h3>
+<p>В заголовке определены макросы:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#define HJTUPLE_OVERHEAD MAXALIGN(sizeof(HashJoinTupleData))</span>
+<span class="cp">#define HJTUPLE_MINTUPLE(hjtup) \</span>
+<span class="cp">    ((MinimalTuple) ((char *) (hjtup) + HJTUPLE_OVERHEAD))</span>
+</code></pre></div>
+<p><code>MAXALIGN</code> округляет размер заголовка к подходящей для платформы границе выравнивания. На типичной 64-битной архитектуре выровненный заголовок составляет 16 байт; эта цифра зависит от ABI и не является гарантией SQL или PostgreSQL на любой машине.</p>
+<div class="highlight"><pre><span></span><code>Адрес HashJoinTuple
+       |
+       v
++------------------------+
+| next                   | 8 байт в типичной 64-битной сборке
++------------------------+
+| hashvalue              | uint32 = 4 байта
++------------------------+
+| выравнивание           | условные 4 байта
++------------------------+ &lt;- HJTUPLE_MINTUPLE
+| MinimalTuple.t_len     |
+| поля заголовка         |
+| значения столбцов      |
+| ...                    |
++------------------------+
+</code></pre></div>
+<p>Размер сохраненной хеш-записи до выравнивания для следующей аллокации:</p>
+<p><code>record_bytes = HJTUPLE_OVERHEAD + tuple-&gt;t_len</code></p>
+<p>Внутри плотного блока следующий элемент начинается с выровненного смещения:</p>
+<p><code>next_offset = offset + MAXALIGN(record_bytes)</code>.</p>
+<p>Важная оговорка: это шаг по логически размещенным записям. Реально выделенная память и служебная статистика расхода могут отличаться от простой суммы размеров кортежей из-за выравнивания и накладных расходов блоков.</p>
+<h3 id="13">1.3. Расход памяти на миллион записей<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Зададим учебные размеры: выровненный заголовок — 16 байт, <code>MinimalTuple</code> — 56 байт. Одна запись занимает 72 байта.</p>
+<div class="highlight"><pre><span></span><code>1 000 000 × 72 = 72 000 000 байт ≈ 68,66 МиБ
+</code></pre></div>
+<p>У массива из 65 536 корзин по 8 байт на указатель:</p>
+<div class="highlight"><pre><span></span><code>65 536 × 8 = 524 288 байт = 512 КиБ
+</code></pre></div>
+<p>Итого более 69 МиБ, еще без дополнительных блоков и служебных структур. Нельзя рассчитывать размер соединения по формуле «количество записей × размер ключа».</p>
+<h2 id="2-dense_alloc-hashmemorychunk">2. <code>dense_alloc</code> и <code>HashMemoryChunk</code>: как разместить миллионы строк<a class="headerlink" href="#2-dense_alloc-hashmemorychunk" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Цена миллионов отдельных выделений<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Если вызывать <code>palloc()</code> на каждую маленькую хеш-запись, появляются накладные расходы на обслуживание выделений, метаданные и выравнивание. Выигрыш от хеширования частично съедается распределителем памяти.</p>
+<p>PostgreSQL 18 использует <code>dense_alloc()</code> — плотное выделение памяти из блоков <code>HashMemoryChunk</code>.</p>
+<p>В <code>hashjoin.h</code> заданы:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#define HASH_CHUNK_SIZE ((Size) (32 * 1024))</span>
+<span class="cp">#define HASH_CHUNK_THRESHOLD (HASH_CHUNK_SIZE / 4)</span>
+</code></pre></div>
+<p>Обычный блок — 32 КиБ. Порог — 8 КиБ: слишком большие записи получают отдельный блок.</p>
+<div class="highlight"><pre><span></span><code>HashMemoryChunk
++-----------------------------+
+| Заголовок блока             |
+| ntuples, maxlen, used, next |
++-----------------------------+
+| HashJoinTuple №1            |
++-----------------------------+
+| HashJoinTuple №2            |
++-----------------------------+
+| ...                         |
++-----------------------------+
+| Свободные байты             |
++-----------------------------+
+</code></pre></div>
+<p><code>used</code> — количество занятых байт в буфере блока; <code>maxlen</code> — доступная емкость. Переход к следующей записи происходит по <code>MAXALIGN(HJTUPLE_OVERHEAD + tuple-&gt;t_len)</code>.</p>
+<h3 id="22">2.2. Почему блоки полезны при перестройке<a class="headerlink" href="#22" title="Permanent link">¶</a></h3>
+<p>Цепочки корзин описывают <strong>порядок поиска</strong>. Но сами записи расположены последовательно внутри блоков. Значит, PostgreSQL может пройти все текущие записи физически по блокам, даже если перестраивает или очищает массив указателей на корзины.</p>
+<p>Учебный псевдокод:</p>
+<div class="highlight"><pre><span></span><code>for chunk in chunks:
+    offset = 0
+    while offset &lt; chunk.used:
+        tuple = запись в chunk по offset
+        обработать(tuple)
+        offset += MAXALIGN(размер tuple)
+</code></pre></div>
+<p>Именно такой обход используется при <code>ExecHashIncreaseNumBatches()</code> и при изменении количества корзин. Он избавляет от необходимости удалять записи по одной из старых цепочек.</p>
+<h3 id="23">2.3. Где живут блоки и временные файлы<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<p>Для непараллельного хеш-соединения <code>HashJoinTableData</code> содержит ссылку на связанные контексты памяти:</p>
+<ul>
+<li><code>hashCxt</code> — контекст хеш-операции;</li>
+<li><code>batchCxt</code> — память рабочей партии, которую можно сбросить перед следующей;</li>
+<li><code>spillCxt</code> — объекты, необходимые для временных файлов и переживающие сброс <code>batchCxt</code>.</li>
+</ul>
+<p><code>HashJoinTableData</code> хранится в контексте самого запроса; крупные рабочие структуры размещаются в дочерних контекстах. Это позволяет освобождать память целой партии. Если бы временный файловый буфер был выделен из <code>batchCxt</code>, сброс текущей партии уничтожил бы буфер файла, который должен продолжить существовать для будущих партий.</p>
+<p>Инженерная мысль: срок жизни объекта определяется тем, будет ли он нужен после смены партии. Контекст памяти должен соответствовать именно этому сроку.</p>
+<h2 id="3">3. Корзины и партии на уровне битов<a class="headerlink" href="#3" title="Permanent link">¶</a></h2>
+<h3 id="31">3.1. Две независимые оси распределения<a class="headerlink" href="#31" title="Permanent link">¶</a></h3>
+<p><code>nbuckets</code> — количество корзин <strong>текущей хеш-таблицы</strong>. <code>nbatch</code> — число партий <strong>всего соединения</strong>. Сначала вычисляется один 32-битный хеш, затем по нему получаются обе координаты.</p>
+<p>Для PostgreSQL 18, при степенях двойки, существенная часть <code>ExecHashGetBucketAndBatch()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="o">*</span><span class="n">bucketno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hashvalue</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">nbuckets</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">nbatch</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">    </span><span class="o">*</span><span class="n">batchno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pg_rotate_right32</span><span class="p">(</span><span class="n">hashvalue</span><span class="p">,</span><span class="w"> </span><span class="n">log2_nbuckets</span><span class="p">)</span>
+<span class="w">               </span><span class="o">&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">nbatch</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="k">else</span>
+<span class="w">    </span><span class="o">*</span><span class="n">batchno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</code></pre></div>
+<p>Это <strong>циклический сдвиг вправо</strong> (<code>rotate right</code>), а не обычный <code>hashvalue &gt;&gt; log2_nbuckets</code>. При небольших числах партий нижние значимые для партии биты часто совпадут, но при очень больших хеш-таблицах ротация позволяет продолжать использовать битовые позиции с учетом перехода через границу 32-битного значения. Данная операция — деталь реализации PostgreSQL 18.</p>
+<h3 id="32-nbuckets-8">3.2. Разбор <code>nbuckets = 8</code><a class="headerlink" href="#32-nbuckets-8" title="Permanent link">¶</a></h3>
+<p>Для восьми корзин нужны три бита:</p>
+<p><code>log2_nbuckets = 3</code>, а маска корзины равна <code>7 = 000111₂</code>.</p>
+<p>Возьмем хеш-коды <strong>как заданные числа</strong>, без предположения, что стандартная хеш-функция действительно вернет эти значения для конкретных SQL-ключей.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Хеш</th>
+<th>Двоичное представление</th>
+<th style="text-align: right;">Корзина <code>h &amp; 7</code></th>
+<th style="text-align: right;">Партия при <code>nbatch=2</code></th>
+<th style="text-align: right;">Партия при <code>nbatch=4</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">5</td>
+<td><code>000101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">13</td>
+<td><code>001101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">21</td>
+<td><code>010101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td style="text-align: right;">29</td>
+<td><code>011101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td style="text-align: right;">37</td>
+<td><code>100101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td style="text-align: right;">45</td>
+<td><code>101101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td style="text-align: right;">53</td>
+<td><code>110101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+</tr>
+<tr>
+<td style="text-align: right;">61</td>
+<td><code>111101</code></td>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3</td>
+</tr>
+</tbody>
+</table>
+<p>Все восемь хешей попали в <strong>одну корзину 5</strong>. Однако они распределяются по партиям, потому что для партии используются следующие биты хеша.</p>
+<h3 id="33-h-21">3.3. Ручной расчет для <code>h = 21</code><a class="headerlink" href="#33-h-21" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>hashvalue = 21 = 010101₂
+nbuckets = 8
+bucket = 21 &amp; 7 = 5
+
+После циклического сдвига на 3:
+нижние два бита соответствуют (21 &gt;&gt; 3) = 2 = 10₂
+
+nbatch=2:
+batch = 2 &amp; 1 = 0
+
+nbatch=4:
+batch = 2 &amp; 3 = 2
+</code></pre></div>
+<p><strong>Что произошло?</strong> Хеш 21 раньше относился к партии 0, а после увеличения числа партий с двух до четырех относится к партии 2.</p>
+<p>Для хеша 37:</p>
+<div class="highlight"><pre><span></span><code>37 &gt;&gt; 3 = 4 = 100₂
+при nbatch=2: 4 &amp; 1 = 0
+при nbatch=4: 4 &amp; 3 = 0
+</code></pre></div>
+<p>Хеш 37 остается в партии 0.</p>
+<h3 id="34">3.4. Почему при увеличении партии не идут назад<a class="headerlink" href="#34" title="Permanent link">¶</a></h3>
+<p>Поскольку <code>nbatch</code> всегда степень двойки и увеличивается удвоением, новая маска сохраняет старые младшие биты номера партии и добавляет следующий бит.</p>
+<div class="highlight"><pre><span></span><code>nbatch = 2 -&gt; маска 001₂
+nbatch = 4 -&gt; маска 011₂
+nbatch = 8 -&gt; маска 111₂
+</code></pre></div>
+<p>Если ранее партия была <code>b</code>, новая партия после удвоения — либо <code>b</code>, либо <code>b + old_nbatch</code> (при фиксированном <code>nbuckets</code>). То есть запись может остаться в прежней партии или попасть в более позднюю. В более раннюю она не переедет.</p>
+<p>Это <strong>инвариант алгоритма</strong>. Именно он позволяет отложить часть перераспределения до момента чтения соответствующего файла. Если бы записи могли возвращаться к уже завершенным партиям, соединение пришлось бы запускать заново или хранить дополнительные данные.</p>
+<h3 id="35">3.5. Корзины и партии не являются одинаковыми вещами<a class="headerlink" href="#35" title="Permanent link">¶</a></h3>
+<p>У <code>Batches=4</code> могут быть тысячи корзин в рабочей хеш-таблице. Корзина отвечает на вопрос «где искать кандидатов сейчас?», партия — «когда нужно обрабатывать эту строку?». Коллизия корзины не означает совпадение ключей; совпадение номера партии не означает совпадение ключей.</p>
+<p>Далее увидим, как при переполнении исполнитель меняет <code>nbatch</code> и вынужден пройти по <strong>всем уже размещенным записям рабочей партии</strong>.</p>
+<h2 id="4-exechashincreasenumbatches">4. <code>ExecHashIncreaseNumBatches()</code>: точный ход перераспределения<a class="headerlink" href="#4-exechashincreasenumbatches" title="Permanent link">¶</a></h2>
+<h3 id="41">4.1. Момент переполнения<a class="headerlink" href="#41" title="Permanent link">¶</a></h3>
+<p>Предположим, PostgreSQL начал строить хеш-таблицу для партии 0. Планировщик ожидал определенную ширину и число строк, а фактически получает существенно больше записей. После очередной вставки <code>ExecHashTableInsert()</code> обнаруживает, что расчетный объем структуры превышает <code>spaceAllowed</code>. Это рабочий предел, полученный первоначально из бюджета хеш-операции; текущее использование отслеживается через <code>spaceUsed</code> и <code>spacePeak</code>.</p>
+<p>Прежде чем добавлять партии, в PostgreSQL 18 есть еще одна проверка, к которой вернемся в разделе 5: <code>ExecHashIncreaseBatchSize()</code> иногда предпочитает увеличить допустимый объем хеш-таблицы. Если эта оптимизация не сработала, вызывается <code>ExecHashIncreaseNumBatches()</code>.</p>
+<p>Разберем именно <strong>непараллельный</strong> случай. Параллельная реализация использует иные фазы и отдельный механизм согласования.</p>
+<h3 id="42">4.2. Последовательность действий исполнителя<a class="headerlink" href="#42" title="Permanent link">¶</a></h3>
+<p>Логика <code>ExecHashIncreaseNumBatches()</code> из <code>nodeHash.c</code> в PostgreSQL 18:</p>
+<ol>
+<li>Проверить <code>growEnabled</code>: если рост партий уже отключен, выйти.</li>
+<li>Убедиться, что удвоение <code>nbatch</code> не приводит к переполнению целочисленных и размерных ограничений.</li>
+<li>Проверить, не дешевле ли расширить бюджет хеш-таблицы через <code>ExecHashIncreaseBatchSize()</code>.</li>
+<li>Вычислить <code>new_nbatch = old_nbatch * 2</code>.</li>
+<li>Создать при первом многопартийном переходе массивы <code>innerBatchFile</code> и <code>outerBatchFile</code> либо расширить их. Место выделения — <code>spillCxt</code>; сами файловые объекты для пустых партий создаются лениво.</li>
+<li>Изменить <code>hashtable-&gt;nbatch</code>. Если намечено увеличение количества корзин, изменить и <code>nbuckets</code> с соответствующим <code>log2_nbuckets</code>.</li>
+<li>Сбросить указатели старого массива корзин. Запомнить список старых блоков <code>HashMemoryChunk</code>, а список новых блоков начать с пустого.</li>
+<li>Пройти все записи старых блоков <strong>по физическим смещениям</strong>, а не по старым цепочкам корзин.</li>
+<li>Для каждой записи пересчитать <code>bucketno</code> и <code>batchno</code> из ранее вычисленного <code>hashvalue</code>.</li>
+<li>Если новая партия равна <code>curbatch</code>, скопировать запись через <code>dense_alloc()</code> в новый блок, пересвязать ее в новой корзине.</li>
+<li>Если номер новой партии больше <code>curbatch</code>, записать <code>hashvalue</code> и <code>MinimalTuple</code> во временный файл соответствующей партии через <code>ExecHashJoinSaveTuple()</code>. Уменьшить учет занятой памяти и увеличить счетчик перенесенных записей.</li>
+<li>Освободить старый блок и продолжить. Внутри долгого обхода вызывается <code>CHECK_FOR_INTERRUPTS()</code> — запрос остается отменяемым.</li>
+<li>После обхода проверить, помогло ли дробление. Если перенесены <strong>все</strong> записи или <strong>ни одна</strong>, отключить дальнейший рост <code>nbatch</code> (<code>growEnabled = false</code>).</li>
+</ol>
+<p>Существенно, что <code>ExecHashIncreaseNumBatches()</code> не обязан выполнять повторное чтение всех ранее отложенных файлов прямо в момент переполнения. Он обрабатывает записи <strong>текущей рабочей хеш-таблицы</strong>, а старые файлы переоцениваются при последующем чтении соответствующих партий.</p>
+<h3 id="43">4.3. Псевдокод близко к реальному механизму<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<p>Следующий код специально сокращен и объясняет последовательность; это <strong>не компилируемая копия исходника</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">growEnabled</span><span class="p">)</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ExecHashIncreaseBatchSize</span><span class="p">(</span><span class="n">hashtable</span><span class="p">))</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+
+<span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">nbatch</span><span class="w"> </span><span class="o">*=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="n">ensure_batch_file_arrays</span><span class="p">(</span><span class="n">hashtable</span><span class="p">);</span>
+
+<span class="cm">/* При необходимости обновить количество корзин. */</span>
+<span class="n">maybe_resize_bucket_array</span><span class="p">(</span><span class="n">hashtable</span><span class="p">);</span>
+<span class="n">clear_bucket_heads</span><span class="p">(</span><span class="n">hashtable</span><span class="p">);</span>
+
+<span class="n">oldchunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">chunks</span><span class="p">;</span>
+<span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">ninmemory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="kt">long</span><span class="w"> </span><span class="n">nfreed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">chunk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldchunks</span><span class="p">;</span><span class="w"> </span><span class="n">chunk</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span><span class="w"> </span><span class="n">chunk</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">nextchunk</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">offset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">offset</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">chunk</span><span class="o">-&gt;</span><span class="n">used</span><span class="p">;</span><span class="w"> </span><span class="cm">/* ниже */</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">HashJoinTuple</span><span class="w"> </span><span class="n">ht</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">entry_at</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span><span class="w"> </span><span class="n">offset</span><span class="p">);</span>
+<span class="w">        </span><span class="n">MinimalTuple</span><span class="w"> </span><span class="n">tuple</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HJTUPLE_MINTUPLE</span><span class="p">(</span><span class="n">ht</span><span class="p">);</span>
+<span class="w">        </span><span class="n">Size</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HJTUPLE_OVERHEAD</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">tuple</span><span class="o">-&gt;</span><span class="n">t_len</span><span class="p">;</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">bucketno</span><span class="p">,</span><span class="w"> </span><span class="n">batchno</span><span class="p">;</span>
+
+<span class="w">        </span><span class="n">ninmemory</span><span class="o">++</span><span class="p">;</span>
+<span class="w">        </span><span class="n">ExecHashGetBucketAndBatch</span><span class="p">(</span><span class="n">hashtable</span><span class="p">,</span><span class="w"> </span><span class="n">ht</span><span class="o">-&gt;</span><span class="n">hashvalue</span><span class="p">,</span>
+<span class="w">                                  </span><span class="o">&amp;</span><span class="n">bucketno</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">batchno</span><span class="p">);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">batchno</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">curbatch</span><span class="p">)</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">HashJoinTuple</span><span class="w"> </span><span class="n">copy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dense_alloc</span><span class="p">(</span><span class="n">hashtable</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">            </span><span class="n">memcpy</span><span class="p">(</span><span class="n">copy</span><span class="p">,</span><span class="w"> </span><span class="n">ht</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<span class="w">            </span><span class="n">copy</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">.</span><span class="n">unshared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">buckets</span><span class="p">.</span><span class="n">unshared</span><span class="p">[</span><span class="n">bucketno</span><span class="p">];</span>
+<span class="w">            </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">buckets</span><span class="p">.</span><span class="n">unshared</span><span class="p">[</span><span class="n">bucketno</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">copy</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">else</span>
+<span class="w">        </span><span class="p">{</span>
+<span class="w">            </span><span class="n">ExecHashJoinSaveTuple</span><span class="p">(</span><span class="n">tuple</span><span class="p">,</span><span class="w"> </span><span class="n">ht</span><span class="o">-&gt;</span><span class="n">hashvalue</span><span class="p">,</span>
+<span class="w">                                  </span><span class="o">&amp;</span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">innerBatchFile</span><span class="p">[</span><span class="n">batchno</span><span class="p">],</span>
+<span class="w">                                  </span><span class="n">hashtable</span><span class="p">);</span>
+<span class="w">            </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">spaceUsed</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">size</span><span class="p">;</span>
+<span class="w">            </span><span class="n">nfreed</span><span class="o">++</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">        </span><span class="n">offset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">MAXALIGN</span><span class="p">(</span><span class="n">size</span><span class="p">);</span>
+<span class="w">        </span><span class="n">CHECK_FOR_INTERRUPTS</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">pfree</span><span class="p">(</span><span class="n">chunk</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">nfreed</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">nfreed</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">ninmemory</span><span class="p">)</span>
+<span class="w">    </span><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">growEnabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+</code></pre></div>
+<p>Обрати внимание: для сохранившихся записей происходит <strong>копирование в новые блоки</strong>. Было бы ошибкой вообразить, что PostgreSQL просто изменил битовую маску и указатели прежних корзин автоматически стали корректны. Структуру приходится физически перестроить.</p>
+<h3 id="44-0">4.4. Полная симуляция: партия 0 разделилась надвое<a class="headerlink" href="#44-0" title="Permanent link">¶</a></h3>
+<p>Пусть до переполнения:</p>
+<div class="highlight"><pre><span></span><code>nbuckets = 8
+nbatch = 2
+curbatch = 0
+
+В рабочей памяти:
+  h=5, h=21, h=37, h=53
+
+В отложенном innerBatchFile[1]:
+  h=13, h=29, h=45, h=61
+</code></pre></div>
+<p>Предположим, каждая сохраненная запись весит 72 байта, и все помещены в один или несколько блоков. Числа маленькие только для демонстрации; настоящий лимит памяти здесь не моделируем.</p>
+<p>Переполнение запускает переход <code>nbatch: 2 -&gt; 4</code>. Вычисляем новые номера:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Хеш в текущей RAM</th>
+<th style="text-align: right;">Партия раньше</th>
+<th style="text-align: right;">Партия теперь</th>
+<th>Действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td>Копировать в новую рабочую структуру</td>
+</tr>
+<tr>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td>Записать в <code>innerBatchFile[2]</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">37</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td>Копировать в новую рабочую структуру</td>
+</tr>
+<tr>
+<td style="text-align: right;">53</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2</td>
+<td>Записать в <code>innerBatchFile[2]</code></td>
+</tr>
+</tbody>
+</table>
+<p>В результате:</p>
+<div class="highlight"><pre><span></span><code>РАБОЧАЯ ПАМЯТЬ, batch 0:
+  bucket 5: 5 -&gt; 37 (порядок зависит от вставки)
+
+ФАЙЛ, batch 1, создан раньше:
+  13, 29, 45, 61
+
+ФАЙЛ, batch 2, создан при перераспределении:
+  21, 53
+
+ФАЙЛ, batch 3:
+  пока может отсутствовать
+</code></pre></div>
+<p>Ключевой вопрос: а разве хеши 29 и 61 не должны теперь лежать в партии 3?</p>
+<p>Должны. Однако они пока находятся <strong>в файле старой партии 1</strong>. PostgreSQL не обязан немедленно переписывать весь файл. Когда придет время обрабатывать партию 1, он прочитает записи и пересчитает для них новую принадлежность:</p>
+<div class="highlight"><pre><span></span><code>13 -&gt; batch 1, остается для обработки
+29 -&gt; batch 3, отложить снова
+45 -&gt; batch 1, остается для обработки
+61 -&gt; batch 3, отложить снова
+</code></pre></div>
+<p>Этот прием работает благодаря инварианту: при увеличении числа партий запись может перейти только к более поздней партии. Нельзя потерять совпадения, потому что записи с одинаковым хешем всегда получают одинаковый номер партии в одной конфигурации.</p>
+<h3 id="45">4.5. Почему нельзя забыть о внешней стороне соединения<a class="headerlink" href="#45" title="Permanent link">¶</a></h3>
+<p>Пока мы говорили о внутренней стороне (<code>Hash</code>). Но результаты будут неправильными, если внутреннюю запись перенесли в партию 2, а соответствующий ей заказ поискали в партии 0 и выбросили.</p>
+<p>Поэтому внешняя сторона тоже распределяется по партиям. Для текущей партии 0 PostgreSQL выполняет поиск по оперативной хеш-таблице. Строки для будущих партий записываются в <code>outerBatchFile[batchno]</code>.</p>
+<p>При смене партии <code>ExecHashJoinNewBatch()</code>:</p>
+<ol>
+<li>Завершает обработку текущей партии и освобождает ненужные временные данные.</li>
+<li>При необходимости пропускает заведомо бесполезные партии, но с учетом семантики внешних соединений и того, росло ли <code>nbatch</code>.</li>
+<li>Меняет <code>curbatch</code> и сбрасывает рабочую хеш-таблицу (<code>ExecHashTableReset()</code>).</li>
+<li>Перематывает файл внутренней стороны, заново загружает хеш-записи текущей партии. При загрузке возможен <strong>новый рост <code>nbatch</code></strong>; часть записей тогда перенаправляется в еще более поздние партии.</li>
+<li>Закрывает обработанный внутренний файл, перематывает внешний файл и начинает выдавать совпадения.</li>
+</ol>
+<p>Важная деталь: при <code>LEFT JOIN</code> нельзя безусловно пропустить партию, если в ней нет внутренних записей. Внешние строки без совпадений все равно должны быть выданы с <code>NULL</code> на правой стороне. Аналогичные ограничения существуют для других внешних соединений. Поэтому проверка «можно ли пропустить партию» учитывает вид соединения, а не только наличие данных в двух файлах.</p>
+<h3 id="46">4.6. Почему некоторые партии приходится читать даже без пары файлов<a class="headerlink" href="#46" title="Permanent link">¶</a></h3>
+<p>Предположим, в старом файле <code>innerBatchFile[1]</code> лежит хеш 29, который после увеличения <code>nbatch</code> должен попасть в партию 3. При этом в <code>outerBatchFile[1]</code> может вообще не быть строк.</p>
+<p>Наивный алгоритм решил бы: «внешняя партия 1 пуста, значит, ее можно пропустить и удалить внутренний файл».</p>
+<p>И потерял бы хеш 29, который позже потребуется для партии 3.</p>
+<p>Поэтому в PostgreSQL предусмотрены отдельные проверки с <code>nbatch_original</code> и <code>nbatch_outstart</code>. Если число партий выросло после соответствующего этапа обработки, файл приходится прочитать хотя бы ради перенаправления записей в будущие партии.</p>
+<p>Это важная гарантия корректности, которую легко упустить при описании многопартийного соединения одним рисунком.</p>
+<h3 id="47">4.7. Цена такого перераспределения<a class="headerlink" href="#47" title="Permanent link">¶</a></h3>
+<p>Каждое увеличение <code>nbatch</code> требует пройти по уже находящимся в памяти записям текущей партии. Для оставшихся выполняются копирование и создание новых цепочек корзин; для перенесенных — запись временных файлов.</p>
+<p>Позже возможны дополнительные чтения и повторные записи, если число партий выросло уже после первоначального размещения данных.</p>
+<p>Следовательно, <code>Batches: 32 (originally 2)</code> означает не только наличие тридцати двух партий. За ним могут скрываться <strong>несколько этапов перераспределения</strong>, дополнительное копирование строк и временный ввод-вывод.</p>
+<h3 id="4">Что запомнить после раздела 4<a class="headerlink" href="#4" title="Permanent link">¶</a></h3>
+<ol>
+<li>Удвоение <code>nbatch</code> меняет вычисление принадлежности записи партии.</li>
+<li>PostgreSQL физически обходит записи по <code>HashMemoryChunk</code>, формирует новые блоки и пересвязывает корзины.</li>
+<li>Уже отложенные файлы можно корректировать позднее, при чтении, поскольку записи переходят только в более поздние партии.</li>
+<li>При смене партии загружается ее внутренний набор, после чего обрабатывается соответствующая внешняя часть.</li>
+<li>Внешние соединения и динамический рост числа партий запрещают безусловно пропускать некоторые кажущиеся пустыми партии.</li>
+</ol>
+<hr/>
+<h2 id="5">5. Когда дальнейшее дробление перестает работать<a class="headerlink" href="#5" title="Permanent link">¶</a></h2>
+<h3 id="51">5.1. Неправильная модель: «удвоим партии, и память уменьшится вдвое»<a class="headerlink" href="#51" title="Permanent link">¶</a></h3>
+<p>Это утверждение было бы верно примерно при равномерном распределении хешей. Если все записи имеют одинаковое значение <code>hashvalue</code>, вычисление <code>batchno</code> возвращает одну и ту же партию для всех.</p>
+<div class="highlight"><pre><span></span><code>1 000 000 записей с hashvalue = 37
+
+nbatch = 2   -&gt; все в партии 0
+nbatch = 4   -&gt; все в партии 0
+nbatch = 8   -&gt; все в партии 4
+nbatch = 16  -&gt; все в партии 4
+</code></pre></div>
+<p>Мы увеличили количество партий, но не разделили группу. Если при обработке партии 4 снова нужно столько же памяти, ничего принципиально не изменилось.</p>
+<p>Так бывает не только при миллионах одинаковых SQL-ключей. Разные ключи теоретически могут иметь одинаковый полный 32-битный хеш. Одинаковый хеш не означает равенство исходных значений: проверка SQL-равенства все равно обязательна.</p>
+<h3 id="52-nfreed-0-nfreed-ninmemory">5.2. <code>nfreed == 0</code> и <code>nfreed == ninmemory</code><a class="headerlink" href="#52-nfreed-0-nfreed-ninmemory" title="Permanent link">¶</a></h3>
+<p>В конце <code>ExecHashIncreaseNumBatches()</code> стоят счетчики:</p>
+<ul>
+<li><code>ninmemory</code> — сколько записей было просмотрено при перераспределении;</li>
+<li><code>nfreed</code> — сколько записей перенесено из текущей рабочей памяти в файлы будущих партий.</li>
+</ul>
+<p>Если <code>nfreed == 0</code>, все записи остались в текущей партии. Дробление никак не уменьшило ее объем.</p>
+<p>Если <code>nfreed == ninmemory</code>, ни одной записи не осталось в текущей партии. В текущей эвристике это тоже считается признаком бесполезного перераспределения и отключает дальнейший рост.</p>
+<p>В обоих случаях выполняется:</p>
+<div class="highlight"><pre><span></span><code><span class="n">hashtable</span><span class="o">-&gt;</span><span class="n">growEnabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span>
+</code></pre></div>
+<p>Причина — не бесконечное терпение PostgreSQL к переполнению, а невозможность бесконечно удваивать <code>nbatch</code> в надежде разделить записи с одинаковыми хешами.</p>
+<p>После отключения роста рабочая партия может превысить рассчитанный бюджет. В худшем случае это создает давление на память backend-процесса и может закончиться ошибкой выделения памяти. Бюджет <code>work_mem × hash_mem_multiplier</code> — параметр планирования рабочих операций, а не аппаратная защита от любых выбросов потребления памяти.</p>
+<h3 id="53-postgresql-18-exechashincreasebatchsize">5.3. Особенность PostgreSQL 18: <code>ExecHashIncreaseBatchSize()</code><a class="headerlink" href="#53-postgresql-18-exechashincreasebatchsize" title="Permanent link">¶</a></h3>
+<p>Здесь появляется механизм, отсутствующий в наивной модели «переполнение → всегда новые партии».</p>
+<p>У каждой отложенной партии могут существовать два <code>BufFile</code>: для внутренней и внешней стороны. Каждый использует собственный буфер ввода-вывода, обычно порядка <code>BLCKSZ</code>.</p>
+<p>При очень большом числе партий память на <strong>файловые буферы</strong> сама становится существенной.</p>
+<p>В PostgreSQL 18 до очередного удвоения <code>nbatch</code> вызывается <code>ExecHashIncreaseBatchSize()</code>. Она сравнивает ориентировочный дополнительный объем памяти файловых буферов:</p>
+<p><code>batchSpace = nbatch × 2 × BLCKSZ</code></p>
+<p>с уже разрешенным объемом хеш-таблицы <code>spaceAllowed</code>.</p>
+<p>Если:</p>
+<p><code>spaceAllowed &lt;= batchSpace</code>,</p>
+<p>реализация предпочитает <strong>удвоить <code>spaceAllowed</code></strong>, а число партий оставить прежним. Это может уменьшить общий расход памяти по сравнению с созданием еще большего числа буферизованных файлов и предотвратить взрыв числа партий.</p>
+<p>Числовой пример при <code>BLCKSZ=8192</code>:</p>
+<div class="highlight"><pre><span></span><code>nbatch = 512
+batchSpace = 512 × 2 × 8192
+           = 8 388 608 байт = 8 МиБ
+
+spaceAllowed = 8 МиБ
+
+8 МиБ &lt;= 8 МиБ -&gt; допустимый объем хеша удваивается
+nbatch остается 512
+</code></pre></div>
+<p>Это <strong>деталь реализации PostgreSQL 18</strong>, и она требует аккуратной интерпретации. Система не получает новую физическую RAM: она изменяет внутренний бюджет, потому что еще более крупный набор партий мог бы обойтись дороже за счет файловых буферов. Это осознанный компромисс между RAM под записи и RAM под механизмы временного хранения.</p>
+<h3 id="54">5.4. Почему увеличение корзин не решает проблему партий<a class="headerlink" href="#54" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL существуют два разных механизма роста:</p>
+<ul>
+<li><code>ExecHashIncreaseNumBuckets()</code> — увеличивает число корзин, уменьшая среднюю длину цепочек при достаточно различающихся хешах;</li>
+<li><code>ExecHashIncreaseNumBatches()</code> — увеличивает число партий, пытаясь сократить рабочий объем строк, одновременно находящихся в RAM.</li>
+</ul>
+<p>Больше корзин ускоряет поиск кандидатов, но <strong>не уменьшает количество сохраняемых записей</strong>.</p>
+<p>Больше партий уменьшает текущий рабочий набор при благоприятном распределении, но добавляет временные файлы и повторную работу.</p>
+<p>И ни одна из этих мер не устраняет миллион реальных совпадений SQL, если одному ключу обеих сторон соответствует множество строк.</p>
+<h3 id="55-skew">5.5. <code>skew</code> — оптимизация популярных хешей<a class="headerlink" href="#55-skew" title="Permanent link">¶</a></h3>
+<p>В обычном многопартийном хеш-соединении PostgreSQL может отдельно учитывать популярные значения внешней стороны. Для них создаются специальные хеш-корзины (<code>skew</code>), чтобы соответствующие записи внутренней стороны могли участвовать в обработке первой партии без ненужной записи и чтения временных файлов.</p>
+<p>Статистика MCV внешнего входа используется для определения полезных популярных значений. <code>SKEW_HASH_MEM_PERCENT</code> в PostgreSQL 18 составляет 2: отдельной структуре выделяется небольшая доля общего бюджета хеш-таблицы.</p>
+<p>Но оптимизация <code>skew</code> экономит временный ввод-вывод для популярных значений; она не устраняет необходимость формировать все реальные результирующие пары.</p>
+<h3 id="5_1">Что запомнить после раздела 5<a class="headerlink" href="#5_1" title="Permanent link">¶</a></h3>
+<ol>
+<li>Число партий не гарантирует равномерное разделение данных.</li>
+<li>При одинаковых хешах дополнительный бит номера партии не разделит группу.</li>
+<li>Если перенесены все или ни одной записи, PostgreSQL 18 может отключить дальнейший рост партий.</li>
+<li>Перед увеличением партий исполнитель сравнивает стоимость дополнительной памяти под хеш с стоимостью новых файловых буферов.</li>
+<li>Увеличение корзин и увеличение партий решают разные проблемы; их нельзя смешивать.</li>
+</ol>
+<hr/>
+<h2 id="6-buffile">6. <code>BufFile</code>: что именно записывается во временный файл<a class="headerlink" href="#6-buffile" title="Permanent link">¶</a></h2>
+<h3 id="61-buffile-tuplestore">6.1. Почему <code>BufFile</code> появляется раньше <code>tuplestore</code><a class="headerlink" href="#61-buffile-tuplestore" title="Permanent link">¶</a></h3>
+<p>При многопартийном <strong>непараллельном</strong> <code>Hash Join</code> отложенные записи записываются через <code>ExecHashJoinSaveTuple()</code> непосредственно в <code>BufFile</code> — буферизованный временный файл.</p>
+<p>Важно: здесь не создается отдельный <code>tuplestore</code> для каждой партии. Это разные механизмы, хотя оба могут использовать общий нижележащий интерфейс <code>BufFile</code>. Для некоторых специальных случаев, например хранения строк с <code>NULL</code>-ключами при определенной семантике внешнего соединения, используется и <code>tuplestore</code>; но обычные файлы партий — это <code>BufFile</code> напрямую.</p>
+<h3 id="62">6.2. Точный формат одной сохраненной записи<a class="headerlink" href="#62" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 <code>ExecHashJoinSaveTuple()</code> делает по смыслу следующее:</p>
+<div class="highlight"><pre><span></span><code><span class="n">BufFileWrite</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">hashvalue</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">uint32</span><span class="p">));</span>
+<span class="n">BufFileWrite</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="w"> </span><span class="n">tuple</span><span class="p">,</span><span class="w"> </span><span class="n">tuple</span><span class="o">-&gt;</span><span class="n">t_len</span><span class="p">);</span>
+</code></pre></div>
+<p>То есть сохраняются:</p>
+<div class="highlight"><pre><span></span><code>+---------------------------+
+| hashvalue: uint32         | 4 байта
++---------------------------+
+| MinimalTuple.t_len        | uint32, первые 4 байта кортежа
++---------------------------+
+| остальная часть MinimalTuple  |
++---------------------------+
+</code></pre></div>
+<p>Зачем сохранять <code>hashvalue</code>? Чтобы при повторной загрузке не обязательно вычислять хеш еще раз из значений ключа. Чтобы восстановить размер записи, достаточно прочитать первые два 32-битных числа: хеш и <code>t_len</code>.</p>
+<p>В <code>ExecHashJoinGetSavedTuple()</code> действительно считываются два значения <code>uint32</code> в одном вызове <code>BufFileReadMaybeEOF()</code>, затем выделяется память по длине и дочитываются остальные байты <code>MinimalTuple</code>.</p>
+<p>Важно не путать две цены:</p>
+<ul>
+<li><strong>RAM:</strong> <code>HJTUPLE_OVERHEAD + tuple-&gt;t_len</code> плюс выравнивание и накладные расходы блоков;</li>
+<li><strong>временный файл:</strong> <code>sizeof(uint32) + tuple-&gt;t_len</code> на сохраненную запись, плюс накладные расходы буферизации и файловой системы.</li>
+</ul>
+<p>При <code>tuple-&gt;t_len = 56</code>:</p>
+<div class="highlight"><pre><span></span><code>RAM-запись при заголовке 16 байт: 16 + 56 = 72 байта
+Временная запись: 4 + 56 = 60 байт
+</code></pre></div>
+<p>Это объясняет, почему нельзя автоматически умножать <code>Memory Usage</code> узла <code>Hash</code> на два и получать точный объем записи/чтения временных файлов.</p>
+<h3 id="63-buffile">6.3. Что буферизует <code>BufFile</code><a class="headerlink" href="#63-buffile" title="Permanent link">¶</a></h3>
+<p><code>BufFile</code> — интерфейс к временным файлам с небольшим буфером в памяти. Он работает поверх файлового слоя PostgreSQL (<code>fd.c</code>) и обеспечивает логическую позицию чтения/записи.</p>
+<p>Когда <code>Hash Join</code> передает в <code>BufFileWrite()</code> десятки тысяч небольших записей, не нужно обязательно выполнять отдельный системный вызов <code>write()</code> для каждой записи. Данные накапливаются в буфере и сбрасываются более крупными порциями.</p>
+<p>При чтении <code>BufFile</code> также может возвращать байты из собственного буфера. Файловая система и ОС могут дополнительно обслуживать операции из своего кеша страниц.</p>
+<div class="highlight"><pre><span></span><code>ExecHashJoinSaveTuple
+     |
+     v
+BufFileWrite: небольшой буфер процесса
+     |
+     v
+Файловый интерфейс PostgreSQL / File
+     |
+     v
+Кеш файловой системы ОС
+     |
+     v
+Временное файловое хранилище при необходимости
+</code></pre></div>
+<p>Это <em>упрощенная схема обычного буферизованного ввода-вывода</em>. Не всякий вызов <code>BufFileWrite()</code> немедленно превращается в физическую запись на SSD.</p>
+<h3 id="64-buffile">6.4. Почему BufFile имеет несколько физических сегментов<a class="headerlink" href="#64-buffile" title="Permanent link">¶</a></h3>
+<p>Для больших временных данных логический <code>BufFile</code> может представлять несколько физических файлов. В реализации есть <code>numFiles</code>, массив файлов и позиция внутри текущего сегмента.</p>
+<p>При достижении предельного размера физического файла интерфейс переходит к следующему сегменту. Для пользователя <code>BufFile</code> остается логическим потоком байтов. Системные функции чтения и записи знают, в какой физический сегмент и смещение обращаться.</p>
+<p>Таким образом, один логический файл партии в памяти исполнителя не обязательно равен одному физическому файлу на уровне ОС.</p>
+<h3 id="65">6.5. Ленивое создание и срок жизни<a class="headerlink" href="#65" title="Permanent link">¶</a></h3>
+<p>При подготовке массива партий PostgreSQL создает массив указателей <code>innerBatchFile[]</code> и <code>outerBatchFile[]</code>. Но сами файловые объекты создаются <strong>при первой записи в конкретную партию</strong>.</p>
+<p>Если партия осталась пустой, нет смысла открывать для нее временный файл.</p>
+<p><code>BufFileCreateTemp(false)</code> вызывается из <code>ExecHashJoinSaveTuple()</code>, причем буфер и служебный объект выделяются в <code>spillCxt</code>. Это гарантирует, что они переживут сброс рабочей памяти очередной партии. После обработки файлы закрываются и освобождаются как временные ресурсы.</p>
+<h3 id="66-wal">6.6. Чем временная рабочая запись отличается от WAL<a class="headerlink" href="#66-wal" title="Permanent link">¶</a></h3>
+<p>Это место специально не должно уводить нас к следующей лекции.</p>
+<p>Файлы <code>BufFile</code> в данном контексте — <strong>временное рабочее состояние текущего выполнения SQL</strong>, позволяющее продолжить вычисление JOIN при нехватке RAM. Если запрос прервался, такие файлы не нужны для восстановления результата транзакции.</p>
+<p>Они не являются постоянными таблицами, индексами и не представляют собой журнал долговечности изменений. Их назначение — промежуточная обработка данных.</p>
+<h3 id="67">6.7. Как оценить цену работы с временными файлами<a class="headerlink" href="#67" title="Permanent link">¶</a></h3>
+<p>Пусть по сторонам соединения отложено 75 МиБ и 375 МиБ записей в их файловом представлении.</p>
+<div class="highlight"><pre><span></span><code>Объем записи ≈ 75 + 375 = 450 МиБ
+При однократном последующем чтении ≈ 450 МиБ
+Всего ≈ 900 МиБ логического временного ввода-вывода
+</code></pre></div>
+<p>При дальнейших перераспределениях затраты могут быть выше. При 20 одновременно выполняющихся похожих запросах совокупная работа может составить много гигабайт. Это создает давление на файловый кеш ОС, накопитель, CPU для копирования и буферизацию PostgreSQL.</p>
+<p><strong>Следующий вопрос:</strong> если мы хотим перечитывать один и тот же поток строк из JOIN много раз, достаточно ли нам простого файлового интерфейса <code>BufFile</code>? Нет: нужны указатели чтения и логика хранения кортежей. Здесь появляется <code>tuplestore</code>.</p>
+<h2 id="7-tuplestore">7. <code>tuplestore</code>: поток строк, который можно прочитать повторно<a class="headerlink" href="#7-tuplestore" title="Permanent link">¶</a></h2>
+<h3 id="71-buffile-materialize">7.1. Почему <code>BufFile</code> недостаточно для <code>Materialize</code><a class="headerlink" href="#71-buffile-materialize" title="Permanent link">¶</a></h3>
+<p>Возьмем план:</p>
+<div class="highlight"><pre><span></span><code>Nested Loop
+  -&gt; Seq Scan on a
+  -&gt; Materialize
+       -&gt; Seq Scan on b
+</code></pre></div>
+<p>Предположим, внешний источник A возвращает 1000 строк, а B — 500. Вложенным циклам может потребоваться до 500 000 выдач внутренних строк.</p>
+<p>Если для каждой строки A заново выполнять <code>Seq Scan on b</code>, получится тысяча повторных сканирований исходного источника. Но если B не зависит от очередного значения A, можно сохранить его строки и затем многократно перечитывать.</p>
+<p>Для этого <code>Materialize</code> использует <code>tuplestore</code>. Это структура хранения <strong>последовательности кортежей</strong>, а не просто поток байтов. Она знает, где заканчивается одна строка и начинается другая, как возвращать их в <code>TupleTableSlot</code> и как поддерживать несколько позиций чтения.</p>
+<h3 id="72">7.2. Что хранится в оперативной памяти<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<p>Состояние <code>Tuplestorestate</code> содержит, в частности:</p>
+<ul>
+<li><code>memtuples</code> — массив ссылок на сохраненные строки, когда они еще помещаются в память;</li>
+<li><code>memtupcount</code> и <code>memtupsize</code> — количество элементов и емкость массива;</li>
+<li><code>allowedMem</code> и <code>availMem</code> — рабочий бюджет и оставшуюся часть памяти;</li>
+<li><code>myfile</code> — <code>BufFile</code>, если пришлось перейти к временному хранению;</li>
+<li><code>readptrs</code> — указатели чтения;</li>
+<li><code>context</code> — контекст, владеющий хранимыми строками.</li>
+</ul>
+<p>При <code>tuplestore_puttupleslot()</code> входная строка копируется в <code>MinimalTuple</code> и поступает в хранилище. Она не должна оставаться ссылкой на изменяемый слот дочернего узла: тот скоро будет переиспользован для следующей строки.</p>
+<div class="highlight"><pre><span></span><code>Дочерний узел -&gt; TupleTableSlot
+                        |
+                        v
+                    Создать копию MinimalTuple
+                        |
+                        v
+                    memtuples[]
+                      [0] -&gt; tuple A
+                      [1] -&gt; tuple B
+                      [2] -&gt; tuple C
+                      ...
+</code></pre></div>
+<p>Важное следствие: материализация — это дополнительное копирование и удержание памяти. Она экономит получение данных от нижележащего узла, но не убирает работу по чтению сохраненных строк.</p>
+<h3 id="73-tss">7.3. Три состояния TSS<a class="headerlink" href="#73-tss" title="Permanent link">¶</a></h3>
+<p>В PostgreSQL 18 используются три основных состояния:</p>
+<table>
+<thead>
+<tr>
+<th>Состояние</th>
+<th>Смысл</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TSS_INMEM</code></td>
+<td>Строки пока хранятся в оперативной памяти</td>
+</tr>
+<tr>
+<td><code>TSS_WRITEFILE</code></td>
+<td>Хранилище перешло к записи во временный файл</td>
+</tr>
+<tr>
+<td><code>TSS_READFILE</code></td>
+<td>Выполняется чтение ранее сохраненных строк из файла</td>
+</tr>
+</tbody>
+</table>
+<p>Типичная последовательность:</p>
+<div class="highlight"><pre><span></span><code>TSS_INMEM
+   |
+   | память перестала вмещать сохраненные строки
+   v
+TSS_WRITEFILE
+   |
+   | нужно прочитать сохраненные данные
+   v
+TSS_READFILE
+   |
+   | затем снова потребуется добавить строки
+   v
+TSS_WRITEFILE
+</code></pre></div>
+<p>Эти переходы не означают, что PostgreSQL создает новое хранилище при каждом переключении. Меняется режим работы с тем же логическим потоком и позициями чтения/записи.</p>
+<h3 id="74-ram">7.4. Почему сначала копируют строки в RAM, а потом сбрасывают их в файл<a class="headerlink" href="#74-ram" title="Permanent link">¶</a></h3>
+<p>Пока в памяти есть место, <code>tuplestore</code> хранит кортежи без файловой работы. Это позволяет быстро перечитывать промежуточные данные.</p>
+<p>Когда объем превышает бюджет, создается <code>BufFile</code>, а сохраненные строки переводятся в файловое представление. Последующие строки записываются туда же.</p>
+<p>Нужно различать ограничения: <code>work_mem</code> влияет на переход к временному файлу, но не означает, что память под хранилище физически всегда равна ровно этому числу байт. Есть служебные структуры, размеры массивов и контексты памяти.</p>
+<h3 id="75">7.5. Указатели чтения: почему их может быть несколько<a class="headerlink" href="#75" title="Permanent link">¶</a></h3>
+<p>У <code>tuplestore</code> есть <code>TSReadPointer</code>. В нем хранятся состояние достижения конца, индекс следующей строки при чтении из RAM, либо номер файлового сегмента и смещение, если данные уже лежат во временном файле.</p>
+<p>При нескольких читателях одного хранилища можно сохранять независимые позиции, не повторяя исходное сканирование.</p>
+<div class="highlight"><pre><span></span><code>Сохраненный поток:
+  A, B, C, D, E, F
+
+Указатель №0 -&gt; следующая C
+Указатель №1 -&gt; следующая F
+</code></pre></div>
+<p>Флаги возможностей могут разрешать возврат к началу (<code>EXEC_FLAG_REWIND</code>), чтение назад (<code>EXEC_FLAG_BACKWARD</code>) или сохранение отмеченной позиции (<code>EXEC_FLAG_MARK</code>). Конкретный набор возможностей определяется потребностями родительского узла.</p>
+<p>Важно: это <strong>локальное состояние внутри одного backend-процесса</strong>, а не автоматическая потокобезопасная структура для произвольного совместного доступа разных процессов.</p>
+<h3 id="76-materialize">7.6. Почему <code>Materialize</code> может начать отдавать строки до конца входа<a class="headerlink" href="#76-materialize" title="Permanent link">¶</a></h3>
+<p>Плохая учебная модель: «материализовать — значит сначала полностью прочитать вход».</p>
+<p>В общем случае <code>Materialize</code> может читать и сохранять строки постепенно. Родитель запросил одну строку — <code>Materialize</code> может взять ее из хранилища либо получить у дочернего узла и сохранить. Полное предварительное чтение не всегда требуется.</p>
+<p>Однако если родитель затем запрашивает возврат, будут использоваться сохраненные строки. Если поток ранее был получен только наполовину, оставшуюся часть можно получать от дочернего узла по мере необходимости.</p>
+<h3 id="77">7.7. Конкретная цена повторного чтения<a class="headerlink" href="#77" title="Permanent link">¶</a></h3>
+<p>Пусть <code>b</code> возвращает 500 строк, а внешний <code>a</code> — 1000 строк.</p>
+<p>Без материализации при обычном повторном внутреннем сканировании объем работы может составить:</p>
+<div class="highlight"><pre><span></span><code>1000 сканирований × 500 строк = 500 000 получений строк из b
+</code></pre></div>
+<p>С <code>Materialize</code>:</p>
+<div class="highlight"><pre><span></span><code>Чтение из b: приблизительно один полный проход по 500 строк
+Выдача через Materialize: до 500 000 строк
+</code></pre></div>
+<p>Даже если данные полностью в RAM, считывание сохраненных кортежей и проверка условий соединения остаются. Если хранилище перешло на временный файл, повторные чтения способны создавать дополнительный ввод-вывод.</p>
+<p><code>tuplestore</code> особенно хорошо подходит, когда исходный дочерний план дорог, а сохраненные данные относительно малы либо часто используются повторно.</p>
+<h3 id="78-merge-join">7.8. <code>Merge Join</code> и отмеченная позиция<a class="headerlink" href="#78-merge-join" title="Permanent link">¶</a></h3>
+<p>Упорядоченные входы:</p>
+<div class="highlight"><pre><span></span><code>A: 1, 1, 2
+B: 1, 1, 1, 2
+</code></pre></div>
+<p>Для двух строк A с ключом 1 нужно сопоставить <strong>каждую</strong> с тремя правыми строками того же ключа. Да: получаем 2 × 3 = 6 пар. После обработки первой строки A для второй снова нужен проход по сохраненной правой группе. Перечитав B1..B3 для первой строки A, исполнитель должен вернуться к началу группы для второй строки A.</p>
+<p>Для этого используется возможность сохранения и восстановления позиции (<code>ExecMarkPos()</code> / <code>ExecRestrPos()</code>), которую может предоставить соответствующий дочерний путь. Узел <code>Materialize</code> через <code>tuplestore</code> — один из способов обеспечить требуемое повторное чтение.</p>
+<p>Так <code>tuplestore</code> связывает сразу две темы JOIN: повторные проходы <code>Nested Loop</code> и возврат к группам одинаковых ключей <code>Merge Join</code>.</p>
+<h3 id="7">Что запомнить после раздела 7<a class="headerlink" href="#7" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>tuplestore</code> хранит логический поток кортежей, а <code>BufFile</code> — буферизованный байтовый файловый поток.</li>
+<li>Строки в <code>tuplestore</code> копируются и удерживаются в памяти до перехода к файлу либо освобождения.</li>
+<li>Состояния <code>TSS_INMEM</code>, <code>TSS_WRITEFILE</code>, <code>TSS_READFILE</code> описывают текущий способ хранения и чтения.</li>
+<li>Наличие нескольких указателей и возможности rewind/mark позволяет повторно читать данные без перезапуска нижележащего плана.</li>
+<li>Материализация уменьшает повторную работу нижележащего узла, но не устраняет повторные выдачи и проверки строк.</li>
+</ol>
+<hr/>
+<h2 id="8-sharedtuplestore-join">8. <code>SharedTuplestore</code>: почему параллельному JOIN нужно другое хранилище<a class="headerlink" href="#8-sharedtuplestore-join" title="Permanent link">¶</a></h2>
+<h3 id="81-tuplestore">8.1. <code>tuplestore</code> одного процесса нельзя просто разделить указателем<a class="headerlink" href="#81-tuplestore" title="Permanent link">¶</a></h3>
+<p>Обычный <code>tuplestore</code> хранит адреса строк в локальном адресном пространстве backend-процесса. Эти адреса не имеют универсального смысла для соседнего процесса PostgreSQL. Кроме того, разные исполнители должны согласованно распределять работу и понимать, какой участок сохраненных данных уже прочитан.</p>
+<p>Параллельный хеш JOIN может использовать несколько рабочих процессов, которые записывают строки в отложенные партии, а затем читают их для совместного поиска.</p>
+<p>Здесь используется <code>SharedTuplestore</code> — <strong>механизм совместного временного хранения кортежей между backend-процессами</strong>.</p>
+<h3 id="82">8.2. Что действительно разделяется<a class="headerlink" href="#82" title="Permanent link">¶</a></h3>
+<p>Очень важный момент: слово <code>Shared</code> не означает, что все сохраненные строки обязательно находятся в одной большой общей хеш-таблице в RAM.</p>
+<p>У <code>SharedTuplestore</code> разделяемыми являются управляющее состояние и сведения о доступных частях файлов. Сами временные данные сохраняются в файлах, которые доступны участникам через <code>SharedFileSet</code> и <code>BufFile</code>.</p>
+<div class="highlight"><pre><span></span><code>    Работник 1              Работник 2              Работник 3
+      |                        |                       |
+      +------------+-----------+-----------------------+
+                   |
+                   v
+     Разделяемое управляющее состояние (DSM)
+       - участники
+       - позиции чтения частей
+       - легковесные блокировки
+                   |
+                   v
+            SharedFileSet
+          /       |       \
+         /        |        \
+  Буферный файл A  B       C
+       |            |       |
+       +------------+-------+
+                    |
+                    v
+          Сохраненные кортежи
+</code></pre></div>
+<p><code>DSM</code> — динамическая разделяемая память PostgreSQL. <code>SharedFileSet</code> — набор доступных участникам временных файлов. Это другой механизм, чем <code>DSA</code>, выделяющий объекты в разделяемом адресном пространстве для общей хеш-таблицы.</p>
+<h3 id="83">8.3. Кто пишет файлы<a class="headerlink" href="#83" title="Permanent link">¶</a></h3>
+<p>Для параллельного варианта каждый участник может создавать собственный временный файл и записывать в него свои строки. <code>SharedTuplestoreAccessor</code> содержит номер участника, локальный буфер записи и ссылку на файл.</p>
+<p>В исходниках используется:</p>
+<div class="highlight"><pre><span></span><code><span class="n">sts_puttuple</span><span class="p">(</span><span class="n">accessor</span><span class="p">,</span><span class="w"> </span><span class="n">meta_data</span><span class="p">,</span><span class="w"> </span><span class="n">tuple</span><span class="p">);</span>
+</code></pre></div>
+<p>В качестве <code>meta_data</code> для хеш-партий может передаваться уже вычисленный <code>hashvalue</code>.</p>
+<p>Это позволяет сохранить кортежи разных процессов без необходимости превращать каждый отдельный <code>sts_puttuple()</code> в запись в один глобальный файл под общей блокировкой. Согласование требуется на уровне распределения частей работы и завершения фаз.</p>
+<h3 id="84-sharedtuplestore">8.4. Как устроен дисковый блок SharedTuplestore<a class="headerlink" href="#84-sharedtuplestore" title="Permanent link">¶</a></h3>
+<p>В <code>sharedtuplestore.c</code> PostgreSQL 18 задано:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">#define STS_CHUNK_PAGES 4</span>
+</code></pre></div>
+<p>В стандартной сборке <code>BLCKSZ=8192</code>, поэтому типичная порция составляет четыре страницы, то есть 32 КиБ.</p>
+<p>Внутри блока <code>SharedTuplestoreChunk</code> есть <code>ntuples</code> — количество записей и <code>overflow</code> — сведения о продолжении большой записи за пределами обычного блока.</p>
+<p>Содержимое порции состоит из последовательно сохраненных строк и возможных небольших дополнительных метаданных. Порции служат единицами выдачи работы читающим процессам.</p>
+<p><strong>Не путать с <code>HashMemoryChunk</code>!</strong> Оба могут иметь размер 32 КиБ, но первый — дисковая порция в <code>SharedTuplestore</code>, второй — блок плотного размещения хеш-записей в RAM.</p>
+<h3 id="85">8.5. Как читатели не обрабатывают одну порцию дважды<a class="headerlink" href="#85" title="Permanent link">¶</a></h3>
+<p>При параллельном сканировании несколько работников должны разобрать сохраненный набор без пропусков и без дублирования.</p>
+<p>Управляющее состояние содержит сведения о следующих порциях для чтения. Читающий работник получает очередную доступную порцию с синхронизацией, затем обрабатывает ее локально.</p>
+<div class="highlight"><pre><span></span><code>Сохраненные порции:
+  [0] [1] [2] [3] [4] [5] [6] [7]
+
+Worker 1: [0] [3] [6]
+Worker 2: [1] [4] [7]
+Worker 3: [2] [5]
+</code></pre></div>
+<p>Это <strong>учебный пример распределения</strong>, не обещание именно такого порядка. Существенен инвариант: каждый участок параллельного сканирования выдается для обработки одному участнику. При изменении скорости работников реальное распределение может быть иным.</p>
+<p>Для этого в интерфейсе используются <code>sts_begin_parallel_scan()</code> и <code>sts_parallel_scan_next()</code>.</p>
+<h3 id="86">8.6. Почему нужна граница между записью и чтением<a class="headerlink" href="#86" title="Permanent link">¶</a></h3>
+<p>Если первый работник начал читать общий временный набор, а другой еще не завершил запись, возникает вопрос: знает ли читатель, что доступны все необходимые части?</p>
+<p>Для многопартийного параллельного JOIN PostgreSQL согласует фазы. Перед переходом к чтению участники вызывают <code>sts_end_write()</code> для своих записей, а затем синхронизируют завершение построения или распределения.</p>
+<p>Это позволяет отделить фазу формирования временного набора от фазы его параллельного потребления.</p>
+<p>В обычном <code>tuplestore</code> один процесс может записывать и читать уже доступную часть потока до завершения всего входа. Для <code>SharedTuplestore</code> характерен иной контракт: параллельное сканирование сохраненного набора с распределением порций между участниками. <strong>Не следует считать его обычным <code>tuplestore</code>, к которому просто добавили mutex.</strong></p>
+<h3 id="87-sharedtuplestore-parallel-hash">8.7. Как SharedTuplestore связан с Parallel Hash<a class="headerlink" href="#87-sharedtuplestore-parallel-hash" title="Permanent link">¶</a></h3>
+<p>В <code>Parallel Hash</code> одна общая хеш-структура может строиться несколькими участниками в разделяемой памяти. Если соединение многопартийное, отложенные строки внутренней и внешней стороны сохраняются с помощью <code>SharedTuplestore</code>.</p>
+<div class="highlight"><pre><span></span><code>                   Parallel Hash Join
+                           |
+             +-------------+-------------+
+             |                           |
+             v                           v
+        Общая хеш-таблица             Поздние партии
+        DSA + корзины                   SharedTuplestore
+        для текущей партии              + SharedFileSet
+             |                           |
+             v                           v
+        Прямой поиск                Загрузка партии
+                                          |
+                                          v
+                                    Общая хеш-таблица
+</code></pre></div>
+<p>Во время построения общей хеш-таблицы параллельные участники согласуют изменения через барьеры. В фазах перераспределения могут использоваться, в частности, <code>PHJ_GROW_BATCHES_ELECT</code>, <code>PHJ_GROW_BATCHES_REALLOCATE</code>, <code>PHJ_GROW_BATCHES_REPARTITION</code> и <code>PHJ_GROW_BATCHES_DECIDE</code>.</p>
+<p>Это значительно сложнее непараллельного случая: при изменении числа партий необходимо согласованно пересоздать размещение данных, а не позволить одному работнику использовать новую маску, пока остальные используют старую.</p>
+<h3 id="88">8.8. Почему параллельное перераспределение отличается от обычного<a class="headerlink" href="#88" title="Permanent link">¶</a></h3>
+<p>В обычном <code>Hash Join</code> при переполнении текущая рабочая партия может быть переразмечена немедленно, а уже отложенные файлы — при последующей загрузке.</p>
+<p>В <code>Parallel Hash</code> изменение количества партий согласуется в фазе построения. При росте числа партий участники перераспределяют данные текущей общей хеш-структуры и ранее отложенных партий в новый набор временных файлов, затем проверяют, помещаются ли ожидаемые партии в бюджет памяти.</p>
+<p>Поэтому нельзя переносить псевдокод <code>ExecHashIncreaseNumBatches()</code> на <code>ExecParallelHashIncreaseNumBatches()</code> без дополнительных механизмов синхронизации и разделяемой памяти.</p>
+<h3 id="8">Что запомнить после раздела 8<a class="headerlink" href="#8" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>SharedTuplestore</code> обеспечивает обмен временными кортежами между процессами через общие метаданные и файловый слой.</li>
+<li>Записывающие процессы могут иметь собственные файлы, а читающие распределяют порции между собой.</li>
+<li><code>SharedTuplestore</code> использует порции страниц; их размер и порядок выдачи — детали реализации.</li>
+<li>Общая хеш-таблица в DSA и временное разделяемое хранилище партий — два разных объекта.</li>
+<li>В <code>Parallel Hash</code> изменение числа партий требует согласования участников и перераспределения данных в рамках отдельной последовательности фаз.</li>
+</ol>
+<hr/>
+<h2 id="9">9. Сравнение трех временных механизмов<a class="headerlink" href="#9" title="Permanent link">¶</a></h2>
+<p>После внутреннего устройства теперь можно точно объяснить, что именно делает каждый механизм.</p>
+<table>
+<thead>
+<tr>
+<th>Свойство</th>
+<th><code>BufFile</code></th>
+<th><code>tuplestore</code></th>
+<th><code>SharedTuplestore</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Что представляет</td>
+<td>Буферизованный поток байтов</td>
+<td>Последовательность кортежей</td>
+<td>Совместно доступную последовательность кортежей для параллельного чтения</td>
+</tr>
+<tr>
+<td>Где хранит данные</td>
+<td>Во временных файлах с буфером в RAM</td>
+<td>Сначала в памяти; при необходимости — в <code>BufFile</code></td>
+<td>В файлах набора <code>SharedFileSet</code>, общие метаданные в DSM</td>
+</tr>
+<tr>
+<td>Кто пользуется</td>
+<td>Внутренние механизмы PostgreSQL</td>
+<td>Один процесс, которому нужно сохранить/перечитать строки</td>
+<td>Несколько процессов совместного плана</td>
+</tr>
+<tr>
+<td>Единица работы</td>
+<td>Байты и смещения</td>
+<td>Кортежи и позиции чтения</td>
+<td>Кортежи и параллельно выдаваемые порции</td>
+</tr>
+<tr>
+<td>Применение в JOIN</td>
+<td>Файлы партий обычного <code>Hash Join</code></td>
+<td><code>Materialize</code>, повторные чтения, отдельные специальные случаи</td>
+<td>Партии <code>Parallel Hash Join</code></td>
+</tr>
+<tr>
+<td>Что дает</td>
+<td>Буферизацию и файловый доступ</td>
+<td>Копии строк, rewind, mark/restore, несколько указателей</td>
+<td>Координацию записи и разделенное чтение порций</td>
+</tr>
+<tr>
+<td>Возможное ограничение</td>
+<td>Ввод-вывод, число файловых буферов</td>
+<td><code>work_mem</code>, временный ввод-вывод</td>
+<td>Синхронизация, файловый ввод-вывод, распределение нагрузки</td>
+</tr>
+</tbody>
+</table>
+<h3 id="91-materialize">9.1. Почему Materialize не обязан ускорить каждое соединение<a class="headerlink" href="#91-materialize" title="Permanent link">¶</a></h3>
+<p>Вариант без материализации:</p>
+<div class="highlight"><pre><span></span><code>1000 повторных чтений маленькой таблицы из shared_buffers
+</code></pre></div>
+<p>Вариант с материализацией:</p>
+<div class="highlight"><pre><span></span><code>Один проход по дочернему узлу
++ копирование строк в tuplestore
++ 1000 повторных чтений сохраненных строк
+</code></pre></div>
+<p>Если дочерний узел очень дешев и возвращает мало строк, выигрыш может оказаться небольшим. При тяжелом внутреннем сканировании или дорогом расчете дочерних выражений экономия может быть значительной.</p>
+<p>Если материализация не помещается в память, повторное чтение временного файла может съесть заметную часть выгоды. При этом один и тот же запрос может изменять фактическую задержку из-за различий состояния файлового кеша и конкуренции за I/O.</p>
+<h3 id="92-batches">9.2. Почему много Batches не означает ровно столько проходов исходной таблицы<a class="headerlink" href="#92-batches" title="Permanent link">¶</a></h3>
+<p>Фраза «<code>Batches=32</code>, значит PostgreSQL перечитал таблицу 32 раза» неверна.</p>
+<p>Типичный непараллельный алгоритм сначала обрабатывает исходные потоки и сохраняет строки будущих партий, а затем перечитывает <strong>временные файлы</strong>, содержащие соответствующие части. В отдельных случаях динамического перераспределения временные записи могут проходить дополнительные циклы.</p>
+<p>Поэтому необходимо анализировать временный ввод-вывод и число обработанных строк, а не умножать размер исходной таблицы на <code>Batches</code> без понимания механизма.</p>
+<h3 id="93-ssd-io">9.3. Почему временное хранение не равно SSD-I/O<a class="headerlink" href="#93-ssd-io" title="Permanent link">¶</a></h3>
+<p><code>BufFileWrite()</code> сначала может заполнить собственный буфер. Затем данные поступают в файловый слой ОС. Даже после записи в файл они могут находиться в кеше страниц ОС; физическая запись на накопитель может произойти позднее. Аналогично чтение временного файла может обслуживаться из файлового кеша.</p>
+<p>Временный файловый ввод-вывод остается реальной нагрузкой на систему памяти и файловую подсистему. Однако <code>temp read/written</code> из <code>EXPLAIN</code> нельзя автоматически считать числом реальных операций чтения и записи физических устройств.</p>
+<hr/>
+<h2 id="10-postgresql">10. Диагностика: как увидеть стоимость этих механизмов в PostgreSQL<a class="headerlink" href="#10-postgresql" title="Permanent link">¶</a></h2>
+<h3 id="101-explain">10.1. Базовый EXPLAIN<a class="headerlink" href="#101-explain" title="Permanent link">¶</a></h3>
+<p>Для анализа существующего запроса:</p>
+<div class="highlight"><pre><span></span><code><span class="k">EXPLAIN</span><span class="w"> </span><span class="p">(</span><span class="k">ANALYZE</span><span class="p">,</span><span class="w"> </span><span class="n">BUFFERS</span><span class="p">,</span><span class="w"> </span><span class="n">SETTINGS</span><span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">name</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="p">;</span>
+</code></pre></div>
+<p><code>EXPLAIN ANALYZE</code> действительно выполняет запрос. Для изменяющих SQL это важно, но наш пример с <code>SELECT</code> служит лишь иллюстрацией чтения плана. Параметры памяти при желании можно исследовать локально для учебной сессии.</p>
+<p>Предположим, получили условный фрагмент:</p>
+<div class="highlight"><pre><span></span><code>Hash Join
+  Hash Cond: (o.customer_id = c.id)
+  Buffers: shared hit=40000 read=1200,
+           temp read=18000 written=18000
+  -&gt; Seq Scan on orders o
+  -&gt; Hash
+       Buckets: 65536
+       Batches: 32 (originally 2)
+       Memory Usage: 8192kB
+       -&gt; Seq Scan on customers c
+</code></pre></div>
+<p>Разбираем по слоям:</p>
+<ol>
+<li><code>Batches: 32 (originally 2)</code> — число партий выросло во время исполнения. Значит, первоначальная модель не обеспечила достаточное распределение в рамках рабочего бюджета либо столкнулась с неблагоприятным распределением.</li>
+<li><code>Buckets: 65536</code> — число корзин хеш-таблицы, не число временных файлов.</li>
+<li><code>Memory Usage: 8192kB</code> — измеренный пик учетного расхода хеш-структуры. Это <strong>не</strong> совокупный предел памяти всей сессии, всего запроса или всех параллельных работников.</li>
+<li><code>temp read/written</code> — обращения к блокам временных рабочих файлов; при стандартном размере блока 8 КиБ <code>18000</code> блоков соответствуют около 140,6 МиБ за каждое направление учета. Это не обязательно число уникальных страниц и не точное число физических I/O операций SSD.</li>
+<li>Показатели родительского <code>Hash Join</code> могут включать работу дочерних узлов. Складывать их со всеми дочерними значениями <code>Buffers</code> нельзя.</li>
+</ol>
+<h3 id="102">10.2. Связь размера строк и переполнения<a class="headerlink" href="#102" title="Permanent link">¶</a></h3>
+<p>Предположим, у <code>Hash</code> одинаковое <code>actual rows=1 000 000</code> в двух запросах, но разный состав сохраняемых данных.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Нужен только идентификатор:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="p">;</span>
+
+<span class="c1">-- Нужны дополнительные данные клиента:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">description</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">o</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">o</span><span class="p">.</span><span class="n">customer_id</span><span class="p">;</span>
+</code></pre></div>
+<p>При некоторых планах второй запрос вынужден сохранять более широкие строки внутренней стороны. Он может перейти к большему числу партий даже при правильной оценке количества клиентов.</p>
+<p>Значит, при анализе <code>Hash</code> нужно проверять <strong>число строк и их ширину</strong>, а также расположение вычислений в дереве плана. В зависимости от выбранного плана промежуточные значения могут формироваться до построения хеш-таблицы или позже.</p>
+<h3 id="103">10.3. Распределение ключей против ошибки статистики<a class="headerlink" href="#103" title="Permanent link">¶</a></h3>
+<p>Две ситуации могут давать похожий симптом <code>Batches</code>:</p>
+<p><strong>Сценарий А.</strong> Планировщик ожидал 100 тысяч строк, получил миллион. Первоначальный расчет размера хеш-таблицы ошибся из-за количества строк.</p>
+<p><strong>Сценарий Б.</strong> Ожидал и получил миллион, но большинство строк имеют один популярный хеш. Распределение партий не уменьшает рабочий набор.</p>
+<p>Исправления различаются. В первом случае важна статистическая модель числа строк. Во втором — свойства ключей и ограничения самого алгоритма разбиения.</p>
+<h3 id="104-temp-read-written">10.4. Что означают temp read / written<a class="headerlink" href="#104-temp-read-written" title="Permanent link">¶</a></h3>
+<p><code>BUFFERS</code> различает:</p>
+<ul>
+<li><code>shared hit/read</code> — работу с блоками постоянных таблиц и индексов через общий буферный кеш;</li>
+<li><code>temp read/written</code> — обращения к блокам временных <strong>рабочих</strong> файлов сортировки, хеширования, материализации и других операций;</li>
+<li><code>local hit/read</code> — локальные буферы временных таблиц, это отдельная категория.</li>
+</ul>
+<p>Особенно важно: временные рабочие файлы JOIN и временные SQL-таблицы — разные механизмы. Поэтому рост <code>temp read/written</code> не доказывает использование временной таблицы <code>CREATE TEMP TABLE</code>.</p>
+<p>Если активирован <code>track_io_timing</code>, можно получить дополнительные временные показатели ввода-вывода; их следует интерпретировать с учетом файлового кеша ОС.</p>
+<h3 id="105-">10.5. Как увидеть повторную запись из-за роста партий<a class="headerlink" href="#105-" title="Permanent link">¶</a></h3>
+<p>Одного поля <code>Batches</code> недостаточно для точного подсчета стоимости перестройки.</p>
+<p>Полезно сравнить:</p>
+<div class="highlight"><pre><span></span><code>Первоначальные Batches
+Фактические Batches
+Пик Memory Usage
+Количество входных строк
+temp read/written
+Execution Time
+</code></pre></div>
+<p>Если <code>Batches</code> выросло много раз и <code>temp written</code> велик, это согласуется с несколькими этапами перераспределения и сохранением отложенных данных. Но конкретное количество таких этапов по одному <code>EXPLAIN</code> восстановить нельзя.</p>
+<p><code>Batches: 32 (originally 2)</code> показывает начальное и конечное число партий, а не полный журнал <code>2 -&gt; 4 -&gt; 8 -&gt; 16 -&gt; 32</code> с продолжительностями и размерами каждого этапа.</p>
+<h3 id="106">10.6. Наблюдение на уровне базы и сервера<a class="headerlink" href="#106" title="Permanent link">¶</a></h3>
+<p>В production полезны:</p>
+<ul>
+<li><code>pg_stat_database.temp_files</code> и <code>temp_bytes</code> — совокупные показатели созданных временных файлов и записанных в них данных по базе;</li>
+<li><code>pg_stat_statements</code> — если расширение установлено, накопленная статистика вызовов, времени и временных блоков для SQL;</li>
+<li><code>log_temp_files</code> — запись информации о больших временных файлах в лог при их удалении, если настройка включена;</li>
+<li><code>temp_file_limit</code> — ограничение допустимого объема временных файлов для процесса с соответствующими оговорками реализации;</li>
+<li><code>EXPLAIN (ANALYZE, BUFFERS, TIMING OFF)</code> — позволяет получить счетчики с меньшей стоимостью детального измерения времени узлов.</li>
+</ul>
+<p>Отдельно следует сопоставлять временный ввод-вывод с нагрузкой на файловую систему, использованием RAM и конкурирующими запросами. <code>temp_bytes</code> — не количество физических операций SSD и не оценка задержки конкретного SQL.</p>
+<h3 id="107-join">10.7. Что проверять при нескольких параллельных JOIN<a class="headerlink" href="#107-join" title="Permanent link">¶</a></h3>
+<p>Необходимо различать:</p>
+<ul>
+<li>обычный <code>Hash</code> под параллельным планом, когда разные работники могут строить свои хеш-таблицы;</li>
+<li><code>Parallel Hash</code> — общую хеш-структуру с динамической разделяемой памятью и согласованием фаз.</li>
+</ul>
+<p>В первом варианте расход памяти на построение может дублироваться. Во втором меньше дублируется структура, но появляются синхронизация, общие метаданные и временные наборы партий.</p>
+<p>При диагностике смотрим <code>Workers Planned</code>, <code>Workers Launched</code>, статистику по работникам, число партий и временный ввод-вывод. Ускорение не обязано расти пропорционально числу работников.</p>
+<h3 id="108-">10.8. Инженерный чек-лист по симптому<a class="headerlink" href="#108-" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Какая модель могла сломаться</th>
+<th>Что проверять</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Batches: 1</code> и огромный <code>Memory Usage</code></td>
+<td>Хеш-таблица действительно большая</td>
+<td>Ширина и количество записей; число одновременных запросов</td>
+</tr>
+<tr>
+<td><code>Batches</code> сильно выросло</td>
+<td>Первоначальный размер партий не подошел</td>
+<td>Ожидаемые/фактические строки, ширина, хеши, память</td>
+</tr>
+<tr>
+<td>Есть <code>Batches &gt; 1</code>, большой <code>temp written</code></td>
+<td>Многопартийное соединение сохраняло данные</td>
+<td>Объем отложенных записей, повторное разбиение, конкурентный I/O</td>
+</tr>
+<tr>
+<td>Рост партий прекратился, память большая</td>
+<td>Дробление не разделяет группу</td>
+<td>Популярные/одинаковые хеши, ограничение роста</td>
+</tr>
+<tr>
+<td><code>Materialize</code> запускается много раз</td>
+<td>Родитель повторно читает сохраненный поток</td>
+<td>Число выданных строк, расход памяти и temp I/O</td>
+</tr>
+<tr>
+<td><code>Merge Join</code> + <code>Materialize</code></td>
+<td>Нужно повторять внутренние группы</td>
+<td>Кратность ключей, повторные проходы, размер группы</td>
+</tr>
+<tr>
+<td><code>Parallel Hash</code> масштабируется плохо</td>
+<td>Общие ресурсы или неравномерная работа</td>
+<td>Временный I/O, синхронизация, перекос, worker stats</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="11-">11. Единая причинно-следственная модель<a class="headerlink" href="#11-" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>SQL с соединением по равенству
+          |
+          v
+Планировщик выбрал Hash Join
+          |
+          v
+MultiExecHash строит временную структуру
+          |
+          v
+Для каждой строки:
+  hashvalue + MinimalTuple
+          |
+          v
+HashJoinTuple размещается в HashMemoryChunk
+          |
+          v
+По hashvalue вычисляются bucket и batch
+          |
+          +---- batch = текущей партии ----&gt; запись в RAM
+          |
+          +---- batch = будущей партии ----&gt; BufFile
+          |
+          v
+Памяти не хватает?
+          |
+          +---- да: оценить цену новых файловых буферов
+          |           |
+          |           +-- выгоднее расширить spaceAllowed
+          |           |
+          |           +-- иначе удвоить nbatch
+          |                   |
+          |                   v
+          |              пройти старые HashMemoryChunk
+          |                   |
+          |                   +-- сохранить в RAM
+          |                   +-- переписать в BufFile
+          |
+          v
+Продолжить поиск по текущей партии
+          |
+          v
+Загрузить следующие партии и завершить JOIN
+          |
+          v
+Смежные механизмы исполнения JOIN (другие пути):
+  +-- Materialize -&gt; tuplestore -&gt; при необходимости BufFile
+  +-- Parallel Hash -&gt; SharedTuplestore + SharedFileSet
+          |
+          v
+EXPLAIN ANALYZE:
+  Buckets / Batches / Memory Usage / temp read/written
+          |
+          v
+Разобрать ограниченный ресурс и инженерную причину задержки
+</code></pre></div>
+<h3 id="_1">Семь главных выводов<a class="headerlink" href="#_1" title="Permanent link">¶</a></h3>
+<ol>
+<li><code>HashJoinTupleData</code> содержит ссылку цепочки и вычисленный хеш, а после выровненного заголовка располагается <code>MinimalTuple</code> с данными строки.</li>
+<li><code>dense_alloc()</code> хранит множество записей в блоках <code>HashMemoryChunk</code> размером около 32 КиБ, сокращая накладные расходы на отдельные выделения и облегчая перестройку структуры.</li>
+<li>В PostgreSQL 18 партия вычисляется через <code>pg_rotate_right32</code>; при удвоении числа партий новая маска может оставить строку в прежней партии либо перенести ее в более позднюю.</li>
+<li><code>ExecHashIncreaseNumBatches()</code> перераспределяет записи текущей рабочей структуры по физическим блокам, а не просто заменяет число в заголовке хеш-таблицы.</li>
+<li>При сильном перекосе хешей дальнейшее удвоение партий может не уменьшить рабочий объем; PostgreSQL способен отключить рост и превысить расчетный бюджет памяти.</li>
+<li><code>BufFile</code>, <code>tuplestore</code> и <code>SharedTuplestore</code> устроены по-разному: байтовый временный файл, локальный поток кортежей с повторным чтением и межпроцессное хранилище порций соответственно.</li>
+<li>В production недостаток RAM для JOIN способен превратиться в массовое копирование, временный ввод-вывод и конкуренцию между запросами; причина определяется по распределению строк и хешей, памяти, партиям и измерениям.</li>
+</ol>
+<h3 id="join">Куда еще можно копнуть в пределах JOIN<a class="headerlink" href="#join" title="Permanent link">¶</a></h3>
+<p><strong>Первый следующий слой — механизм выделения и освобождения памяти PostgreSQL для хеш-операций.</strong> Разбор <code>MemoryContext</code>, <code>dense_alloc</code>, <code>palloc</code>, DSA и границ жизни партии объяснит, почему <code>Memory Usage</code> не равен точному общему RSS backend-процесса и что именно освобождается при <code>ExecHashTableReset()</code>.</p>
+<p><strong>Второй слой — синхронизация <code>Parallel Hash</code> до операций с общей памятью.</strong> По состояниям барьеров и атомарным операциям станет понятно, почему участники не могут произвольно начать поиск до завершения построения и перераспределения. Это полезно для диагностики слабого масштабирования параллельных JOIN.</p>
+<p>Оба слоя остаются внутри темы исполнения соединений и не требуют переходить к WAL и долговечности транзакций.</p>
+<hr/>
+<h2 id="12">12. Источники и граница точности<a class="headerlink" href="#12" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/executor/hashjoin.h">PostgreSQL 18: <code>hashjoin.h</code></a> — <code>HashJoinTupleData</code>, <code>HJTUPLE_OVERHEAD</code>, <code>HashMemoryChunk</code>, контексты памяти и <code>skew</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/executor/nodeHash.c">PostgreSQL 18: <code>nodeHash.c</code></a> — <code>dense_alloc</code>, <code>ExecHashTableInsert</code>, <code>ExecHashGetBucketAndBatch</code>, <code>ExecHashIncreaseNumBatches</code>, <code>ExecHashIncreaseBatchSize</code>, изменение корзин и параллельные структуры.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/executor/nodeHashjoin.c">PostgreSQL 18: <code>nodeHashjoin.c</code></a> — <code>ExecHashJoinNewBatch</code>, сериализация партий в <code>ExecHashJoinSaveTuple</code>, чтение через <code>ExecHashJoinGetSavedTuple</code>, логика пропуска файлов.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/sort/tuplestore.c">PostgreSQL 18: <code>tuplestore.c</code></a> — состояния <code>TSS_*</code>, копирование кортежей, указатели чтения, переход на временный файл.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/executor/nodeMaterial.c">PostgreSQL 18: <code>nodeMaterial.c</code></a> — связь <code>Materialize</code> и <code>tuplestore</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/file/buffile.c">PostgreSQL 18: <code>buffile.c</code></a> — буферизация, логические позиции, физические сегменты, временные файлы.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/utils/sort/sharedtuplestore.c">PostgreSQL 18: <code>sharedtuplestore.c</code></a> — общий временный набор для параллельных участников, порции, <code>sts_puttuple</code>, <code>sts_parallel_scan_next</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/runtime-config-resource.html">PostgreSQL 18: настройки ресурсов</a> — <code>work_mem</code>, <code>hash_mem_multiplier</code>, <code>temp_file_limit</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/using-explain.html">PostgreSQL 18: использование EXPLAIN</a> — <code>Buckets</code>, <code>Batches</code>, <code>Memory Usage</code> и ограничения интерпретации.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-explain.html">PostgreSQL 18: SQL EXPLAIN</a> — <code>BUFFERS</code>, временные блоки, <code>TIMING OFF</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/monitoring-stats.html">PostgreSQL 18: накопленная статистика</a> — <code>temp_files</code>, <code>temp_bytes</code> и показатели запросов.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 6.2. PostgreSQL — внутреннее устройство исполнителя JOIN" class="md-footer__link md-footer__link--prev" href="../06.2%20-%20Join%20Executor/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 7.1. PostgreSQL WAL Internals" class="md-footer__link md-footer__link--next" href="../07.1%20-%20WAL%20Internals/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                7.1. PostgreSQL WAL Internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

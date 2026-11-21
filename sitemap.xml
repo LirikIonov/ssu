@@ -13,7 +13,39 @@
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/1%20-%20Intro%20%2B%20production/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/01%20-%20Intro%20%2B%20production/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/02%20-%20Runtime/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/03%20-%20Memory/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/04%20-%20Go%20under%20the%20hood/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/05%20-%20Explain/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/06%20-%20Join%20algorithms/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/07%20-%20WAL%20durability/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/08%20-%20Diagnostics%20locks/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/09%20-%20Migrations%20backup%20pooling/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
@@ -41,39 +73,115 @@
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/2%20-%20Runtime/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/01.1%20-%20CPU%20architecture/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/3%20-%20Memory/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/02.1%20-%20Go%20runtime%20deep/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/4%20-%20Go%20under%20the%20hood/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/03.1%20-%20GC%20deep/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/5%20-%20Explain/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/03.2%20-%20OS%20Virtual%20Memory/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/6%20-%20Join%20algorithms/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/03.3%20-%20Linux%20memory%20reclaim/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/7%20-%20WAL%20durability/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/8%20-%20Diagnostics%20locks/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/03.5%20-%20Linux%20storage%20path/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/9%20-%20Migrations%20backup%20pooling/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.1%20-%20Go%20structures%20deeper/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/1.1%20-%20CPU%20architecture/</loc>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.2%20-%20Channels%2C%20select%20and%20context%20deeper/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.3%20-%20Go%20compiler%20under%20the%20hood/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/04.6%20-%20Go%20runtime%20startup%20deeper/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/05.1%20-%20Cardinality/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/05.2%20-%20Cost%20model/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/05.3%20-%20Planner/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/06.1%20-%20Join%20Planner/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/06.2%20-%20Join%20Executor/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/06.3%20-%20Hash%20Storage/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/07.1%20-%20WAL%20Internals/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/07.2%20-%20Durability%20storage/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/07.3%20-%20Checkpoint%20crash%20recovery/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/08.1%20-%20Monitoring%20wait%20events/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/08.2%20-%20Lock%20manager/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/08.3%20-%20Vacuum%20freeze%20transaction%20age/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/09.1%20-%20Schema%20migration/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/09.2%20-%20Backup%20restore/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/lectures/Additional/09.3%20-%20Connection%20pooling/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
@@ -89,114 +197,6 @@
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/2.1%20-%20Go%20runtime%20deep/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3.1%20-%20GC%20deep/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3.2%20-%20OS%20Virtual%20Memory/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3.3%20-%20Linux%20memory%20reclaim/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/3.5%20-%20Linux%20storage%20path/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.1%20-%20Go%20structures%20deeper/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.2%20-%20Channels%2C%20select%20and%20context%20deeper/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.3%20-%20Go%20compiler%20under%20the%20hood/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/4.6%20-%20Go%20runtime%20startup%20deeper/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/5.1%20-%20Cardinality/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/5.2%20-%20Cost%20model/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/5.3%20-%20Planner/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/6.1%20-%20Join%20Planner/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/6.2%20-%20Join%20Executor/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/6.3%20-%20Hash%20Storage/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/7.1%20-%20WAL%20Internals/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/7.2%20-%20Durability%20storage/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/7.3%20-%20Checkpoint%20crash%20recovery/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/8.1%20-%20Monitoring%20wait%20events/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/8.2%20-%20Lock%20manager/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/8.3%20-%20Vacuum%20freeze%20transaction%20age/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/9.1%20-%20Schema%20migration/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/9.2%20-%20Backup%20restore/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/lectures/Additional/9.3%20-%20Connection%20pooling/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
          <loc>https://lirikonov.github.io/ssu/practice/1%20-%20task/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
@@ -209,7 +209,39 @@
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
-         <loc>https://lirikonov.github.io/ssu/slides/1%20-%20Production%20backend%20Go/</loc>
+         <loc>https://lirikonov.github.io/ssu/slides/01%20-%20Production%20backend%20Go/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/02%20-%20Go%20Runtime%20Internal/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/03%20-%20Go%20Memory%20pprof/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/04%20-%20Go%20under%20the%20hood/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/05%20-%20PostgreSQL%20Explain/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/06%20-%20Join%20algorithms/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/07%20-%20WAL%20durability/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/08%20-%20Diagnostics%20locks/</loc>
+         <lastmod>2026-11-21</lastmod>
+    </url>
+    <url>
+         <loc>https://lirikonov.github.io/ssu/slides/09%20-%20Migrations%20backup%20pooling/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
     <url>
@@ -234,38 +266,6 @@
     </url>
     <url>
          <loc>https://lirikonov.github.io/ssu/slides/15%20-%20Foreign%20data%20wrappers/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/2%20-%20Go%20Runtime%20Internal/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/3%20-%20Go%20Memory%20pprof/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/4%20-%20Go%20under%20the%20hood/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/5%20-%20PostgreSQL%20Explain/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/6%20-%20Join%20algorithms/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/7%20-%20WAL%20durability/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/8%20-%20Diagnostics%20locks/</loc>
-         <lastmod>2026-11-21</lastmod>
-    </url>
-    <url>
-         <loc>https://lirikonov.github.io/ssu/slides/9%20-%20Migrations%20backup%20pooling/</loc>
          <lastmod>2026-11-21</lastmod>
     </url>
 </urlset>

@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/09.1%20-%20Schema%20migration/" rel="canonical"/>
+<link href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/" rel="prev"/>
+<link href="../09.2%20-%20Backup%20restore/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>9.1. PostgreSQL Schema Migration Internals - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#91-postgresql-schema-migration-internals">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              9.1. PostgreSQL Schema Migration Internals
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: изменение на миллисекунду остановило систему на минуту
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0">
+<span class="md-ellipsis">
+      
+        0. Инцидент: изменение на миллисекунду остановило систему на минуту
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="91-postgresql-schema-migration-internals">9.1. PostgreSQL Schema Migration Internals<a class="headerlink" href="#91-postgresql-schema-migration-internals" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная лекция магистратуры · PostgreSQL 18 · <code>REL_18_STABLE</code> · блок 9.</strong><br/>
+<strong>Точка входа:</strong> завершены 09.0, блоки 5–8. Уже известны MVCC, WAL, блокировки, состояние backend-процессов и <code>CREATE INDEX CONCURRENTLY</code> на уровне API. Здесь открываем их внутреннюю реализацию при изменении схемы.<br/>
+<strong>Границы:</strong> только schema migration internals. Резервное копирование и пулы соединений оставлены для 09.2 и 09.3. Примеры предназначены для отдельной учебной БД; опасные команды на production запускают только после проверки плана миграции.<br/>
+<strong>О версиях:</strong> точный SQL и свойства каталогов относятся к PostgreSQL 18. Имена исходных функций и этапы ниже — детали реализации <code>REL_18_STABLE</code>, а не обещания стабильности внутреннего API. Фрагменты C, помеченные «схема», намеренно сокращены и не являются текстом для компиляции.</p>
+</blockquote>
+<h2 id="0">0. Инцидент: изменение на миллисекунду остановило систему на минуту<a class="headerlink" href="#0" title="Permanent link">¶</a></h2>
+<p>У нас таблица <code>orders</code>, в ней 60 миллионов заказов. Требуется добавить новое поле. DBA смотрит на команду:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="k">source</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Операция не должна переписывать десятки гигабайт. На тестовой базе она выполняется практически мгновенно. Значит ли это, что в рабочей системе ее можно выполнить в любой момент?</p>
+<p>Нет. Представим: один backend уже держит <code>ACCESS SHARE</code> из долгого запроса. Наша миграция пытается получить <code>ACCESS EXCLUSIVE</code> и встает в очередь. Новые короткие <code>SELECT</code>, которые сами совместимы с первым читателем, могут оказаться за ожидающей сильной блокировкой. Через несколько секунд в сервисе растут p99, горят таймауты, соединения приложения забиваются ожиданиями. SQL миграции еще не выполнился — он только ждет права начать.</p>
+<p>Вот и главный вопрос лекции: <strong>где фактически находится цена изменения схемы — в размере данных, метаданных, ожидании блокировки, проверке ограничений, построении нового физического файла или в неудачно выбранном моменте публикации изменения?</strong></p>
+<p>Сегодня спустимся до <code>tablecmds.c</code>, каталогов <code>pg_class</code>/<code>pg_attribute</code>/<code>pg_constraint</code>, нового <code>relfilenode</code>, состояний <code>pg_index</code> и конкретных стадий конкурентного индексирования. В конце соберем протокол миграции, который можно диагностировать, прервать и продолжить безопасно.</p>
+<p><strong>Сквозной пример</strong>. Используем две таблицы:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">full_name</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">version</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="mi">0</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">customer_id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">customers</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">  </span><span class="c1">-- сумма в копейках</span>
+<span class="w">    </span><span class="n">status</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">now</span><span class="p">()</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Число строк и объемы для production-расчетов будут условными. Таблицы из SQL здесь маленькие: механизмы наблюдаем локально, нагрузочные следствия моделируем отдельно.</p>
+<hr/>
+<h1 id="i-ddl-execution-pipeline-sql">I. DDL execution pipeline: от SQL до системных каталогов<a class="headerlink" href="#i-ddl-execution-pipeline-sql" title="Permanent link">¶</a></h1>
+<h2 id="1-ddl">1. Почему DDL нельзя свести к «изменению файла таблицы»<a class="headerlink" href="#1-ddl" title="Permanent link">¶</a></h2>
+<p>Популярная модель: <code>ALTER TABLE</code> открывает файл с данными, меняет его формат и завершает работу. Первая проблема — многие DDL вообще не трогают строки. Вторая — структуру отношения описывает сразу несколько системных каталогов. Третья — несколько подкоманд одного <code>ALTER TABLE</code> должны проверяться и применяться в согласованном порядке, иначе можно создать промежуточную схему, которая не соответствует сама себе.</p>
+<p>Для PostgreSQL схема — <strong>состояние каталогов плюс физические отношения плюс инвалидация кеша метаданных</strong>. Исполнитель SQL сначала должен найти объект, проверить права и зависимости, определить необходимый lock, подготовить изменение каталогов, при необходимости проверить существующие строки либо переписать таблицу, после чего новая схема становится видимой другим транзакциям при фиксации.</p>
+<h3 id="11-sql-tablecmdsc">1.1. Как SQL попадает в <code>tablecmds.c</code><a class="headerlink" href="#11-sql-tablecmdsc" title="Permanent link">¶</a></h3>
+<p>Концептуальная цепочка:</p>
+<div class="highlight"><pre><span></span><code>SQL text
+  │
+  ▼
+Parser → AlterTableStmt
+  │
+  ▼
+Utility command execution (ProcessUtility)
+  │
+  ▼
+AlterTable() / AlterTableInternal()
+  │
+  ▼
+ATController()
+  ├─ Phase 1: ATPrepCmd()       — проверка и очередь работ
+  ├─ Phase 2: ATRewriteCatalogs() — изменение каталогов
+  └─ Phase 3: ATRewriteTables()   — сканирование, проверки, rewrite при необходимости
+  │
+  ▼
+COMMIT → другие backend видят новую схему
+</code></pre></div>
+<p>Исходник: <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/tablecmds.c"><code>src/backend/commands/tablecmds.c</code></a>. Имена приведены для внутренней реализации PostgreSQL, а не как пользовательский API.</p>
+<p>Упрощенное представление кода контроллера:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Схема управления ALTER TABLE, без вспомогательных параметров */</span>
+<span class="n">ATController</span><span class="p">(...)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">foreach</span><span class="w"> </span><span class="p">(</span><span class="n">cmd</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">commands</span><span class="p">)</span>
+<span class="w">        </span><span class="n">ATPrepCmd</span><span class="p">(</span><span class="o">&amp;</span><span class="n">work_queue</span><span class="p">,</span><span class="w"> </span><span class="n">relation</span><span class="p">,</span><span class="w"> </span><span class="n">cmd</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+
+<span class="w">    </span><span class="n">ATRewriteCatalogs</span><span class="p">(</span><span class="o">&amp;</span><span class="n">work_queue</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+<span class="w">    </span><span class="n">ATRewriteTables</span><span class="p">(...,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">work_queue</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Почему три этапа? Например, команда одновременно добавляет колонку и ограничение к ней. Сначала нужно установить зависимость подкоманд и подготовить рабочее состояние, затем согласованно обновить определения объектов, потом проверять строки с уже подготовленным описанием будущей схемы. Для некоторых действий дополнительная работа отсутствует; для других весь третий этап становится дорогим.</p>
+<h3 id="12-alter-table">1.2. Что находится в очереди ALTER TABLE<a class="headerlink" href="#12-alter-table" title="Permanent link">¶</a></h3>
+<p><code>AlteredTableInfo</code> — рабочая структура для отношения, обрабатываемого <code>ALTER TABLE</code>. В ней собираются подкоманды по проходам, информация о новых типах и атрибутах, признаки требуемого rewrite и планы проверок. Смысл не в том, чтобы запомнить набор C-полей. Смысл в другом: <strong>решение переписывать таблицу принимается в процессе подготовки и исполнения DDL; оно не выводится из длины SQL</strong>.</p>
+<p>Внутренняя реализация использует упорядоченные проходы (<code>AlterTablePass</code>), поскольку удаление зависимых объектов, изменение типов, добавление колонок и последующая проверка ограничений имеют разные требования к порядку. Вывод: если несколько операций объединены в один <code>ALTER TABLE</code>, PostgreSQL не обязан физически исполнять их строго слева направо как независимые строки скрипта.</p>
+<h3 id="13">1.3. Почему каталог — это тоже данные<a class="headerlink" href="#13" title="Permanent link">¶</a></h3>
+<p>Основные объекты:</p>
+<table>
+<thead>
+<tr>
+<th>Каталог</th>
+<th>Что хранит</th>
+<th>Что исследуем</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pg_class</code></td>
+<td>отношения: таблицы, индексы, TOAST</td>
+<td><code>oid</code>, <code>relfilenode</code>, <code>relkind</code>, <code>reltoastrelid</code>, <code>relrewrite</code></td>
+</tr>
+<tr>
+<td><code>pg_attribute</code></td>
+<td>колонки отношения</td>
+<td><code>attnum</code>, <code>atttypid</code>, <code>attisdropped</code>, <code>atthasmissing</code>, <code>attmissingval</code></td>
+</tr>
+<tr>
+<td><code>pg_attrdef</code></td>
+<td>выражения <code>DEFAULT</code> и generation</td>
+<td><code>adrelid</code>, <code>adnum</code>, <code>pg_get_expr(adbin, adrelid)</code></td>
+</tr>
+<tr>
+<td><code>pg_constraint</code></td>
+<td>ограничения</td>
+<td><code>contype</code>, <code>convalidated</code>, <code>conenforced</code>, <code>conrelid</code>, <code>conindid</code></td>
+</tr>
+<tr>
+<td><code>pg_index</code></td>
+<td>состояние и свойства индекса</td>
+<td><code>indisready</code>, <code>indisvalid</code>, <code>indislive</code>, <code>indcheckxmin</code></td>
+</tr>
+<tr>
+<td><code>pg_depend</code></td>
+<td>зависимости объектов</td>
+<td>что допустимо удалить / поменять</td>
+</tr>
+</tbody>
+</table>
+<p>Это обычные отношения PostgreSQL с транзакционной семантикой. Изменения их записей выполняются средствами СУБД, а не непосредственным редактированием файлов администратором. Но есть еще проблема: текущий backend может держать в памяти старое описание relation.</p>
+<h3 id="14-relcache-catcache-invalidation">1.4. Relcache, catcache и invalidation<a class="headerlink" href="#14-relcache-catcache-invalidation" title="Permanent link">¶</a></h3>
+<p>Чтобы не читать системные каталоги при каждом обращении к таблице, PostgreSQL использует кеши описаний отношений (<code>relcache</code>) и записей системных каталогов (<code>catcache</code>/syscache). Если один backend изменил схему, другие не должны продолжать бесконечно считать старую схему действующей.</p>
+<p>Поэтому изменение каталога сопровождается механизмами инвалидации кешей. Сообщения об инвалидации заставляют backend-процессы отказаться от устаревших представлений в соответствующих безопасных точках. Операции DDL и блокировки обеспечивают, чтобы работающий запрос не продолжил обращаться к отношению по несовместимому определению.</p>
+<p><strong>Неудачное упрощение:</strong> «DDL завершился — значит каждый процесс сразу буквально перепрочитал все каталоги». На практике применяются кеши и механизмы invalidation; обновление выполняется по необходимости и в согласовании с завершением команд и транзакций. Цена метаданных здесь обычно мала по сравнению с переписыванием данных, но она влияет на корректность и планирование транзакции.</p>
+<h3 id="15">1.5. Какая блокировка нужна до первого шага<a class="headerlink" href="#15" title="Permanent link">¶</a></h3>
+<p>Разберем короткий пример:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">lock_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'1500ms'</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">delivery_note</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Добавление колонки в типичном варианте требует <code>ACCESS EXCLUSIVE</code>. Пока эта блокировка не получена, даже подготовка дешевого изменения каталога не делает команду «безопасной для чтения». Время нужно разделять:</p>
+<div class="highlight"><pre><span></span><code>общая задержка DDL = время ожидания lock
+                    + время изменения каталогов
+                    + время проверки / rewrite
+                    + время фиксации
+</code></pre></div>
+<p>В PostgreSQL многие операции <code>ALTER TABLE</code> требуют <code>ACCESS EXCLUSIVE</code>, если для конкретной формы не заданы более слабые требования. <code>ACCESS EXCLUSIVE</code> конфликтует с обычным <code>ACCESS SHARE</code> читающего <code>SELECT</code>. Мы уже изучили матрицу конфликтов в блоке 8; здесь интересует инженерная цена DDL.</p>
+<p>Если <code>ALTER TABLE</code> написан внутри большого <code>BEGIN</code> вместе с длительным backfill, сильная блокировка может удерживаться до окончания <strong>всей транзакции</strong>, даже если собственно каталог был изменен мгновенно. Поэтому нужно отделять короткий DDL от долгой обработки данных.</p>
+<h3 id="16-sql">1.6. Очередь блокировок: тридцать секунд простоя за одну строку SQL<a class="headerlink" href="#16-sql" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>Время        A: долгий SELECT       B: ALTER TABLE         C: новые SELECT
+T0           ACCESS SHARE
+T1                                  просит ACCESS EXCLUSIVE
+T2                                  WAIT
+T3                                                         просят ACCESS SHARE
+T4                                                         могут ждать за B
+T30          завершается
+T31                                  получает lock, меняет каталог
+T32                                  COMMIT
+T33                                                         продолжают работу
+</code></pre></div>
+<p>Не каждое новое чтение обязано проходить в обход ожидающего писателя. Lock manager учитывает порядок ожидающих запросов, поэтому DDL может создать очередь <strong>до фактического изменения таблицы</strong>. Под нагрузкой это проявляется как рост p99 при небольшом CPU.</p>
+<p>Диагностика на отдельной БД:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">wait_event</span><span class="p">,</span>
+<span class="w">       </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">query_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_blocking_pids</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blocked_by</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">160</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">datname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">current_database</span><span class="p">()</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">query_start</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<p>Повторно устройство <code>pg_stat_activity</code> здесь не разбираем. Достаточно знать, что запрос DDL может находиться в <code>active</code> и одновременно ждать <code>Lock</code>.</p>
+<p><strong>Инженерный вывод раздела:</strong> любой план миграции должен отдельно оценивать (1) lock acquisition, (2) каталог, (3) проверку, (4) физическую переработку данных, (5) публикацию результата транзакции. «На тесте выполнилось быстро» ничего не говорит о стоимости ожидания блокировки в production.</p>
+<hr/>
+<h1 id="ii-metadata-only-changes">II. Metadata-only changes: когда строки физически остаются прежними<a class="headerlink" href="#ii-metadata-only-changes" title="Permanent link">¶</a></h1>
+<h2 id="2-fast-add-column-default">2. Fast <code>ADD COLUMN DEFAULT</code>: колонка появилась без обновления каждой строки<a class="headerlink" href="#2-fast-add-column-default" title="Permanent link">¶</a></h2>
+<p>Допустим, хотим добавить <code>origin</code>, чтобы каждому старому заказу показывать значение <code>legacy</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'legacy'</span><span class="p">;</span>
+</code></pre></div>
+<p>На таблице в 60 миллионов строк это выглядит как операция, которой придется обновить 60 миллионов tuple. Но в PostgreSQL 18 для неволатильного выражения DEFAULT работает <strong>fast path</strong>: результат выражения можно вычислить один раз и сохранить в метаданных, не переписывая старые строки.</p>
+<h3 id="21">2.1. В чем физическая проблема<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>До команды старая tuple содержала физические значения для N атрибутов. После команды логическая схема описывает N+1 атрибут. Если попытаться прочитать N+1-й атрибут непосредственно из старой tuple, его байтов там нет.</p>
+<p>Почему PostgreSQL может все равно вернуть <code>'legacy'</code>? Потому что функция извлечения значения учитывает описание атрибута. В каталоге <code>pg_attribute</code> существуют поля:</p>
+<div class="highlight"><pre><span></span><code>atthasmissing = true
+attmissingval = {'legacy'}
+</code></pre></div>
+<p><code>attmissingval</code> — одноэлементный массив типа <code>anyarray</code>, содержащий логическое значение атрибута, когда его совсем нет в старой tuple. Для новых строк PostgreSQL записывает явное значение согласно правилам INSERT/DEFAULT.</p>
+<h3 id="22-tuple">2.2. Пошагово: старая физическая tuple и новая логическая схема<a class="headerlink" href="#22-tuple" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>До ALTER TABLE                           После ALTER TABLE
+----------------------------------      --------------------------------------
+pg_attribute: id, amount, status         pg_attribute: id, amount, status, origin
+Heap tuple:   [1][100][new]             Heap tuple:   [1][100][new]   (без origin)
+                                                                  │
+SELECT origin                                                     ▼
+                                      Tuple descriptor → missing value 'legacy'
+</code></pre></div>
+<p>Это объясняет, почему объем heap может остаться прежним и почему запрос начинает возвращать новое поле сразу после <code>COMMIT</code>. Значение будет материализовано в физической записи при последующей операции, которая формирует новую tuple, или при переписывании таблицы. После полного rewrite каталог обычно больше не нуждается в режиме missing value для этой колонки.</p>
+<h3 id="23">2.3. Проверяем сами метаданные<a class="headerlink" href="#23" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">fast_default_demo</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">);</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">fast_default_demo</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">fast_default_demo</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="nb">text</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'legacy'</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">attname</span><span class="p">,</span><span class="w"> </span><span class="n">atthasmissing</span><span class="p">,</span><span class="w"> </span><span class="n">attmissingval</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_attribute</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">attrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'fast_default_demo'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">attname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'origin'</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">fast_default_demo</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидаем <code>atthasmissing = true</code> и отображение <code>legacy</code> для обеих старых строк. Эти наблюдения подтверждают метаданный механизм; конкретный вывод <code>attmissingval</code> зависит от клиента SQL.</p>
+<h3 id="24-now-clock_timestamp">2.4. Почему <code>now()</code> и <code>clock_timestamp()</code> отличаются<a class="headerlink" href="#24-now-clock_timestamp" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">assigned_at</span><span class="w"> </span><span class="n">timestamptz</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">now</span><span class="p">();</span>
+</code></pre></div>
+<p><code>now()</code> относится к STABLE-функциям: ее результат стабилен внутри текущей транзакции и подходящ для единичного вычисления при fast path. Все старые строки получат одинаковое значение, соответствующее выполнению DDL. А вот <code>clock_timestamp()</code> — VOLATILE: отдельные вычисления потенциально отличаются. Для сохранения семантики PostgreSQL должен применить выражение к строкам, поэтому добавление колонки с volatile DEFAULT требует table rewrite.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Этот вариант может переписать всю таблицу:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">sampled_at</span><span class="w"> </span><span class="n">timestamptz</span>
+<span class="w">    </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">clock_timestamp</span><span class="p">();</span>
+</code></pre></div>
+<p>Здесь важна <strong>волатильность выражения</strong>, а не наличие или отсутствие круглых скобок. Также полный rewrite могут потребовать добавление stored generated column, identity column или колонки доменного типа с ограничениями. Для PostgreSQL 18 виртуальная generated column при добавлении не требует rewrite, но имеет свою семантику вычисления.</p>
+<h3 id="25-default">2.5. Изменение DEFAULT после добавления — новая операция<a class="headerlink" href="#25-default" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">'api'</span><span class="p">;</span>
+</code></pre></div>
+<p>Это меняет поведение <strong>будущих</strong> вставок, где колонка явно не задается. Старые строки не станут <code>'api'</code>. Они могут по-прежнему получать <code>legacy</code> из <code>attmissingval</code>; явно сохраненные значения останутся как были.</p>
+<p>Так мы получаем три независимых сущности: значение в старой tuple, missing value старого атрибута и текущее выражение DEFAULT для новых операций. Смешать их — значит ошибочно переписать бизнес-данные при миграции.</p>
+<h3 id="26-fast-path-zero-downtime">2.6. Почему fast path не означает zero downtime<a class="headerlink" href="#26-fast-path-zero-downtime" title="Permanent link">¶</a></h3>
+<p>Каталог меняется быстро, но <code>ACCESS EXCLUSIVE</code> все равно нужен. Ожидание блокировки может занять минуты. Более того, если приложение после миграции начинает активно читать новую колонку, то при последующих модификациях tuple она будет материализоваться, и физический рост данных распределится во времени.</p>
+<p><strong>Цена решения:</strong> fast path устраняет одномоментный I/O переписывания, но не отменяет совместимость приложений, блокировки DDL и будущую стоимость хранения нового атрибута.</p>
+<h2 id="3-drop-column">3. <code>DROP COLUMN</code>: почему диск не освободился<a class="headerlink" href="#3-drop-column" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">DROP</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">origin</span><span class="p">;</span>
+</code></pre></div>
+<p>Может ли PostgreSQL удалить байты поля из каждой tuple за миллисекунды? Нет. Для быстрого логического удаления он помечает колонку в <code>pg_attribute</code> как dropped:</p>
+<div class="highlight"><pre><span></span><code>attisdropped = true
+atttypid    = 0
+</code></pre></div>
+<p>Физическое положение остальных атрибутов в старых строках должно оставаться интерпретируемым, поэтому запись о выброшенной колонке сохраняет часть технических свойств типа. <code>SELECT *</code> больше не показывает колонку, новый SQL не может к ней обратиться, но старые байты могут еще находиться в heap.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">attnum</span><span class="p">,</span><span class="w"> </span><span class="n">attname</span><span class="p">,</span><span class="w"> </span><span class="n">attisdropped</span><span class="p">,</span><span class="w"> </span><span class="n">atttypid</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_attribute</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">attrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">attnum</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">attnum</span><span class="p">;</span>
+</code></pre></div>
+<p>Чтобы реально устранить старые данные из физического представления всех строк, нужен переписывающий шаг, например подходящая операция, приводящая к table rewrite. Обычно сначала оценивают, окупается ли это: дополнительный I/O и риск недоступности могут быть выше экономии диска.</p>
+<p><strong>Вывод:</strong> логическое отсутствие колонки не доказывает физическое освобождение места. Даже <code>pg_column_size</code> и размер relation нужно интерпретировать с учетом старых tuple и правил хранения.</p>
+<h2 id="4-metadata-only-scan-only-rewrite">4. Metadata-only, scan-only и rewrite: три разные стоимости<a class="headerlink" href="#4-metadata-only-scan-only-rewrite" title="Permanent link">¶</a></h2>
+<p>Мы уже видели два SQL-запроса почти одинаковой длины, один из которых быстрый, а другой может обойти все строки. Для инженерной оценки удобно выделить три класса:</p>
+<table>
+<thead>
+<tr>
+<th>Класс</th>
+<th>Пример</th>
+<th>Работа</th>
+<th>Главная цена</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metadata-only</td>
+<td><code>ADD COLUMN nullable</code>, неволатильный <code>DEFAULT</code>, <code>DROP COLUMN</code></td>
+<td>изменить каталоги</td>
+<td>ожидание и удержание DDL lock</td>
+</tr>
+<tr>
+<td>Scan / validation</td>
+<td><code>VALIDATE CONSTRAINT</code>, проверка NOT NULL</td>
+<td>просканировать существующие строки, проверить условие</td>
+<td>чтение данных, CPU, блокировки заданного режима</td>
+</tr>
+<tr>
+<td>Rewrite</td>
+<td>volatile <code>DEFAULT</code>, требующее преобразования <code>ALTER TYPE</code></td>
+<td>построить новое физическое представление</td>
+<td>I/O, место, WAL, длительная блокировка, перестройка индексов</td>
+</tr>
+</tbody>
+</table>
+<p>Это <strong>учебная классификация</strong>, а не универсальное правило для каждой комбинации атрибутов и параметров. Реальный путь зависит от выражения DEFAULT, типа, зависимостей, наличия ограничений и состава подкоманд одного ALTER. Поэтому при подготовке production-миграции нас интересует не название оператора само по себе, а конкретная его форма на заданной версии PostgreSQL.</p>
+<hr/>
+<h1 id="iii-table-rewrite">III. Table rewrite: когда новая схема требует нового физического отношения<a class="headerlink" href="#iii-table-rewrite" title="Permanent link">¶</a></h1>
+<h2 id="5-alter-column-type">5. <code>ALTER COLUMN TYPE</code>: одна команда, два возможных пути<a class="headerlink" href="#5-alter-column-type" title="Permanent link">¶</a></h2>
+<p>Предположим, старое приложение хранит сумму заказа в целых копейках как <code>bigint</code>, а новое хочет тип <code>numeric(14,2)</code> в рублях. Мы пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">amount</span><span class="w"> </span><span class="k">TYPE</span><span class="w"> </span><span class="nb">numeric</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span><span class="mi">2</span><span class="p">)</span>
+<span class="k">USING</span><span class="w"> </span><span class="n">amount</span><span class="p">::</span><span class="nb">numeric</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+</code></pre></div>
+<p>В этом примере мы одновременно меняем тип и семантику единицы измерения: переводим целые копейки в рубли. В реальной миграции округление, диапазоны и точность должны проверяться отдельно. Важнее для нашей темы следующее: выражение <code>USING</code> требует вычисления нового физического значения каждой строки.</p>
+<p>У типов различаются размер, представление в tuple, выравнивание, правила сравнения и зависимые индексы. Поэтому нельзя просто заменить OID типа в <code>pg_attribute</code> и объявить работу законченной. PostgreSQL в общем случае должен построить новую версию отношения.</p>
+<h3 id="51-rewrite">5.1. Когда rewrite можно избежать<a class="headerlink" href="#51-rewrite" title="Permanent link">¶</a></h3>
+<p>Типы иногда имеют <strong>бинарно совместимые</strong> представления. Если <code>USING</code> не меняет содержимое значения, а преобразование допускает сохранение физической последовательности байтов, table rewrite может быть не нужен.</p>
+<p>Официальная документация PostgreSQL 18 указывает на такие исключения для бинарно совместимых типов или некоторых доменов без ограничений. Например, изменение <code>text</code> на совместимый <code>varchar</code> без изменения collation может избежать переписывания таблицы и даже перестройки соответствующего индекса, если его логическое поведение остается эквивалентным.</p>
+<p>Но из факта отсутствия table rewrite <strong>не следует</strong>, что не нужно перестраивать индекс. Изменение collation, операторного класса или семантики порядка способно сделать старую индексную структуру логически неправильной.</p>
+<p>Нужно отдельно решить два вопроса:</p>
+<ol>
+<li>Можно ли сохранить старое представление heap tuple?</li>
+<li>Можно ли сохранить старые индексные ключи и порядок?</li>
+</ol>
+<p>Это разные проверки. Успешность одной не гарантирует вторую.</p>
+<h3 id="52-rewrite">5.2. Как работает rewrite на уровне отношения<a class="headerlink" href="#52-rewrite" title="Permanent link">¶</a></h3>
+<p>Упрощенная схема физического пути:</p>
+<div class="highlight"><pre><span></span><code>orders (старая таблица)
+OID relation = 16400
+old relfilenode = 16400
+   │
+   │ последовательно читаем tuple
+   ▼
+вычисление новых значений + проверка ограничений
+   │
+   ▼
+новое физическое отношение / новые страницы
+new relfilenode = 17821
+   │
+   ├─ перестройка необходимых индексов
+   ├─ согласованное обновление catalog metadata
+   └─ завершение транзакции
+   ▼
+orders (тот же логический объект/OID)
+новый relfilenode
+</code></pre></div>
+<p>Здесь номера условные. <code>oid</code> — идентификатор логического объекта в системных каталогах. <code>relfilenode</code> — идентификатор физического файла для обычного отношения. Он может поменяться при переписывании, даже когда <code>oid</code> остается тем же. Для mapped relations <code>pg_class.relfilenode = 0</code>, поэтому универсальнее исследовать <code>pg_relation_filenode()</code>.</p>
+<p>При rewrite PostgreSQL строит новый физический набор страниц, формирует новые tuple, обновляет связанные структуры и в рамках DDL переключает отношение на новое хранение. Старыe файлы не становятся пользовательскими данными, доступными по старому SQL-имени.</p>
+<h3 id="53">5.3. Как проверить, что переписывание действительно состоялось<a class="headerlink" href="#53" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">rewrite_demo</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">payload</span><span class="w"> </span><span class="nb">integer</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">rewrite_demo</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">g</span><span class="p">,</span><span class="w"> </span><span class="k">g</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">generate_series</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">10000</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">g</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">::</span><span class="n">oid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation_oid</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_relation_filenode</span><span class="p">(</span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">filenode_before</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_bytes_before</span><span class="p">;</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">rewrite_demo</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">payload</span><span class="w"> </span><span class="k">TYPE</span><span class="w"> </span><span class="nb">text</span>
+<span class="k">USING</span><span class="w"> </span><span class="n">payload</span><span class="p">::</span><span class="nb">text</span><span class="p">;</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">::</span><span class="n">oid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation_oid</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_relation_filenode</span><span class="p">(</span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">filenode_after</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'rewrite_demo'</span><span class="p">::</span><span class="n">regclass</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap_bytes_after</span><span class="p">;</span>
+</code></pre></div>
+<p>Ожидается тот же OID логической таблицы и изменение filenode в данном примере. Учитываем, что вывод команды <code>SELECT ... before</code> нужно сохранить отдельно: оба запроса не выполняются в одном SQL-выражении автоматически.</p>
+<h3 id="54">5.4. Зачем нужен новый файл, а не модификация старого «на месте»<a class="headerlink" href="#54" title="Permanent link">¶</a></h3>
+<p>Предположим, мы изменяем каждую строку внутри старого файла и на 60% работы возникает ошибка преобразования:</p>
+<div class="highlight"><pre><span></span><code>строки 1–35 млн: новый формат
+строки 35–60 млн: старый формат
+</code></pre></div>
+<p>Такое состояние плохо совместимо с транзакционной атомарностью DDL и откатом. Построение нового физического отношения позволяет подготовить согласованную структуру отдельно, затем зафиксировать переключение в рамках транзакции. В реализации участвуют механизмы создания storage и изменения catalog mappings, а WAL обеспечивает необходимые гарантии долговечности согласно уже изученному блоку 7.</p>
+<p>Это дорого: возможны большой объем записи, необходимость временного свободного места, существенная генерация WAL, а также полная перестройка индексов. В таблице с крупными TOAST-значениями нужно отдельно учитывать реальную структуру данных, а не только размер основного heap.</p>
+<h3 id="55-mvcc-rewrite">5.5. Важная MVCC-оговорка при rewrite<a class="headerlink" href="#55-mvcc-rewrite" title="Permanent link">¶</a></h3>
+<p>Обычное MVCC-чтение позволяет увидеть старую версию строки. Но переписывающий <code>ALTER TABLE</code> в PostgreSQL относится к операциям, <strong>не полностью безопасным для старых снимков</strong> (<code>not MVCC-safe</code>). Официальная документация предупреждает: после фиксации rewrite транзакция со снимком, созданным <strong>до</strong> DDL, может увидеть таблицу пустой, если до начала DDL она не обращалась к этой таблице.</p>
+<p>Почему условие такое специфическое? Транзакция, успевшая обратиться к таблице до DDL, обычно удерживает совместную для чтения table-level блокировку, которая не позволила бы переписывающему DDL получить необходимую сильную блокировку до завершения этой транзакции.</p>
+<p>Получается, переписывание relation — это граница, на которой обычную интуицию «всегда доступны старые строки по старому snapshot» необходимо уточнять. В основной теме MVCC мы уже разбирали видимость tuple; здесь меняется само физическое отношение.</p>
+<h3 id="56-toast">5.6. Операции с TOAST и индексами<a class="headerlink" href="#56-toast" title="Permanent link">¶</a></h3>
+<p>Не следует думать, что стоимость rewrite определяется только размером <code>pg_relation_size(table)</code>. В сложной схеме участвуют связанные индексы, TOAST-отношение, metadata и дополнительное пространство на диске. Поэтому для предварительной оценки полезно снять три величины:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">heap</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_indexes_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">indexes</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_total_relation_size</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+</code></pre></div>
+<p><code>pg_total_relation_size</code> учитывает связанное хранение, поэтому нижней оценкой стоимости часто будет несколько проходов по существенной доле этих данных. Но <strong>размер на диске не равен точному числу байтов, которые обязательно будут прочитаны или записаны</strong>: работают shared buffers, page cache, особенности индексов и физических сегментов.</p>
+<h2 id="6-rewrite">6. Сколько стоит rewrite: считаем ресурсную модель<a class="headerlink" href="#6-rewrite" title="Permanent link">¶</a></h2>
+<p>Пусть таблица занимает 180 ГиБ heap, индексы — 60 ГиБ, а эффективная скорость последовательной записи при данном фоне нагрузки — 300 МиБ/с.</p>
+<p>Самая грубая нижняя оценка <strong>только</strong> записи нового heap:</p>
+<p>[
+T_{heap write} \approx \frac{180 \times 1024 \text{МиБ}}{300 \text{МиБ/с}} \approx 614 \text{с} \approx 10.2 \text{мин}.
+]</p>
+<p>Это 10 минут без учета чтения старого heap, вычисления преобразований, построения новых индексов, WAL и fsync, TOAST, конкурирующих запросов и колебаний производительности storage.</p>
+<p>Если среда демонстрирует 300 МиБ/с только на отдельном тестовом стенде, а в production устройство уже выполняет другой I/O, реальное время может оказаться значительно больше. Излишняя точность при такой оценке создает ложную уверенность.</p>
+<h3 id="61">6.1. Дисковая емкость<a class="headerlink" href="#61" title="Permanent link">¶</a></h3>
+<p>Во время rewrite могут одновременно существовать старые данные и новые создаваемые файлы. Плюс возникают WAL и промежуточные структуры. Поэтому проверка «есть 180 ГиБ свободного места для таблицы 180 ГиБ» слишком оптимистична.</p>
+<p>Для подготовки нужно задать ресурсную модель:</p>
+<div class="highlight"><pre><span></span><code>Peak extra disk ≳ new heap + indexes rebuilt + temporary files
+                  + WAL until recycled/archived + safety margin
+</code></pre></div>
+<p>Точное число зависит от операции, схемы, настроек PostgreSQL и процессов, которые удерживают WAL. Для большого изменения безопаснее испытать план на копии с репрезентативными данными и измерить пиковое использование диска, а не объявлять коэффициент 2× универсальным правилом.</p>
+<h3 id="62-rewrite">6.2. Что произойдет, если rewrite упадет на половине<a class="headerlink" href="#62-rewrite" title="Permanent link">¶</a></h3>
+<p>Если ошибка произошла внутри транзакционного DDL, изменения SQL-схемы откатываются. Но ресурсы уже могли быть потрачены: десятки гигабайт прочитанных и записанных данных, WAL, временное пространство и время недоступности. Внешний наблюдатель увидит не «никакой миграции не было», а реальную деградацию, после которой конечная схема вернулась к прежнему виду.</p>
+<p>Rollback гарантирует транзакционную семантику изменений, но не возвращает потраченное время CPU/IO и не делает попытку бесплатной.</p>
+<h3 id="63-using">6.3. А если внутри <code>USING</code> ошибка конверсии<a class="headerlink" href="#63-using" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customer_contacts</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">phone</span><span class="w"> </span><span class="k">TYPE</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">USING</span><span class="w"> </span><span class="n">phone</span><span class="p">::</span><span class="nb">bigint</span><span class="p">;</span>
+</code></pre></div>
+<p>При встрече строки с телефонным номером вроде <code>+7 (999) ...</code> конверсия может завершиться ошибкой. Если таблица большая, это произойдет после длительной обработки.</p>
+<p>Инженерный порядок обратный:</p>
+<ol>
+<li>Подготовить проверку формата и измерить долю некорректных значений.</li>
+<li>Исправить данные отдельными ограниченными пакетами.</li>
+<li>Проверить все критические крайние случаи.</li>
+<li>Только затем запускать физическую миграцию.</li>
+</ol>
+<p>Здесь источником надежности выступает качество входных данных, а не скорость выполнения ALTER.</p>
+<h2 id="7-rewrite-sql">7. Как наблюдать rewrite и не путать его с обычным выполнением SQL<a class="headerlink" href="#7-rewrite-sql" title="Permanent link">¶</a></h2>
+<p>Для <code>CREATE INDEX</code> есть отдельное progress view. Для произвольной операции <code>ALTER TABLE ... ALTER COLUMN TYPE</code> <strong>нет общего публичного <code>pg_stat_progress_alter_table</code></strong>, который выдавал бы точный процент завершения физического rewrite. Это важное эксплуатационное ограничение.</p>
+<p>Можно наблюдать активный backend, ожидаемые и удерживаемые блокировки, размер relation, системные счетчики I/O, нагрузку на файловую систему и WAL. Но эти показатели — косвенные. Они не гарантируют корректного прогноза оставшегося времени.</p>
+<p>Изменение <code>pg_relation_filenode()</code> после завершения — хороший диагностический признак создания нового физического отношения, а не онлайн-процент прогресса. Внутри незавершенного DDL объект rewrite также может быть скрыт от обычного snapshot, поэтому попытки читать каталоги из второй сессии имеют ограничения видимости.</p>
+<p><strong>Инженерный вывод раздела:</strong> для потенциального rewrite готовим место, окно доступности, предварительную проверку данных, план наблюдения и критерии прерывания. Если команда должна выполняться при активном трафике, ищем способ разбить изменение на совместимые этапы, а не надеемся, что DDL «как-нибудь пройдет».</p>
+<hr/>
+<h1 id="iv-constraint-validation">IV. Constraint validation: разделяем введение правила и проверку истории<a class="headerlink" href="#iv-constraint-validation" title="Permanent link">¶</a></h1>
+<h2 id="8">8. Новое ограничение на большую таблицу<a class="headerlink" href="#8" title="Permanent link">¶</a></h2>
+<p>Предположим, бизнес теперь запрещает отрицательную сумму заказа. В таблице 60 миллионов строк. Если сразу сделать:</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_amount_positive</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</code></pre></div>
+<p>PostgreSQL должен убедиться, что уже существующие строки удовлетворяют правилу. На большой таблице это дорого. Кроме того, режим блокировки при таком объединенном DDL может мешать конкурентным операциям на весь период проверки.</p>
+<p><strong>Новый вопрос:</strong> можно ли сразу начать отвергать плохие новые записи, а исторические проверить отдельно?</p>
+<p>Да, для поддерживаемых типов ограничений существует <code>NOT VALID</code>.</p>
+<h2 id="9-not-valid-validate-constraint">9. Две фазы: <code>NOT VALID</code> и <code>VALIDATE CONSTRAINT</code><a class="headerlink" href="#9-not-valid-validate-constraint" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Короткое создание определения ограничения:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_amount_positive</span>
+<span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">VALID</span><span class="p">;</span>
+
+<span class="c1">-- Отдельный длинный проход по старым строкам:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="n">VALIDATE</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_amount_positive</span><span class="p">;</span>
+</code></pre></div>
+<p>После первого шага новые и изменяемые строки должны удовлетворять check-constraint. Исторические данные пока не проверены глобально. Второй шаг проверяет уже существующие строки. PostgreSQL может выполнять валидацию, не блокируя обычные конкурентные изменения так, как это делал бы долгий сильный DDL lock, потому что изменения уже контролируются новым правилом.</p>
+<p><code>VALIDATE CONSTRAINT</code> для CHECK/NOT NULL в PostgreSQL 18 использует <code>SHARE UPDATE EXCLUSIVE</code> на проверяемой таблице. Для FOREIGN KEY также важны блокировки связанного отношения. Конкретный набор объектов нужно смотреть отдельно.</p>
+<h3 id="91-constraint">9.1. Откуда известно, проверен ли constraint<a class="headerlink" href="#91-constraint" title="Permanent link">¶</a></h3>
+<p>В <code>pg_constraint</code> есть два независимых признака:</p>
+<ul>
+<li><code>conenforced</code> — включено ли принудительное применение;</li>
+<li><code>convalidated</code> — выполнена ли проверка существующих данных.</li>
+</ul>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">conname</span><span class="p">,</span><span class="w"> </span><span class="n">contype</span><span class="p">,</span><span class="w"> </span><span class="n">conenforced</span><span class="p">,</span><span class="w"> </span><span class="n">convalidated</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_get_constraintdef</span><span class="p">(</span><span class="n">oid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">definition</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_constraint</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">conrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">conname</span><span class="p">;</span>
+</code></pre></div>
+<p>До <code>VALIDATE</code> ожидаем <code>convalidated = false</code>, после успешной проверки — <code>true</code>. Это полезно для мигратора: повторный запуск должен опираться на фактическое состояние каталога, а не только на запись о завершении командного процесса.</p>
+<h3 id="92">9.2. Почему новая запись уже защищена<a class="headerlink" href="#92" title="Permanent link">¶</a></h3>
+<p>Представим, что историческая строка имеет <code>amount = -10</code>. Она пока хранится в таблице, потому что ограничение добавлено <code>NOT VALID</code>. Но транзакция пытается вставить новый заказ с <code>amount = -5</code>: она получает ошибку ограничения.</p>
+<p>Если другая транзакция обновляет старую строку с отрицательным значением, check применяется к результирующей записи. Приложение должно учитывать такие исторические нарушения при переходе на новое правило; иначе любое обновление «старого» заказа может внезапно сломаться.</p>
+<p>Обратите внимание: <code>NOT VALID</code> помогает избежать длинной начальной проверки под сильной блокировкой, но <strong>не обещает</strong>, что валидация обязательно пройдет. Ее результат зависит от исторических данных.</p>
+<h3 id="93">9.3. А что, если валидация нашла нарушение<a class="headerlink" href="#93" title="Permanent link">¶</a></h3>
+<p>Команда завершается ошибкой. Состояние самого существующего ограничения <code>NOT VALID</code> сохраняется, если оно было создано и зафиксировано отдельной транзакцией. Поэтому правильно:</p>
+<div class="highlight"><pre><span></span><code>ADD ... NOT VALID → COMMIT
+       │
+       ▼
+находим и исправляем исторические нарушения
+       │
+       ▼
+VALIDATE → успешно → convalidated = true
+</code></pre></div>
+<p>Если обе операции необдуманно положены в общий <code>BEGIN</code>, длительные работы и сильные блокировки могут оказаться связаны в одну транзакцию. Разделение фаз помогает контролировать риски независимо.</p>
+<h2 id="10-postgresql-18-not-null-not-valid">10. PostgreSQL 18: <code>NOT NULL NOT VALID</code><a class="headerlink" href="#10-postgresql-18-not-null-not-valid" title="Permanent link">¶</a></h2>
+<p>Здесь действительно произошло изменение относительно старых версий. В PostgreSQL 18 ограничение <code>NOT NULL</code> представлено в <code>pg_constraint</code> как <code>contype = 'n'</code> и может быть добавлено с <code>NOT VALID</code> с последующей отдельной проверкой.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+
+<span class="c1">-- Подходит для PostgreSQL 18:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_external_id_nn</span>
+<span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">VALID</span><span class="p">;</span>
+
+<span class="c1">-- Заполняем исторические значения отдельными пакетами.</span>
+<span class="c1">-- Новые/изменяемые строки уже обязаны удовлетворять ограничению.</span>
+
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="n">VALIDATE</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">orders_external_id_nn</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Опасный момент:</strong> нельзя вводить новое обязательное поле в тот момент, когда старая версия приложения все еще вставляет строки без этого поля и не получает корректного DEFAULT. База будет правильно отвергать INSERT, но релиз окажется несовместимым. Поэтому техническая возможность разделить проверку и введение правила не отменяет протокол совместимости приложений из 09.0.</p>
+<h3 id="101-not-null">10.1. Почему <code>NOT NULL</code> иногда не требует второго сканирования<a class="headerlink" href="#101-not-null" title="Permanent link">¶</a></h3>
+<p>Для <code>ALTER COLUMN ... SET NOT NULL</code> PostgreSQL может избежать полного просмотра таблицы, если уже существует валидное CHECK-ограничение, из которого следует отсутствие NULL, и оно не удаляется в той же команде. Тогда ранее доказанный инвариант используется повторно. Это еще один пример, когда стоимость DDL зависит от состояния каталогов, а не только от SQL-оператора.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span>
+<span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">ext_nn_proof</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">external_id</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">VALID</span><span class="p">;</span>
+
+<span class="c1">-- после заполнения исторических данных:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="n">VALIDATE</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">ext_nn_proof</span><span class="p">;</span>
+
+<span class="c1">-- валидный CHECK может позволить обойти повторный scan:</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ALTER</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">external_id</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Это альтернативный путь, характерный и для более ранних версий PostgreSQL. Для 18 предпочтение между двумя способами зависит от принятой схемы миграций и совместимости с другими окружениями.</p>
+<h3 id="102-update">10.2. Проверка без массовых UPDATE — почему это выгодно<a class="headerlink" href="#102-update" title="Permanent link">¶</a></h3>
+<p>Для валидации нужно читать существующие версии и вычислять предикат. В общем случае не требуется заново записывать каждую строку. Поэтому стоимость ближе к <code>O(N)</code> по читаемым tuple, но без обязательного создания нового heap и новых индексных файлов.</p>
+<p>Под нагрузкой это все равно потребляет I/O, процессор, shared buffers и может конкурировать с пользовательскими запросами. Режим более слабой табличной блокировки позволяет многим обычным UPDATE/INSERT продолжаться, но не делает сканирование бесплатным.</p>
+<h3 id="103-not-valid">10.3. Где <code>NOT VALID</code> применять нельзя<a class="headerlink" href="#103-not-valid" title="Permanent link">¶</a></h3>
+<p>Нельзя переносить модель на любое ограничение автоматически. Для <code>UNIQUE</code> и <code>PRIMARY KEY</code> роль обеспечения уникальности выполняет соответствующая индексная структура. «Добавим UNIQUE NOT VALID, а потом проверим» — не универсальная форма, эквивалентная <code>CHECK</code>.</p>
+<p>Для крупной таблицы типовой путь уникальности — отдельно создать <strong>уникальный индекс конкурентно</strong>, проверить его состояние и затем, если требования позволяют, привязать индекс к constraint через <code>ALTER TABLE ... ADD CONSTRAINT ... USING INDEX</code>. У этого финального DDL тоже есть правила и короткие lock-секции. Путь подробно раскроем в следующем разделе, не возвращаясь к устройству B-tree.</p>
+<p><strong>Инженерный вывод:</strong> при проверке ограничений управляем двумя независимыми обязательствами: (1) запрещать новые нарушения с момента переключения контракта; (2) доказать корректность истории. Их разделение снижает длительность сильных блокировок, но переносит ответственность за последовательность миграции на команду.</p>
+<hr/>
+<h1 id="v-concurrent-index-building">V. Concurrent Index Building: как создавать индекс, пока таблица меняется<a class="headerlink" href="#v-concurrent-index-building" title="Permanent link">¶</a></h1>
+<h2 id="11-create-index">11. Почему обычный CREATE INDEX проще и дешевле<a class="headerlink" href="#11-create-index" title="Permanent link">¶</a></h2>
+<p>Для большой таблицы нужно добавить поиск заказов по статусу и дате:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">orders_status_created_idx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+</code></pre></div>
+<p>Обычный <code>CREATE INDEX</code> должен построить согласованный набор ключей из таблицы, которая в тот момент могла бы активно меняться. Один из простых способов обеспечить согласованность — на время построения запретить конкурентные изменения, сохранив чтение. PostgreSQL делает это посредством соответствующей блокировки отношения (<code>SHARE</code>).</p>
+<p>Такое индексирование удобно при остановленном потоке записи или в maintenance window. Под нагрузкой сотни <code>INSERT</code> и <code>UPDATE</code> будут ждать. С ростом очереди транзакций приложение может заполнить свой пул соединений, а значит даже обращения, которым индекс вообще не нужен, начнут страдать косвенно.</p>
+<p>Переходим к:</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">orders_status_created_idx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+</code></pre></div>
+<p>На пользовательском уровне обещание звучит просто: можно продолжать вставлять, менять и удалять строки. Но как построить полную структуру, когда данные меняются прямо во время обхода? Первая модель «прочитаем таблицу один раз» ломается.</p>
+<h2 id="12">12. Три транзакционных этапа создания индекса<a class="headerlink" href="#12" title="Permanent link">¶</a></h2>
+<p>В PostgreSQL 18 concurrent build — <strong>несколько транзакций и два прохода по таблице</strong>, между которыми есть обязательные ожидания. Состояние индекса публикуется постепенно в системном каталоге.</p>
+<div class="highlight"><pre><span></span><code>T1. Зарегистрировать индекс в каталогах
+    pg_index: indisready = false, indisvalid = false
+                  │ COMMIT
+                  ▼
+     ожидание существующих writers
+                  │
+T2. Первый scan: построить индекс
+    индекс еще не разрешен для пользовательского SELECT
+                  │ COMMIT
+                  ▼
+     pg_index: indisready = true, indisvalid = false
+     новые изменения таблицы начинают обслуживать этот индекс
+                  │
+     ожидание старых writers
+                  │
+T3. Второй проход / validation
+     дополняем индекс пропущенными конкурентными версиями
+                  │
+     ожидание старых snapshots
+                  │
+     pg_index: indisready = true, indisvalid = true
+                  │ COMMIT
+                  ▼
+     индекс доступен планировщику (с дополнительными оговорками)
+</code></pre></div>
+<p>Здесь блоки <code>T1/T2/T3</code> — <strong>логические стадии</strong>, а не буквальная копия всех вспомогательных транзакций и переходов кода. Суть проверяется официальной документацией <code>CREATE INDEX</code> и состояниями <code>pg_index</code>.</p>
+<h3 id="121-indisvalid-false">12.1. Зачем сначала <code>indisvalid = false</code><a class="headerlink" href="#121-indisvalid-false" title="Permanent link">¶</a></h3>
+<p>На первой стадии индекса физически еще нет в полном виде. Планировщик не должен использовать его для поиска строк: в нем могли бы отсутствовать подходящие записи, и SQL тихо вернул бы неполный результат. Поэтому метаданные явно маркируют индекс как невалидный для запросов.</p>
+<p>Индекс уже получает имя, OID и запись каталога. Это объясняет диагностическую ситуацию «индекс существует, но <code>EXPLAIN</code> его не рассматривает». Сам факт успешного <code>CREATE</code> в системном каталоге не доказывает готовность.</p>
+<h3 id="122-insertupdate">12.2. Почему после первого прохода нужно обслуживать новые INSERT/UPDATE<a class="headerlink" href="#122-insertupdate" title="Permanent link">¶</a></h3>
+<p>Первый scan построил ключи для увиденного состояния таблицы. Пока он выполнялся, другие транзакции вставляли, изменяли и удаляли записи. Если после первого scan продолжить игнорировать новые изменения, валидатор никогда не сможет догнать движущуюся цель.</p>
+<p>Поэтому появляется промежуточное состояние:</p>
+<div class="highlight"><pre><span></span><code>indisready = true
+indisvalid = false
+</code></pre></div>
+<p>Обычные операции записи теперь поддерживают индекс, но обычные читающие запросы не могут на него полагаться. Это важная и дорогая асимметрия: <strong>индекс уже замедляет запись, еще не ускоряя чтение</strong>.</p>
+<h3 id="123-scan">12.3. Что ищет второй scan<a class="headerlink" href="#123-scan" title="Permanent link">¶</a></h3>
+<p>Валидация должна добрать записи, которые могли быть пропущены первым проходом и необходимы для корректности итогового индекса. Это требует сравнения данных таблицы с уже построенной индексной структурой с учетом параллельных изменений.</p>
+<p>В <code>pg_stat_progress_create_index</code> это видно через стадии:</p>
+<ul>
+<li><code>index validation: scanning index</code>;</li>
+<li><code>index validation: sorting tuples</code>;</li>
+<li><code>index validation: scanning table</code>.</li>
+</ul>
+<p>Реальные действия зависят от выбранного index access method и условий; для понимания достаточно знать, что это самостоятельная работа поверх первого построения, а не «повторная проверка существования таблицы».</p>
+<h3 id="124-snapshots-validation">12.4. Зачем ждать старые snapshots после validation<a class="headerlink" href="#124-snapshots-validation" title="Permanent link">¶</a></h3>
+<p>Последний scan убедился в полноте индекса в выбранном отношении ко времени. Но backend с более старым snapshot потенциально способен видеть старые версии строк и интерпретировать индекс согласно своей видимости. Слишком ранняя публикация полного индекса для всех запросов нарушила бы согласованность.</p>
+<p>Поэтому перед окончательной публикацией PostgreSQL ждет транзакции, чьи снимки могут оказаться проблемными. В документации особо описаны сложные случаи с partial/expression indexes, а также взаимодействие со snapshot старых транзакций, выполняющихся в других таблицах.</p>
+<p><strong>Главный вывод:</strong> на завершающей стадии конкурентного создания индекса прогресс сканирования может быть 100%, но команда все равно ждет. Ускорять диск бесполезно, если узкое место — возраст другого snapshot.</p>
+<h2 id="13-pg_index">13. Как состояние индекса представлено в <code>pg_index</code><a class="headerlink" href="#13-pg_index" title="Permanent link">¶</a></h2>
+<p>Важные поля:</p>
+<table>
+<thead>
+<tr>
+<th>Поле</th>
+<th>Что означает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>indisready</code></td>
+<td>Индекс готов принимать изменения от DML</td>
+</tr>
+<tr>
+<td><code>indisvalid</code></td>
+<td>Индекс пригоден для SQL-планов (с учетом дополнительных ограничений)</td>
+</tr>
+<tr>
+<td><code>indislive</code></td>
+<td>Индекс считается живым; false означает процесс удаления</td>
+</tr>
+<tr>
+<td><code>indcheckxmin</code></td>
+<td>Дополнительное ограничение на использование при слишком старых snapshot из-за возможных HOT-цепочек</td>
+</tr>
+<tr>
+<td><code>indisunique</code></td>
+<td>Индекс объявлен уникальным; это само по себе не утверждает <code>indisvalid</code></td>
+</tr>
+</tbody>
+</table>
+<p>Проверяем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indisready</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indisvalid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indislive</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indcheckxmin</span><span class="p">,</span>
+<span class="w">    </span><span class="n">i</span><span class="p">.</span><span class="n">indisunique</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_get_indexdef</span><span class="p">(</span><span class="n">i</span><span class="p">.</span><span class="n">indexrelid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">definition</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_index</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">i</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">pg_class</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">oid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indexrelid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">i</span><span class="p">.</span><span class="n">indrelid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'orders'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">relname</span><span class="p">;</span>
+</code></pre></div>
+<p>Можно встретить <code>indisvalid = true</code>, но слишком старый snapshot все еще временно не может использовать индекс из-за <code>indcheckxmin</code>. Поэтому полезно различать глобальную валидность каталогов и применимость индекса к отдельному снимку.</p>
+<h3 id="131">13.1. Почему флагов несколько<a class="headerlink" href="#131" title="Permanent link">¶</a></h3>
+<p>Один булев <code>ready</code> не способен выразить требования одновременно к reader и writer:</p>
+<div class="highlight"><pre><span></span><code>Нужно ли поддерживать индекс при INSERT?     indisready
+Можно ли использовать индекс в SELECT?       indisvalid (+ условия)
+Можно ли вообще учитывать его как живой?     indislive
+</code></pre></div>
+<p>Эта структура данных появляется непосредственно из алгоритма конкурентного построения. Сначала мы должны начать догонять новые записи, затем доказать полноту индекса, а только потом разрешить им читать данные.</p>
+<h3 id="132">13.2. Что происходит с уникальным индексом<a class="headerlink" href="#132" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span>
+<span class="n">orders_external_id_uidx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">external_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Уникальность в конкурентном построении имеет особую цену. В PostgreSQL ее проверка начинает применяться к конкурентным транзакциям <strong>при начале второго scan</strong>, еще до окончательной валидности индекса. Другие запросы уже могут получать <code>unique_violation</code>, хотя <code>CREATE INDEX CONCURRENTLY</code> еще не завершился. Более того, при сбое на второй стадии оставшийся невалидный индекс может продолжать обеспечивать проверку уникальности.</p>
+<p><strong>Плохое упрощение:</strong> «если индекс <code>INVALID</code>, он ни на что не влияет». Он может продолжать потреблять ресурсы при записи и в ряде случаев влиять на проверку уникальности. Поэтому оставленный после сбоя объект нельзя считать безобидным мусором.</p>
+<h2 id="14-create-index-concurrently-begin">14. Почему <code>CREATE INDEX CONCURRENTLY</code> запрещен внутри <code>BEGIN</code><a class="headerlink" href="#14-create-index-concurrently-begin" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">orders_status_created_idx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p>Такой код завершится ошибкой. Построение требует отдельных транзакционных стадий, собственных снимков и публикации промежуточных состояний. Внешняя пользовательская транзакция не может просто охватить их одной общей границей COMMIT.</p>
+<p>Система миграций обязана поддерживать специальный <strong>нетранзакционный шаг</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Вне явного transaction block:</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">lock_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2s'</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">statement_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'30min'</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="n">orders_status_created_idx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="p">,</span><span class="w"> </span><span class="n">created_at</span><span class="p">);</span>
+
+<span class="k">RESET</span><span class="w"> </span><span class="n">statement_timeout</span><span class="p">;</span>
+<span class="k">RESET</span><span class="w"> </span><span class="n">lock_timeout</span><span class="p">;</span>
+</code></pre></div>
+<p>Если используется соединение из управляемого пула и произошла ошибка, сначала определяем, какие параметры сессии действительно остались выставлены, и восстанавливаем состояние; слепо продолжать следующий шаг на той же сессии опасно.</p>
+<p>Отдельно важно: <code>CREATE INDEX CONCURRENTLY</code> на родительской partitioned table в PostgreSQL 18 напрямую не поддерживается. Для большой partitioned table можно строить индексы на партициях конкурентно, а затем создавать/присоединять родительский partitioned index через поддерживаемую последовательность операций, чтобы минимизировать время запрета записи.</p>
+<h2 id="15-invalid-index">15. Сбой: почему остается <code>INVALID</code> index<a class="headerlink" href="#15-invalid-index" title="Permanent link">¶</a></h2>
+<p>Предположим, мы создали большой индекс, первая стадия завершилась, вторая нашла нарушение уникальности или возник deadlock. Команда завершилась ошибкой, но запись индекса осталась в каталоге.</p>
+<p>Почему PostgreSQL просто не откатил весь <code>CREATE INDEX</code>? Потому что отдельные стадии уже <strong>зафиксированы самостоятельными транзакциями</strong>. Общей пользовательской транзакции вокруг всей операции нет.</p>
+<p>Возможные состояния после ошибки:</p>
+<div class="highlight"><pre><span></span><code>индекс не завершен
+   ├─ каталог содержит объект с indisvalid = false
+   ├─ физический индекс может занимать заметный объем диска
+   ├─ indisready может быть true: новые записи его обслуживают
+   └─ UNIQUE-проверка в отдельных случаях уже действует
+</code></pre></div>
+<p>Это не доказательство того, что данные таблицы повредились. Сама таблица продолжает работать, но инфраструктура накопила частично подготовленный объект.</p>
+<h3 id="151">15.1. Правильное расследование<a class="headerlink" href="#151" title="Permanent link">¶</a></h3>
+<ol>
+<li>Прочитать состояние <code>pg_index</code> и точное определение индекса.</li>
+<li>Убедиться, что нет другой конкурентной операции и индекс больше не строится.</li>
+<li>Проверить причину ошибки: нарушение уникальности, старый snapshot, I/O, lock timeout, нехватка места.</li>
+<li>Только после этого выбирать повторное создание или реконструкцию.</li>
+</ol>
+<p>Обычно для невалидного индекса рекомендуют:</p>
+<div class="highlight"><pre><span></span><code><span class="k">DROP</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">orders_external_id_uidx</span><span class="p">;</span>
+
+<span class="c1">-- После устранения причины:</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span>
+<span class="n">orders_external_id_uidx</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">external_id</span><span class="p">);</span>
+</code></pre></div>
+<p><code>DROP INDEX CONCURRENTLY</code> тоже нельзя выполнять в явном блоке транзакции; у него дополнительные ограничения. В некоторых случаях возможен <code>REINDEX INDEX CONCURRENTLY</code>, но в целом перед выбором варианта нужно учитывать состояние конкретного индекса и зависимости. Удалять корректный production-индекс без анализа нельзя.</p>
+<h3 id="152-if-not-exists">15.2. Почему <code>IF NOT EXISTS</code> не гарантирует правильного повторного запуска<a class="headerlink" href="#152-if-not-exists" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">CONCURRENTLY</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">orders_external_id_uidx</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="p">(</span><span class="n">external_id</span><span class="p">);</span>
+</code></pre></div>
+<p>Если объект с именем уже существует, команда может только выдать уведомление и ничего не строить. PostgreSQL <strong>не гарантирует</strong>, что такой индекс имеет нужную структуру, валиден или вообще создан с нужным предикатом.</p>
+<p>Следовательно, <code>IF NOT EXISTS</code> полезно для некоторых идемпотентных операций, но не заменяет проверки фактического состояния схемы. В migration runner необходимо сверять <code>pg_get_indexdef()</code> и флаги <code>pg_index</code>, особенно после неопределенного результата выполнения.</p>
+<h2 id="16-index-build">16. Как измерять прогресс index build, а не гадать<a class="headerlink" href="#16-index-build" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span>
+<span class="w">    </span><span class="n">pid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">index_relid</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">index_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">command</span><span class="p">,</span>
+<span class="w">    </span><span class="n">phase</span><span class="p">,</span>
+<span class="w">    </span><span class="n">lockers_total</span><span class="p">,</span>
+<span class="w">    </span><span class="n">lockers_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">current_locker_pid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">blocks_total</span><span class="p">,</span>
+<span class="w">    </span><span class="n">blocks_done</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tuples_total</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tuples_done</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_progress_create_index</span><span class="p">;</span>
+</code></pre></div>
+<p>Рассмотрим, что означают основные фазы:</p>
+<table>
+<thead>
+<tr>
+<th><code>phase</code></th>
+<th>Что происходит</th>
+<th>Что ограничивает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>waiting for writers before build</code></td>
+<td>ожидание транзакций, писавших в таблицу</td>
+<td>открытые транзакции</td>
+</tr>
+<tr>
+<td><code>building index</code></td>
+<td>физическое построение</td>
+<td>CPU, heap/index I/O</td>
+</tr>
+<tr>
+<td><code>waiting for writers before validation</code></td>
+<td>ожидание потенциальных writers</td>
+<td>активные транзакции</td>
+</tr>
+<tr>
+<td><code>index validation: scanning index</code></td>
+<td>чтение индекса</td>
+<td>index I/O</td>
+</tr>
+<tr>
+<td><code>index validation: sorting tuples</code></td>
+<td>сортировка сведений для проверки</td>
+<td>CPU, память, temporary I/O</td>
+</tr>
+<tr>
+<td><code>index validation: scanning table</code></td>
+<td>поиск пропусков в таблице</td>
+<td>heap I/O</td>
+</tr>
+<tr>
+<td><code>waiting for old snapshots</code></td>
+<td>ожидание старых снимков</td>
+<td>длительные транзакции</td>
+</tr>
+</tbody>
+</table>
+<p>В любой момент число <code>blocks_done / blocks_total</code> характеризует <strong>текущую фазу</strong>, а не обязательно процент выполнения всей команды. Если сейчас написано <code>waiting for old snapshots</code>, счетчики блоков не дадут оценку времени ожидания. Важно уметь интерпретировать метрики по стадии алгоритма.</p>
+<h3 id="161-current_locker_pid">16.1. Когда нужен <code>current_locker_pid</code><a class="headerlink" href="#161-current_locker_pid" title="Permanent link">¶</a></h3>
+<p>Если phase — одна из стадий <code>waiting</code>, полезно посмотреть <code>current_locker_pid</code>: конкретный backend, которого сейчас ожидает построение. Затем проверяем его транзакцию, запрос и владельца приложения с помощью известных средств диагностики.</p>
+<p>Не следует по умолчанию убивать этот backend: он может выполнять критическую транзакцию. Правильная эксплуатационная последовательность — выявить источник долгого удержания, оценить возможность штатного завершения и только затем принимать решение о прерывании.</p>
+<h3 id="162">16.2. Что происходит под длительной нагрузкой<a class="headerlink" href="#162" title="Permanent link">¶</a></h3>
+<p>Если запись в таблицу продолжается с высокой скоростью, первый scan создает основной объем данных индекса, второй догоняет пропущенные версии, а в промежутке новые операции записи уже работают с индексом. Значит, у нас одновременно есть:</p>
+<ul>
+<li>дополнительные записи в индекс при DML;</li>
+<li>чтение heap при сканировании;</li>
+<li>сортировка и чтение index pages при validation;</li>
+<li>удержание ресурсов backend-процессом;</li>
+<li>ожидания других транзакций на некоторых стадиях.</li>
+</ul>
+<p>Цена online-индексирования — <strong>не только дополнительная длительность одной команды</strong>. Оно временно увеличивает общую стоимость работы системы.</p>
+<h3 id="163-concurrently">16.3. Что не гарантирует <code>CONCURRENTLY</code><a class="headerlink" href="#163-concurrently" title="Permanent link">¶</a></h3>
+<p>Этот режим избегает длительного запрета обычных <code>INSERT/UPDATE/DELETE</code> из-за сильной table-level блокировки, но не обещает нулевого влияния на производительность. CPU, I/O, дисковое пространство, каталоги, вычисление предикатов и ожидание транзакций остаются ограниченными ресурсами. Одинаковые показатели p99 до и во время индексирования в рабочей среде — не гарантированное свойство PostgreSQL, а результат конкретной емкости и текущей нагрузки.</p>
+<p><strong>Инженерный вывод раздела:</strong> конкурентное построение — протокол с промежуточными состояниями. Успешная миграция завершается не фактом существования имени индекса, а проверенной его валидностью и отсутствием нежелательных остатков после неудачных попыток.</p>
+<hr/>
+<h1 id="vi-online-backfill">VI. Online backfill: переносим данные, пока пользователи продолжают писать<a class="headerlink" href="#vi-online-backfill" title="Permanent link">¶</a></h1>
+<h2 id="17-backfill">17. Почему backfill — самостоятельная конкурентная задача<a class="headerlink" href="#17-backfill" title="Permanent link">¶</a></h2>
+<p>После fast <code>ADD COLUMN</code> новая структура уже существует, но исторические данные не заполнены. Мы хотим разделить <code>customers.full_name</code> на <code>first_name</code> и <code>last_name</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+</code></pre></div>
+<p>Наивный путь:</p>
+<div class="highlight"><pre><span></span><code><span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span>
+<span class="w">    </span><span class="n">last_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+</code></pre></div>
+<p>На большой таблице это одна огромная транзакция. Она удерживает большое количество изменений до COMMIT, создает WAL, старые tuple, нагрузку на индексы, обслуживающие процессы очистки и продолжительность восстановления после ошибки. Кроме того, она конкурирует с пользовательскими UPDATE.</p>
+<p>Мы уже разбирали физическую стоимость UPDATE в блоке 8. Здесь новый вопрос: <strong>как выполнить преобразование данных постепенно, сохраняя согласованность старого и нового контракта?</strong></p>
+<h3 id="171">17.1. Откуда возникает гонка<a class="headerlink" href="#171" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code>T1  Backfill прочитал full_name = 'Иван Петров'
+T2  API изменил full_name = 'Иван Сидоров'
+T3  Backfill записал first_name='Иван', last_name='Петров'
+T4  Новое приложение читает ('Иван', 'Петров') — устаревшее значение
+</code></pre></div>
+<p>Системная команда <code>UPDATE</code> может технически корректно отработать и при этом сформировать бизнес-рассогласование. Инвариант требует заранее выбрать источник истины и протокол конкурентных изменений.</p>
+<h2 id="18">18. Правильная последовательность перехода приложения<a class="headerlink" href="#18" title="Permanent link">¶</a></h2>
+<p>Примерная последовательность развертывания:</p>
+<div class="highlight"><pre><span></span><code>1. Expand schema
+   добавлены nullable-поля
+       │
+2. Deploy compatible writer
+   новые записи поддерживают оба представления
+       │
+3. Backfill
+   заполнить историю маленькими пакетами
+       │
+4. Reconciliation
+   сравнить старое и новое, исправить расхождения
+       │
+5. Switch reads
+   новая версия читает новый контракт
+       │
+6. Stop legacy writes → Contract
+   убрать старое поле лишь после завершения перехода
+</code></pre></div>
+<p>Это знакомая схема из 09.0. Новое здесь — <strong>точный критерий</strong> безопасности каждой границы. Перед backfill должны быть исключены неконтролируемые старые writers, которые меняют только <code>full_name</code>. Пока они существуют, нужен дополнительный механизм синхронизации, например переходный код, совместимый триггер или отдельный протокол записи; выбор зависит от архитектуры системы.</p>
+<h3 id="181">18.1. Пакетная запись по первичному ключу<a class="headerlink" href="#181" title="Permanent link">¶</a></h3>
+<p>Простой вариант с keyset-диапазонами:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">-- :lo и :hi — границы небольшого пакета, задаваемые мигратором.</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span>
+<span class="w">    </span><span class="n">last_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="p">:</span><span class="n">lo</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="p">:</span><span class="n">hi</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>Одна порция выполняется и фиксируется отдельно. <code>WHERE ... IS NULL</code> предотвращает перезапись строк, где переходный writer уже установил новые значения. Для реальной базы с неполными именами нужно определить бизнес-правило парсинга, иначе корректность миграции не доказана.</p>
+<p><strong>Ограничение:</strong> пара <code>first_name IS NULL AND last_name IS NULL</code> может быть недостаточным признаком «еще не перенесено», если NULL является допустимым бизнес-значением. Тогда нужен явный флаг состояния миграции, версия данных или другой надежный критерий.</p>
+<h3 id="182-skip-locked">18.2. Порции через <code>SKIP LOCKED</code><a class="headerlink" href="#182-skip-locked" title="Permanent link">¶</a></h3>
+<p>Если несколько работников выбирают записи из одной таблицы, можно использовать уже изученный <code>SKIP LOCKED</code> как механизм разделения работы. Здесь он выступает инструментом backfill, а не новой темой о блокировках.</p>
+<div class="highlight"><pre><span></span><code><span class="k">WITH</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span>
+<span class="w">    </span><span class="k">FROM</span><span class="w"> </span><span class="n">customers</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span>
+<span class="w">    </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">id</span>
+<span class="w">    </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">500</span>
+<span class="w">    </span><span class="k">FOR</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="n">SKIP</span><span class="w"> </span><span class="n">LOCKED</span>
+<span class="p">)</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">customers</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span>
+<span class="w">    </span><span class="n">last_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">split_part</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">full_name</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">batch</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">batch</span><span class="p">.</span><span class="n">id</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">id</span><span class="p">;</span>
+</code></pre></div>
+<p>Все выполняется одной короткой транзакцией. <code>SKIP LOCKED</code> пропускает занятые строки, но при высокой конкуренции может постоянно обходить одни и те же записи. Поэтому <strong>окончательная сверка</strong> обязательна: нулевое число строк в конкретном пакете не доказывает, что в таблице вообще не осталось неперенесенных строк.</p>
+<h3 id="183">18.3. Цена обновления пакета<a class="headerlink" href="#183" title="Permanent link">¶</a></h3>
+<p>Пусть один пакет содержит 500 строк и занимает 100 мс вместе с фиксацией. При 1 млн строк нам потребуется примерно 2000 пакетов, то есть чистое время порядка 200 секунд. Но это условный расчет: на практике меняются порядок чтения страниц, локи, конкуренция с трафиком, частота checkpoint и нагрузка на storage.</p>
+<p>Чаще всего следует регулировать <strong>скорость потребления ресурса</strong>, а не пытаться закончить backfill минимальным возможным временем. Можно ограничить число workers, размер пакета, скорость транзакций и предусмотреть паузу между порциями.</p>
+<h3 id="184">18.4. Как избежать перезаписи новой версии старой<a class="headerlink" href="#184" title="Permanent link">¶</a></h3>
+<p>Если обе стороны пишут оба представления, нужно определить единственный источник истины на каждый этап. Например:</p>
+<ul>
+<li>До переключения чтения главным полем остается <code>full_name</code>; совместимый writer поддерживает новые колонки атомарно в той же транзакции.</li>
+<li>Backfill обновляет только строки, для которых новые значения еще не установлены, и проверяет актуальное <code>full_name</code> внутри того же UPDATE.</li>
+<li>После полной сверки источник истины переключается на новые поля; старый контракт поддерживается переходным кодом до окончания развертывания.</li>
+</ul>
+<p>Гарантия корректности зависит от того, что одновременно не живет неподконтрольный код, записывающий только одну сторону. Если такой writer существует, необходимо явно зафиксировать правило синхронизации. Ни <code>SKIP LOCKED</code>, ни batching сами по себе проблему контракта не решают.</p>
+<h2 id="19-backfill">19. Как доказать, что backfill завершился<a class="headerlink" href="#19-backfill" title="Permanent link">¶</a></h2>
+<p>Одна команда <code>UPDATE 0</code> не означает завершение миграции. Она могла пропустить заблокированные строки, остановиться на ограниченном диапазоне ID или быть выполненной до фиксации последних пользовательских транзакций.</p>
+<p>Нужна совокупность проверок:</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">missing</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">customers</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">first_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="n">last_name</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</code></pre></div>
+<p>И отдельная проверка бизнес-эквивалентности двух представлений. Например, сравнение нормализованной конкатенации может служить первичным индикатором, но для имен с пробелами и составными фамилиями потребуется реальный доменный инвариант.</p>
+<p>Измеряем прогресс на устойчивом срезе, контролируем число ошибок, повторно проверяем после переключения writer, затем разрешаем чтение новых полей. Условие Contract: больше нет работающих версий приложения, которым нужен старый столбец, и новая схема прошла проверку целостности.</p>
+<p><strong>Инженерный вывод:</strong> online backfill — это протокол согласования конкурентных записей. Нагрузочное ограничение решается пакетами и измерениями, а корректность — порядком изменения writers/readers и проверкой инвариантов.</p>
+<hr/>
+<h1 id="vii-failed-ddl">VII. Failed DDL, неопределенный результат и безопасное продолжение<a class="headerlink" href="#vii-failed-ddl" title="Permanent link">¶</a></h1>
+<h2 id="20">20. Три разных вида неудачи миграции<a class="headerlink" href="#20" title="Permanent link">¶</a></h2>
+<p>Пусть оркестратор отправил команду изменения схемы. Не всякая ошибка означает одинаковый результат.</p>
+<table>
+<thead>
+<tr>
+<th>Сценарий</th>
+<th>Что знаем</th>
+<th>Правильное действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ошибка до начала изменения</td>
+<td>DDL мог не получить lock</td>
+<td>Проверить состояние и повторить по политике</td>
+</tr>
+<tr>
+<td>Ошибка внутри транзакционного DDL</td>
+<td>Изменения транзакции откатились</td>
+<td>Сверить каталоги, устранить причину</td>
+</tr>
+<tr>
+<td>Соединение оборвалось при/после COMMIT</td>
+<td>Результат не определен по ответу клиента</td>
+<td>Прочитать фактическое состояние другой сессией</td>
+</tr>
+<tr>
+<td>Сбой многотранзакционного concurrent index</td>
+<td>Часть стадий могла быть зафиксирована</td>
+<td>Проверить <code>pg_index</code>, при необходимости cleanup</td>
+</tr>
+</tbody>
+</table>
+<p>«Повторим SQL в цикле» — опасный план. Операция может быть частично завершенной на уровне протокола релиза, а не на уровне одного SQL-transaction.</p>
+<h3 id="201">20.1. Идемпотентность уровня схемы<a class="headerlink" href="#201" title="Permanent link">¶</a></h3>
+<p>Идемпотентная миграция — это преобразование, которое при повторном выполнении проверяет ожидаемые предусловия и приводит систему к тому же корректному конечному состоянию. <code>IF EXISTS</code> и <code>IF NOT EXISTS</code> являются только синтаксическими помощниками.</p>
+<p>Например, наличие <code>orders_external_id_uidx</code> ничего не говорит о его колонках, уникальности, predicate, collation или валидности. Настоящая проверка конечного состояния должна учитывать структурное определение объекта и нужные флаги каталогов.</p>
+<h3 id="202-">20.2. Почему откат не всегда означает возврат к исходной бизнес-схеме<a class="headerlink" href="#202-" title="Permanent link">¶</a></h3>
+<p>Сам PostgreSQL умеет откатывать транзакционный DDL. Но многошаговый релиз может состоять из уже закоммиченных шагов: новая колонка, backfill, опубликованная новая версия приложения, индекс, проверка constraint. Для этой операции «откатить транзакцию» уже невозможно: мы должны принимать решение о восстановлении протокола с текущего фактического состояния.</p>
+<p>В системе миграций нужны как минимум:</p>
+<ul>
+<li>версия ожидаемой схемы и исходные SQL-артефакты;</li>
+<li>контрольная сумма и результат каждого шага;</li>
+<li>признак того, какие операции могут выполняться внутри транзакции;</li>
+<li>предварительные условия для повторного запуска;</li>
+<li>явные SQL-проверки конечных инвариантов.</li>
+</ul>
+<p>В 09.2 мы будем разбирать резервное восстановление, но здесь это сознательно не смешиваем с runtime-компенсацией частично примененного релиза.</p>
+<h2 id="21-lock-timeout">21. Две пары таймаутов: lock timeout и время всей операции<a class="headerlink" href="#21-lock-timeout" title="Permanent link">¶</a></h2>
+<p>Для короткого metadata-only DDL чаще всего основная угроза — долгое ожидание lock. Поэтому задаем маленький <code>lock_timeout</code>, а не оставляем операцию в очереди на неопределенное время.</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">lock_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'2s'</span><span class="p">;</span>
+<span class="k">SET</span><span class="w"> </span><span class="k">LOCAL</span><span class="w"> </span><span class="n">statement_timeout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'15s'</span><span class="p">;</span>
+<span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">orders</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">provider_ref</span><span class="w"> </span><span class="nb">text</span><span class="p">;</span>
+<span class="k">COMMIT</span><span class="p">;</span>
+</code></pre></div>
+<p><code>lock_timeout</code> отсчитывается при попытке получить блокировку, <code>statement_timeout</code> ограничивает выполнение команды целиком. Важный факт: <code>statement_timeout</code> измеряет в том числе ожидания, поэтому при меньшем <code>statement_timeout</code> отдельный <code>lock_timeout</code> может оказаться практически недостижим.</p>
+<p>Для длительного index build нужны другие значения: короткое ожидание некоторых блокировок при контролируемом плане, но достаточно большое общее время, иначе команда успеет выполнить половину дорогой работы и завершится по таймауту с невалидным индексом.</p>
+<h3 id="211-idle-in-transaction-ddl">21.1. Почему <code>idle in transaction</code> особенно опасно рядом с DDL<a class="headerlink" href="#211-idle-in-transaction-ddl" title="Permanent link">¶</a></h3>
+<p>Можно выполнить короткий <code>ALTER TABLE</code>, а затем час держать транзакцию открытой. Короткий SQL уже закончен, но транзакционные блокировки еще удерживаются. Поэтому migration runner обязан явным образом фиксировать короткие DDL-транзакции и не смешивать их с ожиданием ответов внешних сервисов.</p>
+<h3 id="212">21.2. Почему миграцию иногда лучше отказать быстро<a class="headerlink" href="#212" title="Permanent link">¶</a></h3>
+<p>Представим, что сильная блокировка требуется на миллисекунды, но в текущий момент один запрос выполняется 40 секунд. Если поставить <code>lock_timeout = 2s</code>, DDL быстро завершится с ошибкой. Это <strong>штатное эксплуатационное решение</strong>: мы не доказали, что изменение схемы некорректно, но отказались создавать длительную очередь запросов ради удачного момента применения.</p>
+<p>Дальше планировщик релиза может повторить попытку в другом временном окне, после проверки текущих транзакций. Это лучше, чем незаметно превратить короткую миграцию в недоступность приложения.</p>
+<hr/>
+<h1 id="viii-production-diagnostics">VIII. Production diagnostics: как расследовать стоимость миграции<a class="headerlink" href="#viii-production-diagnostics" title="Permanent link">¶</a></h1>
+<h2 id="22">22. Сначала выясняем класс выполняемой работы<a class="headerlink" href="#22" title="Permanent link">¶</a></h2>
+<p>Когда DDL «завис», первая проверка — состояние backend и стадия алгоритма.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">application_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">a</span><span class="p">.</span><span class="k">state</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">wait_event</span><span class="p">,</span>
+<span class="w">       </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">query_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">query_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">xact_start</span><span class="w">  </span><span class="k">AS</span><span class="w"> </span><span class="n">xact_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_blocking_pids</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blockers</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">a</span><span class="p">.</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">180</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">sql</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">a</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">query</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">'%ALTER TABLE%'</span>
+<span class="w">   </span><span class="k">OR</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">query</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">'%CREATE INDEX%'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">query_start</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<p>Это лишь первый снимок. SQL-текст может быть усечен; также не все фазы DDL определяются одним представлением. Если команда <code>CREATE INDEX</code> — следующим шагом читаем <code>pg_stat_progress_create_index</code>. Если <code>ALTER COLUMN TYPE</code> — отделяем ожидание lock от I/O, но не обещаем точный процент rewrite без специальных измерений.</p>
+<h3 id="221-cpu-p99">22.1. Система не перегружена CPU, но p99 растет<a class="headerlink" href="#221-cpu-p99" title="Permanent link">¶</a></h3>
+<p>Обычно это признак ожидания, а не обязательно ошибочного SQL-плана. Проверяем:</p>
+<ul>
+<li>Есть ли ожидающий <code>ACCESS EXCLUSIVE</code> от DDL?</li>
+<li>Кто удерживает несовместимую блокировку?</li>
+<li>Не создал ли DDL очередь новых <code>SELECT</code>/<code>UPDATE</code>?</li>
+<li>Не находится ли приложение в состоянии, когда все его соединения заняты ожидающими SQL?</li>
+</ul>
+<p>Здесь возвращаемся к связи блокировки и сервиса: один DDL с неправильно выбранным временем запуска может вызвать каскадное накопление запросов. Оптимизация кода самого <code>ALTER TABLE</code> не поможет до освобождения lock.</p>
+<h3 id="222">22.2. Диск заполнен во время миграции<a class="headerlink" href="#222" title="Permanent link">¶</a></h3>
+<p>Предположение «rewrite занимает столько же, сколько старый heap» могло быть неверным. Собираем фактические размеры таблицы, индексов, связанного хранения, временных файлов и WAL. Проверяем пределы свободного пространства и операции, которые еще продолжат создавать файлы.</p>
+<p>Узкий ресурс следует диагностировать отдельно: медленный storage вызывает долгий rewrite, нехватка места вызывает отказ; оба сценария могут оставить приложение в деградированном состоянии и потребовать отдельного recovery-плана. Для вопросов WAL durability отсылаем к блоку 7 без пересказа его механизма.</p>
+<h3 id="223-sql-">22.3. Индекс строится, но в SQL-плане его нет<a class="headerlink" href="#223-sql-" title="Permanent link">¶</a></h3>
+<p>Проверяем три гипотезы, строго по порядку:</p>
+<ol>
+<li><code>indisvalid=false</code> — индекс еще строится или остался после сбоя.</li>
+<li><code>indcheckxmin=true</code> — индекс может быть временно недоступен некоторым старым снимкам.</li>
+<li>Индекс валиден, но planner выбирает другой план по стоимости, статистике или селективности.</li>
+</ol>
+<p>Третий случай относится к изученному блоку 5: здесь достаточно признать, что валидность индекса — условие доступности для планировщика, но не гарантия выбора Index Scan.</p>
+<h3 id="224-ddl">22.4. DDL завершился, а приложение падает<a class="headerlink" href="#224-ddl" title="Permanent link">¶</a></h3>
+<p>Это уже проблема schema contract: некоторые экземпляры читают старое имя колонки, не передают новое обязательное поле или ожидают старые значения DEFAULT. Проверяем конфигурацию одновременно работающих версий приложения и точное состояние схемы.</p>
+<p>Иногда надежный откат — вернуть старый бинарник, <strong>сохранив расширенную схему</strong>. Удалять новые данные только для формального «rollback DDL» без необходимости опасно.</p>
+<h2 id="23_1">23. Контрольное расследование: один релиз, три независимые причины задержки<a class="headerlink" href="#23_1" title="Permanent link">¶</a></h2>
+<p>Соберем одну последовательность.</p>
+<p><strong>Шаг 1.</strong> Мигратор добавляет <code>source text NOT NULL DEFAULT 'legacy'</code>. Это fast metadata-only операция. Но до ее начала он ждет <code>ACCESS EXCLUSIVE</code> 20 секунд. Симптом: множество ожидающих <code>SELECT</code>, CPU низкий. Причина: lock queue. Исправление: короткий lock timeout и перенос выполнения в допустимое окно.</p>
+<p><strong>Шаг 2.</strong> Затем мигратор меняет <code>amount bigint</code> на <code>numeric</code>. На учебном стенде выполнение было быстрым; в production 180 ГиБ heap, 60 ГиБ indexes, интенсивная запись. Симптом: высокая запись, рост WAL, большой расход диска, длительное удержание блокировки. Причина: физический rewrite. Исправление: переоценить стратегию изменения типа, возможно перейти к совместимой новой колонке и длительному backfill с контролем нагрузки.</p>
+<p><strong>Шаг 3.</strong> В конце запускается <code>CREATE UNIQUE INDEX CONCURRENTLY</code> на <code>external_id</code>. Первый scan завершился, второй обнаружил дубликат. Симптом: скрипт завершился ошибкой, индекс есть, <code>indisvalid=false</code>, при этом записи стали дороже. Причина: многотранзакционное построение оставило промежуточное состояние. Исправление: найти и устранить дубликаты, убрать невалидный индекс и повторить построение; затем проверить <code>pg_index</code> и бизнес-инвариант уникальности.</p>
+<p>Три одинаково неприятных пользовательских симптома — и три принципиально разных механизма. Если не различать их, лечение будет случайным.</p>
+<h2 id="24">24. Что измерять до и после миграции<a class="headerlink" href="#24" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Перед изменением</th>
+<th>Во время</th>
+<th>После</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Schema</td>
+<td>ожидаемые определения, зависимости</td>
+<td>lock acquisition, состояние каталога</td>
+<td>точные определения, constraint/index flags</td>
+</tr>
+<tr>
+<td>Relation storage</td>
+<td>heap/index/total size</td>
+<td>рост временного места</td>
+<td><code>pg_relation_filenode()</code>, размер и статистика</td>
+</tr>
+<tr>
+<td>I/O</td>
+<td>базовый read/write и latency</td>
+<td>объемы чтения/записи, WAL</td>
+<td>восстановление базового профиля</td>
+</tr>
+<tr>
+<td>Concurrent SQL</td>
+<td>p50/p95/p99, число активных транзакций</td>
+<td>число ожидающих/блокирующие PID</td>
+<td>нормальная задержка запросов</td>
+</tr>
+<tr>
+<td>Data integrity</td>
+<td>число нарушений/NULL</td>
+<td>проверка пакетов</td>
+<td>инварианты, пропуски, уникальность</td>
+</tr>
+<tr>
+<td>Application</td>
+<td>совместимость обеих версий</td>
+<td>ошибки старых/новых экземпляров</td>
+<td>отсутствие несогласованных данных</td>
+</tr>
+</tbody>
+</table>
+<p>Не все столбцы таблицы можно выразить одной встроенной метрикой PostgreSQL. Для задержки приложения и I/O нужны также метрики уровня сервиса, ОС и storage.</p>
+<h3 id="241">24.1. Критерии прерывания<a class="headerlink" href="#241" title="Permanent link">¶</a></h3>
+<p>Перед запуском определяем, когда считаем операцию небезопасной: длительность ожидания lock, рост p99, число ожидающих соединений, скорость заполнения диска, появление ошибок. Прерывать уже выполняющееся <code>CREATE INDEX CONCURRENTLY</code> можно, но затем обязательно проверять промежуточное состояние. Для rewrite остановка не возвращает уже потраченный I/O.</p>
+<h3 id="242">24.2. Модель времени завершения<a class="headerlink" href="#242" title="Permanent link">¶</a></h3>
+<p>Для долгой работы полезно записать:</p>
+<p>[
+T_{migration} = T_{wait} + T_{scan} + T_{transform} + T_{write}
+                + T_{index} + T_{validate} + T_{commit}.
+]</p>
+<p>Это <strong>инженерная модель</strong>, а не точное разложение внутренних фаз PostgreSQL: некоторые виды работы перекрываются по времени. Она полезна тем, что заставляет спросить о каждом механизме отдельно. Для metadata-only операции доминирует <code>T_wait</code>; для rewrite — I/O и блокировка; для concurrent index — scan плюс ожидания старых транзакций.</p>
+<hr/>
+<h1 id="ix-backend-">IX. Итоговая модель для backend-разработчика<a class="headerlink" href="#ix-backend-" title="Permanent link">¶</a></h1>
+<h2 id="25">25. Что теперь нужно держать в голове<a class="headerlink" href="#25" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>DDL — транзакционное изменение каталога с возможной физической работой.</strong> PostgreSQL координирует его через <code>ATController</code>, очереди подкоманд, каталог и lock manager.</li>
+<li><strong>Быстрый <code>ADD COLUMN DEFAULT</code> использует missing value.</strong> <code>attmissingval</code> позволяет вернуть значение, которого нет в старой физической tuple, но операция все равно может ждать сильную блокировку.</li>
+<li><strong>Rewrite — создание нового физического представления.</strong> Он может менять relfilenode при неизменном OID, требует места, I/O и часто перестройки индексов; присутствует особая оговорка о старых MVCC snapshots.</li>
+<li><strong>Constraint validation — самостоятельная фаза.</strong> <code>NOT VALID</code> и <code>VALIDATE</code> разделяют введение правила для новых данных и проверку истории. В PostgreSQL 18 это распространяется также на NOT NULL.</li>
+<li><strong>Concurrent index — многотранзакционный протокол.</strong> Промежуточные состояния <code>indisready</code> и <code>indisvalid</code> обусловлены необходимостью сначала догонять новые записи, затем доказать полноту индекса.</li>
+<li><strong>Сбой миграции требует чтения фактической схемы.</strong> Особенно после неопределенного COMMIT и неудачного <code>CREATE INDEX CONCURRENTLY</code>.</li>
+<li><strong>Онлайн-перенос данных безопасен только при согласованном протоколе writers/readers.</strong> Пакеты ограничивают нагрузку; сохранение бизнес-инвариантов требует отдельного доказательства.</li>
+</ol>
+<h2 id="26-production-">26. Минимальный production-чек-лист<a class="headerlink" href="#26-production-" title="Permanent link">¶</a></h2>
+<p>Перед миграцией должны существовать: матрица совместимости версий приложения; классификация каждой DDL-команды по lock/scan/rewrite; данные о размерах таблиц и индексах; план свободного места; lock и statement timeouts; алгоритм выполнения неатомарных шагов; проверки готового каталога; критерии возврата приложения; план работы с неопределенным результатом; мониторинг задержек и блокирующих процессов.</p>
+<p>После миграции проверяем <code>pg_get_indexdef</code>, <code>indisvalid</code>, состояние <code>pg_constraint</code>, наличие нужных колонок, объем не перенесенных строк и работоспособность обеих поддерживаемых версий приложения. Нормальный статус migration runner без этих проверок не является инженерным доказательством корректности.</p>
+<h2 id="27">27. Куда копнуть глубже — без автоматического расширения программы<a class="headerlink" href="#27" title="Permanent link">¶</a></h2>
+<p><strong>Первый следующий слой — <code>ATRewriteTables()</code> и <code>ATRewriteTable()</code> на уровне записи каждого нового tuple.</strong> Это ответит, как PostgreSQL конструирует новый heap, какие поля старой и новой tuple descriptor сравнивает, когда вычисляет <code>USING</code>, как обрабатывает индексы и каким образом готовится переключение relfilenode. Полезно для точного прогноза стоимости нестандартных <code>ALTER TABLE</code>, но выходит за необходимые рамки 09.1.</p>
+<p><strong>Второй — конкурентный B-tree build до отдельных состояний snapshot и index tuple.</strong> Это позволит формально доказать, почему двух проходов достаточно и в каких моментах возможна временная несовместимость старых snapshots. Этот слой нужен, если требуется исследование исходников <code>indexcmds.c</code>, <code>index.c</code> и <code>validate_index()</code> по шагам.</p>
+<p><strong>Третий — Schema migration safety в распределенном релизе.</strong> Здесь можно формализовать протокол перехода между двумя версиями приложения и несколькими одновременно записывающими экземплярами: инварианты, состояния, точки возврата, контроль консистентности и доказательство отсутствия lost update во время backfill.</p>
+<p>Все три — предложения. В текущей лекции подробно раскрыты механизмы, необходимые для production-решений о DDL; материал 09.2 (резервные копии) и 09.3 (connection pooling) не затрагивается.</p>
+<h2 id="postgresql-18">Источники для PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h2>
+<ol>
+<li><a href="https://www.postgresql.org/docs/18/sql-altertable.html"><code>ALTER TABLE</code></a> — режимы, fast default, table rewrite, <code>NOT VALID</code>, ограничения.</li>
+<li><a href="https://www.postgresql.org/docs/18/sql-createindex.html"><code>CREATE INDEX</code></a> — concurrent build, два scan, multiple transactions, invalid indexes.</li>
+<li><a href="https://www.postgresql.org/docs/18/progress-reporting.html"><code>Progress Reporting</code></a> — <code>pg_stat_progress_create_index</code> и его фазы.</li>
+<li><a href="https://www.postgresql.org/docs/18/explicit-locking.html"><code>Explicit Locking</code></a> — режимы блокировок DDL.</li>
+<li><a href="https://www.postgresql.org/docs/18/catalog-pg-attribute.html"><code>pg_attribute</code></a> — <code>attmissingval</code>, <code>atthasmissing</code>, <code>attisdropped</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/catalog-pg-class.html"><code>pg_class</code></a> — <code>relfilenode</code>, <code>relrewrite</code>, relation metadata.</li>
+<li><a href="https://www.postgresql.org/docs/18/catalog-pg-constraint.html"><code>pg_constraint</code></a> — <code>convalidated</code>, <code>contype</code>, <code>conenforced</code>.</li>
+<li><a href="https://www.postgresql.org/docs/18/catalog-pg-index.html"><code>pg_index</code></a> — индикаторы ready/valid/live.</li>
+<li><a href="https://www.postgresql.org/docs/18/mvcc-caveats.html"><code>MVCC Caveats</code></a> — особенность snapshot при rewrite.</li>
+<li><a href="https://www.postgresql.org/docs/18/storage-file-layout.html"><code>Database File Layout</code></a> — отношение OID к filenode.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/tablecmds.c"><code>src/backend/commands/tablecmds.c</code></a> — <code>ATController</code>, <code>ATPrepCmd</code>, <code>ATRewriteCatalogs</code>, <code>ATRewriteTables</code>.</li>
+<li><a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/commands/indexcmds.c"><code>src/backend/commands/indexcmds.c</code></a> и <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/catalog/index.c"><code>src/backend/catalog/index.c</code></a> — concurrent indexing и переходы состояний.</li>
+</ol>
+<p><em>Все SQL-опыты в лекции выполняются в отдельной учебной базе. Численные примеры, временные диаграммы и сокращенные фрагменты C иллюстрируют механизм; они не заявлены как результат измерений конкретного production-кластера.</em></p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 8.3. PostgreSQL VACUUM, Freeze &amp;amp; Transaction Age Internals" class="md-footer__link md-footer__link--prev" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 9.2. PostgreSQL Backup &amp;amp; Restore Internals" class="md-footer__link md-footer__link--next" href="../09.2%20-%20Backup%20restore/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                9.2. PostgreSQL Backup &amp; Restore Internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

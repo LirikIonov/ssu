@@ -1,0 +1,2981 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/02%20-%20Runtime/" rel="canonical"/>
+<link href="../01%20-%20Intro%20%2B%20production/" rel="prev"/>
+<link href="../03%20-%20Memory/" rel="next"/>
+<link href="../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>2. Рантайм Go - Go</title>
+<link href="../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#2-go">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              2. Рантайм Go
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#100-000">
+<span class="md-ellipsis">
+      
+        Кто выполняет 100 000 горутин
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.2%20-%20Lock%20manager/">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../Additional/14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#100-000">
+<span class="md-ellipsis">
+      
+        Кто выполняет 100 000 горутин
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="2-go">2. Рантайм Go<a class="headerlink" href="#2-go" title="Permanent link">¶</a></h1>
+<h2 id="100-000">Кто выполняет 100 000 горутин<a class="headerlink" href="#100-000" title="Permanent link">¶</a></h2>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="nx">handle</span><span class="p">(</span><span class="nx">conn</span><span class="p">)</span>
+</code></pre></div>
+<p>Одна строка — и появилась новая горутина.</p>
+<p>Красиво.</p>
+<p>Теперь неудобный вопрос.</p>
+<p>На машине восемь ядер. Мы создали 100 000 горутин. Кто именно их выполняет?</p>
+<p>Процессор ничего не знает про горутины. Операционная система тоже. Для ОС существуют процессы, потоки, системные вызовы, память, таймеры и файловые дескрипторы.</p>
+<p>Значит, между:</p>
+<div class="highlight"><pre><span></span><code>go handle(conn)
+</code></pre></div>
+<p>и:</p>
+<div class="highlight"><pre><span></span><code>CPU выполняет машинные инструкции
+</code></pre></div>
+<p>должен существовать отдельный механизм.</p>
+<p>Вот здесь появляется <strong>рантайм Go</strong>.</p>
+<p>На этой лекции нас интересует одна непрерывная цепочка:</p>
+<div class="highlight"><pre><span></span><code>Go-код
+↓
+горутина
+↓
+G
+↓
+планировщик
+↓
+P + M
+↓
+планировщик ОС
+↓
+CPU
+</code></pre></div>
+<p>И вторая:</p>
+<div class="highlight"><pre><span></span><code>горутина выполняется
+↓
+дальше работать нельзя
+↓
+канал / мьютекс / сеть / таймер
+↓
+горутина перестает занимать выполнение
+↓
+ждет
+↓
+событие произошло
+↓
+готова к выполнению
+↓
+планировщик
+↓
+выполняется
+</code></pre></div>
+<p>После этого <code>go f()</code>, <code>&lt;-ch</code>, <code>mu.Lock()</code> и <code>conn.Read()</code> должны перестать выглядеть как четыре независимых магических механизма.</p>
+<p>Под ними постоянно повторяется одна и та же идея:</p>
+<blockquote>
+<p>Рантайм управляет жизненным циклом горутины и старается не держать поток ОС там, где работа все равно не может продолжаться.</p>
+</blockquote>
+<hr/>
+<h1 id="1">1. Нативный бинарник не означает отсутствие рантайма<a class="headerlink" href="#1" title="Permanent link">¶</a></h1>
+<p>Go компилируется в машинный код и обычно дает самостоятельный исполняемый файл.</p>
+<p>Из этого иногда делают вывод:</p>
+<blockquote>
+<p>Раз есть нативный бинарник, значит рантайма нет.</p>
+</blockquote>
+<p>Рантайм есть.</p>
+<p>Он просто поставляется вместе с программой.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>Go исходник
+↓
+компилятор + компоновщик
+↓
+код приложения
++
+стандартная библиотека
++
+рантайм Go
+↓
+ОС
+</code></pre></div>
+<p>Рантайм отвечает, среди прочего, за:</p>
+<ul>
+<li>горутины;</li>
+<li>планировщик;</li>
+<li>управление потоками ОС;</li>
+<li>стеки горутин;</li>
+<li>сборщик мусора;</li>
+<li>аллокация;</li>
+<li>таймеры;</li>
+<li>сетевое ожидание;</li>
+<li>парковку и пробуждение горутин;</li>
+<li>часть синхронизации;</li>
+<li><code>panic</code> / <code>recover</code>;</li>
+<li>профилирование и трассировка.</li>
+</ul>
+<p>Сразу важная граница.</p>
+<p><code>go</code>, канал, <code>sync.Mutex</code> и гарантии памяти относятся к публичной модели языка и библиотек.</p>
+<p>Конкретные структуры <code>g</code>, <code>m</code>, <code>p</code>, размеры внутренних очередей и алгоритмы планировщика — детали реализации рантайма.</p>
+<p>Они очень полезны для понимания.</p>
+<p>Но прикладной код не должен считать их вечным контрактом языка.</p>
+<hr/>
+<h1 id="2">2. Горутина — не «маленький поток ОС»<a class="headerlink" href="#2" title="Permanent link">¶</a></h1>
+<p>Фраза:</p>
+<blockquote>
+<p>горутина — легкий поток</p>
+</blockquote>
+<p>удобна ровно до первого серьезного вопроса.</p>
+<p>Потоки ОС планирует ядро операционной системы.</p>
+<p>Горутину планирует рантайм Go.</p>
+<p>ОС видит:</p>
+<div class="highlight"><pre><span></span><code>M1
+M2
+M3
+M4
+</code></pre></div>
+<p>и решает, когда каждый из этих потоков получит CPU.</p>
+<p>Рантайм Go видит:</p>
+<div class="highlight"><pre><span></span><code>G1 G2 G3 G4 ... G100000
+</code></pre></div>
+<p>и решает, какая горутина будет выполняться на доступных потоках ОС.</p>
+<p>То есть работают два планировщика:</p>
+<div class="highlight"><pre><span></span><code>Планировщик Go:
+горутина → поток ОС
+
+Планировщик ОС:
+поток ОС → CPU
+</code></pre></div>
+<p>Вот почему горутин может быть на порядки больше, чем потоков ОС.</p>
+<hr/>
+<h1 id="3-g">3. Что такое G<a class="headerlink" href="#3-g" title="Permanent link">¶</a></h1>
+<p>Внутри рантайма горутина представлена структурой, которую принято обозначать <code>G</code>.</p>
+<p>Нам не нужно учить ее поля.</p>
+<p>Нужно понимать задачу.</p>
+<p>Рантайм должен уметь приостановить горутину и позже продолжить ее с того же места.</p>
+<p>Значит, нужно где-то хранить:</p>
+<div class="highlight"><pre><span></span><code>G
+├── состояние
+├── границы стека
+├── сохраненный контекст выполнения
+├── информацию об ожидании
+├── связь с M, пока G выполняется
+└── служебные данные планировщика и рантайма
+</code></pre></div>
+<p><code>G</code> и стек горутины — разные сущности.</p>
+<p><code>G</code> описывает выполнение.</p>
+<p>Стек хранит кадры вызовов, локальные значения и служебное состояние текущей цепочки функций.</p>
+<hr/>
+<h1 id="4">4. Состояния горутины: здесь начинается нормальная диагностика<a class="headerlink" href="#4" title="Permanent link">¶</a></h1>
+<p>Реальный рантайм имеет больше внутренних состояний и переходов.</p>
+<p>Для бэкенда достаточно сначала держать в голове пять:</p>
+<div class="highlight"><pre><span></span><code>готова к выполнению
+выполняется
+ждет
+находится в системном вызове
+завершена
+</code></pre></div>
+<h2 id="_1">Готова к выполнению<a class="headerlink" href="#_1" title="Permanent link">¶</a></h2>
+<p>Горутина готова работать.</p>
+<p>Ей прямо сейчас не хватает ресурса выполнения.</p>
+<div class="highlight"><pre><span></span><code>готова работать
++
+ждет планировщика
+</code></pre></div>
+<h2 id="_2">Выполняется<a class="headerlink" href="#_2" title="Permanent link">¶</a></h2>
+<p>Горутина прямо сейчас исполняет Go-код.</p>
+<h2 id="_3">Ждет<a class="headerlink" href="#_3" title="Permanent link">¶</a></h2>
+<p>Горутина не может продолжить выполнение, пока не произойдет событие.</p>
+<p>Например она ждет:</p>
+<ul>
+<li>канал;</li>
+<li>мьютекс;</li>
+<li>таймер;</li>
+<li>сеть;</li>
+<li><code>select</code>;</li>
+<li>другой механизм, поддерживаемый рантаймом.</li>
+</ul>
+<h2 id="_4">Системный вызов<a class="headerlink" href="#_4" title="Permanent link">¶</a></h2>
+<p>Горутина выполняет системный вызов.</p>
+<p>Здесь поведение зависит от того, действительно ли поток ОС заблокирован в ядре.</p>
+<h2 id="_5">Завершена<a class="headerlink" href="#_5" title="Permanent link">¶</a></h2>
+<p>Горутина завершила выполнение.</p>
+<p>Рантайм позже может переиспользовать внутреннее представление завершенной горутины.</p>
+<hr/>
+<h1 id="5">5. Ожидание и готовность к выполнению — две принципиально разные задержки<a class="headerlink" href="#5" title="Permanent link">¶</a></h1>
+<p>Запрос отвечает три секунды.</p>
+<p>Можно сказать:</p>
+<blockquote>
+<p>Медленно.</p>
+</blockquote>
+<p>Для диагностики это почти бесполезно.</p>
+<p>Сценарий №1:</p>
+<div class="highlight"><pre><span></span><code>G ждет 2.9 s
+G готова к выполнению 0.01 s
+G выполняется 0.09 s
+</code></pre></div>
+<p>Большую часть времени работа вообще не могла продолжаться.</p>
+<p>Она ждала сеть, лок, пул или другое событие.</p>
+<p>Сценарий №2:</p>
+<div class="highlight"><pre><span></span><code>G готова к выполнению 2.5 s
+G выполняется кусками суммарно 0.5 s
+</code></pre></div>
+<p>Здесь работа уже готова.</p>
+<p>Ей просто долго не достается CPU.</p>
+<p>Для пользователя результат одинаков:</p>
+<div class="highlight"><pre><span></span><code>задержка = 3 s
+</code></pre></div>
+<p>Для инженера это две совершенно разные системы.</p>
+<p>Полезное правило:</p>
+<div class="highlight"><pre><span></span><code>ждет
+→ чего ждем?
+
+готова к выполнению
+→ почему не получаем CPU?
+</code></pre></div>
+<hr/>
+<h1 id="6">6. Горутина дешевая. Бесплатная — нет<a class="headerlink" href="#6" title="Permanent link">¶</a></h1>
+<p>Почему горутина дешевле потока ОС?</p>
+<p>Потому что рантайм сам контролирует большую часть ее жизненного цикла:</p>
+<ul>
+<li>создает сравнительно легкий контекст выполнения;</li>
+<li>дает небольшой растущий стек;</li>
+<li>планирует выполнение в пользовательском пространстве;</li>
+<li>может припарковать G, не блокируя вместе с ней поток ОС;</li>
+<li>мультиплексирует множество G поверх ограниченного числа потоков.</li>
+</ul>
+<p>Создание горутины не означает создание нового потока ОС.</p>
+<p>Но отсюда очень легко сделать следующий неправильный вывод:</p>
+<blockquote>
+<p>Тогда горутины можно создавать сколько угодно.</p>
+</blockquote>
+<p>Каждая живая G все равно что-то удерживает:</p>
+<div class="highlight"><pre><span></span><code>стек
++
+метаданные рантайма
++
+служебные данные планировщика
++
+ссылки на хип
++
+объекты, достижимые через эти ссылки
++
+структуры ожидания
++
+прикладные ресурсы
+</code></pre></div>
+<p>Например:</p>
+<ul>
+<li>буферы;</li>
+<li>запрос/ответ;</li>
+<li>транзакцию;</li>
+<li>таймер;</li>
+<li>канал;</li>
+<li>соединение;</li>
+<li>контекст отмены;</li>
+<li>большой граф объектов.</li>
+</ul>
+<p>100 000 G могут почти не использовать CPU и при этом съесть огромный объем памяти.</p>
+<hr/>
+<h1 id="7">7. Утечка горутины: планировщик работает правильно, приложение — нет<a class="headerlink" href="#7" title="Permanent link">¶</a></h1>
+<p>Пример:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">leak</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span>
+
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">&lt;-</span><span class="nx">ch</span>
+<span class="w">        </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">"done"</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>После выхода из <code>leak()</code> никто больше не отправит значение.</p>
+<p>Что делает рантайм?</p>
+<p>Ровно то, что ему сказали:</p>
+<div class="highlight"><pre><span></span><code>G
+↓
+получение
+↓
+данных нет
+↓
+ждет
+↓
+ждем отправителя
+</code></pre></div>
+<p>отправитель никогда не появится.</p>
+<p>Получается <strong>утечка горутины</strong>: G логически больше не нужна системе, но ее жизненный цикл никогда не закончится.</p>
+<p>Под нагрузкой:</p>
+<div class="highlight"><pre><span></span><code>1 запрос
+→ +1 утекшая горутина
+
+1000 запросов
+→ +1000 утекших горутин
+</code></pre></div>
+<p>Симптомы:</p>
+<ul>
+<li>число горутин растет;</li>
+<li>память растет;</li>
+<li>в профиле горутин много одинаковых стеков;</li>
+<li>CPU может оставаться низким.</li>
+</ul>
+<p>И вот здесь уже видно важное свойство Go:</p>
+<blockquote>
+<p>большое количество горутин само по себе не говорит, нормальна система или нет.</p>
+</blockquote>
+<p>Нужно знать их состояния и причины ожидания.</p>
+<hr/>
+<h1 id="8">8. Хорошо. Горутин много. Кто физически выполняет код?<a class="headerlink" href="#8" title="Permanent link">¶</a></h1>
+<p>На машине:</p>
+<div class="highlight"><pre><span></span><code>8 CPU
+100 000 G
+</code></pre></div>
+<p>Отдельный поток на каждую G создавать не хотим.</p>
+<p>Нужна промежуточная модель.</p>
+<p>Вот здесь появляются <strong>G / M / P</strong>.</p>
+<div class="highlight"><pre><span></span><code>G — внутреннее представление горутины и состояния ее выполнения
+M — поток ОС
+P — ресурс рантайма, необходимый M для выполнения обычного Go-кода
+</code></pre></div>
+<p>Полезная формула:</p>
+<div class="highlight"><pre><span></span><code>G = что выполнять
+M = какой поток ОС выполняет G
+P = право и локальные ресурсы рантайма для выполнения Go-кода
+</code></pre></div>
+<p>Чтобы обычная горутина выполняла пользовательский Go-код:</p>
+<div class="highlight"><pre><span></span><code>G + M + P
+</code></pre></div>
+<p>должны встретиться.</p>
+<hr/>
+<h1 id="9-m">9. M — настоящий поток ОС<a class="headerlink" href="#9-m" title="Permanent link">¶</a></h1>
+<p><code>M</code> соответствует потоку операционной системы.</p>
+<p>Именно он в конце концов выполняет машинные инструкции.</p>
+<div class="highlight"><pre><span></span><code>G
+↓
+M
+↓
+планировщик ОС
+↓
+CPU
+</code></pre></div>
+<p>M может:</p>
+<ul>
+<li>выполнять Go-код;</li>
+<li>выполнять рантайм;</li>
+<li>находиться в системном вызове;</li>
+<li>простаивать;</li>
+<li>выполнять служебную работу рантайма.</li>
+</ul>
+<p>Планировщик ОС не знает про G и P.</p>
+<p>Он планирует M.</p>
+<hr/>
+<h1 id="10-p">10. Зачем нужен P<a class="headerlink" href="#10-p" title="Permanent link">¶</a></h1>
+<p>Вот здесь модель часто ломается.</p>
+<p>Казалось бы:</p>
+<div class="highlight"><pre><span></span><code>G → M
+</code></pre></div>
+<p>Зачем третья сущность?</p>
+<p>Проблема появляется, когда M блокируется в ядре.</p>
+<p>Представим:</p>
+<div class="highlight"><pre><span></span><code>G1 + M1
+↓
+блокирующий системный вызов
+↓
+M1 застрял
+</code></pre></div>
+<p>Если все состояние рантайма выполнения жестко привязано к M1, мы теряем часть вычислительной емкости вместе с этим потоком.</p>
+<p>Поэтому появляется P.</p>
+<div class="highlight"><pre><span></span><code>G1 + M1 + P0
+↓
+M1 блокируется в системный вызов
+↓
+P0 отделяется
+↓
+M2 получает P0
+↓
+G2 продолжает работу
+</code></pre></div>
+<p><code>P</code> отвязывает возможность выполнять Go-код от конкретного потока ОС.</p>
+<p>Вот ради этого он и существует.</p>
+<hr/>
+<h1 id="11-p">11. Что находится на P<a class="headerlink" href="#11-p" title="Permanent link">¶</a></h1>
+<p>Конкретные поля — детали реализации.</p>
+<p>Архитектурно важно другое: часто используемое состояние выгодно держать локально на <code>P</code>, чтобы не ходить в глобальные структуры на каждом шаге.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>P
+├── локальная очередь выполнения
+├── локальные кеши аллокатора
+├── часть состояния планировщика
+└── другие локальные ресурсы P
+</code></pre></div>
+<p>Зачем?</p>
+<p>Чтобы не делать каждое действие через одну глобальную структуру и один общий лок.</p>
+<p>Это повторяющийся принцип высоконагруженных систем:</p>
+<div class="highlight"><pre><span></span><code>общая структура
+→ координация проще
+→ конкуренция выше
+
+локальное состояние
+→ координация сложнее
+→ частый путь дешевле
+</code></pre></div>
+<hr/>
+<h1 id="12-gomaxprocs">12. GOMAXPROCS<a class="headerlink" href="#12-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Практическая модель:</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS ≈ количество P
+</code></pre></div>
+<p>Следовательно:</p>
+<blockquote>
+<p><code>GOMAXPROCS</code> примерно задает максимальный параллелизм обычного Go-кода внутри процесса.</p>
+</blockquote>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">runtime</span><span class="p">.</span><span class="nx">GOMAXPROCS</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</code></pre></div>
+<p>горутины могут быть тысячи.</p>
+<p>Они могут переключаться, ждать I/O, таймеры и каналы.</p>
+<p>Но одновременно обычный Go-код выполняется через один P.</p>
+<p>Это конкурентность без параллелизма.</p>
+<p>Параллелизма нескольких G на разных P здесь нет.</p>
+<hr/>
+<h1 id="13-gomaxprocs">13. GOMAXPROCS — не количество потоков и не пул работников<a class="headerlink" href="#13-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS = 8
+</code></pre></div>
+<p>это не означает:</p>
+<div class="highlight"><pre><span></span><code>ровно 8 потоков ОС
+</code></pre></div>
+<p>и не означает:</p>
+<div class="highlight"><pre><span></span><code>не более 8 HTTP запросов
+</code></pre></div>
+<p>и тем более не означает:</p>
+<div class="highlight"><pre><span></span><code>не более 8 запросов в PostgreSQL
+</code></pre></div>
+<p>M может быть больше P, например из-за блокирующих системных вызовов.</p>
+<p>А тысячи G могут одновременно ждать сеть или базу.</p>
+<p><code>GOMAXPROCS</code> ограничивает параллельное выполнение Go-кода.</p>
+<p>Количество одновременных внешних операций нужно ограничивать отдельно.</p>
+<hr/>
+<h1 id="14-gomaxprocs">14. GOMAXPROCS в контейнере<a class="headerlink" href="#14-gomaxprocs" title="Permanent link">¶</a></h1>
+<p>Допустим, на хосте:</p>
+<div class="highlight"><pre><span></span><code>64 CPU
+</code></pre></div>
+<p>А контейнер:</p>
+<div class="highlight"><pre><span></span><code>CPU лимит ≈ 2 CPU
+</code></pre></div>
+<p>Если приложение ведет себя как нагрузка, пытающаяся параллельно использовать 64 CPU:</p>
+<div class="highlight"><pre><span></span><code>много готовых к выполнению горутин
+↓
+CPU квота быстро исчерпывается
+↓
+ограничение CPU со стороны cgroup
+↓
+процесс временно не получает CPU
+↓
+хвост задержки растет
+</code></pre></div>
+<p>Современный Go на Linux умеет учитывать cgroup CPU лимит при выборе значения <code>GOMAXPROCS</code> по умолчанию.</p>
+<p>Но это не делает CPU бесконечным.</p>
+<p>Ограничение контейнера все равно остается реальным пределом пропускной способности.</p>
+<hr/>
+<h1 id="15">15. Где ждут горутины, готовые к выполнению<a class="headerlink" href="#15" title="Permanent link">¶</a></h1>
+<p>Мы разобрались, что есть P.</p>
+<p>Следующий вопрос:</p>
+<blockquote>
+<p>Где лежат горутины, которые уже готовы работать?</p>
+</blockquote>
+<p>Самая простая модель — одна глобальная очередь.</p>
+<div class="highlight"><pre><span></span><code>G1 G2 G3 ... G100000
+↓
+ГЛОБАЛЬНАЯ ОЧЕРЕДЬ
+↓
+P0 P1 P2 P3
+</code></pre></div>
+<p>Удобно.</p>
+<p>А теперь добавим 64 P.</p>
+<p>Каждый постоянно:</p>
+<div class="highlight"><pre><span></span><code>взять G
+положить G
+взять G
+положить G
+</code></pre></div>
+<p>через одну общую структуру.</p>
+<p>Получаем горячую точку синхронизации.</p>
+<p>Поэтому у каждого <code>P</code> есть <strong>локальная очередь готовых к выполнению горутин</strong>.</p>
+<div class="highlight"><pre><span></span><code>P0: G1 G2 G3
+P1: G4 G5
+P2: G6 G7 G8
+P3: ...
+</code></pre></div>
+<p>Есть и глобальная очередь, когда нужна общая координация.</p>
+<p>Основная идея:</p>
+<div class="highlight"><pre><span></span><code>локальная очередь
+→ дешевый частый путь
+
+глобальная очередь
+→ координация и справедливость
+</code></pre></div>
+<hr/>
+<h1 id="16">16. Локальные очереди снизили конкуренцию. И сразу создали другую проблему<a class="headerlink" href="#16" title="Permanent link">¶</a></h1>
+<p>Пусть:</p>
+<div class="highlight"><pre><span></span><code>P0: []
+P1: []
+P2: [G1 G2 G3 G4 G5 G6 G7 G8]
+P3: []
+</code></pre></div>
+<p>Три P простаивают.</p>
+<p>Работа есть.</p>
+<p>Отличная оптимизация.</p>
+<p>Теперь нужен механизм перераспределения.</p>
+<p>Вот здесь появляется <strong>кража работы (work stealing)</strong>.</p>
+<p>Свободный <code>P</code> может забрать часть готовых горутин из очереди другого <code>P</code>.</p>
+<div class="highlight"><pre><span></span><code>до:
+
+P0: []
+P2: [G1 G2 G3 G4 G5 G6 G7 G8]
+
+после:
+
+P0: [G5 G6 G7 G8]
+P2: [G1 G2 G3 G4]
+</code></pre></div>
+<p>Почему обычно выгодно забирать пачку?</p>
+<p>Если воровать по одной G:</p>
+<div class="highlight"><pre><span></span><code>украсть
+выполнить
+украсть
+выполнить
+украсть
+выполнить
+</code></pre></div>
+<p>накладные расходы на координацию быстро начинают конкурировать с полезной работой.</p>
+<p>Пачка амортизирует стоимость взаимодействия между P.</p>
+<p>Точные размеры и эвристики — детали текущего рантайма.</p>
+<hr/>
+<h1 id="17">17. Кража работы тоже не бесплатна<a class="headerlink" href="#17" title="Permanent link">¶</a></h1>
+<p>После переноса G может оказаться на другом M и другом CPU.</p>
+<p>Данные, которые были горячими в кеше одного ядра, новому ядру придется загружать заново.</p>
+<p>Получается очередной компромисс:</p>
+<div class="highlight"><pre><span></span><code>оставить работу локально
+→ лучше локальность
+→ можно недогрузить другие CPU
+
+украсть работу
+→ лучше загрузка CPU
+→ можно потерять локальность
+</code></pre></div>
+<p>Планировщик постоянно балансирует эти цели.</p>
+<hr/>
+<h1 id="18">18. Что делать, если работы вообще нет<a class="headerlink" href="#18" title="Permanent link">¶</a></h1>
+<p>Теперь обратная ситуация.</p>
+<div class="highlight"><pre><span></span><code>64 P
+0 готовых к выполнению G
+</code></pre></div>
+<p>Можно заставить всех рабочих потоков постоянно искать работу.</p>
+<p>Получим:</p>
+<div class="highlight"><pre><span></span><code>загрузка CPU высокая
+полезная работа = 0
+</code></pre></div>
+<p>Можно сразу усыплять поток ОС.</p>
+<p>Но если новая G появится через микросекунду, придется снова будить поток через ОС.</p>
+<p>Поэтому рантайм использует промежуточный режим: часть M некоторое время активно ищет работу.</p>
+<p>Это называется <strong>активным ожиданием (spinning)</strong>.</p>
+<div class="highlight"><pre><span></span><code>нет локальной работы
+↓
+проверить другие источники
+↓
+попробовать украсть работу
+↓
+если работа появилась — выполнить
+↓
+если ее действительно нет — парковка потока
+</code></pre></div>
+<p>Короткое активное ожидание уменьшает задержку реакции на новую работу.</p>
+<p>Цена — процессорное время.</p>
+<p>Поэтому число M в активном ожидании ограничивается.</p>
+<hr/>
+<h1 id="19">19. Планировщик решает сразу несколько конфликтующих задач<a class="headerlink" href="#19" title="Permanent link">¶</a></h1>
+<p>Он хочет:</p>
+<ul>
+<li>высокую пропускную способность;</li>
+<li>низкую задержку;</li>
+<li>справедливость;</li>
+<li>локальность кеша;</li>
+<li>минимальные лишние создания и переключения потоков;</li>
+<li>равномерную загрузку P;</li>
+<li>выполнение служебной работы рантайма.</li>
+</ul>
+<p>Одновременно идеально выполнить все требования нельзя.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>всегда брать локальную работу
+→ локальность хорошая
+→ глобальная работа может долго не получать выполнения
+
+часто брать глобальную работу
+→ справедливость лучше
+→ общая координация дороже
+</code></pre></div>
+<p>Планировщик — набор компромиссов и эвристик.</p>
+<p>Он не является строгим FIFO-диспетчером.</p>
+<hr/>
+<h1 id="20">20. Задержка планирования<a class="headerlink" href="#20" title="Permanent link">¶</a></h1>
+<p>Теперь можно точно сформулировать еще одну метрику.</p>
+<div class="highlight"><pre><span></span><code>G стала готова к выполнению
+↓
+...
+↓
+G начала выполняться
+</code></pre></div>
+<p>Время между этими событиями — <strong>задержка планирования</strong>.</p>
+<p>Если CPU насыщен:</p>
+<div class="highlight"><pre><span></span><code>готовой к выполнению работы ↑
+↓
+очереди выполнения ↑
+↓
+готова к выполнению → дольше ждет начала выполнения
+↓
+задержка запроса ↑
+</code></pre></div>
+<p>Создать еще горутины после насыщения CPU — не значит увеличить пропускную способность.</p>
+<p>Чаще это означает увеличить очередь.</p>
+<hr/>
+<h1 id="21">21. А что происходит, когда горутина вообще не может продолжать работу?<a class="headerlink" href="#21" title="Permanent link">¶</a></h1>
+<p>До сих пор G была готова к выполнению.</p>
+<p>Теперь:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>Канал пуст.</p>
+<p>Продолжать эту функцию невозможно.</p>
+<p>Можно оставить поток ОС ждать вместе с G.</p>
+<p>Но тогда 100 000 ожидающих G снова превращаются почти в 100 000 ожидающих потоков.</p>
+<p>Вместо этого рантайм старается убрать из выполнения именно горутину.</p>
+<p>Это <strong>парковка</strong>.</p>
+<hr/>
+<h1 id="22">22. Парковка: выполнение → ожидание<a class="headerlink" href="#22" title="Permanent link">¶</a></h1>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>G1 выполняется
+↓
+операция сейчас невозможна
+↓
+Рантайм регистрирует ожидание
+↓
+gopark
+↓
+G1 ждет
+↓
+M/P выполняют другую G
+</code></pre></div>
+<p><code>gopark</code> — внутренний механизм рантайма.</p>
+<p>Для прикладного кода главное следствие:</p>
+<blockquote>
+<p>логическое ожидание горутины обычно не требует, чтобы тот же поток ОС бездействовал вместе с ней.</p>
+</blockquote>
+<p>Именно это позволяет Go эффективно обслуживать большое количество ожидающих операций.</p>
+<hr/>
+<h1 id="23-g">23. Событие произошло. G еще не выполняется<a class="headerlink" href="#23-g" title="Permanent link">¶</a></h1>
+<p>Допустим данные в канал появились.</p>
+<p>Рантайм делает ожидающую горутину готовой:</p>
+<div class="highlight"><pre><span></span><code>ждет
+↓
+готовность / `goready`
+↓
+готова к выполнению
+</code></pre></div>
+<p>И вот здесь важная ловушка:</p>
+<div class="highlight"><pre><span></span><code>готова к выполнению ≠ выполняется
+</code></pre></div>
+<p>Пробуждение означает:</p>
+<blockquote>
+<p>эту G теперь можно снова выполнять.</p>
+</blockquote>
+<p>Но ей еще нужно попасть к планировщику, получить P/M и реально выйти на CPU.</p>
+<p>Поэтому ресурс может стать доступен сейчас, а горутина продолжит выполнение немного позже.</p>
+<p>Эта задержка потом особенно важна для понимания конкуренции за Mutex.</p>
+<hr/>
+<h1 id="24">24. Общий жизненный цикл ожидания<a class="headerlink" href="#24" title="Permanent link">¶</a></h1>
+<p>Запомним одну схему:</p>
+<div class="highlight"><pre><span></span><code>выполняется
+↓
+дальше работать нельзя
+↓
+зарегистрировать ожидание
+↓
+парковка
+↓
+ждет
+↓
+событие
+↓
+готова к выполнению
+↓
+готова к выполнению
+↓
+планировщик
+↓
+выполняется
+</code></pre></div>
+<p>Этот шаблон встречается в:</p>
+<ul>
+<li>каналы;</li>
+<li>медленный путь мьютекса;</li>
+<li>семафоры рантайма;</li>
+<li>netpoller;</li>
+<li>таймеры;</li>
+<li><code>select</code>.</li>
+</ul>
+<p>Механизмы разные.</p>
+<p>переход состояния в рантайме очень похож.</p>
+<hr/>
+<h1 id="25">25. Почему нельзя сначала отпустить лок, а потом зарегистрировать ожидание<a class="headerlink" href="#25" title="Permanent link">¶</a></h1>
+<p>Теперь маленькая, но фундаментальная проблема конкурентности.</p>
+<p>Наивный алгоритм:</p>
+<div class="highlight"><pre><span></span><code>проверили условие
+↓
+условие ложно
+↓
+снять блокировку
+↓
+парковка
+</code></pre></div>
+<p>Между освобождением блокировки и парковкой другая горутина может изменить состояние и выполнить пробуждение.</p>
+<p>Но наша горутина еще не зарегистрирована как ожидающая.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>G1: условие ложно
+G1: снять блокировку
+
+G2: событие
+G2: никого не разбудить
+
+G1: парковка
+</code></pre></div>
+<p>Событие уже произошло.</p>
+<p>Следующего может не быть.</p>
+<p>G1 уснула навсегда.</p>
+<p>Это <strong>потерянное пробуждение</strong>.</p>
+<p>Поэтому правильные протоколы ожидания согласуют:</p>
+<div class="highlight"><pre><span></span><code>проверку состояния
++
+регистрацию ожидания
++
+освобождение внутренней блокировки
++
+парковка
+</code></pre></div>
+<p>так, чтобы событие нельзя было потерять между шагами.</p>
+<hr/>
+<h1 id="26-api">26. Сетевой ввод-вывод: блокирующий API без отдельного потока на соединение<a class="headerlink" href="#26-api" title="Permanent link">¶</a></h1>
+<p>Бэкенд-разработчик пишет:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">conn</span><span class="p">.</span><span class="nx">Read</span><span class="p">(</span><span class="nx">buf</span><span class="p">)</span>
+</code></pre></div>
+<p>Логически <code>Read</code> блокирующий.</p>
+<p>Если данных нет, функция не может идти дальше.</p>
+<p>Но это не означает, что рантайм обязан держать поток ОС в ожидании каждого соединения.</p>
+<p>ОС умеет сообщать готовность файловых дескрипторов к чтению или записи.</p>
+<p>Рантайм Go использует <strong>netpoller</strong> — слой, который связывает ожидание сетевого дескриптора с механизмами готовности ОС.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>G1 выполняется
+↓
+conn.Read
+↓
+данных сейчас нет
+↓
+рантайм регистрирует файловый дескриптор в netpoller
+↓
+G1 паркуется
+↓
+G1 ждет
+↓
+M/P выполняют другие G
+</code></pre></div>
+<p>Когда ядро сообщает готовность:</p>
+<div class="highlight"><pre><span></span><code>файловый дескриптор готов
+↓
+netpoller
+↓
+G1 готова к выполнению
+↓
+планировщик
+↓
+G1 выполняется
+</code></pre></div>
+<p>Снаружи мы написали обычный последовательный <code>Read</code>.</p>
+<p>Внутри рантайма поток ОС не обязан все это время ждать вместе с G.</p>
+<hr/>
+<h1 id="27-50-000-50-000">27. 50 000 соединений не означают 50 000 потоков ОС<a class="headerlink" href="#27-50-000-50-000" title="Permanent link">¶</a></h1>
+<p>Вот одна из главных причин, почему модель Go удобна для сетевого бэкенда.</p>
+<p>Можно иметь:</p>
+<div class="highlight"><pre><span></span><code>50 000 горутин
+↓
+большинство ждут сеть
+↓
+сравнительно небольшое число потоков ОС
+</code></pre></div>
+<p>CPU тратится в основном на горутины, которые прямо сейчас способны что-то делать.</p>
+<p>Но важное «но» никуда не исчезло.</p>
+<p>50 000 ожидающих запросов все равно могут удерживать:</p>
+<ul>
+<li>память;</li>
+<li>буферы;</li>
+<li>таймеры;</li>
+<li>контекст;</li>
+<li>состояние приложения;</li>
+<li>файловые дескрипторы.</li>
+</ul>
+<p>netpoller экономит потоки.</p>
+<p>Он не делает ожидание бесплатным.</p>
+<hr/>
+<h1 id="28">28. Блокирующий системный вызов — уже другой механизм<a class="headerlink" href="#28" title="Permanent link">¶</a></h1>
+<p>Не любой системный вызов можно превратить в ожидание готовности.</p>
+<p>Иногда M реально входит в ядро и блокируется.</p>
+<div class="highlight"><pre><span></span><code>G1 + M1 + P0
+↓
+блокирующий системный вызов
+↓
+M1 заблокирован ядром
+</code></pre></div>
+<p>M1 физически не может выполнять другую G.</p>
+<p>Но P0 можно использовать снова:</p>
+<div class="highlight"><pre><span></span><code>M1 заблокирован
+↓
+P0 отделяется
+↓
+M2 получает P0
+↓
+G2 выполняется
+</code></pre></div>
+<p>Вот здесь еще раз становится понятно, зачем существует P.</p>
+<hr/>
+<h1 id="29">29. Почему число потоков ОС иногда растет<a class="headerlink" href="#29" title="Permanent link">¶</a></h1>
+<p>Если нагрузка содержит много реально блокирующих операций:</p>
+<ul>
+<li>блокирующие системные вызовы;</li>
+<li>cgo;</li>
+<li>внешние библиотеки;</li>
+</ul>
+<p>Рантайму может понадобиться больше M, чтобы свободные P продолжали выполнять Go-код.</p>
+<p>Поэтому:</p>
+<div class="highlight"><pre><span></span><code>GOMAXPROCS = 8
+</code></pre></div>
+<p>вообще не означает:</p>
+<div class="highlight"><pre><span></span><code>потоков ОС в процессе = 8
+</code></pre></div>
+<p>Резкий рост числа потоков под нагрузкой — полезный диагностический сигнал:</p>
+<blockquote>
+<p>возможно, приложение ушло из ожидания, которым управляет рантайм в реальную блокировку потоков ОС.</p>
+</blockquote>
+<hr/>
+<h1 id="30">30. Вычислительная горутина: а если она вообще никогда не ждет?<a class="headerlink" href="#30" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">burnCPU</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Ни канал.</p>
+<p>Ни сеть.</p>
+<p>Ни таймер.</p>
+<p>Ни системный вызов.</p>
+<p>Если планировщик получает управление только тогда, когда G сама добровольно блокируется, такая горутина может слишком долго держать P.</p>
+<p>Поэтому нужно <strong>вытеснение</strong>.</p>
+<p>Современный Go способен инициировать вытеснение выполняющейся G, чтобы дать возможность продолжить работу другим горутинам и самому рантайму.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>G1 долго выполняется
+↓
+Рантайм запрашивает вытеснение
+↓
+G1 останавливается в безопасной точке
+↓
+другие G получают выполнение
+</code></pre></div>
+<p>Это не планировщик реального времени.</p>
+<p>Go не обещает точную длительность кванта:</p>
+<div class="highlight"><pre><span></span><code>каждой G ровно N миллисекунд
+</code></pre></div>
+<p>Такой гарантии нет.</p>
+<hr/>
+<h1 id="31">31. Вытеснение не является отменой<a class="headerlink" href="#31" title="Permanent link">¶</a></h1>
+<p>Эти механизмы легко спутать.</p>
+<p>Вытеснение говорит:</p>
+<div class="highlight"><pre><span></span><code>ты могла бы продолжать,
+но CPU пока получит кто-то другой
+</code></pre></div>
+<p>Отмена говорит:</p>
+<div class="highlight"><pre><span></span><code>эта работа больше не нужна,
+пожалуйста, закончи ее
+</code></pre></div>
+<p>Планировщик может вытеснить вычислительную G.</p>
+<p>Он не обязан автоматически завершать бизнес-операцию только потому, что <code>ctx.Done()</code> уже закрыт.</p>
+<p>Отмена в Go в основном кооперативна.</p>
+<p>Код должен ее поддерживать.</p>
+<hr/>
+<h1 id="32">32. Теперь про стек горутины<a class="headerlink" href="#32" title="Permanent link">¶</a></h1>
+<p>Горутина должна быть дешевой.</p>
+<p>Можно дать каждой сразу стек по 1 MiB.</p>
+<p>Тогда:</p>
+<div class="highlight"><pre><span></span><code>100 000 G × 1 MiB
+</code></pre></div>
+<p>и идея массовой конкурентности заканчивается довольно быстро.</p>
+<p>Поэтому Go использует небольшой <strong>растущий стек</strong>.</p>
+<p>Правильная модель:</p>
+<blockquote>
+<p>горутина начинает с относительно небольшого стека, который рантайм может увеличить, когда текущего размера перестает хватать.</p>
+</blockquote>
+<p>Фраза:</p>
+<blockquote>
+<p>горутина всегда стоит 2 KiB</p>
+</blockquote>
+<p>слишком грубая и для оценки пропускной способности вредная.</p>
+<p>Реальный стек конкретной G зависит от ее вызовов и решений компилятора и рантайма.</p>
+<hr/>
+<h1 id="33">33. Откуда рантайм узнает, что стек пора увеличить<a class="headerlink" href="#33" title="Permanent link">¶</a></h1>
+<p>Компилятор вставляет проверки перед выполнением многих функций.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>вход в функцию
+↓
+хватит места для нового кадра?
+├── да  → выполняем функцию
+└── нет → путь роста стека в рантайме
+</code></pre></div>
+<p>Рантайм не ждет реального выхода указателя стека за допустимую память.</p>
+<p>Проверка происходит заранее.</p>
+<hr/>
+<h1 id="34">34. Почему рост стека сложнее обычного перевыделения памяти<a class="headerlink" href="#34" title="Permanent link">¶</a></h1>
+<p>Пусть внутри функции:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">10</span>
+<span class="nx">p</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">x</span>
+</code></pre></div>
+<p>Если <code>x</code> находится на стеке, <code>p</code> содержит адрес внутри старого стека.</p>
+<p>Теперь стек переезжает:</p>
+<div class="highlight"><pre><span></span><code>старый адрес:
+0x100000...
+
+новый адрес:
+0x500000...
+</code></pre></div>
+<p>Просто скопировать байты недостаточно.</p>
+<p>Ссылки, указывающие внутрь старого стека, нужно корректно обновить.</p>
+<p>Поэтому рантайм должен знать:</p>
+<blockquote>
+<p>какие слова в кадре стека являются указателями?</p>
+</blockquote>
+<hr/>
+<h1 id="35">35. Карты стека: компилятор помогает рантайму<a class="headerlink" href="#35" title="Permanent link">¶</a></h1>
+<p>Компилятор создает точные метаданные о расположении указателей.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>кадр:
+слот 0 → скаляр
+слот 1 → указатель
+слот 2 → скаляр
+слот 3 → указатель
+</code></pre></div>
+<p>Эти данные нужны как минимум двум механизмам:</p>
+<div class="highlight"><pre><span></span><code>сборщик мусора
++
+перенос стека
+</code></pre></div>
+<p>Это хороший пример того, почему компилятор и рантайм нельзя рассматривать как независимые миры.</p>
+<hr/>
+<h1 id="36-g0">36. Почему рантайм использует системный стек g0<a class="headerlink" href="#36-g0" title="Permanent link">¶</a></h1>
+<p>Когда пользовательский стек нужно переместить, выполнять сам перенос на этом же стеке неудобно.</p>
+<p>Мы буквально пытаемся перестроить пол, на котором стоим.</p>
+<p>У каждого M есть служебный стек рантайма — <code>g0</code>.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>M
+├── стек пользовательской G  ← переносим
+└── стек g0      ← Рантайм работает отсюда
+</code></pre></div>
+<p>На нем выполняются критичные служебные операции планировщика и рантайма.</p>
+<hr/>
+<h1 id="37">37. Стек может потом уменьшиться<a class="headerlink" href="#37" title="Permanent link">¶</a></h1>
+<p>Допустим G один раз прошла очень глубокую цепочку вызовов.</p>
+<p>Стек вырос.</p>
+<p>Потом G вернулась к обычной работе и живет еще час.</p>
+<p>Если всегда хранить пиковый размер:</p>
+<div class="highlight"><pre><span></span><code>навсегда держать пиковый размер стека
+</code></pre></div>
+<p>долгоживущие горутины начнут удерживать лишнюю память.</p>
+<p>Поэтому рантайм умеет уменьшать стек в подходящие безопасные моменты.</p>
+<p>Рост нужен срочно: без него функция не продолжит работу.</p>
+<p>Уменьшение — оптимизация памяти и может ждать удобного момента.</p>
+<hr/>
+<h1 id="38">38. Локальная переменная не означает «лежит на стеке»<a class="headerlink" href="#38" title="Permanent link">¶</a></h1>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">func</span><span class="w"> </span><span class="nx">create</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="nx">User</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">u</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">User</span><span class="p">{}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">u</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>u</code> написан как локальная переменная.</p>
+<p>Но ссылка на нее живет после выхода из функции.</p>
+<p>Где физически разместить значение, решает компилятор.</p>
+<p>Здесь начинает работать эскейп-анализ, который отдельно разбирается в теме памяти.</p>
+<p>Поэтому оценивать использование стека только глазами по исходному коду нельзя.</p>
+<hr/>
+<h1 id="39">39. Канал — не просто очередь<a class="headerlink" href="#39" title="Permanent link">¶</a></h1>
+<p>Следующее популярное упрощение:</p>
+<blockquote>
+<p>Канал — потокобезопасная очередь.</p>
+</blockquote>
+<p>Буферизованный канал действительно содержит буфер.</p>
+<p>Но канал еще синхронизирует отправителя и получателя.</p>
+<p>А небуферизованный канал вообще не имеет пользовательской очереди элементов.</p>
+<p>Для ментальной модели внутри канала есть:</p>
+<div class="highlight"><pre><span></span><code>канал
+├── необязательный буфер
+├── очередь ожидающих отправителей
+├── очередь ожидающих получателей
+├── состояние закрытия
+└── внутренняя синхронизация
+</code></pre></div>
+<p>Теперь становится понятно, зачем нам уже разобранная парковка.</p>
+<hr/>
+<h1 id="40">40. Получение, когда данных нет<a class="headerlink" href="#40" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch</span>
+</code></pre></div>
+<p>Данных нет.</p>
+<p>Отправителя тоже нет.</p>
+<p>Что делать?</p>
+<div class="highlight"><pre><span></span><code>G-получатель выполняется
+↓
+получение сейчас невозможно
+↓
+зарегистрировать ожидание
+↓
+припарковать G
+↓
+ждет
+</code></pre></div>
+<p>Позже отправитель приходит:</p>
+<div class="highlight"><pre><span></span><code>отправитель
+↓
+находит ожидающего получателя
+↓
+передает значение
+↓
+получатель → готов к выполнению
+</code></pre></div>
+<p>Затем планировщик снова запускает получателя, когда тот получит CPU.</p>
+<hr/>
+<h1 id="41-sudog">41. Что такое sudog<a class="headerlink" href="#41-sudog" title="Permanent link">¶</a></h1>
+<p>Для очередей ожидания рантайм использует структуру <code>sudog</code>.</p>
+<p>Учебная модель:</p>
+<div class="highlight"><pre><span></span><code>sudog
+├── ссылка на G
+├── связи в очередь ожидания
+├── данные конкретной операции
+└── служебная информация ожидания
+</code></pre></div>
+<p>Почему не хранить просто <code>*g</code>?</p>
+<p>Потому что отношение не один-к-одному.</p>
+<p>Один канал может иметь много ожидающих G.</p>
+<p>А одна G через <code>select</code> может одновременно быть зарегистрирована в нескольких очередях ожидания канала.</p>
+<div class="highlight"><pre><span></span><code>        G42
+      /  |  \
+    sg1 sg2 sg3
+     |   |   |
+    ch1 ch2 ch3
+</code></pre></div>
+<p>Вот зачем нужен отдельный объект ожидания.</p>
+<hr/>
+<h1 id="42">42. Небуферизованный канал: отправитель и получатель должны встретиться<a class="headerlink" href="#42" title="Permanent link">¶</a></h1>
+<p>Пишем:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">value</span>
+</code></pre></div>
+<p>Если получатель уже ждет, Рантайм может сразу организовать передачу значения и сделать получателя готовым к выполнению.</p>
+<p>Если получателя нет:</p>
+<div class="highlight"><pre><span></span><code>отправитель
+↓
+зарегистрировать `sudog` в очереди отправителей
+↓
+парковка
+↓
+ждет
+</code></pre></div>
+<p>Небуферизованный канал не хранит автономную очередь пользовательских элементов.</p>
+<p>Отправка и получение должны встретиться.</p>
+<p>Полезная модель здесь — синхронная встреча отправителя и получателя: без второй стороны операция завершиться не может.</p>
+<hr/>
+<h1 id="43">43. Буферизованный канал: буфер меняет момент парковки<a class="headerlink" href="#43" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+<p>Если место есть:</p>
+<div class="highlight"><pre><span></span><code>отправка
+↓
+скопировать значение в буфер
+↓
+обновить индексы
+↓
+возврат
+</code></pre></div>
+<p>Текущая G не паркуется.</p>
+<p>Если буфер заполнен:</p>
+<div class="highlight"><pre><span></span><code>отправка
+↓
+места нет
+↓
+зарегистрировать ожидание
+↓
+парковка
+</code></pre></div>
+<p>Емкость канала влияет на то, когда производитель начнет ждать.</p>
+<p>Но теперь специально сломаем популярную модель.</p>
+<hr/>
+<h1 id="44">44. Большой буфер канала не создает пропускную способность<a class="headerlink" href="#44" title="Permanent link">¶</a></h1>
+<p>Производитель:</p>
+<div class="highlight"><pre><span></span><code>10 000 сообщений/с
+</code></pre></div>
+<p>Потребитель:</p>
+<div class="highlight"><pre><span></span><code>1 000 сообщений/с
+</code></pre></div>
+<p>буфер = 100.</p>
+<p>Он заполнится быстро.</p>
+<p>буфер = 1 000 000.</p>
+<p>Он заполнится позже.</p>
+<p>Но:</p>
+<div class="highlight"><pre><span></span><code>скорость поступления &gt; скорость обработки
+</code></pre></div>
+<p>никуда не делось.</p>
+<p>Большой буфер меняет:</p>
+<ul>
+<li>время до насыщения;</li>
+<li>расход памяти;</li>
+<li>задержку сообщения в очереди.</li>
+</ul>
+<p>Он не ускоряет потребителя.</p>
+<p>Канал тоже не отменяет математику пропускной способности.</p>
+<hr/>
+<h1 id="45-select">45. <code>select</code> показывает, зачем рантайму нужны несколько записей ожидания<a class="headerlink" href="#45-select" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="p">{</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">x</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch1</span><span class="p">:</span>
+<span class="w">    </span><span class="nx">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">x</span>
+<span class="k">case</span><span class="w"> </span><span class="nx">ch2</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="mi">42</span><span class="p">:</span>
+<span class="k">case</span><span class="w"> </span><span class="o">&lt;-</span><span class="nx">ch3</span><span class="p">:</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Если ни одна ветка <code>case</code> прямо сейчас не готова:</p>
+<div class="highlight"><pre><span></span><code>одна G
+↓
+несколько sudog
+↓
+регистрация в нескольких очередях ожидания
+↓
+парковка
+</code></pre></div>
+<p>Одно событие выигрывает.</p>
+<p>G становится готова к выполнению.</p>
+<p>Остальные регистрации нужно убрать.</p>
+<p>Поэтому <code>sudog</code> — не случайная внутренняя деталь канала.</p>
+<p>Он решает реальную задачу связи «многие ко многим» между горутинами и ожиданиями.</p>
+<hr/>
+<h1 id="46">46. Канал и жизненный цикл горутина<a class="headerlink" href="#46" title="Permanent link">¶</a></h1>
+<p>Типичная утечка:</p>
+<div class="highlight"><pre><span></span><code><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">resultCh</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nx">result</span>
+<span class="p">}()</span>
+</code></pre></div>
+<p>А потребитель уже ушел по тайм-аут.</p>
+<p>Если канал небуферизованный и больше никто его не читает:</p>
+<div class="highlight"><pre><span></span><code>отправитель
+↓
+отправка
+↓
+вечное ожидание
+</code></pre></div>
+<p>Получили утечку горутины.</p>
+<p>Поэтому канал всегда нужно рассматривать вместе с вопросом:</p>
+<blockquote>
+<p>Кто владеет жизненным циклом этой горутины и кто гарантирует завершение ожидания?</p>
+</blockquote>
+<hr/>
+<h1 id="47-syncmutex">47. <code>sync.Mutex</code>: кажется, что все должно быть очень просто<a class="headerlink" href="#47-syncmutex" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+</code></pre></div>
+<p>Ментальная модель:</p>
+<div class="highlight"><pre><span></span><code>свободен → захватили
+занят → ждем
+</code></pre></div>
+<p>Для понимания API этого достаточно.</p>
+<p>Для производительности — уже нет.</p>
+<p>Рантайм должен одновременно обеспечить:</p>
+<ul>
+<li>дешевый случай без конкуренции;</li>
+<li>ожидание при конкуренции;</li>
+<li>отсутствие лишних пробуждений;</li>
+<li>приемлемую справедливость;</li>
+<li>корректный порядок операций с памятью.</li>
+</ul>
+<p>Начинается самое интересное.</p>
+<hr/>
+<h1 id="48-mutex">48. Быстрый путь: свободный <code>Mutex</code> должен быть почти бесплатным<a class="headerlink" href="#48-mutex" title="Permanent link">¶</a></h1>
+<p>Если лок свободен, Рантайм пытается захватить его атомарной операцией.</p>
+<p>Упрощенно:</p>
+<div class="highlight"><pre><span></span><code>свободен
+↓
+CAS
+↓
+занят
+</code></pre></div>
+<p><strong>CAS (Compare-And-Swap)</strong> — атомарная операция:</p>
+<div class="highlight"><pre><span></span><code>если текущее значение равно ожидаемому
+→ заменить его новым
+→ вернуть успех
+
+иначе
+→ ничего не менять
+→ вернуть неуспех
+</code></pre></div>
+<p>Если быстрый путь успешен:</p>
+<div class="highlight"><pre><span></span><code>нет очереди ожидания
+нет парковки
+нет перехода через планировщик
+нет сна
+</code></pre></div>
+<p>Вот почему мьютекс без конкуренции может быть очень дешевым.</p>
+<hr/>
+<h1 id="49-cas">49. CAS проигран. Почему не заснуть сразу?<a class="headerlink" href="#49-cas" title="Permanent link">¶</a></h1>
+<p>Мьютекс занят.</p>
+<p>Самое очевидное решение:</p>
+<div class="highlight"><pre><span></span><code>не получил лок
+↓
+парковка
+</code></pre></div>
+<p>Но представим, что владелец отпустит мьютекс через несколько десятков наносекунд.</p>
+<p>Мы ради этого:</p>
+<div class="highlight"><pre><span></span><code>зарегистрировали ожидание
+припарковали G
+потом разбудили
+вернули в планировщик
+</code></pre></div>
+<p>и потратили больше, чем длилась сама критическая секция.</p>
+<p>Поэтому рантайм иногда сначала делает короткое <strong>активное ожидание (spinning)</strong>.</p>
+<div class="highlight"><pre><span></span><code>блокировка занята
+↓
+немного крутимся
+↓
+повторяем попытку
+</code></pre></div>
+<p>Если лок быстро освободился — выиграли по задержке.</p>
+<p>Если нет — начинаем просто жечь CPU.</p>
+<p>Поэтому активное ожидание ограничено и зависит от текущих условий планировщика.</p>
+<hr/>
+<h1 id="50-gomaxprocs1">50. Почему активное ожидание при GOMAXPROCS=1 особенно бессмысленно<a class="headerlink" href="#50-gomaxprocs1" title="Permanent link">¶</a></h1>
+<p>Представим один P.</p>
+<p>G1 владеет мьютексом, но сейчас готова к выполнению.</p>
+<p>G2 получила CPU и ждет этот мьютекс.</p>
+<p>Если G2 начнет активно крутиться:</p>
+<div class="highlight"><pre><span></span><code>G2 занимает единственный P
+↓
+G1 не получает выполнение
+↓
+G1 не может вызвать `Unlock()`
+↓
+G2 продолжает ждать
+</code></pre></div>
+<p>Прекрасный способ не решить проблему.</p>
+<p>Поэтому рантайм не включает активное ожидание бездумно.</p>
+<hr/>
+<h1 id="51-mutex-cpu">51. Медленный путь <code>Mutex</code>: когда пора перестать тратить CPU<a class="headerlink" href="#51-mutex-cpu" title="Permanent link">¶</a></h1>
+<p>Если лок быстро не освободился:</p>
+<div class="highlight"><pre><span></span><code>быстрый CAS не сработал
+↓
+короткое активное ожидание не помогло
+↓
+зарегистрировать ожидание
+↓
+семафор рантайма
+↓
+припарковать G
+↓
+ждет
+</code></pre></div>
+<p>Теперь ожидающая горутина перестала активно конкурировать за CPU.</p>
+<p>M/P могут выполнять полезную работу.</p>
+<p>Это переход:</p>
+<div class="highlight"><pre><span></span><code>активная конкуренция
+→ пассивное ожидание
+</code></pre></div>
+<hr/>
+<h1 id="52-mutex">52. Семафор рантайма — мост между <code>Mutex</code> и планировщиком<a class="headerlink" href="#52-mutex" title="Permanent link">¶</a></h1>
+<p>Мьютекс должен знать:</p>
+<blockquote>
+<p>кому разрешено войти в критическую секцию?</p>
+</blockquote>
+<p>Планировщик решает:</p>
+<blockquote>
+<p>когда готовая к выполнению G реально получит CPU?</p>
+</blockquote>
+<p>Между ними нужен механизм сна и пробуждения ожидающих горутин.</p>
+<p>Семафор рантайма организует примерно такую цепочку:</p>
+<div class="highlight"><pre><span></span><code>Медленный путь мьютекса
+↓
+регистрация ожидания
+↓
+sudog / структуры ожидания
+↓
+gopark
+↓
+ждет
+</code></pre></div>
+<p>А при освобождении:</p>
+<div class="highlight"><pre><span></span><code>найти подходящую ожидающую горутину
+↓
+готова к выполнению
+↓
+готова к выполнению
+</code></pre></div>
+<p>Это механизм рантайма для горутин.</p>
+<p>Не нужно представлять каждый <code>Mutex</code> под конкуренцией как обязательный семафор ядра ОС.</p>
+<hr/>
+<h1 id="53-mutex-cpu">53. Почему <code>Mutex</code> может быть узким местом при низком CPU<a class="headerlink" href="#53-mutex-cpu" title="Permanent link">¶</a></h1>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>100 горутин хотят один мьютекс
+1 внутри критической секции
+99 ждут
+</code></pre></div>
+<p>CPU:</p>
+<div class="highlight"><pre><span></span><code>20%
+</code></pre></div>
+<p>Можно сказать:</p>
+<blockquote>
+<p>CPU свободен, значит запас производительности огромный.</p>
+</blockquote>
+<p>Нет.</p>
+<p>Пропускная способность может целиком упереться в одну сериализованную критическую секцию.</p>
+<p>Особенно красиво это ломается так:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">mu</span><span class="p">.</span><span class="nx">Lock</span><span class="p">()</span>
+<span class="k">defer</span><span class="w"> </span><span class="nx">mu</span><span class="p">.</span><span class="nx">Unlock</span><span class="p">()</span>
+
+<span class="nx">state</span><span class="p">.</span><span class="nx">Value</span><span class="o">++</span>
+<span class="nx">resp</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">client</span><span class="p">.</span><span class="nx">Do</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+</code></pre></div>
+<p>Внешний HTTP-вызов занимает три секунды.</p>
+<p>Значит мьютекс удерживается три секунды.</p>
+<p>Все остальные ожидающие стоят в очереди.</p>
+<p>Получаем:</p>
+<div class="highlight"><pre><span></span><code>CPU низкий
+задержка огромная
+горутины ждут мьютекс
+</code></pre></div>
+<p>Причина — не медленный CAS.</p>
+<p>Причина — архитектура критической секции.</p>
+<hr/>
+<h1 id="54-mutex">54. Пробужденная горутина еще не владеет <code>Mutex</code><a class="headerlink" href="#54-mutex" title="Permanent link">¶</a></h1>
+<p>В обычном режиме:</p>
+<div class="highlight"><pre><span></span><code>G1 вызывает `Unlock()`
+↓
+G2 ждет → готова к выполнению
+</code></pre></div>
+<p>Но G2 еще нужно получить CPU.</p>
+<p>Тем временем G3 уже выполняется и тоже вызывает <code>Lock()</code>.</p>
+<p>Она может успеть захватить освободившийся мьютекс раньше G2.</p>
+<p>Новая горутина может перехватить только что освободившийся лок раньше старого ожидающего. Это называют <strong>перехватом лока новой горутиной (barging)</strong>.</p>
+<p>Почему рантайм это допускает?</p>
+<p>Потому что G3 уже находится на CPU.</p>
+<p>Строгая передача лока старой ожидающей горутине может стоить дороже и уменьшить пропускную способность.</p>
+<hr/>
+<h1 id="55">55. Пропускная способность есть. А что со справедливостью?<a class="headerlink" href="#55" title="Permanent link">¶</a></h1>
+<p>Если новые горутины постоянно обгоняют старую ожидающую горутину:</p>
+<div class="highlight"><pre><span></span><code>разбудить G2
+↓
+G3 перехватывает блокировку
+↓
+G2 снова ждет
+↓
+разбудить G2
+↓
+G4 перехватывает блокировку
+</code></pre></div>
+<p>отдельная G может ждать слишком долго.</p>
+<p>Поэтому текущая реализация <code>sync.Mutex</code> умеет переходить в <strong>режим голодания (starvation mode)</strong>, где лок передается давно ожидающим горутинам значительно прямее.</p>
+<p>Компромисс:</p>
+<div class="highlight"><pre><span></span><code>обычный режим
+→ пропускная способность выше
+→ справедливость хуже
+
+режим голодания (starvation mode)
+→ справедливость лучше
+→ часть пропускной способности теряется
+</code></pre></div>
+<p>Конкретные биты, пороги и точный алгоритм — детали реализации.</p>
+<p>Для основной модели достаточно понять причину существования двух режимов.</p>
+<hr/>
+<h1 id="56">56. Атомарная операция тоже имеет цену<a class="headerlink" href="#56" title="Permanent link">¶</a></h1>
+<p>Вернемся к CAS.</p>
+<p>Пусть 32 CPU одновременно изменяют одну атомарную переменную:</p>
+<div class="highlight"><pre><span></span><code>Ядро 0 ─┐
+Ядро 1 ─┤
+Ядро 2 ─┼→ одно и то же атомарное состояние
+...
+Ядро 31 ─┘
+</code></pre></div>
+<p>Формально лок нет.</p>
+<p>Но все ядра конкурируют за одну область памяти.</p>
+<p>Каждый проигранный CAS означает:</p>
+<div class="highlight"><pre><span></span><code>прочитать состояние
+↓
+кто-то успел изменить
+↓
+CAS не сработал
+↓
+повторить
+</code></pre></div>
+<p>Получается важное правило:</p>
+<blockquote>
+<p>«Без локов» не означает «без конкуренции за общее состояние».</p>
+</blockquote>
+<p>Убрать мьютекс и поставить цикл CAS — еще не значит ускорить программу.</p>
+<hr/>
+<h1 id="57-mutex">57. Зачем <code>Mutex</code> паркует ожидающих<a class="headerlink" href="#57-mutex" title="Permanent link">¶</a></h1>
+<p>При высокой конкуренции можно заставить все ядра CPU делать:</p>
+<div class="highlight"><pre><span></span><code>CAS
+неудача
+повторить
+CAS
+неудача
+повторить
+</code></pre></div>
+<p>CPU занят.</p>
+<p>Полезной работы почти нет.</p>
+<p>Медленный путь мьютекса постепенно убирает лишних ожидающих из активной борьбы:</p>
+<div class="highlight"><pre><span></span><code>меньше активного ожидания
+↓
+меньше активных CAS
+↓
+меньше бесполезной работы CPU
+↓
+меньше давления на общую линию кеша
+</code></pre></div>
+<p>То есть парковка нужна не только ради экономии работы планировщика.</p>
+<p>Он еще уменьшает активную конкуренцию за общее состояние.</p>
+<hr/>
+<h1 id="58">58. Атомарность — еще не вся история<a class="headerlink" href="#58" title="Permanent link">¶</a></h1>
+<p>Рассмотрим:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="kt">int</span>
+<span class="kd">var</span><span class="w"> </span><span class="nx">ready</span><span class="w"> </span><span class="kt">bool</span>
+</code></pre></div>
+<p>G1:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span>
+<span class="nx">ready</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div>
+<p>G2:</p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span><span class="w"> </span><span class="nx">ready</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Интуиция:</p>
+<blockquote>
+<p>Если увидели <code>ready == true</code>, значит <code>data</code> уже 42.</p>
+</blockquote>
+<p>Без синхронизации так рассуждать нельзя.</p>
+<p>Проблема уже не только в том, «разорвется ли отдельная запись».</p>
+<p>Нужно понимать:</p>
+<ul>
+<li>порядок операций;</li>
+<li>видимость между горутинами;</li>
+<li>какие события создают гарантированную связь между ними.</li>
+</ul>
+<p>Этим занимается <strong>модель памяти Go</strong>.</p>
+<hr/>
+<h1 id="59">59. Гонка данных<a class="headerlink" href="#59" title="Permanent link">¶</a></h1>
+<p>Упрощенно, <strong>гонка данных</strong> возникает, когда две горутины обращаются к одной области памяти одновременно, хотя бы одна операция пишет, а корректной синхронизации между ними нет.</p>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">counter</span><span class="w"> </span><span class="kt">int</span>
+
+<span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">counter</span><span class="o">++</span>
+<span class="w">    </span><span class="p">}()</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>counter++</code> логически состоит из нескольких действий:</p>
+<div class="highlight"><pre><span></span><code>чтение
+↓
+сложение
+↓
+запись
+</code></pre></div>
+<p>Две горутины могут прочитать одно и то же старое значение и одна из записей потеряется.</p>
+<hr/>
+<h1 id="60">60. Синхронизация задает порядок между горутинами<a class="headerlink" href="#60" title="Permanent link">¶</a></h1>
+<p>Нужен механизм, который позволяет сказать:</p>
+<blockquote>
+<p>эти действия одной горутины гарантированно предшествуют соответствующим действиям другой горутины.</p>
+</blockquote>
+<p>Например мьютекс:</p>
+<div class="highlight"><pre><span></span><code>G1 записывает данные
+↓
+G1 вызывает `Unlock()`
+↓
+G2 `Lock()` завершился
+↓
+G2 читает данные
+</code></pre></div>
+<p>Или канал:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">var</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="kt">string</span>
+<span class="nx">ch</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nb">make</span><span class="p">(</span><span class="kt">chan</span><span class="w"> </span><span class="kd">struct</span><span class="p">{})</span>
+
+<span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"ready"</span>
+<span class="w">    </span><span class="nx">ch</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}{}</span>
+<span class="p">}()</span>
+
+<span class="o">&lt;-</span><span class="nx">ch</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span>
+</code></pre></div>
+<p>Канал здесь передает не только пустое значение.</p>
+<p>Он создает синхронизационное отношение между горутинами.</p>
+<hr/>
+<h1 id="61">61. Атомарное поле не делает атомарным весь объект<a class="headerlink" href="#61" title="Permanent link">¶</a></h1>
+<div class="highlight"><pre><span></span><code><span class="kd">type</span><span class="w"> </span><span class="nx">Account</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">balance</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Int64</span>
+<span class="w">    </span><span class="nx">version</span><span class="w"> </span><span class="nx">atomic</span><span class="p">.</span><span class="nx">Int64</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Каждое поле обновляется атомарно.</p>
+<p>Но если бизнес-инвариант:</p>
+<div class="highlight"><pre><span></span><code>`balance` и `version` должны изменяться вместе
+</code></pre></div>
+<p>другая G все еще может увидеть:</p>
+<div class="highlight"><pre><span></span><code>новый баланс
+старая версия
+</code></pre></div>
+<p>Атомарность отдельных слов не равна атомарности составного состояния.</p>
+<p>Поэтому главный вопрос при выборе атомарной операции:</p>
+<blockquote>
+<p>Какой именно инвариант мы защищаем?</p>
+</blockquote>
+<p>Если инвариант охватывает несколько связанных полей или несколько шагов, мьютекс часто намного понятнее.</p>
+<hr/>
+<h1 id="62">62. Детектор гонок<a class="headerlink" href="#62" title="Permanent link">¶</a></h1>
+<p>Для динамического поиска гонок:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-race<span class="w"> </span>./...
+</code></pre></div>
+<p>или:</p>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span>run<span class="w"> </span>-race<span class="w"> </span>.
+</code></pre></div>
+<p>Но важна правильная интерпретация.</p>
+<p>детектор гонок наблюдает выполненные пути программы.</p>
+<p>Если опасный сценарий в тесте не произошел:</p>
+<div class="highlight"><pre><span></span><code>гонка существует
++
+путь не выполнялся
+=
+отчет может отсутствовать
+</code></pre></div>
+<p>Поэтому:</p>
+<blockquote>
+<p><code>-race</code> ничего не нашел</p>
+</blockquote>
+<p>не означает:</p>
+<blockquote>
+<p>доказано отсутствие гонок.</p>
+</blockquote>
+<hr/>
+<h1 id="63">63. Планировщик не создает обратное давление<a class="headerlink" href="#63" title="Permanent link">¶</a></h1>
+<p>Теперь возвращаемся к бэкенду.</p>
+<p>Очень простой код:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span><span class="nx">req</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">запросов</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">go</span><span class="w"> </span><span class="nx">process</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Рантайм технически способен обслуживать огромное количество G.</p>
+<p>Но он не знает:</p>
+<div class="highlight"><pre><span></span><code>PostgreSQL пул = 20
+квота внешнего API = 100 запросов/с
+бюджет памяти = 1 GiB
+</code></pre></div>
+<p>Планировщик решает:</p>
+<blockquote>
+<p>какую готовую G выполнять следующей?</p>
+</blockquote>
+<p>Он не решает другой вопрос:</p>
+<blockquote>
+<p>сколько бизнес-операций системе вообще безопасно принять?</p>
+</blockquote>
+<p>Если пропускная способность зависимости ниже скорости входящего потока:</p>
+<div class="highlight"><pre><span></span><code>запросов
+↓
+больше горутин
+↓
+ждут один и тот же ограниченный ресурс
+↓
+память ↑
+↓
+задержка ↑
+</code></pre></div>
+<p>Нужны:</p>
+<ul>
+<li>ограниченная конкурентность;</li>
+<li>ограниченная очередь;</li>
+<li>семафор;</li>
+<li>пул работников;</li>
+<li>пул соединений;</li>
+<li>ограничение скорости;</li>
+<li>контроль допуска нагрузки.</li>
+</ul>
+<p>Дешевая горутина позволяет очень легко случайно превратить память процесса в огромную очередь ожидания.</p>
+<hr/>
+<h1 id="64">64. Что происходит под вычислительной нагрузкой<a class="headerlink" href="#64" title="Permanent link">¶</a></h1>
+<p>Если готовой к выполнению работы больше, чем CPU способен выполнить:</p>
+<div class="highlight"><pre><span></span><code>готовая к выполнению G ↑
+↓
+очереди выполнения ↑
+↓
+задержка планирования ↑
+↓
+задержка запроса ↑
+</code></pre></div>
+<p>CPU приближается к насыщению.</p>
+<p>Количество горутин растет.</p>
+<p>Пропускная способность после определенной точки почти не растет.</p>
+<p>Еще большая конкурентность в этом режиме обычно означает только дальнейший рост очередей.</p>
+<hr/>
+<h1 id="65-">65. Что происходит под нагрузкой ввода-вывода<a class="headerlink" href="#65-" title="Permanent link">¶</a></h1>
+<p>Другой сервис:</p>
+<div class="highlight"><pre><span></span><code>50 000 G
+CPU = 30%
+потоков = десятки
+</code></pre></div>
+<p>Это может быть абсолютно нормальной картиной.</p>
+<p>Большинство G:</p>
+<div class="highlight"><pre><span></span><code>ждут сеть
+</code></pre></div>
+<p>Рантайм именно для этого и умеет парковать горутины.</p>
+<p>Но нужно проверить:</p>
+<ul>
+<li>число G стабильно или растет;</li>
+<li>что они ждут;</li>
+<li>сколько памяти удерживают;</li>
+<li>сколько соединений открыто;</li>
+<li>не исчерпан ли внешний пул.</li>
+</ul>
+<p>Большое число горутин само по себе ничего не доказывает.</p>
+<hr/>
+<h1 id="66-mutex">66. Что происходит при конкуренции за <code>Mutex</code><a class="headerlink" href="#66-mutex" title="Permanent link">¶</a></h1>
+<p>Один глобальный лок:</p>
+<div class="highlight"><pre><span></span><code>больше трафика
+↓
+больше ожидающих
+↓
+критическая секция все еще одна
+↓
+очередь перед блокировкой ↑
+↓
+парковка/пробуждение ↑
+↓
+хвост задержки ↑
+</code></pre></div>
+<p>CPU при этом может быть далеко от 100%.</p>
+<p>Поэтому граф CPU не является универсальным ответом на вопрос «есть ли пропускная способность».</p>
+<hr/>
+<h1 id="67">67. Диагностика: какой инструмент на какой вопрос<a class="headerlink" href="#67" title="Permanent link">¶</a></h1>
+<h2 id="runtimenumgoroutine"><code>runtime.NumGoroutine</code><a class="headerlink" href="#runtimenumgoroutine" title="Permanent link">¶</a></h2>
+<p>Показывает количество G.</p>
+<p>Полезен как показатель динамики.</p>
+<p>Не отвечает на вопрос:</p>
+<blockquote>
+<p>почему они существуют?</p>
+</blockquote>
+<h2 id="_6">Профиль горутин<a class="headerlink" href="#_6" title="Permanent link">¶</a></h2>
+<p>Показывает стеки горутин.</p>
+<p>Если:</p>
+<div class="highlight"><pre><span></span><code>50 000 G
+↓
+все стоят в одном получении из канала
+</code></pre></div>
+<p>это уже очень сильный сигнал.</p>
+<h2 id="_7">Профиль блокировок<a class="headerlink" href="#_7" title="Permanent link">¶</a></h2>
+<p>Помогает увидеть, где горутины теряют время на блокирующей синхронизации.</p>
+<h2 id="_8">Профиль мьютексов<a class="headerlink" href="#_8" title="Permanent link">¶</a></h2>
+<p>Показывает горячие точки конкуренции за <code>Mutex</code>/<code>RWMutex</code>.</p>
+<p>Сценарий:</p>
+<div class="highlight"><pre><span></span><code>CPU низкий
+задержка высокая
+профиль мьютекса показывает горячую точку
+</code></pre></div>
+<p>указывает совсем не на узкое место по CPU.</p>
+<h2 id="go-tool-trace"><code>go tool trace</code><a class="headerlink" href="#go-tool-trace" title="Permanent link">¶</a></h2>
+<p>Особенно полезен для этой темы.</p>
+<p>Позволяет увидеть:</p>
+<div class="highlight"><pre><span></span><code>горутина создана
+↓
+готова к выполнению
+↓
+выполняется
+↓
+ждет
+↓
+готова к выполнению
+↓
+выполняется
+</code></pre></div>
+<p>а также:</p>
+<ul>
+<li>ожидание сети;</li>
+<li>системные вызовы;</li>
+<li>задержка планирования;</li>
+<li>GC;</li>
+<li>активность P/M.</li>
+</ul>
+<h2 id="_9">Трассировка планировщика<a class="headerlink" href="#_9" title="Permanent link">¶</a></h2>
+<p><code>GODEBUG</code> имеет диагностические режимы планировщика вроде <code>schedtrace</code> и <code>scheddetail</code>.</p>
+<p>Это внутренние диагностические форматы рантайма, поэтому детали могут меняться между версиями.</p>
+<h2 id="_10">Детектор гонок<a class="headerlink" href="#_10" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>-race<span class="w"> </span>./...
+</code></pre></div>
+<p>Нужен для гонок памяти.</p>
+<p>Он не предназначен для поиска обычного ожидания лока или высокой конкуренции за <code>Mutex</code>.</p>
+<hr/>
+<h1 id="68">68. Как читать симптом<a class="headerlink" href="#68" title="Permanent link">¶</a></h1>
+<p>Полезная таблица рассуждения:</p>
+<div class="highlight"><pre><span></span><code>горутины ↑
+→ нормальная конкурентность или утечка?
+
+много горутин ждут
+→ на чем ждут?
+
+много готовых к выполнению горутин
+→ хватает ли CPU?
+
+потоки ↑
+→ блокирующий системный вызов / `cgo`?
+
+CPU низкий + задержка высокая
+→ блокировка / пул / ожидание сети?
+
+профиль мьютекса показывает горячую точку
+→ какая критическая секция сериализует работу?
+
+100 000 G ждут пул из 20 соединений
+→ планировщик работает нормально
+→ на уровне приложения лимиты пропускной способности не учтены в дизайне
+</code></pre></div>
+<p>Главная ценность знания рантайма именно здесь.</p>
+<p>Не в том, чтобы переписывать <code>runtime/proc.go</code>.</p>
+<p>А в том, чтобы по наблюдаемому поведению понимать, на каком слое реально находится ограничение.</p>
+<hr/>
+<h1 id="69">69. Что является гарантией, а что устройством текущего рантайма<a class="headerlink" href="#69" title="Permanent link">¶</a></h1>
+<p>В этой теме легко выучить деталь реализации и начать считать его частью языка.</p>
+<p>Разделяем.</p>
+<h2 id="api">Гарантии языка и публичного API<a class="headerlink" href="#api" title="Permanent link">¶</a></h2>
+<p>Например:</p>
+<ul>
+<li>семантика горутин;</li>
+<li>операции с каналами;</li>
+<li>контракт <code>sync.Mutex</code>;</li>
+<li>гарантии модели памяти Go;</li>
+<li>поведение <code>sync/atomic</code>.</li>
+</ul>
+<p>Прикладной код может на них опираться.</p>
+<h2 id="_11">Детали рантайма<a class="headerlink" href="#_11" title="Permanent link">¶</a></h2>
+<p>Например:</p>
+<ul>
+<li>G/M/P как внутренние структуры;</li>
+<li>конкретные очереди выполнения;</li>
+<li><code>sudog</code>;</li>
+<li><code>gopark</code>;</li>
+<li>алгоритмы кражи работы;</li>
+<li>конкретные эвристики активного ожидания;</li>
+<li>внутреннее устройство <code>sync.Mutex</code>;</li>
+<li>точные пороги режима голодания;</li>
+<li>конкретный порядок поиска готовой к выполнению работы.</li>
+</ul>
+<p>Они нужны для понимания механизма и диагностики.</p>
+<p>Но Go не обещает, что следующая версия рантайма сохранит их побайтно.</p>
+<h2 id="_12">Учебная модель<a class="headerlink" href="#_12" title="Permanent link">¶</a></h2>
+<p>Например:</p>
+<div class="highlight"><pre><span></span><code>выполняется
+→ ждет
+→ готова к выполнению
+→ выполняется
+</code></pre></div>
+<p>Реальная машина состояний сложнее.</p>
+<p>Хорошая учебная модель не обязана повторять исходники рантайма построчно.</p>
+<p>Она должна объяснять причинно-следственную цепочку.</p>
+<hr/>
+<h1 id="70">70. Собираем всю картину<a class="headerlink" href="#70" title="Permanent link">¶</a></h1>
+<p>Создание горутины:</p>
+<div class="highlight"><pre><span></span><code>go worker()
+↓
+создать / переиспользовать G
+↓
+готова к выполнению
+↓
+очереди планировщика
+↓
+P + M
+↓
+выполняется
+</code></pre></div>
+<p>Ожидание канала:</p>
+<div class="highlight"><pre><span></span><code>выполняется
+↓
+операция не может продолжаться
+↓
+sudog / очередь ожидания
+↓
+парковка
+↓
+ждет
+↓
+событие
+↓
+готова к выполнению
+↓
+планировщик
+</code></pre></div>
+<p>Ожидание сети:</p>
+<div class="highlight"><pre><span></span><code>conn.Read
+↓
+файловый дескриптор не готов
+↓
+netpoller
+↓
+припарковать G
+↓
+ждет
+↓
+ядро сообщает о готовности
+↓
+готова к выполнению
+</code></pre></div>
+<p>блокирующий системный вызов:</p>
+<div class="highlight"><pre><span></span><code>G + M + P
+↓
+M блокируется в ядре
+↓
+P получает другой M
+</code></pre></div>
+<p>Mutex:</p>
+<div class="highlight"><pre><span></span><code>лок
+↓
+быстрый CAS
+├── успех → критическая секция
+└── неуспех
+    ↓
+    возможно, активное ожидание (spinning)
+    ↓
+    семафор / парковка
+    ↓
+    ждет
+</code></pre></div>
+<p>стек:</p>
+<div class="highlight"><pre><span></span><code>функции нужно больше места на стеке
+↓
+путь роста стека в рантайме
+↓
+g0
+↓
+больший стек
+↓
+скопировать кадры
+↓
+скорректировать указатели
+↓
+продолжить выполнение
+</code></pre></div>
+<p>Видимость памяти:</p>
+<div class="highlight"><pre><span></span><code>обычный порядок строк между разными G
+≠
+гарантированная синхронизация
+
+канал / мьютекс / атомарная операция
+↓
+гарантии порядка операций с памятью
+</code></pre></div>
+<hr/>
+<h1 id="_13">Что важно запомнить<a class="headerlink" href="#_13" title="Permanent link">¶</a></h1>
+<ol>
+<li>Горутину планирует рантайм Go, поток ОС планирует операционная система.</li>
+<li><code>G</code> хранит состояние горутины, <code>M</code> соответствует потоку ОС, <code>P</code> представляет ресурс рантайма выполнения Go-кода.</li>
+<li><code>GOMAXPROCS</code> ограничивает параллелизм Go-кода через количество P, но не количество горутин и не число потоков ОС.</li>
+<li>Локальные очереди уменьшают конкуренцию, кража работы перераспределяет готовую к выполнению работу между P.</li>
+<li>Состояние «готова к выполнению» означает «работать можно, но CPU еще не получен»; состояние ожидания — «без внешнего события продолжать нельзя».</li>
+<li>Парковка позволяет ждать канал, мьютекс, таймер или сеть без обязательной блокировки отдельного потока ОС.</li>
+<li>netpoller позволяет использовать блокирующий по смыслу сетевой API без отдельного потока на каждое соединение.</li>
+<li>Настоящий блокирующий системный вызов может удерживать M, поэтому P может продолжить работу с другим M.</li>
+<li>Растущий стек делает массовые горутины дешевле, но его перенос требует помощи метаданных компилятора и рантайма.</li>
+<li>Канал использует очереди ожидания и <code>sudog</code>; канал — это синхронизация, а не просто очередь.</li>
+<li><code>sync.Mutex</code> оптимизирует быстрый путь без конкуренции через атомики, а при конкуренции переходит к активному ожиданию и парковке.</li>
+<li>Атомарная операция не означает бесплатную операцию и не делает составной бизнес-инвариант атомарным.</li>
+<li>Канал, мьютекс и атомики задают не только взаимное исключение, но и гарантии порядка/видимости памяти.</li>
+<li>Планировщик умеет распределять работу, но не создает обратное давление и не знает пропускную способность PostgreSQL или внешнего API.</li>
+<li>Под нагрузкой важно различать выполнение, готовность к выполнению и ожидание и выбирать диагностику по реальному состоянию горутины.</li>
+</ol>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 1. Продакшен-бэкенд и эволюция Go" class="md-footer__link md-footer__link--prev" href="../01%20-%20Intro%20%2B%20production/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                1. Продакшен-бэкенд и эволюция Go
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 3. Память Go, GC и pprof" class="md-footer__link md-footer__link--next" href="../03%20-%20Memory/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                3. Память Go, GC и pprof
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>

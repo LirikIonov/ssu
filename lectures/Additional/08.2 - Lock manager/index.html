@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html class="no-js" lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<link href="https://lirikonov.github.io/ssu/lectures/Additional/08.2%20-%20Lock%20manager/" rel="canonical"/>
+<link href="../08.1%20-%20Monitoring%20wait%20events/" rel="prev"/>
+<link href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/" rel="next"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.7" name="generator"/>
+<title>8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock - Go</title>
+<link href="../../../assets/stylesheets/main.ec1eaa64.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#82-postgresql-lock-manager-internals-locktag-deadlock">
+          Перейти к содержанию
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header md-header--shadow" data-md-component="header">
+<nav aria-label="Верхний колонтитул" class="md-header__inner md-grid">
+<a aria-label="Go" class="md-header__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Go
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Тёмная тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: light)" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Тёмная тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Светлая тема" class="md-option" data-md-color-accent="indigo" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Светлая тема">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Поиск" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Поиск" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Поиск" class="md-search__options">
+<button aria-label="Очистить" class="md-search__icon md-icon" tabindex="-1" title="Очистить" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Навигация" class="md-nav md-nav--primary" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Go" class="md-nav__button md-logo" data-md-component="logo" href="../../.." title="Go">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Go
+  </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../program/">
+<span class="md-ellipsis">
+    
+  
+    Программа курса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Lectures
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Lectures
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../01%20-%20Intro%20%2B%20production/">
+<span class="md-ellipsis">
+    
+  
+    1. Продакшен-бэкенд и эволюция Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../02%20-%20Runtime/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../03%20-%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3. Память Go, GC и pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4. Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../05%20-%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    5. PostgreSQL: Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    6. PostgreSQL: Joins
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    7. PostgreSQL: WAL и durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    8. PostgreSQL: Diagnostics &amp; Locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9. PostgreSQL: Migrations, Backup &amp; Connection Pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10.0. PostgreSQL Replication &amp; High Availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11. PostgreSQL Partitioning &amp; Large Tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12. PostgreSQL Advanced Index Types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13. PostgreSQL Security &amp; Row-Level Security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14. PostgreSQL Sharding &amp; Distributed Data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15.0. PostgreSQL Foreign Data Wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_2_16" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2_16" id="__nav_2_16_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Additional
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_2_16_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_2_16">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Additional
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../01.1%20-%20CPU%20architecture/">
+<span class="md-ellipsis">
+    
+  
+    1. Архитектура процессора, память и NUMA
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../02.1%20-%20Go%20runtime%20deep/">
+<span class="md-ellipsis">
+    
+  
+    2. Рантайм Go глубже
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.1%20-%20GC%20deep/">
+<span class="md-ellipsis">
+    
+  
+    3. Аллокатор памяти и GC Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.2%20-%20OS%20Virtual%20Memory/">
+<span class="md-ellipsis">
+    
+  
+    3.1. Виртуальная память ОС
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.3%20-%20Linux%20memory%20reclaim/">
+<span class="md-ellipsis">
+    
+  
+    3.2. Освобождение памяти Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.4%20-%20Windows%2C%20macOS%20-%20Memory%20Pressure/">
+<span class="md-ellipsis">
+    
+  
+    3.3. Управление памятью Windows и macOS
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../03.5%20-%20Linux%20storage%20path/">
+<span class="md-ellipsis">
+    
+  
+    3.4. Путь записи в Linux
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.1%20-%20Go%20structures%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    04.1   Go structures deeper
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.2%20-%20Channels%2C%20select%20and%20context%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.2. Каналы, select и context
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.3%20-%20Go%20compiler%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    4.3. Компилятор Go под капотом
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.4%20-%20Go%20ABI%2C%20generics%20codegen%20and%20linker/">
+<span class="md-ellipsis">
+    
+  
+    4.4. Go ABI, generics codegen и linker
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.5%20-%20Executable%2C%20OS%20loader%20and%20dynamic%20linking/">
+<span class="md-ellipsis">
+    
+  
+    4.5. Запуск процесса
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../04.6%20-%20Go%20runtime%20startup%20deeper/">
+<span class="md-ellipsis">
+    
+  
+    4.6. Startup рантайма Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.1%20-%20Cardinality/">
+<span class="md-ellipsis">
+    
+  
+    5.1. Внутреннее устройство планировщика PostgreSQL
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.2%20-%20Cost%20model/">
+<span class="md-ellipsis">
+    
+  
+    5.2. PostgreSQL cost model
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../05.3%20-%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    5.3. PostgreSQL planner internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.1%20-%20Join%20Planner/">
+<span class="md-ellipsis">
+    
+  
+    6.1. PostgreSQL: внутреннее устройство планировщика JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.2%20-%20Join%20Executor/">
+<span class="md-ellipsis">
+    
+  
+    6.2. PostgreSQL — внутреннее устройство исполнителя JOIN
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../06.3%20-%20Hash%20Storage/">
+<span class="md-ellipsis">
+    
+  
+    6.3. PostgreSQL — хеш-записи, перераспределение партий и временные хранилища
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.1%20-%20WAL%20Internals/">
+<span class="md-ellipsis">
+    
+  
+    7.1. PostgreSQL WAL Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.2%20-%20Durability%20storage/">
+<span class="md-ellipsis">
+    
+  
+    7.2. PostgreSQL durability &amp; storage internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../07.3%20-%20Checkpoint%20crash%20recovery/">
+<span class="md-ellipsis">
+    
+  
+    7.3. PostgreSQL checkpoint &amp; crash recovery internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.1%20-%20Monitoring%20wait%20events/">
+<span class="md-ellipsis">
+    
+  
+    8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-cpu">
+<span class="md-ellipsis">
+      
+        0. Инцидент: CPU свободен, но очередь не движется
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<span class="md-ellipsis">
+    
+  
+    8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.1%20-%20Schema%20migration/">
+<span class="md-ellipsis">
+    
+  
+    9.1. PostgreSQL Schema Migration Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.2%20-%20Backup%20restore/">
+<span class="md-ellipsis">
+    
+  
+    9.2. PostgreSQL Backup &amp; Restore Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../09.3%20-%20Connection%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    9.3. PostgreSQL Connection Pooling Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.1%20-%20High%20availability%20failover/">
+<span class="md-ellipsis">
+    
+  
+    10.1. PostgreSQL High Availability &amp; Failover Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../10.2%20-%20Logical%20replication%20CDC/">
+<span class="md-ellipsis">
+    
+  
+    10.2. PostgreSQL Logical Replication &amp; CDC
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../14.1%20-%20Distributed%20ownership%20consistency/">
+<span class="md-ellipsis">
+    
+  
+    14.1. Distributed Ownership, Failover &amp; Resharding Consistency
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Practice
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Practice
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/1%20-%20task/">
+<span class="md-ellipsis">
+    
+  
+    Задание на допуск
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../practice/projects/">
+<span class="md-ellipsis">
+    
+  
+    Задания на автоматы
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Slides
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/01%20-%20Production%20backend%20Go/">
+<span class="md-ellipsis">
+    
+  
+    01 - Production backend Go
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/02%20-%20Go%20Runtime%20Internal/">
+<span class="md-ellipsis">
+    
+  
+    02 - Go Runtime Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/03%20-%20Go%20Memory%20pprof/">
+<span class="md-ellipsis">
+    
+  
+    03 - Go Memory pprof
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/04%20-%20Go%20under%20the%20hood/">
+<span class="md-ellipsis">
+    
+  
+    04 - Go under the hood
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/05%20-%20PostgreSQL%20Explain/">
+<span class="md-ellipsis">
+    
+  
+    05 - PostgreSQL Explain
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/06%20-%20Join%20algorithms/">
+<span class="md-ellipsis">
+    
+  
+    06 - Join algorithms
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/07%20-%20WAL%20durability/">
+<span class="md-ellipsis">
+    
+  
+    07 - WAL durability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/08%20-%20Diagnostics%20locks/">
+<span class="md-ellipsis">
+    
+  
+    08 - Diagnostics locks
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/09%20-%20Migrations%20backup%20pooling/">
+<span class="md-ellipsis">
+    
+  
+    09 - Migrations backup pooling
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/10%20-%20Replication%20high%20availability/">
+<span class="md-ellipsis">
+    
+  
+    10 - Replication high availability
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/11%20-%20Partitioning%20large%20tables/">
+<span class="md-ellipsis">
+    
+  
+    11 - Partitioning large tables
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/12%20-%20Advanced%20index%20types/">
+<span class="md-ellipsis">
+    
+  
+    12 - Advanced index types
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/13%20-%20Security%20row%20level%20security/">
+<span class="md-ellipsis">
+    
+  
+    13 - Security row level security
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/14%20-%20Sharding%20distributed%20data/">
+<span class="md-ellipsis">
+    
+  
+    14 - Sharding distributed data
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../../slides/15%20-%20Foreign%20data%20wrappers/">
+<span class="md-ellipsis">
+    
+  
+    15 - Foreign data wrappers
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Содержание" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#0-cpu">
+<span class="md-ellipsis">
+      
+        0. Инцидент: CPU свободен, но очередь не движется
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="82-postgresql-lock-manager-internals-locktag-deadlock">8.2. PostgreSQL Lock Manager Internals: от LOCKTAG до обнаружения deadlock<a class="headerlink" href="#82-postgresql-lock-manager-internals-locktag-deadlock" title="Permanent link">¶</a></h1>
+<blockquote>
+<p><strong>Углубленная лекция магистратуры · PostgreSQL 18 · ветка <code>REL_18_STABLE</code> · блок 8 «Diagnostics &amp; Locks».</strong></p>
+<p><strong>Границы темы.</strong> Мы уже знаем из лекции 08, что PostgreSQL поддерживает row/table/advisory locks, и умеем читать <code>pg_locks</code>. Из 08.1 мы знаем, как наблюдаются <code>Lock</code> и <code>LWLock</code>. Теперь исследуем, <em>какими структурами и алгоритмами</em> сервер реализует конфликт, ожидание, пробуждение и обнаружение циклов. Внутренние алгоритмы VACUUM/freezing остаются в 08.3; миграции и connection pooling из блока 9 не рассматриваем.</p>
+<p><strong>Статус сведений.</strong> SQL и режимы блокировок определяются документацией PostgreSQL 18. Имена C-структур, ограничения fast-path, внутренние очереди и порядок вызовов — детали исходников <code>REL_18_STABLE</code>, а не стабильный внешний API. Псевдокод и схемы в лекции учебные, если прямо не отмечено иное.</p>
+</blockquote>
+<h2 id="0-cpu">0. Инцидент: CPU свободен, но очередь не движется<a class="headerlink" href="#0-cpu" title="Permanent link">¶</a></h2>
+<p>Сервис обрабатывает денежные операции. В нормальном режиме обновление счета занимает 10–20 мс. Затем p99 вырастает до 6 секунд, а число активных backend-процессов PostgreSQL достигает сотни. Диск не занят, CPU ниже 30%. SQL-запросы простые, индексы присутствуют. Один backend находится в <code>idle in transaction</code>; остальные показывают <code>wait_event_type = 'Lock'</code> и <code>wait_event = 'transactionid'</code>.</p>
+<p>Легко сказать: «ну, есть блокировка». Но это пока описание симптома. Кто создал объект блокировки? Как один процесс сообщил серверу, что удерживает ресурс? Где другие процессы хранят свое намерение получить его? Почему они не крутятся на CPU, а спят? Как их разбудить после COMMIT? И почему спустя секунду сервер способен заявить <code>deadlock detected</code>, хотя логики бизнес-операции он не знает?</p>
+<p>Здесь требуется еще одна важная развилка. В <code>pg_locks</code> мы часто видим ожидаемый <code>transactionid</code>, хотя SQL-конфликт возник на конкретной строке. Значит, модель «на каждую строку PostgreSQL держит объект LOCK в RAM» уже не объясняет реальность. Нам придется разделить <strong>блокировку логического объекта в общем Lock Manager</strong>, <strong>отметку об удержании строки в tuple</strong> и <strong>короткие внутренние LWLocks</strong>, защищающие структуры данных самой СУБД.</p>
+<p>Учебная цепочка этого занятия:</p>
+<div class="highlight"><pre><span></span><code>SQL UPDATE / LOCK / advisory
+      |
+      v
+идентификация ресурса LOCKTAG + требуемый LOCKMODE
+      |
+      +--&gt; локальный учет LOCALLOCK
+      |      |
+      |      +--&gt; fast-path для подходящих слабых relation locks
+      |
+      +--&gt; общие таблицы LOCK и PROCLOCK
+                 |
+                 +--&gt; нет конфликта --&gt; GrantLock --&gt; работа
+                 |
+                 +--&gt; конфликт --&gt; wait queue --&gt; ProcSleep
+                                            |
+                      COMMIT / ROLLBACK --&gt; release --&gt; ProcLockWakeup
+                                            |
+                          таймер --&gt; DeadLockCheck при долгом ожидании
+</code></pre></div>
+<p>Наша цель — пройти всю схему, объяснить цену каждой стрелки и вернуться к конкретному backend-инциденту.</p>
+<hr/>
+<h1 id="i-postgresql">I. Какие блокировки существуют внутри PostgreSQL<a class="headerlink" href="#i-postgresql" title="Permanent link">¶</a></h1>
+<h2 id="1">1. Три уровня синхронизации, которые часто ошибочно объединяют<a class="headerlink" href="#1" title="Permanent link">¶</a></h2>
+<h3 id="11-heavyweight-locks">1.1. Heavyweight locks: защита логических объектов<a class="headerlink" href="#11-heavyweight-locks" title="Permanent link">¶</a></h3>
+<p>Когда <code>SELECT</code> использует таблицу, СУБД должна защитить метаданные отношения от несовместимого изменения. Когда <code>LOCK TABLE ...</code> запрашивает режим <code>ACCESS EXCLUSIVE</code>, другой backend может подождать. Когда транзакция ожидает завершения чужого XID, пригодится такой же общий механизм. В этих случаях работает <strong>heavyweight Lock Manager</strong>: имеются идентификатор объекта, режим запроса, совместимость режимов, список держателей, очередь ожидателей и интеграция с обнаружением deadlock.</p>
+<p>Слово <em>heavyweight</em> отражает относительную стоимость: запись в разделяемой хеш-таблице, короткая внутренняя синхронизация, при конфликте — настоящая постановка backend на ожидание. Это не означает, что любой запрос блокировки неизбежно вызывает системный вызов или дорогой поиск. На горячем пути существуют локальный учет и fast-path.</p>
+<p>Термин «heavyweight lock» относится к алгоритму, а не к режиму <code>ACCESS EXCLUSIVE</code>. Даже легкий для пользователя <code>ACCESS SHARE</code> логически является блокировкой этого семейства и может обрабатываться fast-path.</p>
+<h3 id="12-tuple-lock">1.2. Tuple lock: факт удержания записан в строке<a class="headerlink" href="#12-tuple-lock" title="Permanent link">¶</a></h3>
+<p>Строка таблицы — тоже объект конкуренции, однако PostgreSQL не создает постоянный объект heavyweight lock для каждой когда-либо заблокированной строки. Если бы миллион строк был обновлен в транзакции, один только учет блокировок в RAM потребовал бы огромный объем общей памяти. Поэтому сведения о владельце или группе владельцев блокировки строки помещаются в <strong>заголовок версии строки</strong> (tuple header), прежде всего через <code>xmax</code> и биты <code>infomask</code>.</p>
+<p>Если другая транзакция видит, что строка занята, она может ожидать <strong>завершения XID владельца</strong> через Lock Manager, а в некоторых ветках механизма использовать кратковременную heavyweight tuple lock для согласования порядка ожидающих. Это объясняет парадокс: <code>pg_locks</code> показывает ожидание <code>transactionid</code>, а логическая причина — конфликт двух <code>UPDATE</code> одной строки.</p>
+<h3 id="13-lwlocks-spinlocks-lock-manager">1.3. LWLocks и spinlocks: защита самого Lock Manager<a class="headerlink" href="#13-lwlocks-spinlocks-lock-manager" title="Permanent link">¶</a></h3>
+<p>Чтобы записать <code>LOCK</code> или <code>PROCLOCK</code> в общую хеш-таблицу, нужно на короткое время защитить соответствующую структуру от параллельного изменения. Для этого PostgreSQL использует <strong>легковесные блокировки (LWLocks)</strong>, включая partition LWLocks таблицы блокировок. Еще более короткие критические операции могут использовать spinlocks — активное ожидание на уровне CPU. Обычная транзакция не удерживает LWLock все время, пока существует пользовательская блокировка: иначе один backend остановил бы весь сервер.</p>
+<div class="highlight"><pre><span></span><code>Пользовательский ресурс: таблица accounts
+  Heavyweight relation lock удерживается до конца транзакции
+              |
+              +-- состояние в общей хеш-таблице LOCK/PROCLOCK
+                       ^
+                       | короткий доступ под partition LWLock
+                       v
+             другой backend может читать/менять записи
+
+Строка accounts(id=7): tuple header содержит xmax/infomask
+  Другой UPDATE -&gt; узнает XID владельца -&gt; ждет через heavyweight XID lock
+</code></pre></div>
+<p><strong>Где ломается плохое упрощение.</strong> <code>wait_event_type='Lock'</code> и <code>wait_event_type='LWLock'</code> обозначают разные причины. Первый обычно требует разбирать владельцев транзакционных или объектных блокировок; второй — конкуренцию за внутренние структуры PostgreSQL, с собственными ограничениями наблюдения. Из 08.1 нам уже известна эта диагностическая граница; здесь вскрываем ее механизм. [S1][S2][S4]</p>
+<h3 id="14-mvcc">1.4. Почему MVCC не отменяет эти механизмы<a class="headerlink" href="#14-mvcc" title="Permanent link">¶</a></h3>
+<p>MVCC позволяет обычному <code>SELECT</code> видеть согласованную версию строки без ожидания незавершенного <code>UPDATE</code>. Но две транзакции, которые хотят <em>изменить ту же физическую бизнес-сущность</em>, должны согласовать результат. Снимок видимости отвечает на вопрос «какую версию можно читать?», а блокировка — «кто может совершить несовместимое действие сейчас?». Это независимые задачи, и PostgreSQL использует оба механизма.</p>
+<hr/>
+<h2 id="2-locktag">2. LOCKTAG: как описывается ресурс<a class="headerlink" href="#2-locktag" title="Permanent link">¶</a></h2>
+<h3 id="21">2.1. Объект без имени неоднозначен<a class="headerlink" href="#21" title="Permanent link">¶</a></h3>
+<p>Сказать «заблокирована таблица <code>accounts</code>» недостаточно: одноименные таблицы могут существовать в разных базах, а один XID и страница с номером 5 — совершенно разные сущности. Lock Manager нужен ключ, однозначно задающий объект в его пространстве имен. В <code>src/include/storage/lock.h</code> это <strong><code>LOCKTAG</code></strong>.</p>
+<p>Для PostgreSQL 18 <code>LOCKTAG</code> намеренно имеет размер 16 байт: три 32-битных поля, одно 16-битное и два однобайтовых поля — тип тега и идентификатор lock method. Значения полей зависят от типа. Для <code>relation</code>: OID базы + OID отношения. Для <code>tuple</code>: OID базы, OID отношения, номер страницы и номер элемента страницы. Для <code>transactionid</code>: XID. Для advisory lock: набор полей, интерпретируемый как пользовательский ключ внутри конкретной БД.</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Схема полей, переработанная для лекции; порядок и размеры из lock.h */</span>
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">uint32</span><span class="w"> </span><span class="n">field1</span><span class="p">,</span><span class="w"> </span><span class="n">field2</span><span class="p">,</span><span class="w"> </span><span class="n">field3</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint16</span><span class="w"> </span><span class="n">field4</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint8</span><span class="w">  </span><span class="n">tag_type</span><span class="p">;</span>
+<span class="w">    </span><span class="n">uint8</span><span class="w">  </span><span class="n">lock_method</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">LockTagModel</span><span class="p">;</span><span class="w">  </span><span class="c1">// всего 16 байт</span>
+</code></pre></div>
+<p>Важно: это пример <strong>устройства ключа</strong>, а не обещание, что каждый <code>LOCKTAG</code> занимает только 16 байт общей памяти на весь lock. Объект <code>LOCK</code> содержит очереди, счетчики и маски, а <code>PROCLOCK</code> добавляет состояние конкретного участника.</p>
+<h3 id="22-locktag">2.2. Типы LOCKTAG нужны разным подсистемам<a class="headerlink" href="#22-locktag" title="Permanent link">¶</a></h3>
+<p>Среди актуальных типов PostgreSQL 18: <code>LOCKTAG_RELATION</code>, <code>LOCKTAG_RELATION_EXTEND</code>, <code>LOCKTAG_PAGE</code>, <code>LOCKTAG_TUPLE</code>, <code>LOCKTAG_TRANSACTION</code>, <code>LOCKTAG_VIRTUALTRANSACTION</code>, <code>LOCKTAG_OBJECT</code>, <code>LOCKTAG_ADVISORY</code>, <code>LOCKTAG_SPECULATIVE_TOKEN</code> и другие. Они позволяют одному общему механизму обслуживать разные способы ожидания без знания бизнес-схемы или конкретной SQL-команды.</p>
+<div class="highlight"><pre><span></span><code>RELATION      (database_oid, relation_oid)
+TUPLE         (database_oid, relation_oid, block_no, offset_no)
+TRANSACTION   (transaction_xid)
+VIRTUAL XID   (backend/proc identifier, local xid)
+ADVISORY      (database_oid, user key fields, namespace)
+</code></pre></div>
+<p>Равенство <code>LOCKTAG</code> означает «один объект блокирования». Два SQL с разными текстами могут конфликтовать на одном теге; два одинаковых SQL над разными строками могут не конфликтовать по tuple, но удерживать совместимые relation locks.</p>
+<h3 id="23-lock-methods">2.3. Lock methods и идентичность ключа<a class="headerlink" href="#23-lock-methods" title="Permanent link">¶</a></h3>
+<p>В поле lock method PostgreSQL различает способ интерпретации режимов блокирования; в обычных объектах используется <code>DEFAULT_LOCKMETHOD</code>, а advisory locks имеют собственную систему. Важна структура ключа: одинаковые числа OID сами по себе не означают совпадающий ресурс, если отличаются тип тега, база или метод.</p>
+<p><strong>Инженерный вывод:</strong> поиск причин конфликта надо начинать с <em>точного ресурса</em>, а не с совпадения имен SQL или названия таблицы в журнале. [S2]</p>
+<hr/>
+<h2 id="3-lockmode">3. LOCKMODE и конфликтные маски: почему проверка быстрая<a class="headerlink" href="#3-lockmode" title="Permanent link">¶</a></h2>
+<h3 id="31-relation-lock">3.1. Восемь режимов relation lock<a class="headerlink" href="#31-relation-lock" title="Permanent link">¶</a></h3>
+<p>В порядке внутренних констант PostgreSQL: <code>AccessShareLock</code>, <code>RowShareLock</code>, <code>RowExclusiveLock</code>, <code>ShareUpdateExclusiveLock</code>, <code>ShareLock</code>, <code>ShareRowExclusiveLock</code>, <code>ExclusiveLock</code>, <code>AccessExclusiveLock</code>. Название <code>ROW EXCLUSIVE</code> историческое и здесь относится к блокировке <em>отношения</em>, не отдельной строки.</p>
+<p>Чтобы решить, конфликтует ли запрос, серверу не требуется обходить все пары названий. Для каждого режима определена <strong>битовая маска конфликтующих режимов</strong> (<code>LockMethodData.conflictTab</code>). На объекте <code>LOCK</code> есть агрегированная маска уже выданных режимов <code>grantMask</code>, а также <code>waitMask</code> для ожидающих запросов.</p>
+<p>Концептуальная проверка для немедленной выдачи:</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Псевдокод. Реальный код учитывает владельца, lock groups и очередь. */</span>
+<span class="n">LOCKMASK</span><span class="w"> </span><span class="n">incompatible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">conflictTab</span><span class="p">[</span><span class="n">requested_mode</span><span class="p">];</span>
+<span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">incompatible</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">granted_by_others</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+<span class="w">    </span><span class="n">no_conflicting_earlier_waiters</span><span class="p">)</span>
+<span class="w">    </span><span class="n">grant</span><span class="p">();</span>
+<span class="k">else</span>
+<span class="w">    </span><span class="n">enqueue</span><span class="p">();</span>
+</code></pre></div>
+<h3 id="32">3.2. Маска не заменяет учет владельцев<a class="headerlink" href="#32" title="Permanent link">¶</a></h3>
+<p><code>grantMask</code> показывает, что на объекте существуют выданные режимы. Но запрос может поступить от процесса, уже удерживающего другой конфликтующий режим: сам с собой backend обычно не конфликтует. Поэтому нельзя слепо вычислять конфликт по одной общей маске: Lock Manager учитывает собственные holdings процесса и lock groups.</p>
+<p>Счетчики <code>granted[mode]</code> и <code>requested[mode]</code> нужны для корректного уменьшения масок при освобождении: удаление одного владельца не должно очищать бит, если тот же режим удерживает другой backend.</p>
+<h3 id="33-accessshare-accessexclusive">3.3. Пример с AccessShare и AccessExclusive<a class="headerlink" href="#33-accessshare-accessexclusive" title="Permanent link">¶</a></h3>
+<p>Два клиента читают одну таблицу и удерживают <code>AccessShareLock</code>: оба могут проходить, поскольку такой режим совместим с другим <code>AccessShareLock</code>. Появляется <code>AccessExclusiveLock</code>: его конфликтная маска содержит все режимы, поэтому запрос становится в очередь. Еще один <code>SELECT</code> запрашивает <code>AccessShareLock</code>, не конфликтует с <em>выданными</em> чтениями, однако может ожидать за уже стоящим <code>AccessExclusiveLock</code>. Причина — защита от бесконечного обхода сильного ожидающего запроса новыми читателями.</p>
+<p>Этот пример покажет, почему ответ «посмотрел только на <code>granted</code>» бывает неправильным: порядок ожидателей тоже часть алгоритма. [S1][S2][S3]</p>
+<hr/>
+<h1 id="ii-lock-manager">II. Как Lock Manager хранит владельцев<a class="headerlink" href="#ii-lock-manager" title="Permanent link">¶</a></h1>
+<h2 id="4-locallock-shared-memory">4. <code>LOCALLOCK</code>: почему повторная блокировка не обязана обращаться в shared memory<a class="headerlink" href="#4-locallock-shared-memory" title="Permanent link">¶</a></h2>
+<h3 id="41-backend">4.1. У каждого backend есть локальная таблица<a class="headerlink" href="#41-backend" title="Permanent link">¶</a></h3>
+<p>Одна транзакция может несколько раз обратиться к <code>accounts</code>, а один backend — удерживать один ресурс по разным внутренним причинам. Если при каждом повторе заново обновлять общую хеш-таблицу, то даже отсутствие конкуренции превращало бы ее в горячую точку. Поэтому сервер хранит в <em>частной памяти каждого backend</em> таблицу <code>LOCALLOCK</code> по ключу <code>(LOCKTAG, LOCKMODE)</code>.</p>
+<p><code>LOCALLOCK</code> учитывает количество повторных захватов, ссылку на общий объект (если он есть), а также владельцев уровня ресурсов (<code>ResourceOwner</code>). Повторный запрос уже удерживаемого режима часто обслуживается локально. Здесь важное различие: <strong>одна запись в <code>LOCALLOCK</code> не равна одному захвату в общем <code>LOCK</code></strong>.</p>
+<div class="highlight"><pre><span></span><code>Backend A, частная память                Shared memory
+LOCALLOCK (accounts, AccessShare)  ------&gt; LOCK(accounts)
+  nLocks=4                                granted[AccessShare] учитывает
+  owner tx=2, owner session=2            этот backend как участника,
+                                          а не как четыре независимых backend
+</code></pre></div>
+<h3 id="42-resourceowner">4.2. ResourceOwner — кто должен освободить ресурс<a class="headerlink" href="#42-resourceowner" title="Permanent link">¶</a></h3>
+<p>Обычные транзакционные захваты связываются с текущим ResourceOwner и должны корректно освобождаться при commit, rollback и выходе из соответствующего подуровня транзакции. Уровень сессии — особая история, например для session-level advisory locks: откат транзакции сам по себе их не снимает. Поэтому одна и та же сессия может иметь несколько логических оснований удерживать блокировку.</p>
+<p><code>ResourceOwner</code> не является альтернативным Lock Manager: он помогает жизненному циклу ресурсов <em>с точки зрения конкретного backend</em>. Общие конфликты разрешаются через LOCK/PROCLOCK.</p>
+<h3 id="43">4.3. Почему это важно при нагрузке<a class="headerlink" href="#43" title="Permanent link">¶</a></h3>
+<p>Допустим, SQL касается десяти таблиц, одни из которых открываются несколькими исполнительными узлами. Число внутренних обращений к блокировкам может быть больше числа уникальных relation locks. <code>LOCALLOCK</code> срезает повторные посещения общей структуры. Поэтому профилировать один лишь <code>LockAcquire()</code> без разбора его локального быстрого пути — путь к неверной оценке затрат.</p>
+<hr/>
+<h2 id="5-lock">5. <code>LOCK</code>: одна запись о ресурсе, многие держатели и ожидатели<a class="headerlink" href="#5-lock" title="Permanent link">¶</a></h2>
+<h3 id="51-lock">5.1. Общая запись LOCK<a class="headerlink" href="#51-lock" title="Permanent link">¶</a></h3>
+<p>В общей хеш-таблице <code>LockMethodLockHash</code> ключом служит <code>LOCKTAG</code>. Для каждого ресурса объект <code>LOCK</code> хранит агрегированные <code>grantMask</code>/<code>waitMask</code>, массивы <code>granted[]</code> и <code>requested[]</code>, список связанных <code>PROCLOCK</code> и <strong>очередь ожидающих PGPROC</strong> (<code>waitProcs</code>).</p>
+<div class="highlight"><pre><span></span><code>                 LOCK: relation accounts
+                 tag=(db_oid, rel_oid)
+                 grantMask = AccessShare | RowExclusive
+                 waitMask  = AccessExclusive
+                  /          |              \
+       PROCLOCK A       PROCLOCK B       PROCLOCK C
+       AccessShare      RowExclusive     ожидание AccessExclusive
+                  \\        |             //
+                     waitProcs: [C]  (если C ожидает)
+</code></pre></div>
+<p><code>requested[]</code> включает и уже выданные, и еще ожидающие запросы. <code>granted[]</code> — только выданные. Счетчики относятся к участникам lock manager, а не к каждому повторному локальному захвату в <code>LOCALLOCK</code>.</p>
+<h3 id="52-lock">5.2. Почему одной записи LOCK недостаточно<a class="headerlink" href="#52-lock" title="Permanent link">¶</a></h3>
+<p>Если один backend завершился, нужно снять <strong>его</strong> вклад, а не удалить все блокировки ресурса. Если три backend запросили один и тот же режим, требуется различать держателей. Если один backend удерживает два режима на одном объекте, надо помнить его <code>holdMask</code>. Поэтому появляется соединяющая сущность <code>PROCLOCK</code>.</p>
+<hr/>
+<h2 id="6-proclock-pgproc">6. <code>PROCLOCK</code> и <code>PGPROC</code>: кто именно держит или ждет<a class="headerlink" href="#6-proclock-pgproc" title="Permanent link">¶</a></h2>
+<h3 id="61-proclock">6.1. PROCLOCK как отношение «ресурс — процесс»<a class="headerlink" href="#61-proclock" title="Permanent link">¶</a></h3>
+<p><code>PROCLOCK</code> существует для пары <code>(LOCK*, PGPROC*)</code>, с <code>holdMask</code> режимов, принадлежащих конкретному backend, и ссылкой на лидера lock group. Один <code>LOCK</code> связан со многими <code>PROCLOCK</code>, и один <code>PGPROC</code> может быть связан со многими ресурсами. Внешне похоже на таблицу связей many-to-many, но здесь работа идет непосредственно с указателями и хеш-таблицами разделяемой памяти.</p>
+<div class="highlight"><pre><span></span><code>                 LOCK A                 LOCK B
+                /      \                   |
+         PROCLOCK(A,P1) PROCLOCK(A,P2)  PROCLOCK(B,P2)
+                |            |              |
+             PGPROC P1     PGPROC P2 -------+
+</code></pre></div>
+<p>Важная тонкость: <code>PROCLOCK</code> создается и для процесса, который <em>только пытается</em> получить блокировку; <code>holdMask</code> при этом может еще не содержать запрошенный режим. Само состояние ожидания находится в <code>PGPROC</code> и <code>LOCK.waitProcs</code>.</p>
+<h3 id="62-pgproc">6.2. Что хранит PGPROC<a class="headerlink" href="#62-pgproc" title="Permanent link">¶</a></h3>
+<p><code>PGPROC</code> — структура в разделяемой памяти, связанная с серверным процессом. Для heavyweight-ожидания особенно важны <code>waitLock</code>, <code>waitProcLock</code>, <code>waitLockMode</code>, состояние ожидания и узел очереди; для пробуждения используется собственный механизм ожидания backend (в том числе semaphore). <code>PGPROC</code> также участвует в учете XID, виртуального XID и fast-path locks.</p>
+<p>Объекты <code>PGPROC</code> существуют и для специальных участников, например подготовленных транзакций, не обязательно привязанных к живому клиентскому PID. Поэтому «у всякой блокировки всегда есть клиентский pid» — плохое предположение.</p>
+<h3 id="63-lock-groups">6.3. Lock groups и параллельные запросы<a class="headerlink" href="#63-lock-groups" title="Permanent link">¶</a></h3>
+<p>Параллельный запрос может включать leader и worker-процессы. Lock Manager учитывает <strong>lock group</strong>, чтобы участники одной группы не конфликтовали друг с другом там, где это предусмотрено, и чтобы выдача блокировок соответствовала семантике параллельного выполнения. <code>PROCLOCK.groupLeader</code> фиксирует соответствующий контекст. Поэтому ручное соединение <code>pg_locks</code> только по PID — ненадежная замена функции <code>pg_blocking_pids()</code>.</p>
+<p><strong>Инженерный вывод:</strong> для расследования блокировки есть три разных вопроса: <em>какой объект</em> (<code>LOCKTAG</code>/<code>LOCK</code>), <em>кто связан с ним</em> (<code>PROCLOCK</code>), <em>что делает конкретный backend</em> (<code>PGPROC</code>). [S2][S3]</p>
+<hr/>
+<h2 id="7-">7. Память и разделение хеш-таблицы<a class="headerlink" href="#7-" title="Permanent link">¶</a></h2>
+<h3 id="71-mutex">7.1. Почему общий хеш не защищен одним глобальным mutex<a class="headerlink" href="#71-mutex" title="Permanent link">¶</a></h3>
+<p>Если каждый SELECT должен был бы захватывать один mutex на всю таблицу блокировок, масштабирование PostgreSQL остановилось бы задолго до настоящих конфликтов SQL. Поэтому хеш-таблица lock objects <strong>разделена на секции</strong>, защищаемые собственными LWLocks (partition locks). Хеш от <code>LOCKTAG</code> определяет нужную секцию. Короткая LWLock-секция нужна для вставки, изменения счетчиков и очереди соответствующего объекта, а не на все время жизни пользовательской блокировки.</p>
+<div class="highlight"><pre><span></span><code>LOCKTAG -&gt; hash -&gt; partition N -&gt; partition LWLock -&gt; LOCK/PROCLOCK
+                                     |
+                                     +--&gt; короткая модификация
+                                     +--&gt; отпустить LWLock
+                                     +--&gt; ждать lock, если требуется
+</code></pre></div>
+<h3 id="72">7.2. Где возникает внутренняя конкуренция<a class="headerlink" href="#72" title="Permanent link">¶</a></h3>
+<p>Много backend, одновременно работающих с одними или разными ресурсами, может постоянно обращаться к одним partition locks. Если путь запроса слишком часто доходит до общей структуры, возрастает стоимость CPU, cache-line bouncing и LWLock contention. Но ожидание пользовательского <code>Lock/transactionid</code> и ожидание <code>LWLock/LockManager</code> — разные наблюдаемые симптомы. От последнего нельзя избавиться простым <code>lock_timeout</code>: таймаут ограничивает попытку получить heavyweight lock, а не все возможные внутренние операции CPU.</p>
+<p><code>max_locks_per_transaction</code> влияет на <strong>планируемую емкость общих таблиц блокировок</strong>, но это не жесткий лимит на число блокировок одной транзакции. Совокупный ресурс конечен; при его исчерпании возможна ошибка <code>out of shared memory</code>, а совет PostgreSQL — проверять соответствующую настройку и характер рабочей нагрузки.</p>
+<h3 id="73-10-000-row-locks-10-000-lock">7.3. Почему 10 000 row locks не означают 10 000 записей LOCK<a class="headerlink" href="#73-10-000-row-locks-10-000-lock" title="Permanent link">¶</a></h3>
+<p>Большое количество заблокированных tuple само по себе не масштабирует общую хеш-таблицу «одна строка — один LOCK». В tuple header есть собственное представление удержания строки. Однако набор открытых relations, ожидающих XID, advisory locks и других lockable объектов способен потреблять общую lock memory; кроме того, конфликтующие операции могут создавать временные tuple lock entries для упорядочивания ожидателей.</p>
+<p>Это принципиальное различие при оценке <code>max_locks_per_transaction</code>: надо смотреть профиль <em>объектных блокировок</em>, а не просто число обновленных строк. [S2][S4]</p>
+<hr/>
+<h1 id="iii-fast-path-locks-select-lock-table">III. Fast-path locks: почему простой SELECT обычно не трогает общую lock table<a class="headerlink" href="#iii-fast-path-locks-select-lock-table" title="Permanent link">¶</a></h1>
+<h2 id="8-lockacquireextended">8. Полный путь <code>LockAcquireExtended()</code><a class="headerlink" href="#8-lockacquireextended" title="Permanent link">¶</a></h2>
+<h3 id="81">8.1. Вход в механизм<a class="headerlink" href="#81" title="Permanent link">¶</a></h3>
+<p>Внешние подсистемы PostgreSQL обычно используют обертки из <code>lmgr.c</code>, которые формируют <code>LOCKTAG</code> и вызывают общий механизм. Например, открытие relation инициирует подходящий relation lock. В <code>src/backend/storage/lmgr/lock.c</code> центральная процедура <code>LockAcquireExtended()</code> выполняет работу по получению lock с учетом режима и параметров ожидания.</p>
+<p>На уровне учебной модели последовательность следующая:</p>
+<div class="highlight"><pre><span></span><code>LockAcquireExtended(locktag, mode, sessionLock, dontWait, ...)
+  1. Проверка запроса, формирование ключа LOCALLOCK
+  2. Уже удерживаем? -&gt; увеличиваем локальный счетчик
+  3. Подходит ли fast-path и безопасно ли его применить?
+       да -&gt; запись в PGPROC, учесть LOCALLOCK, готово
+  4. Обычный путь: hash(locktag) -&gt; нужный partition LWLock
+  5. Найти/создать LOCK и PROCLOCK
+  6. Проверить granted holders и ожидателей перед нами
+       совместимо -&gt; GrantLock
+       конфликт -&gt; оформить ожидающий запрос
+  7. Отпустить partition LWLock
+  8. В ожидании: ProcSleep; при успехе продолжить,
+     при таймауте/deadlock очистить регистрацию
+</code></pre></div>
+<p>Это <strong>схема, а не дословное тело C-функции</strong>: fast-path, локальный учет, strong-lock transfer и error cleanup имеют ветвления и защита от гонок гораздо сложнее. Но такая модель объясняет, почему «открыть таблицу» не равно «заснуть на семафоре», и где именно возникает стоимость.</p>
+<h3 id="82-dontwait-nowait">8.2. <code>dontWait</code>: как появляется NOWAIT<a class="headerlink" href="#82-dontwait-nowait" title="Permanent link">¶</a></h3>
+<p>Часть SQL-конструкций требует немедленного отказа при конфликте. На уровне Lock Manager подобное поведение достигается режимом попытки без ожидания; результатом может быть отказ, а вызывающий слой генерирует ошибку нужного класса. Это не означает, что вся операция SQL полностью безблокировочная: другие механизмы и заранее полученные relation locks остаются действующими. Особенности <code>NOWAIT</code> на tuple-уровне мы уже разбирали в основной лекции.</p>
+<h3 id="83">8.3. Почему обработка ошибок — часть алгоритма<a class="headerlink" href="#83" title="Permanent link">¶</a></h3>
+<p>Backend может получить cancel, <code>lock_timeout</code> или deadlock во время ожидания. Если оставить в общей структуре застарелую заявку, остальные процессы будут ошибочно считать ресурс занятым. Поэтому во время прерывания предусмотрен путь очистки (<code>LockErrorCleanup()</code>), который снимает регистрацию ожидания и корректно освобождает промежуточные состояния.</p>
+<p><strong>Вывод:</strong> Lock Manager обязан быть корректен не только при получении блокировки, но и при любой точке отмены команды. [S3][S4]</p>
+<hr/>
+<h2 id="9-fast-path">9. Fast-path для слабых блокировок отношений<a class="headerlink" href="#9-fast-path" title="Permanent link">¶</a></h2>
+<h3 id="91">9.1. Почему здесь появилась оптимизация<a class="headerlink" href="#91" title="Permanent link">¶</a></h3>
+<p>Обычный <code>SELECT</code> берет <code>AccessShareLock</code> на используемые отношения. Конфликт с такой блокировкой возникает относительно редко: большинство операций чтения/записи и даже ряд служебных операций совместимы с ней. Но получение происходит часто. Если тысячи коротких SELECT каждый раз обновляют общую hash table, CPU занят согласованием структуры, хотя SQL-ресурсы фактически не конфликтуют.</p>
+<p>Для этого введен <strong>fast-path relation locking</strong>. Подходящие слабые блокировки (<code>AccessShareLock</code>, <code>RowShareLock</code>, <code>RowExclusiveLock</code>) могут учитываться в записях, связанных с <code>PGPROC</code> конкретного backend, без обычного выделения <code>LOCK</code>/<code>PROCLOCK</code> в центральной хеш-таблице. Эти три режима представлены компактными битами рядом с OID relation.</p>
+<h3 id="92-postgresql-18">9.2. Что изменилось в PostgreSQL 18 относительно старых объяснений<a class="headerlink" href="#92-postgresql-18" title="Permanent link">¶</a></h3>
+<p>Старые статьи часто утверждают, что у backend есть ровно <strong>16 fast-path слотов</strong>. Для PostgreSQL 18 это устарело. Число слотов определяется на старте в <code>InitializeFastPathLocks()</code> с учетом <code>max_locks_per_transaction</code>: группы по 16 слотов, число групп выбирается и ограничивается кодом реализации. При <strong>стандартном <code>max_locks_per_transaction = 64</code> выделяются четыре группы, то есть 64 fast-path слота на backend</strong>. Реальная емкость может меняться вместе с настройкой и ограничениями версии.</p>
+<p>Группы выбираются простым хешированием OID relation. Поэтому наличие свободных слотов в другой группе не всегда означает, что конкретный новый OID легко поместится в «свою» заполненную группу. Внутренняя организация массивов и битов рассчитана на компактное и относительно локальное обновление.</p>
+<div class="highlight"><pre><span></span><code>PGPROC backend A (PostgreSQL 18, настройки по умолчанию)
+  fast-path group 0 : 16 мест
+  fast-path group 1 : 16 мест
+  fast-path group 2 : 16 мест
+  fast-path group 3 : 16 мест
+  --------------------------------
+  всего: 64 слота (емкость зависит от настроек)
+
+слот: relation OID + биты слабых режимов
+</code></pre></div>
+<h3 id="93-fast-path">9.3. Fast-path не означает отсутствие синхронизации<a class="headerlink" href="#93-fast-path" title="Permanent link">¶</a></h3>
+<p>Если записи нескольких backend расходятся по своим PGPROC, кажется, что их можно менять без всякого согласования. Но рано или поздно кто-то запросит сильную relation lock и должен увидеть все ранее взятые слабые. Чтобы не потерять блокировку в гонке, fast-path-записи защищаются <code>fpInfoLock</code>, а сервер ведет счетчики активных <strong>сильных</strong> заявок по группам ресурсов (<code>FastPathStrongRelationLocks</code>). В алгоритме есть определенный порядок публикации информации и проверки счетчика.</p>
+<p>Это пример тонкого компромисса: оптимизированный путь избегает обращения к общему объекту <code>LOCK</code>, но все равно платит небольшую цену локальной синхронизации и контроля безопасности.</p>
+<hr/>
+<h2 id="10-lock-fast-path">10. Появился сильный lock: перенос fast-path блокировок в общую таблицу<a class="headerlink" href="#10-lock-fast-path" title="Permanent link">¶</a></h2>
+<h3 id="101-fast-path">10.1. Конфликт, которого fast-path сам по себе не видит<a class="headerlink" href="#101-fast-path" title="Permanent link">¶</a></h3>
+<p>Backend A уже держит <code>AccessShareLock</code> на <code>accounts</code> через fast-path. Backend B хочет <code>AccessExclusiveLock</code> для этого же отношения. Если B проверит только центральную хеш-таблицу, он ошибочно решит, что держателей нет, и выдаст несовместимый lock. Поэтому сильный запрос сначала делает видимыми relevant fast-path holdings в обычной lock table.</p>
+<p>Учебная последовательность:</p>
+<div class="highlight"><pre><span></span><code>A: AccessShare(accounts) --&gt; в fast-path A
+B: запрос AccessExclusive(accounts)
+B: публикует сильную заявку в соответствующем наборе счетчиков
+B: проходит fast-path массивы backend-процессов
+B: переносит найденные слабые locks в main lock table
+B: проверяет конфликт с AccessShare(A)
+B: становится в очередь
+A: COMMIT --&gt; освобождает AccessShare
+B: просыпается и получает AccessExclusive
+</code></pre></div>
+<p>Это называется <strong>transfer</strong> (перенос) fast-path locks. Он обеспечивает единую картину конфликтующих запросов для общего алгоритма выдачи и deadlock detector.</p>
+<h3 id="102-relations">10.2. Почему сильная заявка влияет даже на другие relations<a class="headerlink" href="#102-relations" title="Permanent link">¶</a></h3>
+<p>Проверка сильных заявок использует агрегированные хеш-счетчики. Если для соответствующей группы счетчик отличен от нуля, новые слабые requests на ресурсы группы могут перейти на общий путь, даже когда конкретный relation не конфликтует со сильным запросом. Это консервативное поведение сохраняет корректность, но иногда добавляет <strong>лишнюю стоимость</strong> при частом DDL и большом числе backend.</p>
+<p>Не надо делать вывод «любая DDL операция блокирует все SELECT во всей БД». Реальный конфликт определяется конкретным объектом и режимом; счетчики влияют на <em>маршрут учета</em>, а не означают автоматическую пользовательскую блокировку каждого отношения в группе.</p>
+<h3 id="103-fast-path-pg_locksfastpath">10.3. Fast-path и <code>pg_locks.fastpath</code><a class="headerlink" href="#103-fast-path-pg_locksfastpath" title="Permanent link">¶</a></h3>
+<p>Представление <code>pg_locks</code> умеет показывать блокировки, которые учитываются fast-path, с <code>fastpath = true</code>. Когда необходимые записи переносятся в общую таблицу, способ учета меняется, и диагностическая картина может измениться. Это не признак исчезновения или нового захвата пользовательской блокировки, а изменение внутреннего представления одного и того же удержания.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">locktype</span><span class="p">,</span><span class="w"> </span><span class="n">relation</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">object</span><span class="p">,</span>
+<span class="w">       </span><span class="k">mode</span><span class="p">,</span><span class="w"> </span><span class="k">granted</span><span class="p">,</span><span class="w"> </span><span class="n">fastpath</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_locks</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">locktype</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'relation'</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">relation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'accounts'</span><span class="p">::</span><span class="n">regclass</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">,</span><span class="w"> </span><span class="k">mode</span><span class="p">;</span>
+</code></pre></div>
+<p>Синтаксис для демонстрации предполагает, что таблица <code>accounts</code> существует и запрос выполняется в нужной базе.</p>
+<h3 id="104">10.4. Что происходит при заполнении слотов<a class="headerlink" href="#104" title="Permanent link">¶</a></h3>
+<p>Нельзя получить fast-path безусловно: допустимость зависит от режима, типа ресурса, состояния strong-lock counters и наличия места в нужной группе. При нехватке fast-path места backend использует обычный общий механизм. Программа продолжает корректно работать, но число обращений к общей lock table возрастает.</p>
+<p><strong>Production-симптом:</strong> при резко возросшем числе затрагиваемых relations (например, запросы к множеству партиций/индексов) возрастает overhead блокировок и внутренние ожидания <code>LWLock</code>, хотя настоящих конфликтующих SQL-блокировок может почти не быть. Сначала нужно измерить и подтвердить причину, а не автоматически увеличивать настройки.</p>
+<hr/>
+<h2 id="11-virtualxid-fast-path">11. VirtualXID: специальный fast-path для ожидания завершения транзакции<a class="headerlink" href="#11-virtualxid-fast-path" title="Permanent link">¶</a></h2>
+<h3 id="111-virtual-xid-xid">11.1. Почему транзакция может иметь virtual XID без обычного XID<a class="headerlink" href="#111-virtual-xid-xid" title="Permanent link">¶</a></h3>
+<p>Не каждая транзакция немедленно получает обычный постоянный XID: чистое чтение не всегда нуждается в нем. Но другим операциям иногда требуется <strong>дождаться окончания любого backend-транзакционного контекста</strong>, в том числе без постоянного XID. Для этого используется <code>VirtualTransactionId</code> — комбинация идентичности backend/процесса и локального номера транзакции.</p>
+<p>Владелец виртуальной транзакции держит exclusive virtual-XID lock. Ожидающий backend получает соответствующий shared запрос и при необходимости ждет. Начальный exclusive virtual-XID lock оптимизирован fast-path: конфликтующего претендента на тот же VXID не существует, пока кто-то другой не начнет ожидать. При появлении реального ожидателя сведения также могут быть перенесены в общую таблицу.</p>
+<h3 id="112-deadlock-detector">11.2. Зачем это нужно для deadlock detector<a class="headerlink" href="#112-deadlock-detector" title="Permanent link">¶</a></h3>
+<p>Если бы ожидание завершения VXID жило вне Lock Manager, граф ожиданий не включал бы эту зависимость и мог бы пропустить цикл. Включение VXID в общий алгоритм делает такую зависимость видимой. Режим fast-path сохраняет дешевый путь в обычном случае, где никто завершения конкретного VXID не ожидает.</p>
+<p><code>virtualxid</code> и <code>transactionid</code> в <code>pg_locks</code> — разные lockable объекты, поэтому для анализа ожиданий важно видеть их тип и смысл. [S2][S4]</p>
+<hr/>
+<h1 id="iv-backend">IV. Очереди: куда девается backend при конфликте<a class="headerlink" href="#iv-backend" title="Permanent link">¶</a></h1>
+<h2 id="12">12. Выдача блокировки зависит от уже выданных и уже ожидающих запросов<a class="headerlink" href="#12" title="Permanent link">¶</a></h2>
+<h3 id="121-grantmask">12.1. Почему одной проверки grantMask недостаточно<a class="headerlink" href="#121-grantmask" title="Permanent link">¶</a></h3>
+<p>Представим трех backend:</p>
+<div class="highlight"><pre><span></span><code>T1: SELECT * FROM accounts;   -- AccessShare выдан, длительная транзакция
+T2: LOCK TABLE accounts IN ACCESS EXCLUSIVE MODE;  -- ожидает
+T3: SELECT * FROM accounts;   -- AccessShare совместим с T1
+</code></pre></div>
+<p>Если T3 пропустить только на основании совместимости с T1, то поток новых SELECT сможет бесконечно обгонять T2. PostgreSQL учитывает заявки перед текущей в очереди. Новая блокировка может ждать из-за <strong>раннего ожидающего конфликтующего режима</strong>, даже при отсутствии конфликта с текущими holder'ами. Это называют очередным или <em>soft blocking</em> по логике порядка ожидания.</p>
+<h3 id="122-lockable">12.2. Три состояния одного lockable объекта<a class="headerlink" href="#122-lockable" title="Permanent link">¶</a></h3>
+<p>Для каждого запросившего процесс может быть одно из состояний: уже держит lock; ожидает lock в очереди; еще не зарегистрировал запрос. Внутри <code>LOCK</code> есть счетчики и маски; в <code>PGPROC</code> — состояние его ожидания; в очереди важно <em>положение</em>, а не только множество запросов.</p>
+<p>В существующей реализации порядок обычно учитывает очередность прихода, но это не абсолютное FIFO без исключений. Для предотвращения некоторых ситуаций deadlock новая заявка может быть вставлена перед конфликтующим ожидателем, а deadlock detector может перепорядочивать soft edges.</p>
+<h3 id="123-pg_blocking_pids-join">12.3. Почему <code>pg_blocking_pids()</code> лучше наивного JOIN<a class="headerlink" href="#123-pg_blocking_pids-join" title="Permanent link">¶</a></h3>
+<p>Наивная проверка <code>pg_locks</code> по равному ресурсу + несовместимым режимам видит holders, но может не учитывать, что backend блокирует стоящий <em>позже</em> в очереди запрос, сам еще не владея lock. Функция <code>pg_blocking_pids(pid)</code> использует семантику блокирования, включая ожидателей, находящихся перед указанным процессом, и особенности lock groups. Поэтому ее рекомендует документация PostgreSQL 18.</p>
+<hr/>
+<h2 id="13-joinwaitqueue-procsleep-procwakeup">13. <code>JoinWaitQueue</code>, <code>ProcSleep</code>, <code>ProcWakeup</code>: от запроса к настоящему сну<a class="headerlink" href="#13-joinwaitqueue-procsleep-procwakeup" title="Permanent link">¶</a></h2>
+<h3 id="131-partition-lwlock">13.1. Заявка оформляется под защитой partition LWLock<a class="headerlink" href="#131-partition-lwlock" title="Permanent link">¶</a></h3>
+<p>Процесс должен атомарно договориться с другими участниками: он находится в очереди и при освобождении lock его надо разбудить. Поэтому изменение <code>LOCK.waitProcs</code>, масок и структуры <code>PGPROC</code> выполняется при корректной синхронизации общего состояния. Затем короткая внутренняя LWLock отпускается, и backend <strong>ожидает вне критической секции</strong>.</p>
+<p>В <code>proc.c</code> находятся функции обслуживания ожидания: <code>JoinWaitQueue()</code>, <code>ProcSleep()</code> и <code>ProcWakeup()</code>. Обозначения важны для чтения стека C и профиля: они показывают, что запрос прошел путь проверки и встал на ожидание heavyweight lock.</p>
+<h3 id="132-cpu">13.2. Почему ожидатель не крутится в цикле на CPU<a class="headerlink" href="#132-cpu" title="Permanent link">¶</a></h3>
+<p>При обычном ожидании другого backend PostgreSQL использует механизм сна и пробуждения процесса, в том числе индивидуальный semaphore backend. Это освобождает CPU для продуктивной работы. Когда блокировка становится доступной, механизм освобождения помещает/выбирает ожидающий запрос и сигнализирует ему о готовности продолжить.</p>
+<div class="highlight"><pre><span></span><code>Поток B:                                             Поток A:
+LockAcquire(accounts, Exclusive)                     AccessShare уже есть
+    |
+    +--&gt; конфликт
+    +--&gt; JoinWaitQueue(B)
+    +--&gt; ProcSleep(B) ---- не выполняет CPU ----------+
+                                                     COMMIT
+                                                     ReleaseLock
+                                                     ProcLockWakeup(B)
+    &lt;------------------------- semaphore wakeup ------+
+    |
+    +--&gt; продолжить работу, lock получен
+</code></pre></div>
+<h3 id="133">13.3. Почему пробуждение не должно теряться<a class="headerlink" href="#133" title="Permanent link">¶</a></h3>
+<p>Классическая гонка: A освобождает lock между моментом «B понял, что надо спать» и реальным уходом B в сон. Если протокол регистрации и сигнализации устроен плохо, B может заснуть после единственного сигнала и ждать бесконечно. PostgreSQL обязан сначала корректно зарегистрировать ожидателя в защищенном общем состоянии и использовать согласованный механизм пробуждения. Это внутренняя гарантия реализации, не обязанность пользовательского Go-кода.</p>
+<h3 id="134-proclockwakeup">13.4. Как работает <code>ProcLockWakeup</code><a class="headerlink" href="#134-proclockwakeup" title="Permanent link">¶</a></h3>
+<p>При освобождении lock обработчик просматривает очередь и выдает запросы, которые совместимы с уже выданными режимами и с невыданными заявками перед ними. Один released lock может разбудить несколько совместимых readers; несовместимый waiter создает границу, через которую нельзя бесконтрольно пропускать следующих конфликтующих просителей.</p>
+<p>Содержательная тонкость: «освободили один lock — разбудили ровно одного backend» неверна. Число разрешенных запросов определяется матрицей совместимости и порядком очереди.</p>
+<hr/>
+<h2 id="14-deadlock-lock_timeout-log_lock_waits">14. Таймеры ожидания: deadlock, lock_timeout и log_lock_waits<a class="headerlink" href="#14-deadlock-lock_timeout-log_lock_waits" title="Permanent link">¶</a></h2>
+<h3 id="141-deadlock">14.1. Почему обнаружение deadlock отложено<a class="headerlink" href="#141-deadlock" title="Permanent link">¶</a></h3>
+<p>Если проверять полный граф ожиданий при каждом конфликте, короткие нормальные ожидания станут слишком дорогими. PostgreSQL применяет оптимистическую стратегию: backend <strong>сначала ожидает</strong>, а спустя <code>deadlock_timeout</code> проводит полноценный анализ возможного deadlock. Значение по умолчанию традиционно около 1 секунды. Это компромисс между стоимостью проверок и временем обнаружения настоящей взаимной блокировки.</p>
+<h3 id="142">14.2. Три разных таймера<a class="headerlink" href="#142" title="Permanent link">¶</a></h3>
+<ul>
+<li><code>deadlock_timeout</code>: через какое ожидание запускать проверку циклов; при включенном <code>log_lock_waits</code> также влияет на момент диагностического сообщения.</li>
+<li><code>lock_timeout</code>: сколько можно ждать получения каждого lock до ошибки отмены запроса; это бюджет клиентской операции, а не способ обхода графа.</li>
+<li><code>statement_timeout</code>: предел времени выполнения всей команды, включая ожидания; при меньшем значении он может завершить запрос раньше специфичного lock timeout.</li>
+</ul>
+<p>Таймеры не добавляют CPU-дедлок-детектор в постоянный горячий цикл: большая часть коротких успешных ожиданий завершается до детальной проверки графа.</p>
+<h3 id="143">14.3. Ошибка во время ожидания<a class="headerlink" href="#143" title="Permanent link">¶</a></h3>
+<p>При <code>lock_timeout</code>, cancel или обнаруженном неустранимом deadlock необходимо удалить заявку из общей очереди, отменить соответствующие timers, поправить учет <code>LOCK</code>/<code>PROCLOCK</code>, избежать повторного grant. Поэтому в <code>proc.c</code> существует <code>LockErrorCleanup()</code>. Установка сверхагрессивных timeout повышает число таких веток и может усилить нагрузку при массовых retries.</p>
+<p><strong>Вывод раздела:</strong> долгий SQL-ответ может почти целиком состоять из сна на семафоре; CPU и дисковая статистика при этом выглядят «здоровыми». [S3][S4]</p>
+<hr/>
+<h2 id="15">15. Как освобождаются блокировки<a class="headerlink" href="#15" title="Permanent link">¶</a></h2>
+<h3 id="151-commit">15.1. Выполнение COMMIT еще не означает мгновенный ответ всем клиентам<a class="headerlink" href="#151-commit" title="Permanent link">¶</a></h3>
+<p>После завершения транзакции сервер снимает принадлежащие ей блокировки (в том числе при rollback) и обрабатывает очереди ожидателей. Пробужденным процессам еще предстоит получить время CPU, завершить свою SQL-операцию и, возможно, ждать другие ресурсы. Поэтому «блокирующая транзакция завершилась в 12:00:00.000» не гарантирует, что все зависимые запросы ответят ровно тогда же.</p>
+<h3 id="152-lockreleaseall">15.2. <code>LockReleaseAll()</code> и владение уровней<a class="headerlink" href="#152-lockreleaseall" title="Permanent link">¶</a></h3>
+<p>Общий механизм освобождения учитывает локальный учет и связанные ResourceOwner. При завершении транзакции освобождаются соответствующие транзакционные holdings; session-level advisory locks сохраняются до явного release или завершения сессии. Savepoint rollback снимает блокировки, полученные в отменяемом подуровне, согласно правилам SQL/транзакционного менеджера.</p>
+<h3 id="153-lock-convoy">15.3. Lock convoy<a class="headerlink" href="#153-lock-convoy" title="Permanent link">¶</a></h3>
+<p>Если десятки backend накопились на одном горячем счете, первый освобожденный lock может запускать следующую транзакцию, та снова держит строку, потом следующую. Формируется <strong>конвой</strong> ожидающих операций. Под нагрузкой время в очереди доминирует над собственной ценой SQL. Добавление процессов часто увеличивает длину очереди, но мало меняет скорость обработки конфликтующего ресурса.</p>
+<p>Условно: один сериализованный критический ресурс требует 8 мс удержания на операцию → верхняя грубая оценка 125 завершений/с именно этого ресурса при отсутствии других расходов. Отправка 1000 запросов/с не ускоряет критическую секцию: она копит ожидателей, таймауты и повторные попытки. Это оценка учебная, а не гарантия реального TPS.</p>
+<hr/>
+<h1 id="v-tuple-locks-heap">V. Tuple locks: когда источник конфликта находится внутри страницы heap<a class="headerlink" href="#v-tuple-locks-heap" title="Permanent link">¶</a></h1>
+<h2 id="16-postgresql-locks">16. Почему PostgreSQL не держит миллион строковых locks в общей таблице<a class="headerlink" href="#16-postgresql-locks" title="Permanent link">¶</a></h2>
+<h3 id="161-tuple">16.1. Блокировка строки — изменение состояния tuple<a class="headerlink" href="#161-tuple" title="Permanent link">¶</a></h3>
+<p>Сценарий: транзакция A выполнила <code>SELECT ... FOR UPDATE</code> для тысячи строк, а затем долго не завершалась. Как сервер запомнит, какие строки нельзя изменить другим транзакциям? В PostgreSQL информация о блокировании конкретных версий хранится в <strong>самих tuple headers</strong>. Используется поле <code>t_xmax</code> в совокупности с <code>t_infomask</code>/<code>t_infomask2</code>, позволяющими интерпретировать XID как признак изменения, одиночного locker либо MultiXact.</p>
+<p><code>xmax</code> нельзя автоматически читать как «идентификатор удалившей транзакции». В зависимости от флагов это может быть идентификатор транзакции, блокирующей строку, MultiXactId нескольких владельцев, либо значение, которое считается несущественным для видимости. Для точной интерпретации необходимы служебные биты и сведения о статусе транзакций.</p>
+<div class="highlight"><pre><span></span><code>Heap page (8 KB)
+  tuple at (block=42, offset=3)
+    t_xmin       : создание версии
+    t_xmax       : возможный locker/updater или MultiXactId
+    t_infomask   : как читать t_xmax и статус
+    t_infomask2  : дополнительные биты, включая key-update сведения
+    payload      : значения столбцов
+</code></pre></div>
+<h3 id="162-select-for-update-heap">16.2. Почему SELECT FOR UPDATE может писать в heap<a class="headerlink" href="#162-select-for-update-heap" title="Permanent link">¶</a></h3>
+<p>Даже когда <code>SELECT ... FOR UPDATE</code> не меняет значения бизнес-колонок, он записывает метаданные блокирования tuple. Страница становится dirty и может потребовать WAL и последующую запись на диск по правилам PostgreSQL. Это неожиданно для учебной модели «SELECT никогда не меняет данные». Видимость версий MVCC и долговечность WAL уже изучались; здесь важен факт: <strong>фиксирование права на изменение строки имеет физическую стоимость</strong>.</p>
+<h3 id="163-tuple-lock">16.3. Почему обычное чтение не ждет tuple lock<a class="headerlink" href="#163-tuple-lock" title="Permanent link">¶</a></h3>
+<p>Обычный MVCC SELECT обычно читает доступную ему версию и не требует эксклюзивного права менять строку, поэтому не должен ждать освобождения row-level lock. <code>UPDATE</code>, <code>DELETE</code> или явное locking clause имеют иную семантику и должны согласовать конфликт. Это объясняет, почему сотни readers могут продолжать работу, пока несколько writers ждут один XID. [S1][S5]</p>
+<hr/>
+<h2 id="17-update-pg_locks-transactionid">17. Конфликт UPDATE: почему <code>pg_locks</code> показывает <code>transactionid</code><a class="headerlink" href="#17-update-pg_locks-transactionid" title="Permanent link">¶</a></h2>
+<h3 id="171-backend">17.1. Встреча двух backend на одной строке<a class="headerlink" href="#171-backend" title="Permanent link">¶</a></h3>
+<p>Сессия A:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="c1">-- Не завершаем транзакцию.</span>
+</code></pre></div>
+<p>Сессия B:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="c1">-- Этот UPDATE может ожидать A.</span>
+</code></pre></div>
+<p>B при чтении tuple обнаруживает, что с версией работает незавершенная транзакция. Дальше выполнение <code>heap_update()</code>/связанных функций зависит от типа конфликта, режима блокирования и флагов tuple. В типичном случае B необходимо дождаться завершения XID A, поскольку только после его commit/rollback можно решить, как продолжать: повторно оценить обновленную версию, выдать ошибку сериализации на более строгом уровне изоляции или продолжить обычный <code>READ COMMITTED</code> путь.</p>
+<h3 id="172-heavyweight-xid-lock">17.2. Heavyweight XID lock<a class="headerlink" href="#172-heavyweight-xid-lock" title="Permanent link">¶</a></h3>
+<p>Транзакция A, имеющая обычный XID, владеет соответствующей transaction-level heavyweight блокировкой. B запрашивает ожидание завершения этого XID. Поэтому <code>pg_locks</code> может показывать B как <code>locktype='transactionid'</code>, <code>mode='ShareLock'</code>, <code>granted=false</code>, а A — как holder с <code>ExclusiveLock</code> для XID. Это связывает долгоживущую метку tuple и механизм сна backend.</p>
+<div class="highlight"><pre><span></span><code>Tuple accounts(id=7)             Lock Manager
+ t_xmax = XID 7201                   LOCKTAG_TRANSACTION(7201)
+ flags: update/lock                 owner A: ExclusiveLock
+      |                             waiter B: ShareLock
+      +---- B читает tuple ----------------------&gt;
+      |                                        ProcSleep(B)
+      +&lt;----- A COMMIT -&gt; XID завершен ----------+
+              B проснулся, перечитал условия/версию
+</code></pre></div>
+<p><code>XactLockTableWait()</code> и связанный механизм ожидания транзакции — полезные точки входа в исходники; конкретный путь может отличаться при MultiXact, tuple lock и специальных режимах.</p>
+<h3 id="173-heavyweight-tuple-lock">17.3. Зачем иногда появляется отдельный heavyweight tuple lock<a class="headerlink" href="#173-heavyweight-tuple-lock" title="Permanent link">¶</a></h3>
+<p>Если несколько backend соревнуются за одну строку, PostgreSQL может использовать heavyweight tuple lock как механизм <strong>сериализации ожидающих обновлений</strong>, чтобы они не обгоняли друг друга при ожидании XID или MultiXact. Это не означает постоянной отдельной записи в RAM на все tuple, заблокированные владельцем. Диск хранит состояние tuple, а heavyweight tuple lock используется в определенных ветках состязания между ожидающими процессами.</p>
+<p>Результат диагностики зависит от момента: можно увидеть <code>transactionid</code>, <code>tuple</code>, либо иной lockable объект. Поэтому «в <code>pg_locks</code> нет tuple lock — никто не блокирует строку» — ложное заключение.</p>
+<hr/>
+<h2 id="18-tuple-locks">18. Четыре режима tuple locks и их внутреннее соответствие<a class="headerlink" href="#18-tuple-locks" title="Permanent link">¶</a></h2>
+<h3 id="181-exclusive">18.1. Почему есть четыре, а не один exclusive<a class="headerlink" href="#181-exclusive" title="Permanent link">¶</a></h3>
+<p><code>FOR KEY SHARE</code> должен защищать строку от удаления и изменения значимых ключей, но разрешать некоторые обновления неключевых полей. <code>FOR SHARE</code> допускает совместное чтение с блокированием несовместимых обновлений. <code>FOR NO KEY UPDATE</code> нужен для обновления без изменения ключевых значений. <code>FOR UPDATE</code> — самый сильный режим этого семейства. Благодаря этим различиям внешние ключи и конкурентные обновления могут согласовываться с меньшим числом ненужных блокировок.</p>
+<p>Таблица конфликтов (X = несовместимо):</p>
+<table>
+<thead>
+<tr>
+<th>Запрашиваемый \ удерживаемый</th>
+<th style="text-align: center;">KEY SHARE</th>
+<th style="text-align: center;">SHARE</th>
+<th style="text-align: center;">NO KEY UPDATE</th>
+<th style="text-align: center;">UPDATE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>KEY SHARE</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">X</td>
+</tr>
+<tr>
+<td>SHARE</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+</tr>
+<tr>
+<td>NO KEY UPDATE</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+</tr>
+<tr>
+<td>UPDATE</td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+<td style="text-align: center;">X</td>
+</tr>
+</tbody>
+</table>
+<h3 id="182-locktuplemode-tuplelockextrainfo">18.2. <code>LockTupleMode</code> и <code>tupleLockExtraInfo</code><a class="headerlink" href="#182-locktuplemode-tuplelockextrainfo" title="Permanent link">¶</a></h3>
+<p>В <code>heapam.c</code> внутренние режимы <code>LockTupleKeyShare</code>, <code>LockTupleShare</code>, <code>LockTupleNoKeyExclusive</code>, <code>LockTupleExclusive</code> сопоставляются с <em>подходящими режимами heavyweight tuple lock</em> и со статусами MultiXact. Это мост между физической строкой и общим Lock Manager. Для tuple механизм не тождественен relation lock, хотя названия используемых C-констант heavyweight-режимов могут совпадать.</p>
+<h3 id="183-update">18.3. UPDATE без изменения ключа — зачем слабее<a class="headerlink" href="#183-update" title="Permanent link">¶</a></h3>
+<p>Если <code>UPDATE</code> меняет только обычное поле, ему часто достаточно <code>FOR NO KEY UPDATE</code>-семантики. <code>SELECT ... FOR KEY SHARE</code> при этом не должен конфликтовать с таким изменением. Это позволяет некоторым проверкам внешнего ключа сосуществовать с некритичными обновлениями. Но критерии «ключевая колонка» задаются реализацией PostgreSQL (в том числе подходящими unique indexes), и надо учитывать конкретную схему.</p>
+<p><strong>Вывод:</strong> слова «строка заблокирована» недостаточно. Для предсказания конкуренции требуется <strong>режим и причина захвата</strong>. [S1][S5]</p>
+<hr/>
+<h2 id="19-multixact-tuple">19. MultiXact: что, если несколько транзакций совместимо блокируют одну tuple<a class="headerlink" href="#19-multixact-tuple" title="Permanent link">¶</a></h2>
+<h3 id="191-xmax">19.1. <code>xmax</code> один, а держателей несколько<a class="headerlink" href="#191-xmax" title="Permanent link">¶</a></h3>
+<p>Две транзакции могут одновременно взять совместимые shared/key-share tuple locks. В header всего одно поле <code>xmax</code>. Записать туда «XID A и XID B» простым одиночным XID невозможно. Поэтому PostgreSQL использует <strong>MultiXactId</strong> — идентификатор набора участников, каждому из которых соответствует XID и статус (режим блокировки или изменение).</p>
+<div class="highlight"><pre><span></span><code>Tuple(accounts.id=7)
+  xmax = MultiXactId 501
+  infomask: XMAX_IS_MULTI
+             |
+             v
+  MultiXact member storage
+    member A: XID 7201, ForShare
+    member B: XID 7202, ForKeyShare
+
+  T3 просит UPDATE:
+    проверить конфликт с каждым релевантным участником;
+    при необходимости дождаться завершения.
+</code></pre></div>
+<h3 id="192-offsets-members">19.2. Зачем существуют offsets и members<a class="headerlink" href="#192-offsets-members" title="Permanent link">¶</a></h3>
+<p>MultiXact должен хранить соответствие «идентификатор набора → список членов». Упрощенно в PostgreSQL используются отдельные области хранения offsets и members, вместе с механизмами кеширования и учетом возраста идентификаторов. Это позволяет создать новый состав владельцев без расширения tuple header. Детальную заморозку и очистку старых MultiXact мы оставляем лекции 08.3; здесь важна организация конкурентного доступа к одной строке.</p>
+<h3 id="193">19.3. Цена и симптомы<a class="headerlink" href="#193" title="Permanent link">¶</a></h3>
+<p>Много конкурентных операций с shared tuple locks способно увеличить обращения к MultiXact subsystem, объем соответствующего хранения и работу по проверке членов при последующем конфликте. При высокой конкуренции часть нагрузки возникает не на пользовательской <code>relation</code> lock, а на проверке/ожидании XID/MultiXact и обновлении страниц. Нельзя делать вывод «раз <code>SELECT FOR SHARE</code> совместим сам с собой, его стоимость равна обычному SELECT».</p>
+<h3 id="194-multixact">19.4. Как ждать MultiXact<a class="headerlink" href="#194-multixact" title="Permanent link">¶</a></h3>
+<p>При несовместимой заявке сервер должен определить, кто из членов MultiXact продолжает быть актуальным препятствием, и дождаться соответствующих транзакций. При этом не все участники одинаково конфликтуют: важен тип действия. Соответствующие функции в <code>heapam.c</code>, в частности семейство <code>MultiXactIdWait()</code> и проверки конфликтов членов, позволяют проследить этот путь.</p>
+<hr/>
+<h2 id="20">20. Две разные очереди вокруг одной строки<a class="headerlink" href="#20" title="Permanent link">¶</a></h2>
+<h3 id="201">20.1. Учебный пример<a class="headerlink" href="#201" title="Permanent link">¶</a></h3>
+<p>A держит <code>FOR UPDATE</code> на строке id=7. B и C оба хотят изменить ее. B первым достигает строки и начинает ожидать завершения A. C приходит позже. Чтобы C не обогнал B при освобождении A, возможен кратковременный heavyweight tuple lock, сериализующий претендентов, в дополнение к транзакционному ожиданию на XID A.</p>
+<div class="highlight"><pre><span></span><code>A: UPDATE(id=7) ----------------- COMMIT
+       |                              |
+B:     +---- wait XID(A) --------------+--&gt; продолжает
+       |
+C:     +---- ждет место в очереди tuple --&gt; затем разбирает актуальную tuple
+</code></pre></div>
+<p>Граф причинности может содержать разные ребра: B ждет A по transaction ID; C ждет B по tuple lock; после изменения состояния один из ожидающих снова проверяет версию строки и возможно столкнется с новым XID. Диагностика обязана уметь различать <em>корневого владельца строки</em> и <em>промежуточных участников очереди</em>.</p>
+<h3 id="202">20.2. Почему это влияет на выбор диагностического инструмента<a class="headerlink" href="#202" title="Permanent link">¶</a></h3>
+<p><code>pg_blocking_pids()</code> выдает непосредственных blockers конкретного ожидающего backend. Если вернуть только holder XID из первого совпавшего tuple, можно пропустить chain, где часть backend ожидает другие waiters. Надо построить цепочку до корня и учитывать меняющуюся со временем картину.</p>
+<p><strong>Следствие для backend:</strong> при конфликте двух-трех транзакций «победитель» определяется не порядком HTTP-запросов или созданием goroutine в Go. Порядок зависит от того, когда backend фактически дошел до lockable объекта, от режимов и уже стоящей очереди.</p>
+<hr/>
+<h1 id="vi-deadlock-detector-postgresql">VI. Deadlock detector: почему PostgreSQL умеет найти цикл<a class="headerlink" href="#vi-deadlock-detector-postgresql" title="Permanent link">¶</a></h1>
+<h2 id="21-wait-for-graph">21. Wait-for graph: вершины, ребра и циклы<a class="headerlink" href="#21-wait-for-graph" title="Permanent link">¶</a></h2>
+<h3 id="211">21.1. Граф ожиданий<a class="headerlink" href="#211" title="Permanent link">¶</a></h3>
+<p>Предположим, A удерживает строку 1 и хочет строку 2, а B — наоборот. A ждет завершения B, B ждет завершения A. Построим ориентированный граф: вершина — backend/lock-group участник, ребро <code>A → B</code> означает, что A не может продолжить до действия B. Цикл означает отсутствие прогресса при текущей конфигурации удержаний и ожиданий.</p>
+<div class="highlight"><pre><span></span><code>A держит row 1   -&gt; хочет row 2 (владелец B)
+B держит row 2   -&gt; хочет row 1 (владелец A)
+
+Граф: A ---&gt; B
+        ^     |
+        |_____|
+</code></pre></div>
+<p>Но в PostgreSQL есть дополнительная сложность: ожидающий может стоять за другим ожидающим <strong>из-за порядка очереди</strong>, даже если последний еще не удерживает lock. Значит, граф строится не только из «ждет текущего holder».</p>
+<h3 id="212-hard-edge-soft-edge">21.2. Hard edge и soft edge<a class="headerlink" href="#212-hard-edge-soft-edge" title="Permanent link">¶</a></h3>
+<p><em>Hard edge</em> — зависимость от уже удерживаемой несовместимой блокировки: перестановкой ожидающих ее не устранить. <em>Soft edge</em> — зависимость, возникшая из порядка ожидателей в одной очереди. В некоторых случаях soft edges можно изменить, безопасно <strong>переставив очередь</strong> и сохранив совместимость блокировок.</p>
+<p>Этот нюанс принципиален: deadlock detector не обязан автоматически убивать транзакцию каждый раз, когда обнаружил цикл <em>первоначальной</em> очереди. Сначала он может искать допустимое переупорядочивание, а только неустранимый цикл приводит к прерыванию.</p>
+<h3 id="213">21.3. Почему нельзя просто переставить все запросы<a class="headerlink" href="#213" title="Permanent link">¶</a></h3>
+<p>Если B ожидает держателя A, перестановка B перед C не освободит удержание A. Если переставить заявителя с конфликтующим режимом перед уже выданной блокировкой, нарушится семантика. Алгоритм ограничен действующими grant'ами и необходимостью сохранить корректный порядок между несовместимыми ожидателями. [S3][S4]</p>
+<hr/>
+<h2 id="22-deadlockcheck">22. <code>DeadLockCheck()</code> и перестановка очереди<a class="headerlink" href="#22-deadlockcheck" title="Permanent link">¶</a></h2>
+<h3 id="221">22.1. Алгоритм на уровне механизмов<a class="headerlink" href="#221" title="Permanent link">¶</a></h3>
+<p>Таймер <code>deadlock_timeout</code> срабатывает у backend, который все еще спит. Проверка проходит по зависимостям, связанным с этим процессом, и ищет цикл. В коде <code>src/backend/storage/lmgr/deadlock.c</code> <code>DeadLockCheck()</code> инициирует рекурсивное исследование, рассматривает hard/soft edges, может построить новую последовательность ожидателей и применить допустимую перестановку <code>waitProcs</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="cm">/* Псевдокод: учебная логика проверки, не реальный код функции */</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">has_wait_cycle</span><span class="p">(</span><span class="n">start_proc</span><span class="p">))</span>
+<span class="w">    </span><span class="n">continue_waiting</span><span class="p">();</span>
+<span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">find_safe_wait_queue_reorder</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">apply_new_wait_order</span><span class="p">();</span>
+<span class="w">    </span><span class="n">continue_waiting</span><span class="p">();</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">report_deadlock</span><span class="p">();</span>
+<span class="w">    </span><span class="n">abort_one_transaction</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>В действительности <code>DeadLockCheck()</code> не просто возвращает <code>bool</code>: используются состояния, включая обозначение hard deadlock. Поиск перестановок ограничен ресурсами и корректностью, поэтому не нужно считать, что любой soft edge непременно можно обойти.</p>
+<h3 id="222-detector">22.2. Почему detector берет согласованную картину<a class="headerlink" href="#222-detector" title="Permanent link">¶</a></h3>
+<p>Для анализа графа нельзя сначала прочитать половину таблицы блокировок, потом получить изменившуюся очередь и назвать возникший «фантомный цикл» deadlock. Поэтому реализация согласует доступ к lock-table partitions при построении и перераспределении очередей. Полная проверка дороже обычного acquire/release и поэтому не выполняется для каждого краткого ожидания.</p>
+<h3 id="223">22.3. Кто становится жертвой<a class="headerlink" href="#223" title="Permanent link">¶</a></h3>
+<p>При неустранимом deadlock сервер выбирает процесс, чей запрос завершится ошибкой, что приведет к откату соответствующей транзакции и освобождению ресурсов. Точная жертва не является стабильным контрактом для приложения. Следует обрабатывать SQLSTATE <code>40P01</code> и повторять <strong>всю транзакцию</strong> при условии, что бизнес-операция корректно допускает повтор.</p>
+<h3 id="224-deadlock">22.4. Deadlock не равно длинная очередь<a class="headerlink" href="#224-deadlock" title="Permanent link">¶</a></h3>
+<p>При простой очереди 200 транзакций за одним горячим XID граф обычно ациклический: все ждут держателя, который потенциально может завершиться. Это блокировка под нагрузкой, но не deadlock. Сервер не должен отменять транзакции как deadlock только из-за длинного времени ожидания; за предельную задержку отвечает <code>lock_timeout</code>/<code>statement_timeout</code> и логика приложения.</p>
+<hr/>
+<h2 id="23-deadlock">23. Пример deadlock с двумя счетами: доказательство руками<a class="headerlink" href="#23-deadlock" title="Permanent link">¶</a></h2>
+<p>Создаем тестовые данные (только тестовая БД):</p>
+<div class="highlight"><pre><span></span><code><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="n">id</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">  </span><span class="n">balance</span><span class="w"> </span><span class="nb">bigint</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span>
+<span class="p">);</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">accounts</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="n">balance</span><span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">1000</span><span class="p">),(</span><span class="mi">2</span><span class="p">,</span><span class="mi">1000</span><span class="p">)</span>
+<span class="k">ON</span><span class="w"> </span><span class="n">CONFLICT</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">DO</span><span class="w"> </span><span class="k">UPDATE</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">EXCLUDED</span><span class="p">.</span><span class="n">balance</span><span class="p">;</span>
+</code></pre></div>
+<p>Сессия A:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="o">=</span><span class="n">balance</span><span class="o">-</span><span class="mi">10</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
+<span class="c1">-- Дождитесь UPDATE в B</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="o">=</span><span class="n">balance</span><span class="o">+</span><span class="mi">10</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="mi">2</span><span class="p">;</span>
+</code></pre></div>
+<p>Сессия B:</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="o">=</span><span class="n">balance</span><span class="o">-</span><span class="mi">5</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="mi">2</span><span class="p">;</span>
+<span class="c1">-- Дождитесь первого UPDATE в A</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">balance</span><span class="o">=</span><span class="n">balance</span><span class="o">+</span><span class="mi">5</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div>
+<p>Одна из сессий получит <code>ERROR: deadlock detected</code> / <code>SQLSTATE 40P01</code> при соответствующем пересечении. Другая сможет продолжить после освобождения конфликтующего ресурса. Для чистоты эксперимента откатите/завершите открытые транзакции и восстановите исходное состояние данных.</p>
+<p><strong>Как исправлять:</strong> получать строки по единому стабильному порядку <code>id</code>, а фактическую бизнес-операцию оформлять атомарно. При необходимости транзакционного retry весь набор шагов начинается заново. Попытка «просто повторить последний UPDATE» после ошибки в транзакции неверна: ее контекст уже прерван.</p>
+<hr/>
+<h2 id="24-deadlock-holders">24. Deadlock из-за очереди: почему цикл возможен без двух новых holders<a class="headerlink" href="#24-deadlock-holders" title="Permanent link">¶</a></h2>
+<h3 id="241">24.1. Мысленный эксперимент<a class="headerlink" href="#241" title="Permanent link">¶</a></h3>
+<p>A удерживает shared lock на relation R. B ожидает exclusive lock R. Позже A пытается запросить более сильный режим на R. При наивном FIFO A оказался бы за B, хотя B ожидает, пока A отпустит свой shared lock. Получился цикл из собственного удержания A и очереди: B не может пройти из-за A, A не может пройти из-за B.</p>
+<p>PostgreSQL уже во время постановки в очередь может учитывать, какие locks текущий backend держит на том же объекте, и поставить новую заявку перед некоторыми ожидающими процессами, если это безопасно. Даже если не удалось избежать проблемы на этом этапе, detector рассматривает soft edges и перестановку.</p>
+<div class="highlight"><pre><span></span><code>Наивная очередь:
+  A holds SHARE --------+-&gt; B asks EXCLUSIVE -&gt; waits A
+                       +-&gt; A asks EXCLUSIVE -&gt; waits B
+
+При допустимом переупорядочивании:
+  A может получить усиление раньше B и позже отпустить lock;
+  B тогда продолжит.
+</code></pre></div>
+<p>Это концептуальная демонстрация. Конкретные режимы, совместимость и факт возможной перестановки нужно проверять по реальной очереди; в опыте не следует рассчитывать на определенный порядок без воспроизводимого сценария.</p>
+<h3 id="242">24.2. Практический вывод<a class="headerlink" href="#242" title="Permanent link">¶</a></h3>
+<p>Часть циклов появляется из комбинации удержаний и последовательности ожидающих. Изучение только «кто держит lock» теряет важный слой. PostgreSQL поэтому хранит явную очередь и применяет алгоритм сложнее простой проверки конфликтной маски. [S3][S4]</p>
+<hr/>
+<h1 id="vii-advisory-locks">VII. Advisory locks: прикладные ключи внутри общего менеджера<a class="headerlink" href="#vii-advisory-locks" title="Permanent link">¶</a></h1>
+<h2 id="25-advisory-lock-mutex">25. Advisory lock не является отдельным mutex в приложении<a class="headerlink" href="#25-advisory-lock-mutex" title="Permanent link">¶</a></h2>
+<h3 id="251-locktag">25.1. От числового ключа к LOCKTAG<a class="headerlink" href="#251-locktag" title="Permanent link">¶</a></h3>
+<p>Функции <code>pg_advisory_lock</code>, <code>pg_advisory_xact_lock</code> и <code>pg_try_advisory_*</code> превращают числовой ключ в объект <code>LOCKTAG_ADVISORY</code>, который обрабатывается общим механизмом конфликтов, учета holders и waiters. Поэтому advisory locks показываются в <code>pg_locks</code>, участвуют в ожидании backend и могут образовывать deadlock.</p>
+<p>При этом PostgreSQL не знает, что ключ <code>72542</code> означает «платеж клиента». Другой SQL сможет спокойно изменить строку клиента, если он не участвует в той же договоренности использовать advisory lock. Защитная семантика полностью лежит на согласованном протоколе приложения.</p>
+<h3 id="252">25.2. Два пространства числовых ключей<a class="headerlink" href="#252" title="Permanent link">¶</a></h3>
+<p>Для advisory lock предусмотрены формы с одним <code>bigint</code> и двумя <code>integer</code>. Они образуют различные пространства ключей. Даже если числовое представление «похоже», нельзя автоматически считать один <code>bigint</code> равным паре <code>(int,int)</code>. В lock tag кодирует выбранный namespace. Ключи локальны к <strong>базе данных</strong>, что важно при работе с несколькими базами одного инстанса.</p>
+<div class="highlight"><pre><span></span><code><span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_advisory_xact_lock</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">1001</span><span class="p">);</span>
+<span class="c1">-- Защищенная приложением операция.</span>
+<span class="k">COMMIT</span><span class="p">;</span><span class="w"> </span><span class="c1">-- xact lock снимается автоматически</span>
+</code></pre></div>
+<h3 id="253-session-lock-transaction-lock-key">25.3. Session lock и transaction lock: один key, разное время жизни<a class="headerlink" href="#253-session-lock-transaction-lock-key" title="Permanent link">¶</a></h3>
+<p><code>pg_advisory_lock()</code> держит session-level lock до соответствующего <code>pg_advisory_unlock()</code> или завершения сессии. <code>ROLLBACK</code> не освобождает session-level advisory lock, взятый внутри отмененной транзакции. <code>pg_advisory_xact_lock()</code> действует до завершения транзакции и не требует явного release. Общий механизм блокирования способен учитывать обе формы и их конфликтные отношения.</p>
+<p>Для backend-приложений короткие операции часто проще оформлять xact-level, чтобы жизненный цикл согласовывался с транзакционной границей. Session-level требует безошибочного протокола освобождения; в длительных сессиях остаточный lock способен удерживаться неожиданно долго. Вопрос использования внешних пулов оставляем за пределами блока 8.</p>
+<h3 id="254-try-lock">25.4. Try-lock и риск штормов<a class="headerlink" href="#254-try-lock" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pg_try_advisory_xact_lock</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">1001</span><span class="p">);</span><span class="w"> </span><span class="c1">-- boolean</span>
+</code></pre></div>
+<p><code>false</code> означает, что несовместимое удержание уже мешает получению. Это позволяет быстро завершить операцию без сна в очереди. Но если 200 воркеров непрерывно пытаются получить один горячий ключ, мы просто заменяем очередь heavyweight waiters на поток запросов и расход CPU. Нужны bounded retries и регулируемая нагрузка на стороне приложения.</p>
+<hr/>
+<h2 id="26-memory-budget-advisory-locks">26. Memory budget advisory locks<a class="headerlink" href="#26-memory-budget-advisory-locks" title="Permanent link">¶</a></h2>
+<p>Поскольку каждое уникальное удерживаемое advisory lock может потребовать отдельные общие записи <code>LOCK/PROCLOCK</code>, большое количество различных ключей действительно способно заполнить выделенную lock memory. Это отличается от миллиона tuple locks, у которых обычный факт удержания хранится в heap. Иначе говоря, одинаковое слово <em>lock</em> скрывает разные модели расхода ресурсов.</p>
+<p>Ориентировочный размер общей lock table определяется конфигурацией PostgreSQL, прежде всего <code>max_locks_per_transaction</code> вместе с числом участников, на которых рассчитывается shared memory. Этот параметр не устанавливает жесткий персональный лимит на 64 уникальных lock для каждого backend; один backend может удерживать больше, пока общий ресурс позволяет. Но массовое получение множества уникальных ключей может дать <code>out of shared memory</code> и затронуть остальные операции.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">max_locks_per_transaction</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">max_connections</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">mode</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">cnt</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_locks</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">locktype</span><span class="o">=</span><span class="s1">'advisory'</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="k">mode</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">cnt</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</code></pre></div>
+<p>В production не следует динамически строить advisory key из бесконечного множества сущностей и удерживать все ключи до конца длинной сессии без оценки памяти. Ошибка, вызванная тысячами session-level locks, может проявляться далеко от исходной бизнес-операции.</p>
+<hr/>
+<h1 id="viii-lock-manager">VIII. Разбор производственной деградации на уровне Lock Manager<a class="headerlink" href="#viii-lock-manager" title="Permanent link">¶</a></h1>
+<h2 id="27-pg_locks">27. Почему <code>pg_locks</code> — представление, а не полный снимок физического мира<a class="headerlink" href="#27-pg_locks" title="Permanent link">¶</a></h2>
+<h3 id="271">27.1. Что можно увидеть<a class="headerlink" href="#271" title="Permanent link">¶</a></h3>
+<p><code>pg_locks</code> предоставляет информацию об объекте (<code>locktype</code>, <code>relation</code>, <code>transactionid</code>, <code>virtualxid</code>, <code>classid</code>, <code>objid</code>, <code>objsubid</code>), режиме, PID, признаке <code>granted</code> и флаге <code>fastpath</code>. Поле <code>waitstart</code> фиксирует время начала ожидания, если оно известно в момент наблюдения. Возможны краткие переходные состояния между изменением очереди и публикацией времени.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">locktype</span><span class="p">,</span><span class="w"> </span><span class="k">mode</span><span class="p">,</span><span class="w"> </span><span class="k">granted</span><span class="p">,</span><span class="w"> </span><span class="n">fastpath</span><span class="p">,</span><span class="w"> </span><span class="n">waitstart</span><span class="p">,</span>
+<span class="w">       </span><span class="n">relation</span><span class="p">::</span><span class="n">regclass</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">relation_name</span><span class="p">,</span>
+<span class="w">       </span><span class="n">transactionid</span><span class="p">,</span><span class="w"> </span><span class="n">virtualxid</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_locks</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">granted</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">waitstart</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<h3 id="272">27.2. Чего не хватает<a class="headerlink" href="#272" title="Permanent link">¶</a></h3>
+<p>В представлении обычно нет списка всех tuples, чей <code>xmax</code> обозначает блокировку. Оно смешивает данные из разных источников, включая общую таблицу и fast-path holdings, а состояние может измениться в момент чтения. Для расследования нужно связывать snapshot <code>pg_locks</code> с текущим <code>pg_stat_activity</code>, <code>pg_blocking_pids()</code> и журналом, не выдавая один SELECT за идеально синхронный глобальный снимок.</p>
+<h3 id="273-blocker-join-relation">27.3. Почему нельзя «в лоб» найти blocker join'ом по одному relation<a class="headerlink" href="#273-blocker-join-relation" title="Permanent link">¶</a></h3>
+<p>На одной relation могут существовать совместимые locks, и один backend может ждать чужого XID из-за строки. Кроме того, ожидающие заявки участвуют в очереди. Если соединить все строки <code>pg_locks</code> с одинаковым <code>relation</code>, получится множество ложных «блокирующих» совпадений. Конфликт определяется типом lock tag, mode, реальными holders, приоритетом очереди и lock groups. PostgreSQL уже знает это — поэтому предпочтительнее <code>pg_blocking_pids()</code>.</p>
+<hr/>
+<h2 id="28-sql-blocker">28. Диагностический SQL: от ожидателя к непосредственному blocker<a class="headerlink" href="#28-sql-blocker" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">waiting_pid</span><span class="p">,</span>
+<span class="w">       </span><span class="n">w</span><span class="p">.</span><span class="n">application_name</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">waiting_app</span><span class="p">,</span>
+<span class="w">       </span><span class="n">w</span><span class="p">.</span><span class="n">wait_event_type</span><span class="p">,</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">wait_event</span><span class="p">,</span>
+<span class="w">       </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">query_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">waiting_query_age</span><span class="p">,</span>
+<span class="w">       </span><span class="n">b</span><span class="p">.</span><span class="n">blocker_pid</span><span class="p">,</span>
+<span class="w">       </span><span class="n">holder</span><span class="p">.</span><span class="k">state</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blocker_state</span><span class="p">,</span>
+<span class="w">       </span><span class="n">clock_timestamp</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">holder</span><span class="p">.</span><span class="n">xact_start</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blocker_xact_age</span><span class="p">,</span>
+<span class="w">       </span><span class="k">left</span><span class="p">(</span><span class="n">holder</span><span class="p">.</span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="mi">120</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blocker_last_sql</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">w</span>
+<span class="k">CROSS</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">LATERAL</span><span class="w"> </span><span class="k">unnest</span><span class="p">(</span><span class="n">pg_blocking_pids</span><span class="p">(</span><span class="n">w</span><span class="p">.</span><span class="n">pid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">b</span><span class="p">(</span><span class="n">blocker_pid</span><span class="p">)</span>
+<span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">holder</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">holder</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">blocker_pid</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">wait_event_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'Lock'</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">waiting_query_age</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="n">NULLS</span><span class="w"> </span><span class="k">LAST</span><span class="p">;</span>
+</code></pre></div>
+<p>Это SQL для диагностики в конкретный момент. <code>pg_blocking_pids()</code> может вернуть несколько PID и при специальных обстоятельствах повторяющиеся идентификаторы; prepared transactions и parallel workers требуют осторожной интерпретации, а PID не заменяет идентификатор транзакции на всех этапах.</p>
+<p>Если <code>holder.state = 'idle in transaction'</code>, мы видим типичный инцидент: последний SQL у holder уже завершен, но транзакция продолжает удерживать свой ресурс. SQL-текст у <code>holder.query</code> в таком состоянии — <strong>последняя команда</strong>, а не обязательно непосредственная строка кода, которая захватила lock. Для точного происхождения необходимы трассировка приложения и журналы команд с корректной привязкой.</p>
+<hr/>
+<h2 id="29-sql">29. Диагностический SQL: цепочка ожиданий и корень<a class="headerlink" href="#29-sql" title="Permanent link">¶</a></h2>
+<p><code>pg_blocking_pids()</code> показывает непосредственных blockers; при длинных цепочках полезно пройти по ребрам. Для каждого ожидателя можно собрать глубину и исключить циклическое хождение на стороне диагностического SQL.</p>
+<div class="highlight"><pre><span></span><code><span class="k">WITH</span><span class="w"> </span><span class="k">RECURSIVE</span><span class="w"> </span><span class="k">chain</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">root_waiter</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">current_pid</span><span class="p">,</span>
+<span class="w">         </span><span class="nb">ARRAY</span><span class="p">[</span><span class="n">a</span><span class="p">.</span><span class="n">pid</span><span class="p">]</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">depth</span>
+<span class="w">  </span><span class="k">FROM</span><span class="w"> </span><span class="n">pg_stat_activity</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">a</span>
+<span class="w">  </span><span class="k">WHERE</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">wait_event_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'Lock'</span>
+<span class="w">  </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="w">  </span><span class="k">SELECT</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">root_waiter</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span>
+<span class="w">         </span><span class="k">c</span><span class="p">.</span><span class="n">path</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">depth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="k">FROM</span><span class="w"> </span><span class="k">chain</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="k">c</span>
+<span class="w">  </span><span class="k">CROSS</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="k">LATERAL</span><span class="w"> </span><span class="k">unnest</span><span class="p">(</span><span class="n">pg_blocking_pids</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">current_pid</span><span class="p">))</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">b</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+<span class="w">  </span><span class="k">WHERE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="n">b</span><span class="p">.</span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ANY</span><span class="p">(</span><span class="k">c</span><span class="p">.</span><span class="n">path</span><span class="p">)</span>
+<span class="w">    </span><span class="k">AND</span><span class="w"> </span><span class="k">c</span><span class="p">.</span><span class="n">depth</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">12</span>
+<span class="p">)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">root_waiter</span><span class="p">,</span><span class="w"> </span><span class="n">current_pid</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span><span class="p">,</span><span class="w"> </span><span class="n">path</span><span class="p">,</span>
+<span class="w">       </span><span class="n">pg_blocking_pids</span><span class="p">(</span><span class="n">current_pid</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">blockers</span>
+<span class="k">FROM</span><span class="w"> </span><span class="k">chain</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">root_waiter</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span><span class="p">,</span><span class="w"> </span><span class="n">current_pid</span><span class="p">;</span>
+</code></pre></div>
+<p>У запроса учебная цель — визуализировать цепочку до установленной максимальной глубины. При большом числе backend и частых опросах он добавляет заметный overhead и создает снимок, меняющийся во времени. Не стоит запускать его каждые 100 мс на критически перегруженном инстансе.</p>
+<p>Еще одно ограничение: поиск «корня» в реальности может закончиться транзакцией без активного SQL, подготовленной транзакцией или недоступным по правам backend. Цепочка — исходная гипотеза для расследования, а не автоматическое право завершить чужой процесс.</p>
+<hr/>
+<h2 id="30">30. Что смотреть при разных видах конкуренции<a class="headerlink" href="#30" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Механизм</th>
+<th>Что проверить</th>
+<th>Опасное ложное решение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Lock/transactionid</code></td>
+<td>Tuple занят чужим XID, ожидание завершения транзакции</td>
+<td><code>pg_blocking_pids</code>, <code>xact_start</code>, приложение-владелец</td>
+<td>«Нет tuple row в pg_locks — никто не блокирует»</td>
+</tr>
+<tr>
+<td><code>Lock/tuple</code></td>
+<td>Координация претендентов на tuple</td>
+<td>цепочка ожидающих, исходная операция</td>
+<td>«Это обязательно тот, кто первым обновил строку»</td>
+</tr>
+<tr>
+<td><code>Lock/relation</code></td>
+<td>Heavyweight relation lock</td>
+<td>mode, DDL/длительная транзакция, очередь</td>
+<td>«Совместимый reader никогда не встанет»</td>
+</tr>
+<tr>
+<td><code>Lock/advisory</code></td>
+<td>Пользовательский ключ</td>
+<td>namespace, session/xact, протокол unlock</td>
+<td>«Блокировка сама защищает все SQL»</td>
+</tr>
+<tr>
+<td><code>LWLock/LockManager</code> или сходное событие</td>
+<td>Внутренняя конкуренция доступа к lock table</td>
+<td>частота acquire/release, нагрузка, fast-path</td>
+<td>«Увеличим lock_timeout»</td>
+</tr>
+<tr>
+<td><code>out of shared memory</code></td>
+<td>Ограниченная емкость общих lock structures</td>
+<td>число уникальных relations/advisory locks, конфигурация</td>
+<td>«Лимит всегда 64 locks на транзакцию»</td>
+</tr>
+<tr>
+<td><code>40P01</code></td>
+<td>Неустранимый цикл ожиданий</td>
+<td>порядок объектов, повтор всей транзакции</td>
+<td>«Повторить один упавший UPDATE»</td>
+</tr>
+</tbody>
+</table>
+<p>Название конкретного wait event для LWLock зависит от версии и подсистемы. В <code>pg_stat_activity</code> используем фактическое имя, а не подгоняем любой LWLock под единственное имя Lock Manager.</p>
+<h3 id="301">30.1. Как связать механизм с ограниченным ресурсом<a class="headerlink" href="#301" title="Permanent link">¶</a></h3>
+<p>Столкнулись сотни запросов на один row → ограничение пропускной способности этой критической секции. Долго держим транзакцию → растет длина очереди и p99. Много уникальных relation/advisory locks → увеличивается размер общей lock table и стоимость обслуживания. Сильные relation requests вместе с частыми SELECT → возможен transfer fast-path и дополнительная внутренняя работа. Смешение этих проблем приводит к «оптимизации», которая лечит совсем другой слой.</p>
+<h3 id="302">30.2. Настройки диагностики<a class="headerlink" href="#302" title="Permanent link">¶</a></h3>
+<p>Для расследования полезно временно включать <code>log_lock_waits</code> и осмысленно выбирать <code>deadlock_timeout</code>. Это дает сообщения о продолжительных lock waits, но слишком низкий порог может создать большой поток логов и проверки графа. <code>lock_timeout</code> и <code>statement_timeout</code> следует задавать согласно SLA операции, а не подбирать наугад ради исчезновения числа ожидающих.</p>
+<div class="highlight"><pre><span></span><code><span class="k">SHOW</span><span class="w"> </span><span class="n">log_lock_waits</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">deadlock_timeout</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">lock_timeout</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">statement_timeout</span><span class="p">;</span>
+</code></pre></div>
+<hr/>
+<h2 id="31">31. Эксперименты для продолжения лекции практикой<a class="headerlink" href="#31" title="Permanent link">¶</a></h2>
+<p>Все эксперименты выполняются на отдельном тестовом экземпляре PostgreSQL 18. Нельзя воспроизводить намеренные deadlock и многочасовые удержания на production.</p>
+<h3 id="311-fast-path-transfer">31.1. Fast-path и transfer<a class="headerlink" href="#311-fast-path-transfer" title="Permanent link">¶</a></h3>
+<ol>
+<li>Создать тестовую таблицу и открыть транзакцию чтения в сессии A.</li>
+<li>В третьей сессии посмотреть <code>pg_locks.fastpath</code> для A.</li>
+<li>В сессии B запросить несовместимый relation lock.</li>
+<li>Повторить наблюдение <code>pg_locks</code>: проверить ожидание B и возможный переход учета A в общую таблицу.</li>
+<li>Завершить A и убедиться в пробуждении B.</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Session A</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">accounts</span><span class="p">;</span>
+<span class="c1">-- Оставить транзакцию открытой.</span>
+
+<span class="c1">-- Session B</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">LOCK</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">accounts</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="k">ACCESS</span><span class="w"> </span><span class="k">EXCLUSIVE</span><span class="w"> </span><span class="k">MODE</span><span class="p">;</span>
+<span class="c1">-- До завершения A будет ожидание.</span>
+</code></pre></div>
+<p><strong>Критерий доказательства:</strong> отличить смену способа учета блокировки от изменения ее режима. Признак <code>fastpath</code> может изменяться в момент transfer; событие надо наблюдать во временной последовательности, а не обещать, что все версии покажут неизменную конкретную строку.</p>
+<h3 id="312-transactionid-tuple">31.2. <code>transactionid</code> вместо <code>tuple</code><a class="headerlink" href="#312-transactionid-tuple" title="Permanent link">¶</a></h3>
+<ol>
+<li>В A выполнить <code>UPDATE accounts WHERE id=1</code> внутри незавершенной транзакции.</li>
+<li>В B запустить несовместимый UPDATE той же строки.</li>
+<li>В C посмотреть <code>pg_stat_activity</code>, <code>pg_locks</code> и <code>pg_blocking_pids()</code>.</li>
+<li>Проверить, что реально ожидается XID, затем завершить A и измерить время выхода B из ожидания.</li>
+<li>Повторить с другим id и сравнить: одно отношение, но нет row conflict.</li>
+</ol>
+<h3 id="313-relation-lock">31.3. Механика очереди за сильным relation lock<a class="headerlink" href="#313-relation-lock" title="Permanent link">¶</a></h3>
+<ol>
+<li>A удерживает <code>ACCESS SHARE</code> в открытой транзакции.</li>
+<li>B запрашивает <code>ACCESS EXCLUSIVE</code>.</li>
+<li>C выполняет обычный SELECT той же таблицы.</li>
+<li>Наблюдаем, почему C может ожидать, хотя его режим совместим с уже выданным lock A.</li>
+<li>Завершаем A и следим за последовательностью пробуждений.</li>
+</ol>
+<h3 id="314-hard-deadlock">31.4. Hard deadlock против длинной очереди<a class="headerlink" href="#314-hard-deadlock" title="Permanent link">¶</a></h3>
+<ol>
+<li>Воспроизвести двухстрочный deadlock из раздела 23.</li>
+<li>Зафиксировать SQLSTATE <code>40P01</code> и порядок запросов.</li>
+<li>В отдельном сценарии создать длинную очередь обновлений одной строки, но без циклической зависимости.</li>
+<li>Убедиться, что отсутствие цикла не означает быстрого завершения: p99 может быть выше, хотя deadlock detector не прерывает операции.</li>
+</ol>
+<h3 id="315-session-advisory-leak">31.5. Session advisory leak<a class="headerlink" href="#315-session-advisory-leak" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1">-- Session A (демонстрация специально создает удержание)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_advisory_lock</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">77</span><span class="p">);</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="k">ROLLBACK</span><span class="p">;</span>
+<span class="c1">-- Session-level lock все еще удерживается.</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pg_advisory_unlock</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">77</span><span class="p">);</span><span class="w"> </span><span class="c1">-- очистка</span>
+</code></pre></div>
+<p>Показать, что rollback не освобождает session-level lock; повторить с <code>pg_advisory_xact_lock</code> и увидеть отличие. В конце проверить отсутствие оставшихся session-level locks.</p>
+<hr/>
+<h1 id="ix">IX. Инженерная модель, ошибки объяснения и следующий слой<a class="headerlink" href="#ix" title="Permanent link">¶</a></h1>
+<h2 id="32_1">32. Пять упрощений, которые здесь сломались<a class="headerlink" href="#32_1" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>«Mutex на таблице»</strong>: на практике есть <code>LOCKTAG</code>, режимы совместимости, holders, waiters, локальный кеш и fast-path; у одной relation могут быть совместимые блокировки многих процессов.</li>
+<li><strong>«Каждая строка = LOCK в RAM»</strong>: tuple обычно хранит сведения блокирования в собственном заголовке; по XID/MultiXact при необходимости ожидают через общий Lock Manager.</li>
+<li><strong>«Нет несовместимого holder — запрос пойдет»</strong>: стоящий впереди несовместимый waiter тоже способен задержать новый запрос.</li>
+<li><strong>«Deadlock = всегда abort»</strong>: detector различает неустранимые зависимости и иногда исправимые soft edges очередей.</li>
+<li><strong>«У PostgreSQL всегда 16 fast-path слотов»</strong>: в PostgreSQL 18 емкость зависит от настройки, и при стандартном <code>max_locks_per_transaction=64</code> это 64 слота.</li>
+</ol>
+<h2 id="33-update">33. Как выглядит полный путь UPDATE одной строки<a class="headerlink" href="#33-update" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code>SQL UPDATE accounts WHERE id=7
+   |
+   +-- открыть relation -&gt; LOCALLOCK -&gt; fast-path AccessShare/RowExclusive
+   |
+   +-- найти tuple, проверить MVCC-видимость и заголовок
+   |
+   +-- строка свободна?
+   |     да -&gt; записать новую версию/состояние, продолжить
+   |     нет -&gt; определить конфликтующий XID/MultiXact
+   |                  |
+   |                  +-- возможная tuple-lock сериализация претендентов
+   |                  +-- LOCKTAG_TRANSACTION(XID)
+   |                  +-- LockAcquire/ProcSleep -&gt; ожидание
+   |
+   +-- COMMIT владельца -&gt; Release -&gt; ProcLockWakeup
+   |
+   +-- перепроверить состояние tuple и продолжить/ошибка по изоляции
+   |
+   +-- завершение собственной транзакции -&gt; снять holdings
+</code></pre></div>
+<p>На этой схеме соседствуют <strong>три способа хранения состояния</strong>: fast-path relation lock, tuple header и heavyweight XID wait. Поэтому одна пользовательская операция может попадать в несколько разных веток механизма. И именно поэтому диагностика требует начинать с наблюдаемого типа ожидания, затем восстанавливать причинность.</p>
+<h2 id="34">34. Под нагрузкой: механизм → ресурс → симптом → измерение<a class="headerlink" href="#34" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Механизм</th>
+<th>Ограниченный ресурс</th>
+<th>Типичный симптом</th>
+<th>Что измерять / смотреть</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Горячая строка</td>
+<td>последовательное время удержания XID/tuple</td>
+<td><code>Lock/transactionid</code>, p99</td>
+<td>длительность транзакции-holder, очередь blockers</td>
+</tr>
+<tr>
+<td>Сильная relation lock</td>
+<td>совместимость и очередность</td>
+<td><code>Lock/relation</code>, стоят новые SELECT</td>
+<td>выданные и ожидающие modes, порядок событий</td>
+</tr>
+<tr>
+<td>Частые открытия relations</td>
+<td>shared lock hash / LWLocks</td>
+<td>CPU overhead, LWLock waits</td>
+<td>wait sampling, количество relations, fastpath доли</td>
+</tr>
+<tr>
+<td>Множество advisory ключей</td>
+<td>общий lock shared memory</td>
+<td><code>out of shared memory</code></td>
+<td><code>pg_locks</code>, кардинальность ключей, настройки</td>
+</tr>
+<tr>
+<td>Два порядка UPDATE</td>
+<td>циклы hard dependencies</td>
+<td>SQLSTATE <code>40P01</code></td>
+<td>логи, SQL-порядок, повтор транзакции</td>
+</tr>
+<tr>
+<td>Агрессивные retries</td>
+<td>backend/CPU/lock queues</td>
+<td>больше ошибок, ниже throughput</td>
+<td>скорость запросов/ошибок, очередь, задержки</td>
+</tr>
+</tbody>
+</table>
+<h2 id="35">35. На что еще можно углубиться внутри этой темы<a class="headerlink" href="#35" title="Permanent link">¶</a></h2>
+<p><strong>Следующий технический слой — happens-before и барьеры памяти в fast-path lock transfer.</strong> Вопрос: как гарантируется, что strong locker не пропустит слабую fast-path блокировку, если два backend одновременно читают/меняют счетчик сильных блокировок и <code>fpInfoLock</code>? Это объяснит корректность пути, который оптимизирует производительность без центрального <code>LOCK</code> на каждый <code>SELECT</code>. Уровень — уже memory ordering / cache coherence; для лекции 08.2 мы объяснили протокол, а до атомарных инструкций спускаться автоматически не будем.</p>
+<p>Второй возможный слой — <strong>точный алгоритм <code>DeadLockCheckRecurse()</code> с hard/soft edges, топологической сортировкой очередей и перестановками</strong>. Это ответит, какие циклы PostgreSQL способен устранить без отката и где заканчивается свобода переставлять ожидателей. Тема остается строго внутри Lock Manager.</p>
+<h2 id="36">36. Что студент должен унести из лекции<a class="headerlink" href="#36" title="Permanent link">¶</a></h2>
+<ul>
+<li><code>LOCKTAG</code> идентифицирует объект; <code>LOCKMODE</code> и conflict masks определяют совместимость; <code>LOCALLOCK</code>, <code>LOCK</code> и <code>PROCLOCK</code> учитывают разные масштабы владения.</li>
+<li>Fast-path обходит общий путь для частых неконфликтующих relation locks, но strong requests могут потребовать transfer; в PostgreSQL 18 число слотов зависит от настроек.</li>
+<li>Конфликт на tuple чаще всего представлен XID/MultiXact в заголовке строки, а ожидание завершения чужой транзакции проходит через heavyweight Lock Manager.</li>
+<li>Очереди ожидателей — часть корректности и fairness; настоящий deadlock требует анализа графа, включая зависимости от порядка в очереди.</li>
+<li>Lock Manager расходует shared memory и CPU; горячий ресурс ограничивает пропускную способность независимо от количества клиентских goroutine.</li>
+<li><code>pg_blocking_pids()</code> и <code>pg_locks</code> дают разные уровни сведений; для причины нужны <code>pg_stat_activity</code>, порядок транзакционных действий и проверка реального времени удержания.</li>
+</ul>
+<hr/>
+<h1 id="postgresql-18">Источники и привязка к PostgreSQL 18<a class="headerlink" href="#postgresql-18" title="Permanent link">¶</a></h1>
+<p>Ниже — ссылки на официальную документацию PostgreSQL 18 и исходники ветки <code>REL_18_STABLE</code>. Все C-фрагменты в тексте, помеченные как модели/псевдокод, написаны для объяснения и не претендуют на дословное воспроизведение исходников.</p>
+<ul>
+<li><strong>[S1] Explicit Locking, PostgreSQL 18:</strong> <a href="https://www.postgresql.org/docs/18/explicit-locking.html">https://www.postgresql.org/docs/18/explicit-locking.html</a>. Режимы relation/tuple/advisory locks, совместимость, deadlock, session-vs-transaction semantics.</li>
+<li><strong>[S2] <code>src/include/storage/lock.h</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/storage/lock.h">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/storage/lock.h</a>. <code>LOCKTAG</code>, <code>LOCK</code>, <code>PROCLOCK</code>, <code>LOCALLOCK</code>, режимы и conflict maps.</li>
+<li><strong>[S3] <code>src/backend/storage/lmgr/lock.c</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/lock.c">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/lock.c</a>. <code>LockAcquireExtended</code>, <code>GrantLock</code>, <code>LockReleaseAll</code>, fast-path, transfers, хеш-таблица.</li>
+<li><strong>[S4] <code>src/backend/storage/lmgr/README</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/README">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/README</a>. Очереди, fast-path, алгоритм ожидания и deadlock detection.</li>
+<li><strong>[S5] <code>src/backend/access/heap/heapam.c</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/heap/heapam.c">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/access/heap/heapam.c</a>. Tuple locks, <code>MultiXactIdWait</code>, modes, <code>xmax</code>.</li>
+<li><strong>[S6] <code>src/backend/storage/lmgr/proc.c</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/proc.c">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/proc.c</a>. <code>JoinWaitQueue</code>, <code>ProcSleep</code>, <code>ProcWakeup</code>, <code>LockErrorCleanup</code>.</li>
+<li><strong>[S7] <code>src/backend/storage/lmgr/deadlock.c</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/deadlock.c">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/backend/storage/lmgr/deadlock.c</a>. <code>DeadLockCheck</code>, поиск циклов и допустимая перестановка ожидателей.</li>
+<li><strong>[S8] <code>src/include/storage/proc.h</code>, <code>REL_18_STABLE</code>:</strong> <a href="https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/storage/proc.h">https://github.com/postgres/postgres/blob/REL_18_STABLE/src/include/storage/proc.h</a>. <code>PGPROC</code>, поля ожидания и fast-path.</li>
+<li><strong>[S9] <code>pg_locks</code>, PostgreSQL 18:</strong> <a href="https://www.postgresql.org/docs/18/view-pg-locks.html">https://www.postgresql.org/docs/18/view-pg-locks.html</a>. Содержимое представления и его ограничения.</li>
+<li><strong>[S10] Monitoring Locks, PostgreSQL 18:</strong> <a href="https://www.postgresql.org/docs/18/monitoring-locks.html">https://www.postgresql.org/docs/18/monitoring-locks.html</a>. Диагностическое применение.</li>
+<li><strong>[S11] PostgreSQL commit о расширении fast-path слотов (2024):</strong> <a href="https://www.postgresql.org/message-id/E1ss4gX-000IvX-63%40gemulon.postgresql.org">https://www.postgresql.org/message-id/E1ss4gX-000IvX-63%40gemulon.postgresql.org</a>. Переход от фиксированных 16 к динамической конфигурации слотов в новых версиях.</li>
+</ul>
+<p><strong>Проверка перед использованием:</strong> <code>SELECT version();</code> и <code>SHOW max_locks_per_transaction;</code>. При изучении других версий не переносить механически численные ограничения и имена внутренних полей. Воспроизводимые эксперименты с deadlock выполнять только на выделенном учебном стенде.</p>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  К началу
+</button>
+</main>
+<footer class="md-footer">
+<nav aria-label="Нижний колонтитул" class="md-footer__inner md-grid">
+<a aria-label="Назад: 8.1. PostgreSQL Monitoring &amp;amp; Wait Events Internals: от наблюдения к доказательству причины задержки" class="md-footer__link md-footer__link--prev" href="../08.1%20-%20Monitoring%20wait%20events/">
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</div>
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Назад
+              </span>
+<div class="md-ellipsis">
+                8.1. PostgreSQL Monitoring &amp; Wait Events Internals: от наблюдения к доказательству причины задержки
+              </div>
+</div>
+</a>
+<a aria-label="Вперед: 8.3. PostgreSQL VACUUM, Freeze &amp;amp; Transaction Age Internals" class="md-footer__link md-footer__link--next" href="../08.3%20-%20Vacuum%20freeze%20transaction%20age/">
+<div class="md-footer__title">
+<span class="md-footer__direction">
+                Вперед
+              </span>
+<div class="md-ellipsis">
+                8.3. PostgreSQL VACUUM, Freeze &amp; Transaction Age Internals
+              </div>
+</div>
+<div class="md-footer__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"></path></svg>
+</div>
+</a>
+</nav>
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "navigation.expand", "navigation.indexes", "toc.follow", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+</body>
+</html>
